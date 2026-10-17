@@ -62,6 +62,9 @@ func (c *Controller) preview(ctx context.Context, app model.Resource, spec model
 	if err != nil {
 		return err
 	}
+	if model.IsDeleting(current) {
+		return nil
+	}
 	spec, err = model.Decode[model.App](current)
 	if err != nil {
 		return err

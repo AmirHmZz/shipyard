@@ -367,7 +367,9 @@ func (c *Controller) DeleteDomain(ctx context.Context, id string) error {
 			continue
 		}
 		var shared bool
-		if e = c.Store.Pool.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM domain_state WHERE route_id<>$1 AND records @> $2::jsonb)", id, fmt.Sprintf(`[{"id":%q}]`, owned.ID)).Scan(&shared); e != nil {
+		if e = c.Store.Pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM domain_state d WHERE route_id<>$1 AND records @> $2::jsonb AND NOT EXISTS(
+ SELECT 1 FROM resources other JOIN resources current ON current.id=$1 WHERE other.id=d.route_id AND other.data->>'deleting'='true' AND other.data->>'deletionRoot'=current.data->>'deletionRoot'
+))`, id, fmt.Sprintf(`[{"id":%q}]`, owned.ID)).Scan(&shared); e != nil {
 			return e
 		}
 		if shared {
@@ -393,6 +395,9 @@ func (c *Controller) syncProxy(ctx context.Context, server string, candidate *mo
 		return e
 	}
 	defer unlock()
+	if e = c.mutableResource(ctx, server); e != nil {
+		return e
+	}
 	settings, e := c.proxySettings(ctx, server)
 	if e != nil {
 		return e

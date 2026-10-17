@@ -68,6 +68,16 @@ jobs:
           docker run --rm --network host -e TEST_DATABASE_URL -e SHIPYARD_INTEGRATION=1 -e SHIPYARD_FIXTURE_HOST="$fixture_ip" -e SHIPYARD_FIXTURE_PRIVATE_KEY_FILE=/src/.local/integration_rsa -v "$PWD:/src" -w /src -v shipyard-go-mod:/go/pkg/mod -v shipyard-go-cache:/root/.cache/go-build shipyard:test-tools go test -race ./internal/control -run TestLinux -v -count=1 -timeout=30m
       - name: Native host HTTPS and platform upgrade/downgrade
         run: sh scripts/test-native-host.sh
+      - name: Server removal on a dedicated disposable Docker host
+        run: |
+          docker run -d --privileged --name shipyard-server-deletion-fixture --label shipyard.test=server-deletion --env-file .local/fixture.env -e DOCKER_TLS_CERTDIR= shipyard:ssh-fixture
+          for _ in $(seq 1 60); do
+            if docker exec shipyard-server-deletion-fixture docker info >/dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          docker exec shipyard-server-deletion-fixture docker info >/dev/null
+          fixture_ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' shipyard-server-deletion-fixture)
+          docker run --rm --network host -e TEST_DATABASE_URL -e SHIPYARD_SERVER_DELETION_INTEGRATION=1 -e SHIPYARD_FIXTURE_HOST="$fixture_ip" -e SHIPYARD_FIXTURE_PRIVATE_KEY_FILE=/src/.local/integration_rsa -v "$PWD:/src" -w /src -v shipyard-go-mod:/go/pkg/mod -v shipyard-go-cache:/root/.cache/go-build shipyard:test-tools go test -race ./internal/control -run TestLinuxServerDeletion -v -count=1 -timeout=10m
       - name: Build installation image and start browser fixture
         run: |
           docker build -t shipyard:test .
@@ -91,4 +101,4 @@ jobs:
           path: web/test-results
       - name: Remove disposable test containers
         if: always()
-        run: docker rm -fv shipyard-integration-fixture shipyard-browser || true
+        run: docker rm -fv shipyard-integration-fixture shipyard-server-deletion-fixture shipyard-browser || true

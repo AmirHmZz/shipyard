@@ -107,12 +107,12 @@ func TestHAProxyAdminCSRFRevisionsAndCleanup(t *testing.T) {
 	if _, err = a.Store.Pool.Exec(ctx, "INSERT INTO settings(key,value) VALUES($1,$2)", control.ProxySettingsKey(unreferenced.ID), raw); err != nil {
 		t.Fatal(err)
 	}
-	if status, _ = request("DELETE", "/api/v1/resources/"+unreferenced.ID, "{}", admin, "csrf"); status != 200 {
+	if status, _ = request("DELETE", "/api/v1/resources/"+unreferenced.ID, "{}", admin, "csrf"); status != 409 {
 		t.Fatal(status)
 	}
 	var exists bool
 	_ = a.Store.Pool.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM settings WHERE key=$1)", control.ProxySettingsKey(unreferenced.ID)).Scan(&exists)
-	if exists {
-		t.Fatal("deleted server settings retained")
+	if !exists {
+		t.Fatal("unapproved server deletion removed settings")
 	}
 }

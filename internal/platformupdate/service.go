@@ -239,6 +239,13 @@ func (s *Service) Execute(ctx context.Context, planID, actor, passphrase, confir
 	if _, e = tx.Exec(ctx, "SELECT pg_advisory_xact_lock(73914231)"); e != nil {
 		return out, e
 	}
+	var cleanup bool
+	if e = tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM settings WHERE starts_with(key,'server-deletion:') AND COALESCE(value->>'done','false')<>'true')").Scan(&cleanup); e != nil {
+		return out, e
+	}
+	if cleanup {
+		return out, errors.New("finish pending server cleanup before changing the Shipyard version")
+	}
 	if e = tx.QueryRow(ctx, "SELECT value FROM settings WHERE key=$1 FOR UPDATE", "platform-plan:"+planID).Scan(&raw); e != nil {
 		return out, errors.New("version-change plan is missing or already used")
 	}

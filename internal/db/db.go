@@ -194,12 +194,13 @@ func (s *Store) Save(ctx context.Context, id string, in model.ResourceInput) (mo
 	var deleting bool
 	var metadata struct {
 		PreviewOf string `json:"previewOf"`
+		ServerID  string `json:"serverId"`
 	}
 	_ = json.Unmarshal(in.Data, &metadata)
 	err = tx.QueryRow(ctx, `WITH RECURSIVE lineage AS (
-		SELECT id,parent_id,data FROM resources WHERE id=$1 OR id=$2
+		SELECT id,parent_id,data FROM resources WHERE id=$1 OR id=$2 OR id=$3
 		UNION SELECT p.id,p.parent_id,p.data FROM resources p JOIN lineage c ON c.parent_id=p.id
-	) SELECT EXISTS(SELECT 1 FROM lineage WHERE data->>'deleting'='true')`, ancestor, metadata.PreviewOf).Scan(&deleting)
+	) SELECT EXISTS(SELECT 1 FROM lineage WHERE data->>'deleting'='true')`, ancestor, metadata.PreviewOf, metadata.ServerID).Scan(&deleting)
 	if err != nil {
 		return model.Resource{}, err
 	}
@@ -532,10 +533,13 @@ func (s *Store) Activate(ctx context.Context, r model.Release) error {
 	return tx.Commit(ctx)
 }
 func (s *Store) Retention(ctx context.Context) error {
+	if _, e := s.Pool.Exec(ctx, "DELETE FROM settings WHERE starts_with(key,'server-deletion-plan:') AND (value->'plan'->>'expiresAt')::timestamptz < now()"); e != nil {
+		return e
+	}
 	if _, e := s.Pool.Exec(ctx, "DELETE FROM settings WHERE key LIKE 'http01:%' AND (value->>'expires')::timestamptz < now()"); e != nil {
 		return e
 	}
-	if _, err := s.Pool.Exec(ctx, "DELETE FROM jobs WHERE state IN ('done','failed') AND created_at<now()-interval '30 days' AND NOT(kind='resource-delete' AND EXISTS(SELECT 1 FROM resources WHERE id=jobs.resource_id AND data->>'deleting'='true'))"); err != nil {
+	if _, err := s.Pool.Exec(ctx, "DELETE FROM jobs WHERE state IN ('done','failed') AND created_at<now()-interval '30 days' AND NOT(kind IN ('resource-delete','server-delete') AND EXISTS(SELECT 1 FROM resources WHERE id=jobs.resource_id AND data->>'deleting'='true'))"); err != nil {
 		return err
 	}
 	for _, q := range []string{"DELETE FROM metrics WHERE created_at<now()-interval '7 days'", "DELETE FROM events WHERE created_at<now()-interval '30 days'", "DELETE FROM audit WHERE created_at<now()-interval '90 days'", "DELETE FROM sessions WHERE expires_at<now()", "DELETE FROM invitations WHERE expires_at<now()", "DELETE FROM webhook_deliveries WHERE created_at<now()-interval '30 days'"} {

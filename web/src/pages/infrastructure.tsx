@@ -163,12 +163,15 @@ function ServerCard({
   onEdit,
   onGrants,
   onHAProxy,
+  onDelete,
 }: {
   server: Resource;
   onEdit: () => void;
   onGrants: () => void;
   onHAProxy: () => void;
+  onDelete: () => void;
 }) {
+  const account = useAccount();
   const q = useQuery({
     queryKey: ["metrics", server.id],
     queryFn: () => api<Metric[]>(`/servers/${server.id}/metrics`),
@@ -195,89 +198,119 @@ function ServerCard({
         />
       </CardHeader>
       <CardContent>
-        <div className="mb-5 grid grid-cols-3 gap-3">
-          {[
-            ["CPU", latest?.cpu],
-            ["Memory", latest?.memory],
-            ["Disk", latest?.disk],
-          ].map(([label, v]) => (
-            <div key={label}>
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                {label}
-              </p>
-              <p className="mt-2 font-mono text-lg">
-                {typeof v === "number" ? `${v.toFixed(1)}%` : "—"}
-              </p>
-            </div>
-          ))}
-        </div>
-        {q.data && q.data.length > 1 ? (
-          <div className="mb-5 h-20">
-            <ChartContainer
-              className="h-full w-full"
-              config={{ cpu: { label: "CPU", color: "var(--primary)" } }}
-            >
-              <AreaChart data={q.data.slice(-60)}>
-                <Area
-                  type="monotone"
-                  dataKey="cpu"
-                  stroke="var(--primary)"
-                  fill="var(--primary)"
-                  fillOpacity={0.1}
-                  strokeWidth={1.5}
-                />
-                <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-              </AreaChart>
-            </ChartContainer>
+        {server.data.deleting ? (
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              {server.data.deletionError
+                ? text(server.data, "deletionError")
+                : "Server cleanup in progress."}
+            </p>
+            {account?.admin && (
+              <Button variant="outline" size="sm" onClick={onDelete}>
+                {server.data.deletionError
+                  ? "Retry cleanup"
+                  : "Cleanup details"}
+              </Button>
+            )}
           </div>
         ) : (
-          <p className="mb-5 text-xs text-muted-foreground">
-            Metrics appear after the next 30-second poll.
-          </p>
+          <>
+            <div className="mb-5 grid grid-cols-3 gap-3">
+              {[
+                ["CPU", latest?.cpu],
+                ["Memory", latest?.memory],
+                ["Disk", latest?.disk],
+              ].map(([label, v]) => (
+                <div key={label}>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                    {label}
+                  </p>
+                  <p className="mt-2 font-mono text-lg">
+                    {typeof v === "number" ? `${v.toFixed(1)}%` : "—"}
+                  </p>
+                </div>
+              ))}
+            </div>
+            {q.data && q.data.length > 1 ? (
+              <div className="mb-5 h-20">
+                <ChartContainer
+                  className="h-full w-full"
+                  config={{ cpu: { label: "CPU", color: "var(--primary)" } }}
+                >
+                  <AreaChart data={q.data.slice(-60)}>
+                    <Area
+                      type="monotone"
+                      dataKey="cpu"
+                      stroke="var(--primary)"
+                      fill="var(--primary)"
+                      fillOpacity={0.1}
+                      strokeWidth={1.5}
+                    />
+                    <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+                  </AreaChart>
+                </ChartContainer>
+              </div>
+            ) : (
+              <p className="mb-5 text-xs text-muted-foreground">
+                Metrics appear after the next 30-second poll.
+              </p>
+            )}
+            <div className="flex flex-wrap gap-2 border-t pt-4">
+              <Button
+                disabled={!server.canWrite}
+                variant="outline"
+                size="sm"
+                onClick={onEdit}
+              >
+                Configure
+              </Button>
+              <Button
+                disabled={!server.canWrite}
+                variant="outline"
+                size="sm"
+                onClick={onGrants}
+              >
+                <Users />
+                Team access
+              </Button>
+              {server.canWrite && (
+                <Button variant="outline" size="sm" onClick={onHAProxy}>
+                  <Settings2 className="size-4" /> HAProxy settings
+                </Button>
+              )}
+              <Button
+                disabled={!server.canWrite}
+                variant="ghost"
+                size="sm"
+                onClick={async () => {
+                  try {
+                    const v = await post<{ dockerVersion: string }>(
+                      `/servers/${server.id}/test`,
+                    );
+                    toast.success(`Connected · Docker ${v.dockerVersion}`);
+                    void client.invalidateQueries({ queryKey: ["metrics"] });
+                  } catch (e) {
+                    toast.error(errorMessage(e));
+                  }
+                }}
+              >
+                <Check />
+                Test
+              </Button>
+              {account?.admin && server.data.connection !== "local" && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive hover:text-destructive"
+                  onClick={onDelete}
+                >
+                  <Trash2 />
+                  Delete server
+                </Button>
+              )}
+            </div>
+          </>
         )}
-        <div className="flex flex-wrap gap-2 border-t pt-4">
-          <Button
-            disabled={!server.canWrite}
-            variant="outline"
-            size="sm"
-            onClick={onEdit}
-          >
-            Configure
-          </Button>
-          <Button
-            disabled={!server.canWrite}
-            variant="outline"
-            size="sm"
-            onClick={onGrants}
-          >
-            <Users />
-            Team access
-          </Button>
-          {server.canWrite && (
-            <Button variant="outline" size="sm" onClick={onHAProxy}>
-              <Settings2 className="size-4" /> HAProxy settings
-            </Button>
-          )}
-          <Button
-            disabled={!server.canWrite}
-            variant="ghost"
-            size="sm"
-            onClick={async () => {
-              try {
-                const v = await post<{ dockerVersion: string }>(
-                  `/servers/${server.id}/test`,
-                );
-                toast.success(`Connected · Docker ${v.dockerVersion}`);
-                void client.invalidateQueries({ queryKey: ["metrics"] });
-              } catch (e) {
-                toast.error(errorMessage(e));
-              }
-            }}
-          >
-            <Check />
-            Test
-          </Button>
-        </div>
       </CardContent>
     </Card>
   );
@@ -325,8 +358,9 @@ export function Servers() {
                   navigate(`/configure/access/${server.id}?return=/servers`)
                 }
                 onHAProxy={() => setHAProxy(server)}
+                onDelete={() => navigate(`/servers/${server.id}/delete`)}
               />
-              {server.data.connection !== "local" && (
+              {server.data.connection !== "local" && !server.data.deleting && (
                 <Button
                   className="mt-2"
                   disabled={!server.canWrite}
