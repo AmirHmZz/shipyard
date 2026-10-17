@@ -144,6 +144,11 @@ func (a *API) Router() http.Handler {
 			r.Post("/servers/fingerprint", a.fingerprint)
 			r.Post("/servers/{id}/provision", a.provision)
 			r.Post("/servers/{id}/test", a.testServer)
+			r.Post("/servers/{id}/deletion-plan", a.serverDeletionPlan)
+			r.Delete("/servers/{id}", a.serverDeletionExecute)
+			r.Get("/servers/{id}/deletion", a.serverDeletionStatus)
+			r.Post("/servers/{id}/deletion/retry", a.serverDeletionRetry)
+			r.Put("/servers/{id}/deletion/connection", a.serverDeletionConnection)
 			r.Get("/servers/{id}/haproxy", a.haproxySettings)
 			r.Put("/servers/{id}/haproxy", a.haproxySettings)
 			r.Get("/servers/{id}/metrics", a.metrics)
@@ -665,7 +670,15 @@ func (a *API) deleteResource(w http.ResponseWriter, r *http.Request) {
 		fail(w, 403, "Shipyard infrastructure cannot be deleted here")
 		return
 	}
+	if v.Kind == "server" {
+		a.serverDeletionExecute(w, r)
+		return
+	}
 	if v.Kind == "network" {
+		if model.IsDeleting(v) {
+			fail(w, 409, db.ErrDeleting.Error())
+			return
+		}
 		id := uuid.NewString()
 		if e := a.Store.Enqueue(r.Context(), "network-delete", v.ID, "network-delete:"+id, nil); e != nil {
 			a.err(w, e)

@@ -41,6 +41,9 @@ type Controller struct {
 	Logger            *slog.Logger
 	GitFactory        func(model.Git, map[string]string) providers.GitProvider
 	DNSFactory        func(string, string) providers.DNSProvider
+	DialNode          func(context.Context, model.Server, map[string]string) (remote.Node, error)
+	terminalMu        sync.Mutex
+	terminals         map[string]map[string]func()
 }
 type DeploymentSnapshot struct {
 	Resource         model.Resource    `json:"resource"`
@@ -150,7 +153,7 @@ func (c *Controller) queue(ctx context.Context, app model.Resource, ref, rollbac
 		return model.Deployment{}, e
 	}
 	var deleting bool
-	if e = tx.QueryRow(ctx, "SELECT COALESCE(data->>'deleting','false')='true' FROM resources WHERE id=$1", app.ID).Scan(&deleting); e != nil {
+	if e = tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM resources WHERE (id=$1 OR id=$2) AND data->>'deleting'='true')", app.ID, spec.ServerID).Scan(&deleting); e != nil {
 		return model.Deployment{}, e
 	}
 	if deleting {
@@ -203,7 +206,7 @@ func (c *Controller) Run(ctx context.Context) {
 			}
 		}
 	}
-	ops := []string{"git-event", "domain", "proxy", "proxy-settings", "provision", "prune", "notify", "preview-cleanup", "drain", "resource-delete", "network-create", "network-delete", "dashboard-apply", "dashboard-retire"}
+	ops := []string{"git-event", "domain", "proxy", "proxy-settings", "provision", "prune", "notify", "preview-cleanup", "drain", "resource-delete", "server-delete", "network-create", "network-delete", "dashboard-apply", "dashboard-retire"}
 	// Long builds and DNS challenges cannot monopolize metric sampling or all
 	// operational workers. Every lane still uses the same durable job leases.
 	for _, kinds := range [][]string{{"deploy"}, {"deploy"}, ops, ops, {"metrics"}} {
@@ -268,7 +271,7 @@ func (c *Controller) runJob(parent context.Context, j model.Job, worker string) 
 	}
 	defer conn.Release()
 	lock := "application:" + j.ResourceID
-	if j.Kind == "resource-delete" {
+	if j.Kind == "resource-delete" || j.Kind == "server-delete" {
 		lock = "deletion:" + j.ResourceID
 	}
 	if j.Kind == "proxy" || j.Kind == "proxy-settings" || j.Kind == "metrics" || j.Kind == "provision" {
@@ -302,11 +305,13 @@ func (c *Controller) runJob(parent context.Context, j model.Job, worker string) 
 		}
 	}()
 	resource, lookupErr := c.Store.Resource(ctx, j.ResourceID)
-	if j.Kind != "resource-delete" && (errors.Is(lookupErr, pgx.ErrNoRows) || (lookupErr == nil && model.IsDeleting(resource))) {
+	if j.Kind != "resource-delete" && j.Kind != "server-delete" && (errors.Is(lookupErr, pgx.ErrNoRows) || (lookupErr == nil && model.IsDeleting(resource))) {
 		_ = c.Store.Finish(context.WithoutCancel(parent), j, worker, nil)
 		return
 	}
 	switch j.Kind {
+	case "server-delete":
+		e = c.deleteServer(ctx, j)
 	case "dashboard-apply":
 		e = c.dashboardJob(ctx, j.Kind, j.Payload)
 	case "dashboard-retire":
@@ -407,9 +412,14 @@ func (c *Controller) connect(ctx context.Context, id string) (remote.Node, model
 	if e != nil {
 		return nil, r, e
 	}
-	client, e := remote.Dial(ctx, s, secrets["private_key"], secrets["password"])
+	var client remote.Node
+	if c.DialNode != nil {
+		client, e = c.DialNode(ctx, s, secrets)
+	} else {
+		client, e = remote.Dial(ctx, s, secrets["private_key"], secrets["password"])
+	}
 	if e == nil && c.Local != nil {
-		info, err := client.Output(ctx, "docker", "info", "--format", "{{.ID}}")
+		info, err := deploy.Output(ctx, client, "docker", "info", "--format", "{{.ID}}")
 		if err != nil {
 			client.Close()
 			return nil, r, err
@@ -776,6 +786,9 @@ func (c *Controller) scheduler(ctx context.Context) {
 			servers, e := c.Store.Resources(ctx, "server")
 			if e == nil {
 				for _, server := range servers {
+					if model.IsDeleting(server) {
+						continue
+					}
 					_ = c.Store.Enqueue(ctx, "metrics", server.ID, fmt.Sprintf("metrics:%s:%d", server.ID, t.Unix()/30), nil)
 				}
 			}

@@ -95,6 +95,11 @@ const Application = lazy(() =>
 const Servers = lazy(() =>
   import("@/pages/infrastructure").then((m) => ({ default: m.Servers })),
 );
+const ServerDeletion = lazy(() =>
+  import("@/pages/server-deletion").then((m) => ({
+    default: m.ServerDeletion,
+  })),
+);
 const Integrations = lazy(() =>
   import("@/pages/infrastructure").then((m) => ({ default: m.Integrations })),
 );
@@ -420,6 +425,7 @@ function Shell({ session }: { session: Session }) {
             <Route path="/applications/:id" element={<Application />} />
             <Route path="/deployments" element={<Deployments />} />
             <Route path="/servers" element={<Servers />} />
+            <Route path="/servers/:id/delete" element={<ServerDeletion />} />
             <Route path="/dns" element={<DNS />} />
             <Route path="/dns/:id" element={<DNS />} />
             <Route path="/dns/:id/records/:record" element={<DNS />} />

@@ -114,6 +114,27 @@ func TestPlansSessionBindingApprovalReplayAndSecrets(t *testing.T) {
 		t.Fatal("concurrent operation accepted")
 	}
 }
+
+func TestVersionChangeWaitsForServerCleanup(t *testing.T) {
+	s, _, next := fixture(t)
+	ctx := context.Background()
+	plan, e := s.Prepare(ctx, next.Version, "admin")
+	if e != nil {
+		t.Fatal(e)
+	}
+	if _, e = s.Store.Pool.Exec(ctx, `INSERT INTO settings(key,value) VALUES('server-deletion:test','{"done":false}')`); e != nil {
+		t.Fatal(e)
+	}
+	if _, e = s.Execute(ctx, plan.ID, "admin", "long-backup-passphrase", "", false); e == nil || !strings.Contains(e.Error(), "server cleanup") {
+		t.Fatal("version change raced cleanup", e)
+	}
+	if _, e = s.Store.Pool.Exec(ctx, `UPDATE settings SET value='{"done":true}' WHERE key='server-deletion:test'`); e != nil {
+		t.Fatal(e)
+	}
+	if _, e = s.Execute(ctx, plan.ID, "admin", "long-backup-passphrase", "", false); e != nil {
+		t.Fatal("completed cleanup blocked version change", e)
+	}
+}
 func TestPlanExpiryAndUnsupportedVersionJump(t *testing.T) {
 	s, _, next := fixture(t)
 	ctx := context.Background()

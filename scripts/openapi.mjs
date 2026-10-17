@@ -10,6 +10,36 @@ const object = (properties, required = Object.keys(properties)) => ({
   required,
 });
 const schemas = {
+  DeletionItem: object({ kind: str, id: str, name: str, reason: str }),
+  ServerDeletionPlan: object({
+    id: str,
+    serverId: str,
+    serverName: str,
+    daemonId: str,
+    expiresAt: { type: "string", format: "date-time" },
+    remove: { type: "array", items: ref("DeletionItem") },
+    preserve: { type: "array", items: ref("DeletionItem") },
+    blockers: { type: "array", items: str },
+  }),
+  ServerDeletionInput: object({ planId: str, name: str, deleteVolumes: bool }),
+  ServerDeletionStatus: object({
+    plan: ref("ServerDeletionPlan"),
+    stage: str,
+    error: str,
+    jobId: str,
+    done: bool,
+  }),
+  DeletionConnectionInput: object(
+    {
+      host: str,
+      port: num,
+      user: str,
+      fingerprint: str,
+      authMethod: { type: "string", enum: ["private_key", "password"] },
+      secrets: { type: "object", additionalProperties: str },
+    },
+    ["host", "port", "user", "fingerprint", "authMethod"],
+  ),
   ServerConfiguration: object(
     {
       connection: {
@@ -697,7 +727,7 @@ add(
 add(
   "/resources/{id}",
   "delete",
-  "Delete unused infrastructure, or queue project/application cleanup with persistent volumes preserved",
+  "Delete infrastructure or queue cleanup. Servers require ServerDeletionInput and remove owned application volumes; project/application deletion preserves volumes",
   obj,
   obj,
 );
@@ -723,6 +753,45 @@ add(
 );
 for (const action of ["provision", "test"])
   add(`/servers/{id}/${action}`, "post", action, obj, obj);
+add(
+  "/servers/{id}/deletion-plan",
+  "post",
+  "Administrator review of remote-server cleanup; no host changes",
+  ref("ServerDeletionPlan"),
+);
+add(
+  "/servers/{id}",
+  "delete",
+  "Administrator cleanup using a reviewed plan, exact name and permanent volume acknowledgement",
+  object({ jobId: str }),
+  ref("ServerDeletionInput"),
+);
+add(
+  "/servers/{id}/deletion",
+  "get",
+  "Administrator cleanup progress, including completed operations",
+  ref("ServerDeletionStatus"),
+);
+add(
+  "/servers/{id}/deletion/retry",
+  "post",
+  "Resume the approved cleanup after a failure",
+  object({ jobId: str }),
+);
+add(
+  "/servers/{id}/deletion/connection",
+  "put",
+  "Repair SSH access after a cleanup failure; verifies the approved Docker daemon",
+  object({ ok: bool }),
+  ref("DeletionConnectionInput"),
+);
+for (const [path, method] of [
+  ["/servers/{id}", "delete"],
+  ["/servers/{id}/deletion/retry", "post"],
+]) {
+  paths[path][method].responses[202] = paths[path][method].responses[200];
+  delete paths[path][method].responses[200];
+}
 add(
   "/servers/{id}/metrics",
   "get",

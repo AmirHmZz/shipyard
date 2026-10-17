@@ -225,6 +225,12 @@ func (a *API) terminal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer session.Close()
+	unregister, e := a.Control.RegisterTerminal(ctx, app.ID, func() { cancel(); _ = session.Close() })
+	if e != nil {
+		a.err(w, e)
+		return
+	}
+	defer unregister()
 	origin := a.requestOrigin(r)
 	conn, e := websocket.Accept(w, r, &websocket.AcceptOptions{OriginPatterns: []string{strings.TrimPrefix(strings.TrimPrefix(origin, "https://"), "http://")}})
 	if e != nil {

@@ -84,7 +84,7 @@ func networkData(n DockerNetwork, spec model.Network) model.Network {
 }
 func (c *Controller) writeNetwork(ctx context.Context, r model.Resource, s model.Network) error {
 	b, _ := json.Marshal(s)
-	_, e := c.Store.Pool.Exec(ctx, "UPDATE resources SET data=$2,updated_at=now() WHERE id=$1", r.ID, b)
+	_, e := c.Store.Pool.Exec(ctx, "UPDATE resources SET data=data||$2::jsonb,updated_at=now() WHERE id=$1 AND COALESCE(data->>'deleting','false')<>'true'", r.ID, b)
 	return e
 }
 func (c *Controller) EnsureNetwork(ctx context.Context, id string) (result error) {
@@ -101,6 +101,9 @@ func (c *Controller) EnsureNetwork(ctx context.Context, id string) (result error
 		return e
 	}
 	defer unlock()
+	if e = c.mutableResource(ctx, id); e != nil {
+		return e
+	}
 	defer func() {
 		if result != nil {
 			s.Status = "failed"
@@ -245,6 +248,9 @@ func (c *Controller) DeleteNetwork(ctx context.Context, r model.Resource) error 
 		return e
 	}
 	defer unlock()
+	if e = c.mutableResource(ctx, r.ID); e != nil {
+		return e
+	}
 	apps, e := c.Store.Resources(ctx, "application")
 	if e != nil {
 		return e

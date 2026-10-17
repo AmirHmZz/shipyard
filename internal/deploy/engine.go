@@ -56,7 +56,12 @@ func (e *Engine) Transfer(ctx context.Context, r model.Release, source func(io.W
 	if err != nil {
 		return err
 	}
-	return archiveErr
+	if archiveErr != nil {
+		return archiveErr
+	}
+	// Record only transferred source files. Later cleanup preserves added/changed
+	// files and never traverses symlinks or erases a whole workspace directory.
+	return e.command(ctx, "sh", "-c", "set -eu; find "+remote.Quote(r.Directory+"/source")+" -type f -exec sha256sum {} \\; > "+remote.Quote(r.Directory+"/.shipyard-files.sha256"))
 }
 func envFile(env map[string]string) []byte {
 	var b strings.Builder

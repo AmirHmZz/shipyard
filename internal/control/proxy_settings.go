@@ -191,6 +191,9 @@ func (c *Controller) QueueProxySettings(ctx context.Context, server, actor strin
 		return "", err
 	}
 	defer unlock()
+	if err = c.mutableResource(ctx, server); err != nil {
+		return "", err
+	}
 	state, err := c.proxySettings(ctx, server)
 	if err != nil {
 		return "", err
@@ -228,6 +231,9 @@ func (c *Controller) applyProxySettingsWith(ctx context.Context, job model.Job, 
 		return err
 	}
 	defer unlock()
+	if err = c.mutableResource(ctx, job.ResourceID); err != nil {
+		return err
+	}
 	var input proxySettingsJob
 	if err = json.Unmarshal(job.Payload, &input); err != nil {
 		return err
