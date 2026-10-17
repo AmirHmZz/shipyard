@@ -1,0 +1,72 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type { ErrorEvent } from "@sentry/react";
+import { initTelemetry, scrubEvent } from "./telemetry";
+import { init } from "@sentry/react";
+
+vi.mock("@sentry/react", () => ({ init: vi.fn() }));
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.clearAllMocks();
+});
+
+describe("Sentry boundary", () => {
+  it("excludes credentials and preserves error diagnostics", () => {
+    const event = scrubEvent({
+      type: undefined,
+      exception: { values: [{ type: "Error", value: "synthetic failure" }] },
+      user: { email: "private@example.test" },
+      extra: { password: "private" },
+      breadcrumbs: [{ message: "private console output" }],
+      request: {
+        url: "https://user:password@shipyard.test/terminal?csrf=private#token",
+        headers: { Cookie: "session=private" },
+        data: "private-body",
+        cookies: { session: "private" },
+      },
+    } as ErrorEvent);
+    expect(event.request).toEqual({ url: "https://shipyard.test/terminal" });
+    expect(event.user).toBeUndefined();
+    expect(event.extra).toBeUndefined();
+    expect(event.breadcrumbs).toBeUndefined();
+    expect(event.exception?.values?.[0].value).toBe("synthetic failure");
+  });
+  it("uses runtime settings and does not enable replay or tracing", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            dsn: "https://public@sentry.test/1",
+            environment: "test",
+            release: "v1",
+          }),
+        ),
+      ),
+    );
+    await initTelemetry();
+    expect(init).toHaveBeenCalledWith(
+      expect.objectContaining({
+        dsn: "https://public@sentry.test/1",
+        environment: "test",
+        release: "v1",
+        dataCollection: expect.objectContaining({
+          userInfo: false,
+          httpBodies: [],
+        }),
+        beforeSend: scrubEvent,
+      }),
+    );
+  });
+  it("stays disabled for empty configuration and tolerates unavailable monitoring", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(new Response('{"dsn":""}'))
+        .mockRejectedValueOnce(new Error("offline")),
+    );
+    await initTelemetry();
+    await expect(initTelemetry()).resolves.toBeUndefined();
+    expect(init).not.toHaveBeenCalled();
+  });
+});

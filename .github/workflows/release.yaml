@@ -1,0 +1,154 @@
+name: Release
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing draft release tag to resume (vX.Y.Z)
+        required: false
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: shipyard-release
+  cancel-in-progress: false
+jobs:
+  validate:
+    uses: ./.github/workflows/check.yaml
+    with:
+      ref: ${{ inputs.tag || github.sha }}
+  release:
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      actions: write
+    outputs:
+      tag: ${{ steps.select.outputs.tag }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        if: inputs.tag == ''
+        id: release
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Validate generated release branches
+        if: steps.release.outputs.prs_created == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_PRS: ${{ steps.release.outputs.prs }}
+        run: |
+          printf '%s' "$RELEASE_PRS" | jq -r '.[].headBranchName' | while read -r branch; do
+            test -n "$branch"
+            gh workflow run check.yaml --ref "$branch"
+          done
+      - id: select
+        env:
+          TAG: ${{ inputs.tag || steps.release.outputs.tag_name }}
+          CREATED: ${{ steps.release.outputs.release_created }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if [ -z "$TAG" ]; then exit 0; fi
+          printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'
+          test "$(gh release view "$TAG" --json isDraft -q .isDraft)" = true
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+  publish:
+    needs: [validate, release]
+    if: needs.release.outputs.tag != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release.outputs.tag }}
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: metadata
+        env:
+          TAG: ${{ needs.release.outputs.tag }}
+        run: |
+          test "$TAG" = "v$(cat VERSION)"
+          {
+            echo "version=$(cat VERSION)"
+            echo "commit=$(git rev-parse HEAD)"
+            echo "date=$(git show -s --format=%cI HEAD)"
+          } >> "$GITHUB_OUTPUT"
+      - uses: docker/build-push-action@v6
+        id: core
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ghcr.io/amirhmzz/shipyard:${{ steps.metadata.outputs.version }}
+          provenance: mode=max
+          sbom: true
+          build-args: |
+            VERSION=${{ steps.metadata.outputs.version }}
+            VCS_REF=${{ steps.metadata.outputs.commit }}
+            BUILD_DATE=${{ steps.metadata.outputs.date }}
+      - uses: docker/build-push-action@v6
+        id: executor
+        with:
+          context: .
+          target: host-executor
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ghcr.io/amirhmzz/shipyard-executor:${{ steps.metadata.outputs.version }}
+          provenance: mode=max
+          sbom: true
+          build-args: |
+            VERSION=${{ steps.metadata.outputs.version }}
+            VCS_REF=${{ steps.metadata.outputs.commit }}
+            BUILD_DATE=${{ steps.metadata.outputs.date }}
+      - name: Require public image access
+        env:
+          CORE: ${{ steps.core.outputs.digest }}
+          EXECUTOR: ${{ steps.executor.outputs.digest }}
+        run: |
+          mkdir -p /tmp/shipyard-anonymous-docker
+          DOCKER_CONFIG=/tmp/shipyard-anonymous-docker docker pull "ghcr.io/amirhmzz/shipyard@$CORE"
+          DOCKER_CONFIG=/tmp/shipyard-anonymous-docker docker pull "ghcr.io/amirhmzz/shipyard-executor@$EXECUTOR"
+          for image in "ghcr.io/amirhmzz/shipyard@$CORE" "ghcr.io/amirhmzz/shipyard-executor@$EXECUTOR"; do
+            docker buildx imagetools inspect "$image" --raw > /tmp/shipyard-image-index.json
+            for arch in amd64 arm64; do jq -e --arg arch "$arch" '.manifests | any(.platform.os == "linux" and .platform.architecture == $arch)' /tmp/shipyard-image-index.json; done
+            for arch in amd64 arm64; do
+              docker run --rm --platform "linux/$arch" "$image" version | jq -e --arg version '${{ steps.metadata.outputs.version }}' --arg commit '${{ steps.metadata.outputs.commit }}' --arg arch "$arch" '.version == $version and .commit == $commit and .architecture == $arch'
+            done
+          done
+      - name: Generate immutable installation artifacts
+        env:
+          CORE_DIGEST: ${{ steps.core.outputs.digest }}
+          EXECUTOR_DIGEST: ${{ steps.executor.outputs.digest }}
+          SOURCE_COMMIT: ${{ steps.metadata.outputs.commit }}
+          BUILD_DATE: ${{ steps.metadata.outputs.date }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          docker pull postgres:18-alpine
+          POSTGRES_IMAGE=$(docker inspect postgres:18-alpine --format '{{index .RepoDigests 0}}')
+          PREVIOUS_VERSION=$(gh release list --exclude-drafts --exclude-pre-releases --json tagName --jq '.[0].tagName // ""' | sed 's/^v//')
+          export POSTGRES_IMAGE PREVIOUS_VERSION
+          node scripts/release-manifest.mjs
+          cd .local/release && sha256sum -c SHA256SUMS
+      - name: Test the preceding published schema in both directions
+        run: sh scripts/test-release-path.sh .local/release/release.json
+      - name: Publish completed release
+        env:
+          TAG: ${{ needs.release.outputs.tag }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          test "$(gh release view "$TAG" --json isDraft -q .isDraft)" = true
+          gh release upload "$TAG" .local/release/* --clobber
+          gh release edit "$TAG" --draft=false --latest

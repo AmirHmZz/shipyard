@@ -1,0 +1,70 @@
+name: shipyard
+services:
+  shipyard:
+    image: ${SHIPYARD_IMAGE:?Run the release installer}
+    restart: unless-stopped
+    group_add:
+      - "${DOCKER_SOCKET_GID:?Run the release installer}"
+    labels:
+      shipyard.role: control-plane
+    environment:
+      DATABASE_URL: postgres://shipyard:${POSTGRES_PASSWORD:?Configure the installation}@postgres:5432/shipyard?sslmode=disable
+      SHIPYARD_MASTER_KEY: ${SHIPYARD_MASTER_KEY:?Configure the installation}
+      SHIPYARD_BOOTSTRAP_TOKEN: ${SHIPYARD_BOOTSTRAP_TOKEN:?Configure the installation}
+      SHIPYARD_ORIGIN: ${SHIPYARD_ORIGIN:?Configure the HTTPS dashboard hostname}
+      SHIPYARD_PUBLIC_IPV4: ${SHIPYARD_PUBLIC_IPV4:-}
+      SHIPYARD_PUBLIC_IPV6: ${SHIPYARD_PUBLIC_IPV6:-}
+      SHIPYARD_LOCAL_ENABLED: "true"
+      SHIPYARD_EXECUTOR: shipyard-host-executor
+      SHIPYARD_ACME_EMAIL: ${SHIPYARD_ACME_EMAIL:-}
+      SHIPYARD_ACME_ACCEPT_TOS: ${SHIPYARD_ACME_ACCEPT_TOS:-false}
+      SHIPYARD_ACME_DIRECTORY: ${SHIPYARD_ACME_DIRECTORY:-}
+      SENTRY_DSN: ${SENTRY_DSN-https://020bd92a1d1747beab0bb32e63d3c128@rustrak.microzap.ir/1}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
+    volumes:
+      - /opt/shipyard:/installation:ro
+      - shipyard_data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      postgres:
+        condition: service_healthy
+      host-executor:
+        condition: service_healthy
+  host-executor:
+    image: ${SHIPYARD_EXECUTOR_IMAGE:?Run the release installer}
+    container_name: shipyard-host-executor
+    restart: unless-stopped
+    network_mode: host
+    pid: host
+    labels:
+      shipyard.role: executor
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/shipyard:/var/lib/shipyard
+      - ${SHIPYARD_DOCKER_ROOT_DIR:-/var/lib/docker}:/host/docker-root:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "docker info >/dev/null && docker compose version >/dev/null && docker buildx version >/dev/null",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: shipyard
+      POSTGRES_DB: shipyard
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Configure the installation}
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shipyard -d shipyard"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+volumes:
+  shipyard_data:
+  postgres_data:

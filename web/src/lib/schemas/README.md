@@ -1,0 +1,1 @@
+Compose schema vendored from https://github.com/compose-spec/compose-spec/blob/914ec15d1fa498969c0df5c1d672306db3256089/schema/compose-spec.json on 2026-10-15. Apache-2.0 license: ../../../public/licenses/compose-spec.txt. Used locally for editor completion and validation; schema requests are disabled. Destination Docker Compose remains the deployment validator.

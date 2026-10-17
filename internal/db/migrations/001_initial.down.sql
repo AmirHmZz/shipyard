@@ -1,0 +1,1 @@
+DROP TABLE audit,alert_state,metrics,domain_state,webhook_deliveries,jobs,events,app_runtime,releases,deployments,invitations,resource_grants,project_members,team_members,resources,sessions,users,settings;

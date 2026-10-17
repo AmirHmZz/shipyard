@@ -1,0 +1,8 @@
+{
+  "name": "shipyard-tooling",
+  "private": true,
+  "scripts": {"format": "prettier --write web/src scripts", "format:check": "prettier --check web/src scripts", "api:generate": "node scripts/openapi.mjs && bun run --cwd web api:generate"},
+  "devDependencies": {
+    "prettier": "^3.9.10"
+  }
+}

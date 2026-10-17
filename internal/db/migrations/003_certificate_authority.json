@@ -1,0 +1,1 @@
+{"name":"Certificate authority tracking","up":{"classification":"non-destructive","impact":"Track certificate authority identity."},"down":{"classification":"destructive","impact":"Discard certificate authority metadata; older versions cannot distinguish staging and production certificates."}}

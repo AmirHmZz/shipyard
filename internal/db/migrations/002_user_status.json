@@ -1,0 +1,1 @@
+{"name":"Account disabling","up":{"classification":"non-destructive","impact":"Add account disabling status."},"down":{"classification":"destructive","impact":"Discard disabled-account status. Previously disabled accounts become accessible to versions without this feature."}}

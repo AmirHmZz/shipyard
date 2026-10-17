@@ -1,0 +1,1 @@
+{"name":"Initial control-plane schema","up":{"classification":"non-destructive","impact":"Create Shipyard tables."},"down":{"classification":"destructive","impact":"Delete all Shipyard users, credentials, projects and control-plane history."}}

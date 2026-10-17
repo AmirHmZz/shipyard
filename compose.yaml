@@ -1,0 +1,41 @@
+name: shipyard
+services:
+  shipyard:
+    build: .
+    image: shipyard:local
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${SHIPYARD_PORT:-8080}:8080"
+    environment:
+      DATABASE_URL: postgres://shipyard:${POSTGRES_PASSWORD:?Run node scripts/configure.mjs first}@postgres:5432/shipyard?sslmode=disable
+      SHIPYARD_MASTER_KEY: ${SHIPYARD_MASTER_KEY:?Run node scripts/configure.mjs first}
+      SHIPYARD_BOOTSTRAP_TOKEN: ${SHIPYARD_BOOTSTRAP_TOKEN:?Set the installation bootstrap token}
+      SHIPYARD_ORIGIN: ${SHIPYARD_ORIGIN:-http://localhost:8080}
+      SHIPYARD_ACME_EMAIL: ${SHIPYARD_ACME_EMAIL:-}
+      SHIPYARD_ACME_ACCEPT_TOS: ${SHIPYARD_ACME_ACCEPT_TOS:-false}
+      SHIPYARD_ACME_DIRECTORY: ${SHIPYARD_ACME_DIRECTORY:-}
+      SENTRY_DSN: ${SENTRY_DSN-https://020bd92a1d1747beab0bb32e63d3c128@rustrak.microzap.ir/1}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
+      SENTRY_RELEASE: ${SENTRY_RELEASE:-}
+    volumes:
+      - shipyard_data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: shipyard
+      POSTGRES_DB: shipyard
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run node scripts/configure.mjs first}
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shipyard -d shipyard"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+volumes:
+  shipyard_data:
+  postgres_data:

@@ -1,0 +1,13 @@
+version: "2"
+sql:
+  - engine: postgresql
+    queries: internal/db/queries.sql
+    schema:
+      - internal/db/migrations/001_initial.sql
+      - internal/db/migrations/002_user_status.sql
+      - internal/db/migrations/003_certificate_authority.sql
+    gen:
+      go:
+        package: query
+        out: internal/db/query
+        sql_package: pgx/v5
