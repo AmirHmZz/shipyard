@@ -24,7 +24,7 @@ jobs:
           POSTGRES_PASSWORD: shipyard-test
           POSTGRES_DB: shipyard
         ports: [5432:5432]
-        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 20
+        options: --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 20
     env:
       TEST_DATABASE_URL: postgres://postgres:shipyard-test@127.0.0.1:5432/shipyard?sslmode=disable
       SHIPYARD_E2E_URL: http://127.0.0.1:8788

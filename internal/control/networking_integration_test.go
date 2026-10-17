@@ -182,7 +182,8 @@ volumes:
 	}
 	network, _ = c.Store.Resource(ctx, network.ID)
 	networkSpec, _ := model.Decode[model.Network](network)
-	out, e = deploy.Output(ctx, ssh, "docker", "run", "--rm", "--network", networkSpec.DockerName, "busybox:1.37.0", "nslookup", "web-fixed")
+	// Query the Docker alias absolutely, without the host's DNS search suffixes.
+	out, e = deploy.Output(ctx, ssh, "docker", "run", "--rm", "--network", networkSpec.DockerName, "busybox:1.37.0", "nslookup", "web-fixed.")
 	if e != nil || !strings.Contains(out, "172.28.48.10") {
 		t.Fatal("hostname resolution", out, e)
 	}

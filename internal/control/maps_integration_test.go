@@ -40,7 +40,7 @@ func TestLinuxHostnameMapsAndRecovery(t *testing.T) {
 	}
 	defer client.Close()
 	file := filepath.Join(t.TempDir(), "backend")
-	cmd := exec.CommandContext(ctx, "go", "build", "-o", file, "../../tests/fixture")
+	cmd := exec.CommandContext(ctx, "go", "build", "-buildvcs=false", "-o", file, "../../tests/fixture")
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatal(err, string(output))

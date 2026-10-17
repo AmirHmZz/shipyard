@@ -160,7 +160,7 @@ func TestLinuxDeploymentRollbackAndProtocols(t *testing.T) {
 		t.Fatal(e)
 	}
 	binaryPath := filepath.Join(t.TempDir(), "backend")
-	cmd := exec.CommandContext(ctx, "go", "build", "-o", binaryPath, "../../tests/fixture")
+	cmd := exec.CommandContext(ctx, "go", "build", "-buildvcs=false", "-o", binaryPath, "../../tests/fixture")
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	if b, e := cmd.CombinedOutput(); e != nil {
 		t.Fatalf("build fixture: %v: %s", e, b)
