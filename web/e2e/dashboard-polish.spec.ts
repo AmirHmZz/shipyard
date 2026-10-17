@@ -200,16 +200,15 @@ test("compact project cards support whole-card links, independent menus and hier
     .getByRole("link", { name: "Projects", exact: true })
     .click();
   await expect(page).toHaveURL(/\/projects$/);
-  await page
+  await card
     .getByRole("link", { name: "Customer platform", exact: true })
     .click();
   const breadcrumb = page.getByRole("navigation", { name: "breadcrumb" });
   await breadcrumb.getByRole("link", { name: "Projects", exact: true }).click();
   await expect(page).toHaveURL(/\/projects$/);
-  await page
+  await card
     .getByRole("link", { name: "Customer platform", exact: true })
-    .focus();
-  await page.keyboard.press("Enter");
+    .press("Enter");
   await expect(page).toHaveURL(/\/projects\/project$/);
   await page.goto("/applications/app");
   await expect(
