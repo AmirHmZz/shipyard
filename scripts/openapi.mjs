@@ -184,14 +184,14 @@ const schemas = {
   ResourceInput: object(
     {
       kind: str,
-      name: str,
+      name: { type: "string", description: "Required except for routes, whose display name is derived from data.domain." },
       teamId: str,
       parentId: str,
       data: obj,
       secrets: { type: "object", additionalProperties: str },
       version: { type: "integer" },
     },
-    ["kind", "name", "data"],
+    ["kind", "data"],
   ),
   Deployment: object({
     id: str,
@@ -811,6 +811,11 @@ paths["/git/{id}/branches"].get.parameters.push({
   required: true,
   schema: str,
 });
+add(
+  "/dns/test", "post", "Test unsaved DNS provider credentials",
+  object({ ok: bool }),
+  object({ provider: { type: "string", enum: ["cloudflare", "arvancloud"] }, token: str }),
+);
 add("/dns/{id}/zones", "get", "Provider zones", array(obj));
 add(
   "/servers/{id}/haproxy",

@@ -1,0 +1,1 @@
+{"name":"Route domain identity","up":{"classification":"destructive","impact":"Discard custom route names; routes are identified by their full domain."},"down":{"classification":"non-destructive","impact":"Restore the shared name requirement using route domains as names."}}

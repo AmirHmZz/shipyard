@@ -240,7 +240,7 @@ func Validate(r ResourceInput) error {
 			return errors.New("deletion state is managed by Shipyard")
 		}
 	}
-	if strings.TrimSpace(r.Name) == "" || len(r.Name) > 120 {
+	if r.Kind != "route" && (strings.TrimSpace(r.Name) == "" || len(r.Name) > 120) {
 		return errors.New("name must contain 1–120 characters")
 	}
 	if len(r.Data) == 0 || !json.Valid(r.Data) {

@@ -273,7 +273,7 @@ test("deployment logs expose the stored failure reason", async ({ page }) => {
   await page.route("**/api/v1/deployments/deployment/events", (route) =>
     route.fulfill({
       contentType: "text/event-stream",
-      body: 'event: log\ndata: {"message":"Using the saved Compose document snapshot"}\n\nevent: log\ndata: {"message":"Deployment failed; checking previous release"}\n\nevent: status\ndata: {"state":"failed","error":"render Compose configuration: invalid published port"}\n\n',
+      body: 'event: log\ndata: {"message":"\\u001b[32mUsing the saved Compose document snapshot\\u001b[0m"}\n\nevent: log\ndata: {"message":"Deployment failed; checking previous release"}\n\nevent: status\ndata: {"state":"failed","error":"render Compose configuration: invalid published port"}\n\n',
     }),
   );
   await page.goto("/applications/app?deployment=deployment");
@@ -283,6 +283,8 @@ test("deployment logs expose the stored failure reason", async ({ page }) => {
   await expect(page.locator("pre")).toContainText(
     "Using the saved Compose document snapshot",
   );
+  await expect(page.locator("pre")).not.toContainText("[32m");
+  await expect(page.locator("pre")).not.toContainText("[0m");
 });
 
 test("Monaco provides local YAML tooling under the production content policy", async ({

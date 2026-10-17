@@ -146,7 +146,7 @@ func (c *Controller) QueueDashboard(ctx context.Context, version int, domain, ac
 		return "", errors.New("hostname is already assigned")
 	}
 	raw, _ := json.Marshal(model.Route{Protocol: "https", TLS: "terminate", Domain: name, Service: "dashboard", TargetPort: 8080})
-	if _, e = tx.Exec(ctx, "INSERT INTO resources(id,kind,name,parent_id,data) VALUES($1,'route','Shipyard dashboard',$2,$3) ON CONFLICT(id) DO UPDATE SET data=$3,version=resources.version+1", s.RouteID, DashboardID, raw); e != nil {
+	if _, e = tx.Exec(ctx, "INSERT INTO resources(id,kind,name,parent_id,data) VALUES($1,'route',NULL,$2,$3) ON CONFLICT(id) DO UPDATE SET data=$3,version=resources.version+1", s.RouteID, DashboardID, raw); e != nil {
 		return "", e
 	}
 	if len(configuration) > 0 {

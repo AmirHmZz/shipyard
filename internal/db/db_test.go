@@ -174,3 +174,30 @@ func TestJobLanesKeepMetricsSeparateFromBuilds(t *testing.T) {
 		t.Fatal("build lane did not claim build", j, err)
 	}
 }
+
+func TestRouteIdentityUsesDomainWithoutStoredName(t *testing.T) {
+	s := testStore(t)
+	ctx := context.Background()
+	input := model.ResourceInput{Kind: "route", Name: "discard this legacy name", Data: json.RawMessage(`{"domain":"api.example.com"}`)}
+	route, err := s.Save(ctx, "", input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if route.Name != "api.example.com" {
+		t.Fatal(route.Name)
+	}
+	var noName bool
+	if err = s.Pool.QueryRow(ctx, "SELECT name IS NULL FROM resources WHERE id=$1", route.ID).Scan(&noName); err != nil || !noName {
+		t.Fatal("route name persisted", err)
+	}
+	input.Name = ""
+	input.Version = route.Version
+	input.Data = json.RawMessage(`{"domain":"new.example.com"}`)
+	if route, err = s.Save(ctx, route.ID, input); err != nil || route.Name != "new.example.com" {
+		t.Fatal(route, err)
+	}
+	route, err = s.Resource(ctx, route.ID)
+	if err != nil || route.Name != "new.example.com" {
+		t.Fatal(route, err)
+	}
+}

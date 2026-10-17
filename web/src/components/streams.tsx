@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { logText } from "@/lib/log-text";
 import { StateBadge } from "@/components/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 export function LogStream({
@@ -42,7 +43,7 @@ export function LogStream({
       const data = JSON.parse((event as MessageEvent).data) as {
         message: string;
       };
-      setLines((old) => [...old.slice(-1999), data.message]);
+      setLines((old) => [...old.slice(-1999), logText(data.message)]);
       setState("connected");
     });
     source.addEventListener("status", (event) => {

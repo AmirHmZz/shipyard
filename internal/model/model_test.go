@@ -51,3 +51,13 @@ func TestServerAuthenticationMethod(t *testing.T) {
 		}
 	}
 }
+
+func TestRouteNeedsOnlyDomainIdentity(t *testing.T) {
+	raw := json.RawMessage(`{"protocol":"https","domain":"api.example.com","service":"app","targetPort":8080,"tls":"terminate","zoneId":"zone"}`)
+	if err := Validate(ResourceInput{Kind: "route", Data: raw}); err != nil {
+		t.Fatal(err)
+	}
+	if err := Validate(ResourceInput{Kind: "team", Data: json.RawMessage(`{}`)}); err == nil {
+		t.Fatal("other resource names became optional")
+	}
+}

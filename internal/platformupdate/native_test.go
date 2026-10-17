@@ -70,7 +70,7 @@ func TestLinuxNativeVersionChanges(t *testing.T) {
 	bundle = append(bundle, pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)})...)
 	routeID := "shipyard-dashboard-route-release-test"
 	route, _ := json.Marshal(model.Route{Protocol: "https", TLS: "terminate", Domain: "panel.example.com", Service: "dashboard", TargetPort: 8080})
-	_, e = store.Pool.Exec(ctx, "INSERT INTO resources(id,kind,name,parent_id,data) VALUES($1,'route','dashboard','shipyard-dashboard',$2)", routeID, route)
+	_, e = store.Pool.Exec(ctx, "INSERT INTO resources(id,kind,name,parent_id,data) VALUES($1,'route',NULL,'shipyard-dashboard',$2)", routeID, route)
 	if e != nil {
 		t.Fatal(e)
 	}

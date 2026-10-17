@@ -4,7 +4,7 @@ Long forms live under `/configure/{kind}/{id-or-new}`; application networking, v
 
 Connect DNS zones from **DNS & domains → Add zone**. Select a Cloudflare/ArvanCloud connection and choose an available provider domain. Shipyard verifies that provider ID server-side and uses its canonical domain as the zone name. Already connected domains are excluded. Provider credentials are configured separately under Integrations.
 
-Routes select a connected zone and optional subdomain/wildcard. HTTPS and gRPC terminate TLS and always redirect HTTP; gRPC uses h2c inside Docker. TCP uses a dedicated listener with termination or passthrough. Plaintext TCP, HTTP-only routes, path routing and backend TLS settings are rejected. Compose target services come from the resolved source; discovery returns names and replica counts without interpolated secrets. Deployment checks the immutable source again.
+Routes select a connected zone and optional subdomain/wildcard. The full hostname identifies each route; there is no separate custom route name. HTTPS and gRPC terminate TLS and always redirect HTTP; gRPC uses h2c inside Docker. TCP uses a dedicated listener with termination or passthrough. Plaintext TCP, HTTP-only routes, path routing and backend TLS settings are rejected. Compose target services come from the resolved source; discovery returns names and replica counts without interpolated secrets. Deployment checks the immutable source again.
 
 ## Networks
 

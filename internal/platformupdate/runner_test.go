@@ -85,7 +85,7 @@ func TestRunnerBackupRecoveryAndIdempotence(t *testing.T) {
 					if mode == "unsafe-recovery" && backups > 0 {
 						steps = append(steps, db.MigrationStep{Classification: "destructive", Impact: "Discard data"})
 					}
-					return json.Marshal(db.MigrationStatus{Current: 3, Target: 3, Steps: steps})
+					return json.Marshal(db.MigrationStatus{Current: db.LatestSchema(), Target: db.LatestSchema(), Steps: steps})
 				}
 				return nil, nil
 			}, Backup: func(_ context.Context, pass string, files map[string][]byte) ([]byte, error) {
