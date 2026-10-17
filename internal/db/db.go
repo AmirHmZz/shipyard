@@ -56,7 +56,8 @@ func (s *Store) migrate(ctx context.Context) error {
 		return err
 	}
 	if state.Current == 0 {
-		return ApplyMigrations(ctx, s.Pool, LatestSchema(), false)
+		// A fresh database has no existing data to lose.
+		return ApplyMigrations(ctx, s.Pool, LatestSchema(), true)
 	}
 	if state.Current != LatestSchema() {
 		return fmt.Errorf("database schema %d does not match binary schema %d; run the planned migration command", state.Current, LatestSchema())
@@ -99,7 +100,7 @@ func (s *Store) checkKey(ctx context.Context) error {
 	return tx.Commit(ctx)
 }
 
-const resourceColumns = `id,kind,name,team_id,parent_id,data,secret,version,created_at,updated_at`
+const resourceColumns = `id,kind,CASE WHEN kind='route' THEN COALESCE(data->>'domain',id) ELSE name END AS name,team_id,parent_id,data,secret,version,created_at,updated_at`
 
 func scanResource(row pgx.Row) (model.Resource, error) {
 	var r model.Resource
@@ -257,10 +258,14 @@ func (s *Store) Save(ctx context.Context, id string, in model.ResourceInput) (mo
 	if e != nil {
 		return model.Resource{}, e
 	}
+	var storedName any = in.Name
+	if in.Kind == "route" {
+		storedName = nil
+	}
 	if old.ID == "" {
-		old, e = scanResource(tx.QueryRow(ctx, "INSERT INTO resources(id,kind,name,team_id,parent_id,data,secret) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING "+resourceColumns, id, in.Kind, in.Name, in.TeamID, in.ParentID, in.Data, encrypted))
+		old, e = scanResource(tx.QueryRow(ctx, "INSERT INTO resources(id,kind,name,team_id,parent_id,data,secret) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING "+resourceColumns, id, in.Kind, storedName, in.TeamID, in.ParentID, in.Data, encrypted))
 	} else {
-		old, e = scanResource(tx.QueryRow(ctx, "UPDATE resources SET name=$2,data=$3,secret=$4,version=version+1,updated_at=now() WHERE id=$1 AND version=$5 RETURNING "+resourceColumns, id, in.Name, in.Data, encrypted, in.Version))
+		old, e = scanResource(tx.QueryRow(ctx, "UPDATE resources SET name=$2,data=$3,secret=$4,version=version+1,updated_at=now() WHERE id=$1 AND version=$5 RETURNING "+resourceColumns, id, storedName, in.Data, encrypted, in.Version))
 	}
 	if e != nil {
 		return model.Resource{}, e

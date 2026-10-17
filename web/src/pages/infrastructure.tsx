@@ -98,7 +98,6 @@ import {
 } from "@/components/ui/chart";
 import {
   Confirm,
-  CopyButton,
   Empty,
   ErrorState,
   Filter,
@@ -541,17 +540,7 @@ export function Integrations() {
                                 ? providerName(text(resource.data, "provider"))
                                 : text(resource.data, "url")}
                             </p>
-                            {resource.kind === "git" && (
-                              <div className="mt-2 flex items-center gap-2">
-                                <code className="max-w-40 truncate text-[10px] text-muted-foreground sm:max-w-64">
-                                  {location.origin}/api/v1/hooks/{resource.id}
-                                </code>
-                                <CopyButton
-                                  label="Copy webhook URL"
-                                  value={`${location.origin}/api/v1/hooks/${resource.id}`}
-                                />
-                              </div>
-                            )}
+
                           </div>
                         </div>
                         <div className="flex gap-2">

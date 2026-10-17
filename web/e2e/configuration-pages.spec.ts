@@ -245,7 +245,7 @@ test("routes select zones and Compose services and only offer secure protocols",
 }) => {
   const state = await mock(page);
   await page.goto("/configure/route/new?parent=app&return=/applications/app");
-  await page.getByLabel("Name", { exact: true }).fill("api");
+  await expect(page.getByLabel("Name", { exact: true })).toHaveCount(0);
   await page.getByRole("combobox", { name: "Select connected zone" }).click();
   await page.getByRole("option", { name: "example.com", exact: true }).click();
   await page.getByLabel("Subdomain or full hostname").fill("api");
@@ -283,6 +283,7 @@ test("routes select zones and Compose services and only offer secure protocols",
     protocol: "tcp",
   });
   expect(state.writes[0].body.data).not.toHaveProperty("redirect");
+  expect(state.writes[0].body).not.toHaveProperty("name");
 });
 test("application networking saves per-service settings and hides admin port controls from operators", async ({
   page,
@@ -382,4 +383,50 @@ test("application preview settings have deep links and retain wildcard settings 
   );
   await page.getByRole("tab", { name: "networking", exact: true }).click();
   await expect(page).toHaveURL(/tab=networking/);
+});
+
+
+test("new DNS providers require a successful test of the current credentials", async ({ page }) => {
+  const state = await mock(page);
+  const probes: any[] = [];
+  await page.route("**/api/v1/dns/test", async route => {
+    const body = route.request().postDataJSON();
+    probes.push(body);
+    if (body.token === "invalid") return route.fulfill({ status: 502, json: { error: "DNS provider test failed" } });
+    return route.fulfill({ json: { ok: true } });
+  });
+  await page.goto("/configure/dns/new?return=/integrations");
+  await page.getByLabel("Name", { exact: true }).fill("My DNS");
+  const save = page.getByRole("button", { name: "Save provider", exact: true });
+  const probe = page.getByRole("button", { name: "Test provider", exact: true });
+  await expect(save).toBeDisabled();
+  await expect(probe).toBeDisabled();
+  await page.getByLabel("Provider API token").fill("invalid");
+  await probe.click();
+  await expect(page.getByRole("alert")).toContainText("DNS provider test failed");
+  await expect(save).toBeDisabled();
+  await page.getByLabel("Provider API token").fill("valid");
+  await probe.click();
+  await expect(save).toBeEnabled();
+  await page.getByLabel("Provider API token").fill("changed");
+  await expect(save).toBeDisabled();
+  await probe.click();
+  await expect(save).toBeEnabled();
+  await page.getByRole("combobox", { name: "Select DNS provider" }).click();
+  await page.getByRole("option", { name: "ArvanCloud", exact: true }).click();
+  await expect(save).toBeDisabled();
+  await probe.click();
+  await expect(save).toBeEnabled();
+  await save.click();
+  await expect.poll(() => state.writes.length).toBe(1);
+  expect(probes.at(-1)).toEqual({ provider: "arvancloud", token: "changed" });
+  expect(state.writes[0].body.secrets.token).toBe("changed");
+});
+
+test("Git integration cards hide webhook URLs and copy buttons", async ({ page }) => {
+  await mock(page);
+  await page.goto("/integrations");
+  await expect(page.getByRole("main").getByText("git", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Copy webhook URL" })).toHaveCount(0);
+  await expect(page.getByText(/api\/v1\/hooks/)).toHaveCount(0);
 });

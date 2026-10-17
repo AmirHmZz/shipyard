@@ -7,6 +7,7 @@ function resource(id: string, input: ResourceInput): Resource {
   return {
     id,
     ...input,
+    name: input.name || String(input.data.domain || id),
     parentId: input.parentId || "",
     teamId: input.teamId || "",
     secretKeys: [],
@@ -53,6 +54,7 @@ async function dashboard(page: Page, initial: Resource[] = []) {
       resources.push(saved);
       return route.fulfill({ status: 201, json: saved });
     }
+    if (path === "/api/v1/dns/test") return route.fulfill({ json: { ok: true } });
     if (path.endsWith("/records"))
       return route.fulfill({
         json: [
@@ -137,6 +139,9 @@ test("provider names and logos render while saved provider IDs stay unchanged", 
   await page.getByRole("option", { name: "ArvanCloud", exact: true }).click();
   await expect(dnsSelect).toHaveText("ArvanCloud");
   await dns.getByLabel("Name", { exact: true }).fill("DNS test");
+  await dns.getByLabel("Provider API token").fill("test-token");
+  await expect(dns.getByRole("button", { name: "Save provider" })).toBeDisabled();
+  await dns.getByRole("button", { name: "Test provider", exact: true }).click();
   await dns.getByRole("button", { name: "Save provider" }).click();
   await expect(page).toHaveURL(/integrations$/);
   expect(writes.map((w) => w.data.provider)).toEqual(["gitea", "arvancloud"]);

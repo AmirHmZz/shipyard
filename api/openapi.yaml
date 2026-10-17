@@ -3570,6 +3570,89 @@
         }
       }
     },
+    "/dns/test": {
+      "post": {
+        "summary": "Test unsaved DNS provider credentials",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Resource not found"
+          },
+          "409": {
+            "description": "Conflict"
+          },
+          "503": {
+            "description": "Maintenance mode or dependency unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "provider": {
+                    "type": "string",
+                    "enum": [
+                      "cloudflare",
+                      "arvancloud"
+                    ]
+                  },
+                  "token": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "provider",
+                  "token"
+                ]
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": [],
+            "csrf": []
+          }
+        ]
+      }
+    },
     "/dns/{id}/zones": {
       "get": {
         "summary": "Provider zones",
@@ -6222,7 +6305,8 @@
             "type": "string"
           },
           "name": {
-            "type": "string"
+            "type": "string",
+            "description": "Required except for routes, whose display name is derived from data.domain."
           },
           "teamId": {
             "type": "string"
@@ -6246,7 +6330,6 @@
         },
         "required": [
           "kind",
-          "name",
           "data"
         ]
       },

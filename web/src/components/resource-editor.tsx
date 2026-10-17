@@ -273,6 +273,11 @@ export function ResourceEditor({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [probe, setProbe] = useState(false);
+  const [dnsTesting, setDNSTesting] = useState(false);
+  const [dnsTested, setDNSTested] = useState("");
+  const dnsCredentials = JSON.stringify([data.provider, secrets.token]);
+  const needsDNSTest = kind === "dns" && !existing;
+  const dnsVerified = dnsTested === dnsCredentials;
   const [composeYAML, setComposeYAML] = useState("");
   const needsComposeDocument =
     kind === "application" &&
@@ -311,6 +316,7 @@ export function ResourceEditor({
       }
       setData(initial);
       setSecrets({});
+      setDNSTested("");
       setVersion(existing?.version || 0);
       setError("");
       setComposeYAML("");
@@ -416,7 +422,25 @@ export function ResourceEditor({
       </SelectContent>
     </Select>
   );
+  async function testDNS() {
+    const credentials = dnsCredentials;
+    setDNSTesting(true);
+    setDNSTested("");
+    setError("");
+    try {
+      await post("/dns/test", { provider: data.provider, token: secrets.token });
+      setDNSTested(credentials);
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setDNSTesting(false);
+    }
+  }
   async function save() {
+    if (needsDNSTest && (!dnsVerified || dnsTesting)) {
+      setError("Test the DNS provider successfully before saving.");
+      return;
+    }
     if (kind === "zone" && !parent) {
       setError("Select a DNS provider before saving the zone.");
       return;
@@ -467,7 +491,9 @@ export function ResourceEditor({
           method: existing ? "PUT" : "POST",
           body: JSON.stringify({
             kind,
-            name: kind === "zone" ? String(resolved.domain || "zone") : name,
+            ...(kind === "route"
+              ? {}
+              : { name: kind === "zone" ? String(resolved.domain || "zone") : name }),
             parentId: parent,
             teamId: team,
             data: resolved,
@@ -519,7 +545,7 @@ export function ResourceEditor({
             }}
             className="space-y-5"
           >
-            {kind !== "zone" && (
+            {kind !== "zone" && kind !== "route" && (
               <div className="space-y-2">
                 <Label htmlFor={`${formId}-name`}>Name</Label>
                 <Input
@@ -1080,6 +1106,24 @@ export function ResourceEditor({
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
+            {needsDNSTest && (
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={dnsTesting || busy || !secrets.token?.trim()}
+                  onClick={() => void testDNS()}
+                >
+                  {dnsTesting && <Loader2 className="animate-spin" />}
+                  {dnsTesting ? "Testing provider…" : "Test provider"}
+                </Button>
+                <p role="status" className="text-sm text-muted-foreground">
+                  {dnsVerified
+                    ? "Connection verified. Provider is ready to save."
+                    : "Test your API token before saving this provider."}
+                </p>
+              </div>
+            )}
             <DialogFooter>
               <Button
                 type="button"
@@ -1092,7 +1136,8 @@ export function ResourceEditor({
                 type="submit"
                 disabled={
                   busy ||
-                  (kind !== "zone" && !name) ||
+                  (kind !== "zone" && kind !== "route" && !name) ||
+                  (needsDNSTest && (!dnsVerified || dnsTesting)) ||
                   (kind === "zone" && !data.providerZoneId) ||
                   (kind === "zone" && !parent) ||
                   (needsComposeDocument && !composeYAML.trim())

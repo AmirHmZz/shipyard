@@ -203,7 +203,7 @@ test("container ports use themed steppers and preserve typing, keyboard steps an
   await expect(port).toHaveValue("8080");
   await port.press("ArrowUp");
   await expect(port).toHaveValue("8081");
-  await dialog.getByLabel("Name", { exact: true }).fill("Public web");
+  await expect(dialog.getByLabel("Name", { exact: true })).toHaveCount(0);
   await dialog
     .getByLabel("Subdomain or full hostname", { exact: true })
     .fill("app.example.com");

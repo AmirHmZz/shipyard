@@ -155,6 +155,7 @@ func (a *API) Router() http.Handler {
 			r.Get("/git/{id}/repositories", a.repositories)
 			r.Get("/git/{id}/branches", a.branches)
 			r.Get("/dns/{id}/zones", a.providerZones)
+			r.Post("/dns/test", a.testDNSProvider)
 			r.Get("/zones/{id}/records", a.records)
 			r.Get("/zones/{id}/certificates", a.zoneCertificates)
 			r.Post("/zones/{id}/records", a.putRecord)
