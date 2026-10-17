@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/AmirHmZz/shipyard/compare/v0.1.0...v0.1.1) (2026-10-17)
+
+
+### Bug Fixes
+
+* **ci:** verify platform manifests independently ([70d9446](https://github.com/AmirHmZz/shipyard/commit/70d9446324533f94433c1888c4368c9b2c1ccccb))
+
 ## 0.1.0 (2026-10-17)
 
 
