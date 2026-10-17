@@ -123,7 +123,12 @@ jobs:
             docker buildx imagetools inspect "$image" --raw > /tmp/shipyard-image-index.json
             for arch in amd64 arm64; do jq -e --arg arch "$arch" '.manifests | any(.platform.os == "linux" and .platform.architecture == $arch)' /tmp/shipyard-image-index.json; done
             for arch in amd64 arm64; do
-              docker run --rm --platform "linux/$arch" "$image" version | jq -e --arg version '${{ steps.metadata.outputs.version }}' --arg commit '${{ steps.metadata.outputs.commit }}' --arg arch "$arch" '.version == $version and .commit == $commit and .architecture == $arch'
+              # Classic Docker stores one platform per index reference. Resolve each
+              # platform manifest so verifying ARM64 cannot overwrite AMD64's digest.
+              digest=$(jq -er --arg arch "$arch" '.manifests[] | select(.platform.os == "linux" and .platform.architecture == $arch) | .digest' /tmp/shipyard-image-index.json)
+              platform_image="${image%@*}@$digest"
+              DOCKER_CONFIG=/tmp/shipyard-anonymous-docker docker pull --platform "linux/$arch" "$platform_image"
+              docker run --rm --platform "linux/$arch" "$platform_image" version | jq -e --arg version '${{ steps.metadata.outputs.version }}' --arg commit '${{ steps.metadata.outputs.commit }}' --arg arch "$arch" '.version == $version and .commit == $commit and .architecture == $arch'
             done
           done
       - name: Generate immutable installation artifacts
