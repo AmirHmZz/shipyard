@@ -25,6 +25,7 @@ import {
 } from "@/lib/api";
 import { loadComposeEditor } from "@/lib/feature-loaders";
 import { indexResources } from "@/lib/resource-index";
+import { freshDeploySchema, previewCommitSchema } from "@/lib/validation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowUpRight,
@@ -46,7 +47,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router";
 import { toast } from "sonner";
 
 import { DeleteResource, DeletionStatus } from "@/components/delete-resource";
@@ -334,7 +335,13 @@ export function Application() {
     try {
       const d = await post<{ id: string }>(
         `/applications/${id}/deploy`,
-        fresh ? { fresh: true, confirmName, version: app!.version } : {},
+        fresh
+          ? freshDeploySchema(app!.name).parse({
+              fresh,
+              confirmName,
+              version: app!.version,
+            })
+          : {},
       );
       setParams({ deployment: d.id, tab: "deployments" });
       await client.invalidateQueries({ queryKey: ["deployments"] });
@@ -673,9 +680,12 @@ function ApplicationOverview({
                 e.preventDefault();
                 const form = new FormData(e.currentTarget);
                 try {
-                  await post(`/applications/${id}/approve-preview`, {
-                    sha: form.get("sha"),
-                  });
+                  await post(
+                    `/applications/${id}/approve-preview`,
+                    previewCommitSchema.parse({
+                      sha: form.get("sha"),
+                    }),
+                  );
                   toast.success("Preview approved and queued");
                   void client.invalidateQueries();
                 } catch (err) {

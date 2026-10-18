@@ -15,6 +15,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { api, errorMessage } from "@/lib/api";
 import { useConfigurationChanges } from "@/lib/configuration-state";
+import { dashboardHostnameSchema } from "@/lib/validation";
 import type { components } from "@/lib/schema";
 import { useQuery } from "@tanstack/react-query";
 import { ExternalLink, RefreshCw } from "lucide-react";
@@ -53,13 +54,19 @@ function DashboardAccessForm() {
         body: JSON.stringify(
           retry
             ? { version: state.version }
-            : {
-                version: state.version,
-                domain: draft ?? state.domain,
-                ...(!state.acmeConfigured
-                  ? { acmeEmail: email, acceptTos: accept }
-                  : {}),
-              },
+            : (() => {
+                const values = dashboardHostnameSchema(
+                  state.acmeConfigured,
+                ).parse({
+                  version: state.version,
+                  domain: draft ?? state.domain,
+                  acmeEmail: email,
+                  acceptTos: accept,
+                });
+                return state.acmeConfigured
+                  ? { version: values.version, domain: values.domain }
+                  : values;
+              })(),
         ),
       });
       setDraft(null);

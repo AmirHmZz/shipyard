@@ -14,7 +14,7 @@ go vet ./api/... ./cmd/... ./internal/... ./tests/...
 go build ./cmd/shipyard
 ```
 
-For development, run PostgreSQL separately and export `DATABASE_URL`, `SHIPYARD_MASTER_KEY`, `SHIPYARD_BOOTSTRAP_TOKEN`, and `SHIPYARD_ORIGIN=http://localhost:5173`. Run `go run ./cmd/shipyard` and `cd web && bun dev`; Vite proxies API and WebSocket requests to port 8080. Go builds embed `internal/web/dist`, which is produced by the frontend build and intentionally ignored by Git.
+The dashboard uses React Router framework SPA mode. `bun run build` generates route types, checks TypeScript, builds `web/build/client`, and copies those assets to `internal/web/dist` for embedding in Go. For development, run PostgreSQL separately and export `DATABASE_URL`, `SHIPYARD_MASTER_KEY`, `SHIPYARD_BOOTSTRAP_TOKEN`, and `SHIPYARD_ORIGIN=http://localhost:5173`. Run `go run ./cmd/shipyard` and `cd web && bun dev`; Vite proxies API and WebSocket requests to port 8080. The generated frontend assets are intentionally ignored by Git.
 
 `node scripts/openapi.mjs` regenerates the API document, followed by `cd web && bun run api:generate`. Run `sqlc generate` to regenerate the PostgreSQL query bindings. Generated artifacts are committed; CI checks regeneration drift.
 

@@ -83,13 +83,9 @@ import {
   Wrench,
 } from "lucide-react";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
-import {
-  Link,
-  useNavigate,
-  useParams,
-  useSearchParams,
-} from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { toast } from "sonner";
+import { dnsRecordFormSchema, jsonText } from "@/lib/validation";
 const ServerCPUChart = lazy(() => import("@/components/server-cpu-chart"));
 function ServerCard({
   server,
@@ -574,10 +570,11 @@ function DNSRecords({ zone }: { zone: Resource }) {
     if (!edit) return;
     setBusy(true);
     try {
-      const data = extra.trim() ? JSON.parse(extra) : undefined;
+      const data = extra.trim() ? jsonText.parse(extra) : undefined;
+      const record = dnsRecordFormSchema.parse({ ...edit, data });
       await api(`/zones/${zone.id}/records${edit.id ? `/${edit.id}` : ""}`, {
         method: edit.id ? "PUT" : "POST",
-        body: JSON.stringify({ ...edit, data }),
+        body: JSON.stringify(record),
       });
       await client.invalidateQueries({ queryKey: ["records", zone.id] });
       setEdit(null);

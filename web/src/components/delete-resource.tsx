@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { api, errorMessage, text, type Resource } from "@/lib/api";
+import { resourceDeletionSchema } from "@/lib/validation";
 import { useQueryClient } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -34,6 +35,7 @@ export function DeleteResource({
     setBusy(true);
     setError("");
     try {
+      resourceDeletionSchema(resource.name).parse({ name });
       await api(`/resources/${resource.id}`, { method: "DELETE", body: "{}" });
       await client.invalidateQueries({ queryKey: ["resources"] });
       toast.success(

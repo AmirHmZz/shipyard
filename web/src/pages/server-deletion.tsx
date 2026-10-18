@@ -38,11 +38,12 @@ import {
   type Resource,
 } from "@/lib/api";
 import type { components } from "@/lib/schema";
+import { serverConnectionSchema, serverDeletionSchema } from "@/lib/validation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { RefreshCw, Trash2 } from "lucide-react";
 import type { Dispatch, SetStateAction } from "react";
 import { useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router";
 
 type Plan = components["schemas"]["ServerDeletionPlan"];
 type Status = components["schemas"]["ServerDeletionStatus"];
@@ -144,18 +145,27 @@ function RepairConnection({
             setBusy(true);
             setError("");
             try {
+              const connection = serverConnectionSchema.parse({
+                host,
+                port,
+                user,
+                fingerprint,
+                authMethod: auth,
+                credential,
+              });
               await api(`/servers/${server.id}/deletion/connection`, {
                 method: "PUT",
                 body: JSON.stringify({
-                  host,
-                  port: Number(port),
-                  user,
-                  fingerprint,
-                  authMethod: auth,
-                  secrets: credential
+                  host: connection.host,
+                  port: connection.port,
+                  user: connection.user,
+                  fingerprint: connection.fingerprint,
+                  authMethod: connection.authMethod,
+                  secrets: connection.credential
                     ? {
-                        [auth === "password" ? "password" : "private_key"]:
-                          credential,
+                        [connection.authMethod === "password"
+                          ? "password"
+                          : "private_key"]: connection.credential,
                       }
                     : {},
                 }),
@@ -527,13 +537,12 @@ function ServerDeletionPlanReview({
                   setBusy(true);
                   setError("");
                   try {
+                    const confirmation = serverDeletionSchema(
+                      plan.serverName,
+                    ).parse({ planId: plan.id, name, deleteVolumes: ack });
                     await api(`/servers/${id}`, {
                       method: "DELETE",
-                      body: JSON.stringify({
-                        planId: plan.id,
-                        name,
-                        deleteVolumes: ack,
-                      }),
+                      body: JSON.stringify(confirmation),
                     });
                     await Promise.all([
                       client.invalidateQueries({

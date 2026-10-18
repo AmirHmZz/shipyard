@@ -26,7 +26,7 @@ import {
   useNavigate,
   useParams,
   useSearchParams,
-} from "react-router-dom";
+} from "react-router";
 export function Configuration() {
   return (
     <ConfigurationPage>

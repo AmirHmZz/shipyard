@@ -56,6 +56,16 @@ import {
   type Session,
 } from "@/lib/api";
 import type { components } from "@/lib/schema";
+import {
+  alertPolicySchema,
+  invitationFormSchema,
+  passphraseSchema,
+  passwordFormSchema,
+  totpCodeSchema,
+  totpDisableSchema,
+  totpPasswordSchema,
+} from "@/lib/validation";
+import * as z from "zod";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Bell,
@@ -70,7 +80,7 @@ import {
   Users,
 } from "lucide-react";
 import { useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 import { toast } from "sonner";
 type AlertPolicy = components["schemas"]["AlertPolicy"];
 
@@ -114,7 +124,7 @@ function AlertSettings() {
             try {
               await api("/settings/alerts", {
                 method: "PUT",
-                body: JSON.stringify(value),
+                body: JSON.stringify(alertPolicySchema.parse(value)),
               });
               await query.refetch();
               setDraft(null);
@@ -272,11 +282,14 @@ function PasswordSettings() {
             e.preventDefault();
             setBusy(true);
             try {
-              const s = await post<Session>("/auth/password", {
-                current,
-                password,
-                code,
-              });
+              const s = await post<Session>(
+                "/auth/password",
+                passwordFormSchema.parse({
+                  current,
+                  password,
+                  code,
+                }),
+              );
               setCSRF(s.csrf);
               client.setQueryData(["session"], s);
               setCurrent("");
@@ -451,7 +464,11 @@ export function Teams() {
                     try {
                       const v = await post<{ url: string }>(
                         `/teams/${team.id}/invitations`,
-                        { email, role, projectId: project },
+                        invitationFormSchema.parse({
+                          email,
+                          role,
+                          projectId: project,
+                        }),
                       );
                       setInvitation(v.url);
                       toast.success("Invitation created");
@@ -552,10 +569,23 @@ export function Teams() {
                     <Select
                       onValueChange={async (value) => {
                         try {
-                          await post(`/projects/${p.id}/members`, {
-                            userId: assign,
-                            role: value,
-                          });
+                          await post(
+                            `/projects/${p.id}/members`,
+                            z
+                              .object({
+                                userId: z.string().min(1),
+                                role: z.enum([
+                                  "owner",
+                                  "operator",
+                                  "viewer",
+                                  "remove",
+                                ]),
+                              })
+                              .parse({
+                                userId: assign,
+                                role: value,
+                              }),
+                          );
                           toast.success("Project access updated");
                         } catch (e) {
                           toast.error(errorMessage(e));
@@ -669,7 +699,7 @@ function Security({ session }: { session: Session }) {
                 try {
                   const v = await post<{ recoveryCodes: string[] }>(
                     "/auth/totp/confirm",
-                    { code },
+                    totpCodeSchema.parse({ code }),
                   );
                   setRecovery(v.recoveryCodes);
                   setSetup(null);
@@ -694,7 +724,10 @@ function Security({ session }: { session: Session }) {
               variant="destructive"
               onClick={async () => {
                 try {
-                  await post("/auth/totp/disable", { password, code });
+                  await post(
+                    "/auth/totp/disable",
+                    totpDisableSchema.parse({ password, code }),
+                  );
                   await client.invalidateQueries({ queryKey: ["session"] });
                   setPassword("");
                   setCode("");
@@ -711,7 +744,12 @@ function Security({ session }: { session: Session }) {
           <Button
             onClick={async () => {
               try {
-                setSetup(await post("/auth/totp/start", { password }));
+                setSetup(
+                  await post(
+                    "/auth/totp/start",
+                    totpPasswordSchema.parse({ password }),
+                  ),
+                );
               } catch (e) {
                 toast.error(errorMessage(e));
               }
@@ -786,7 +824,10 @@ function Backup({ session }: { session: Session }) {
               e.preventDefault();
               setBusy(true);
               try {
-                const blob = await post<Blob>("/backup", { passphrase });
+                const blob = await post<Blob>(
+                  "/backup",
+                  passphraseSchema.parse({ passphrase }),
+                );
                 const url = URL.createObjectURL(blob);
                 const anchor = document.createElement("a");
                 anchor.href = url;

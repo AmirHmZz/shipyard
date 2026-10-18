@@ -13,7 +13,7 @@ import { indexResources } from "@/lib/resource-index";
 import { useQuery } from "@tanstack/react-query";
 import { ShieldCheck } from "lucide-react";
 import { useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 
 function date(value: string | null) {
   return value

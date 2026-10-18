@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { createHash } from "node:crypto";
 
 async function fillCompose(editor: Locator, yaml: string) {
   await editor.focus();
@@ -315,12 +316,24 @@ test("Monaco provides local YAML tooling under the production content policy", a
   });
   await page.route("**/applications/app", async (route) => {
     const response = await route.fetch();
+    const html = await response.text();
+    const hashes = [
+      ...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi),
+    ]
+      .filter(
+        ([, attributes, source]) => !/\bsrc\s*=/i.test(attributes) && source,
+      )
+      .map(
+        ([, , source]) =>
+          `'sha256-${createHash("sha256").update(source).digest("base64")}'`,
+      )
+      .join(" ");
     await route.fulfill({
       response,
+      body: html,
       headers: {
         ...response.headers(),
-        "Content-Security-Policy":
-          "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'",
+        "Content-Security-Policy": `default-src 'self'; script-src 'self' ${hashes}; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'`,
       },
     });
   });

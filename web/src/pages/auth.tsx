@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { api, errorMessage, post, setCSRF, type Session } from "@/lib/api";
+import { authFormSchema } from "@/lib/validation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Anchor,
@@ -22,7 +23,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 export function Auth() {
   const navigate = useNavigate();
   const client = useQueryClient();
@@ -48,9 +49,10 @@ export function Auth() {
     setBusy(true);
     setError("");
     try {
+      const mode = token ? "accept" : setup ? "setup" : "login";
       const s = await post<Session>(
-        `/auth/${token ? "accept" : setup ? "setup" : "login"}`,
-        form,
+        `/auth/${mode}`,
+        authFormSchema(mode).parse(form),
       );
       setCSRF(s.csrf);
       client.removeQueries({ predicate: (q) => q.queryKey[0] !== "session" });

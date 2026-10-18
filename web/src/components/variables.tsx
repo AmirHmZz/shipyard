@@ -23,6 +23,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { api, errorMessage, type Resource } from "@/lib/api";
 import { useConfigurationChanges } from "@/lib/configuration-state";
+import { variableFormSchema } from "@/lib/validation";
 import { useQueryClient } from "@tanstack/react-query";
 import { Pencil, ShieldCheck, Trash2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
@@ -64,6 +65,10 @@ function useVariableController(resource: Resource) {
   async function save(name: string, v: string | null, encrypted: boolean) {
     setBusy(true);
     try {
+      const values =
+        v === null
+          ? { name, value: v, encrypted }
+          : variableFormSchema.parse({ name, value: v, encrypted });
       await api(`/resources/${resource.id}`, {
         method: "PUT",
         body: JSON.stringify({
@@ -71,9 +76,9 @@ function useVariableController(resource: Resource) {
           name: resource.name,
           data: resource.data,
           version: resource.version,
-          ...(encrypted
-            ? { secrets: { [name]: v ?? "" } }
-            : { variables: { [name]: v } }),
+          ...(values.encrypted
+            ? { secrets: { [values.name]: values.value ?? "" } }
+            : { variables: { [values.name]: values.value } }),
         }),
       });
       await client.invalidateQueries({ queryKey: ["resources"] });

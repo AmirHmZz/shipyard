@@ -23,6 +23,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { api, errorMessage, post, text, type Resource } from "@/lib/api";
 import { useConfigurationChanges } from "@/lib/configuration-state";
 import type { components } from "@/lib/schema";
+import { gitSetupSchema, giteaInstanceSchema } from "@/lib/validation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ExternalLink, Plus, Settings2 } from "lucide-react";
 import type { Dispatch, SetStateAction } from "react";
@@ -115,12 +116,15 @@ export function GitConnection({
     await perform(async () => {
       const result = existing
         ? await post<Start>(`/git/${existing.id}/reconnect`)
-        : await post<Start>("/git/setup/start", {
-            provider,
-            name,
-            owner,
-            instanceId,
-          });
+        : await post<Start>(
+            "/git/setup/start",
+            gitSetupSchema.parse({
+              provider,
+              name,
+              owner,
+              instanceId,
+            }),
+          );
       changes.saved();
       followGitSetup(result);
     });
@@ -384,7 +388,7 @@ function GiteaInstanceEditor({
             void perform(async () => {
               const v = await api<Instance>("/git/gitea/instances", {
                 method: "PUT",
-                body: JSON.stringify(instanceForm),
+                body: JSON.stringify(giteaInstanceSchema.parse(instanceForm)),
               });
               setInstanceId(v.id);
               setInstanceForm(null);

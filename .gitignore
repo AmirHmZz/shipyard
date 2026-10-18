@@ -8,6 +8,8 @@ data/
 coverage.out
 web/node_modules/
 web/dist/
+web/build/
+web/.react-router/
 web/test-results/
 web/playwright-report/
 internal/web/dist/*
