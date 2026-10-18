@@ -1,52 +1,64 @@
-import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, RefreshCw, Trash2 } from "lucide-react";
+import {
+  ErrorState,
+  Loading,
+  PageHeader,
+  StateBadge,
+} from "@/components/shared";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import {
   api,
-  post,
-  useResources,
-  useAccount,
   APIError,
   errorMessage,
+  post,
   text,
+  useAccount,
+  useResources,
   type Resource,
 } from "@/lib/api";
 import type { components } from "@/lib/schema";
-import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select,
-  SelectTrigger,
-  SelectContent,
-  SelectItem,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableHeader,
-  TableHead,
-  TableBody,
-  TableRow,
-  TableCell,
-} from "@/components/ui/table";
-import {
-  PageHeader,
-  Loading,
-  ErrorState,
-  StateBadge,
-} from "@/components/shared";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { RefreshCw, Trash2 } from "lucide-react";
+import type { Dispatch, SetStateAction } from "react";
+import { useMemo, useState } from "react";
+import { Link, useParams } from "react-router-dom";
 
 type Plan = components["schemas"]["ServerDeletionPlan"];
 type Status = components["schemas"]["ServerDeletionStatus"];
 type Item = components["schemas"]["DeletionItem"];
 function Inventory({ title, items }: { title: string; items: Item[] }) {
   const [all, setAll] = useState(false);
+  const rows = useMemo(() => {
+    const occurrences = new Map<string, number>();
+    return items.map((item) => {
+      // A bind mount may be reported once for each container using it.
+      const identity = JSON.stringify([item.kind, item.id]);
+      const occurrence = occurrences.get(identity) ?? 0;
+      occurrences.set(identity, occurrence + 1);
+      return { item, key: `${identity}:${occurrence}` };
+    });
+  }, [items]);
   return (
     <Card className="gap-0 overflow-hidden py-0 shadow-none">
       <CardHeader className="py-5">
@@ -66,8 +78,8 @@ function Inventory({ title, items }: { title: string; items: Item[] }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {(all ? items : items.slice(0, 15)).map((item, i) => (
-                <TableRow key={`${item.kind}-${item.id}-${i}`}>
+              {(all ? rows : rows.slice(0, 15)).map(({ item, key }) => (
+                <TableRow key={key}>
                   <TableCell className="capitalize">{item.kind}</TableCell>
                   <TableCell className="max-w-xs break-all whitespace-normal font-medium">
                     {item.name}
@@ -81,7 +93,10 @@ function Inventory({ title, items }: { title: string; items: Item[] }) {
           </Table>
           {items.length > 15 && (
             <div className="p-4">
-              <Button variant="outline" onClick={() => setAll(!all)}>
+              <Button
+                variant="outline"
+                onClick={() => setAll((current) => !current)}
+              >
                 {all ? "Show fewer" : `Show all ${items.length}`}
               </Button>
             </div>
@@ -102,13 +117,13 @@ function RepairConnection({
   server: Resource;
   onSaved: () => void;
 }) {
-  const [host, setHost] = useState(text(server.data, "host"));
+  const [host, setHost] = useState(() => text(server.data, "host"));
   const [port, setPort] = useState(String(server.data.port || 22));
-  const [user, setUser] = useState(text(server.data, "user"));
-  const [fingerprint, setFingerprint] = useState(
+  const [user, setUser] = useState(() => text(server.data, "user"));
+  const [fingerprint, setFingerprint] = useState(() =>
     text(server.data, "fingerprint"),
   );
-  const [auth, setAuth] = useState(
+  const [auth, setAuth] = useState(() =>
     text(server.data, "authMethod", "private_key"),
   );
   const [credential, setCredential] = useState("");
@@ -225,8 +240,7 @@ function RepairConnection({
             </Alert>
           )}
           <Button type="submit" variant="outline" disabled={busy}>
-            {busy && <Loader2 className="animate-spin" />}Verify & save
-            connection
+            {busy && <Spinner className="size-4 " />}Verify & save connection
           </Button>
         </form>
       </CardContent>
@@ -279,23 +293,7 @@ export function ServerDeletion() {
   const operation = status.data;
   return (
     <>
-      <PageHeader
-        breadcrumbs={[
-          { label: "Servers", to: "/servers" },
-          { label: server?.name || operation?.plan.serverName || "Server" },
-          { label: operation ? "Cleanup" : "Delete" },
-        ]}
-        title={
-          operation?.done
-            ? "Server deleted"
-            : `Delete ${server?.name || operation?.plan.serverName || "server"}`
-        }
-        description="Review and permanently remove this server's Shipyard-managed resources."
-      >
-        <Button variant="outline" asChild>
-          <Link to="/servers">Back to servers</Link>
-        </Button>
-      </PageHeader>
+      <ServerDeletionHeader server={server} operation={operation} />
       <div className="space-y-6">
         {server?.data.connection === "local" || id === "shipyard-local" ? (
           <Alert>
@@ -306,77 +304,18 @@ export function ServerDeletion() {
         ) : (
           <>
             {operation ? (
-              <>
-                <Card className="shadow-none">
-                  <CardContent className="space-y-4 pt-6">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <p className="font-medium capitalize">
-                        {operation.stage}
-                      </p>
-                      <StateBadge
-                        state={
-                          operation.done
-                            ? "done"
-                            : operation.error
-                              ? "failed"
-                              : "queued"
-                        }
-                      />
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {operation.done
-                        ? "Host cleanup completed. The server and its applications have been removed. The audit trail is retained."
-                        : "The server stays registered until cleanup succeeds. Workloads on this server are being permanently removed."}
-                    </p>
-                    {operation.error && (
-                      <>
-                        <Alert variant="destructive">
-                          <AlertDescription>{operation.error}</AlertDescription>
-                        </Alert>
-                        <div className="flex flex-wrap gap-3">
-                          <Button
-                            disabled={busy}
-                            onClick={async () => {
-                              setBusy(true);
-                              setError("");
-                              try {
-                                await post(`/servers/${id}/deletion/retry`);
-                                await status.refetch();
-                              } catch (e) {
-                                setError(errorMessage(e));
-                              } finally {
-                                setBusy(false);
-                              }
-                            }}
-                          >
-                            <RefreshCw className={busy ? "animate-spin" : ""} />
-                            Retry cleanup
-                          </Button>
-                          {server && (
-                            <Button
-                              variant="outline"
-                              onClick={() => setRepair(!repair)}
-                            >
-                              Repair connection
-                            </Button>
-                          )}
-                        </div>
-                      </>
-                    )}
-                  </CardContent>
-                </Card>
-                {repair && server && (
-                  <RepairConnection
-                    server={server}
-                    onSaved={() => {
-                      setRepair(false);
-                      void client.invalidateQueries({
-                        queryKey: ["resources"],
-                      });
-                    }}
-                  />
-                )}
-              </>
+              <ServerDeletionProgress
+                operation={operation}
+                busy={busy}
+                setBusy={setBusy}
+                setError={setError}
+                id={id}
+                status={status}
+                server={server}
+                repair={repair}
+                setRepair={setRepair}
+                client={client}
+              />
             ) : deleting ? (
               <>
                 {status.isPending ? (
@@ -400,130 +339,25 @@ export function ServerDeletion() {
                   disabled={busy}
                   onClick={() => void review()}
                 >
-                  {busy ? <Loader2 className="animate-spin" /> : <RefreshCw />}
+                  {busy ? <Spinner className="size-4 " /> : <RefreshCw />}
                   {plan
                     ? "Refresh cleanup inventory"
                     : "Review cleanup inventory"}
                 </Button>
-                {plan && (
-                  <>
-                    {plan.blockers.length > 0 && (
-                      <Alert variant="destructive">
-                        <AlertDescription>
-                          <p className="mb-2 font-medium">
-                            Resolve these conflicts before deletion:
-                          </p>
-                          <ul className="list-disc space-y-1 pl-5">
-                            {plan.blockers.map((b, i) => (
-                              <li key={i}>{b}</li>
-                            ))}
-                          </ul>
-                        </AlertDescription>
-                      </Alert>
-                    )}
-                    <Inventory title="Will be removed" items={plan.remove} />
-                    <Inventory
-                      title="Will remain on the host"
-                      items={plan.preserve}
-                    />
-                    <Card className="shadow-none">
-                      <CardHeader>
-                        <CardTitle
-                          className="text-base"
-                          role="heading"
-                          aria-level={2}
-                        >
-                          Confirm server deletion
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <form
-                          className="space-y-5"
-                          onSubmit={async (e) => {
-                            e.preventDefault();
-                            setBusy(true);
-                            setError("");
-                            try {
-                              await api(`/servers/${id}`, {
-                                method: "DELETE",
-                                body: JSON.stringify({
-                                  planId: plan.id,
-                                  name,
-                                  deleteVolumes: ack,
-                                }),
-                              });
-                              await client.invalidateQueries({
-                                queryKey: ["resources"],
-                              });
-                              await client.invalidateQueries({
-                                queryKey: ["server-deletion", id],
-                              });
-                            } catch (e) {
-                              setError(errorMessage(e));
-                              if (e instanceof APIError && e.status === 409) {
-                                setPlan(null);
-                                setName("");
-                                setAck(false);
-                              }
-                            } finally {
-                              setBusy(false);
-                            }
-                          }}
-                        >
-                          <div className="space-y-2">
-                            <Label htmlFor="delete-server-name">
-                              Type {plan.serverName} to confirm
-                            </Label>
-                            <Input
-                              id="delete-server-name"
-                              value={name}
-                              onChange={(e) => setName(e.target.value)}
-                              autoComplete="off"
-                              disabled={busy}
-                            />
-                          </div>
-                          <div className="flex items-start gap-3">
-                            <Checkbox
-                              id="delete-server-volumes"
-                              checked={ack}
-                              onCheckedChange={(v) => setAck(v === true)}
-                              disabled={busy}
-                            />
-                            <Label
-                              htmlFor="delete-server-volumes"
-                              className="leading-5"
-                            >
-                              I understand that owned application volumes and
-                              their data will be permanently deleted.
-                            </Label>
-                          </div>
-                          <div className="flex flex-wrap gap-3">
-                            <Button type="button" variant="outline" asChild>
-                              <Link to="/servers">Cancel</Link>
-                            </Button>
-                            <Button
-                              type="submit"
-                              variant="destructive"
-                              disabled={
-                                busy ||
-                                name !== plan.serverName ||
-                                !ack ||
-                                plan.blockers.length > 0
-                              }
-                            >
-                              {busy ? (
-                                <Loader2 className="animate-spin" />
-                              ) : (
-                                <Trash2 />
-                              )}
-                              Delete server
-                            </Button>
-                          </div>
-                        </form>
-                      </CardContent>
-                    </Card>
-                  </>
-                )}
+                <ServerDeletionPlanReview
+                  plan={plan}
+                  setPlan={setPlan}
+                  name={name}
+                  setName={setName}
+                  ack={ack}
+                  setAck={setAck}
+                  busy={busy}
+                  setBusy={setBusy}
+                  setError={setError}
+                  id={id}
+                  client={client}
+                  review={review}
+                />
               </>
             ) : (
               <ErrorState error={new Error("Server not found")} />
@@ -537,5 +371,265 @@ export function ServerDeletion() {
         )}
       </div>
     </>
+  );
+}
+
+function ServerDeletionProgress({
+  operation,
+  busy,
+  setBusy,
+  setError,
+  id,
+  status,
+  server,
+  repair,
+  setRepair,
+  client,
+}: {
+  operation: Status;
+  busy: boolean;
+  setBusy: (value: boolean) => void;
+  setError: (value: string) => void;
+  id: string;
+  status: { refetch: () => Promise<unknown> };
+  server?: Resource;
+  repair: boolean;
+  setRepair: Dispatch<SetStateAction<boolean>>;
+  client: ReturnType<typeof useQueryClient>;
+}) {
+  return (
+    <>
+      <Card className="shadow-none">
+        <CardContent className="space-y-4 pt-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="font-medium capitalize">{operation.stage}</p>
+            <StateBadge
+              state={
+                operation.done ? "done" : operation.error ? "failed" : "queued"
+              }
+            />
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {operation.done
+              ? "Host cleanup completed. The server and its applications have been removed. The audit trail is retained."
+              : "The server stays registered until cleanup succeeds. Workloads on this server are being permanently removed."}
+          </p>
+          {operation.error && (
+            <>
+              <Alert variant="destructive">
+                <AlertDescription>{operation.error}</AlertDescription>
+              </Alert>
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  disabled={busy}
+                  onClick={async () => {
+                    setBusy(true);
+                    setError("");
+                    try {
+                      await post(`/servers/${id}/deletion/retry`);
+                      await status.refetch();
+                    } catch (e) {
+                      setError(errorMessage(e));
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                >
+                  {busy ? <Spinner className="size-4" /> : <RefreshCw />}
+                  Retry cleanup
+                </Button>
+                {server && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setRepair((current) => !current)}
+                  >
+                    Repair connection
+                  </Button>
+                )}
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+      {repair && server && (
+        <RepairConnection
+          server={server}
+          onSaved={() => {
+            setRepair(false);
+            void client.invalidateQueries({
+              queryKey: ["resources"],
+            });
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+function ServerDeletionPlanReview({
+  plan,
+  setPlan,
+  name,
+  setName,
+  ack,
+  setAck,
+  busy,
+  setBusy,
+  setError,
+  id,
+  client,
+  review,
+}: {
+  plan: Plan | null;
+  setPlan: (value: Plan | null) => void;
+  name: string;
+  setName: (value: string) => void;
+  ack: boolean;
+  setAck: (value: boolean) => void;
+  busy: boolean;
+  setBusy: (value: boolean) => void;
+  setError: (value: string) => void;
+  id: string;
+  client: ReturnType<typeof useQueryClient>;
+  review: () => Promise<void>;
+}) {
+  return (
+    <>
+      {plan && (
+        <>
+          {plan.blockers.length > 0 && (
+            <Alert variant="destructive">
+              <AlertDescription>
+                <p className="mb-2 font-medium">
+                  Resolve these conflicts before deletion:
+                </p>
+                <ul className="list-disc space-y-1 pl-5">
+                  {plan.blockers.map((b) => (
+                    <li key={b}>{b}</li>
+                  ))}
+                </ul>
+              </AlertDescription>
+            </Alert>
+          )}
+          <Inventory title="Will be removed" items={plan.remove} />
+          <Inventory title="Will remain on the host" items={plan.preserve} />
+          <Card className="shadow-none">
+            <CardHeader>
+              <CardTitle className="text-base" role="heading" aria-level={2}>
+                Confirm server deletion
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form
+                className="space-y-5"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  setBusy(true);
+                  setError("");
+                  try {
+                    await api(`/servers/${id}`, {
+                      method: "DELETE",
+                      body: JSON.stringify({
+                        planId: plan.id,
+                        name,
+                        deleteVolumes: ack,
+                      }),
+                    });
+                    await Promise.all([
+                      client.invalidateQueries({
+                        queryKey: ["resources"],
+                      }),
+                      client.invalidateQueries({
+                        queryKey: ["server-deletion", id],
+                      }),
+                    ]);
+                  } catch (e) {
+                    setError(errorMessage(e));
+                    if (e instanceof APIError && e.status === 409) {
+                      setPlan(null);
+                      setName("");
+                      setAck(false);
+                    }
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                <div className="space-y-2">
+                  <Label htmlFor="delete-server-name">
+                    Type {plan.serverName} to confirm
+                  </Label>
+                  <Input
+                    id="delete-server-name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    autoComplete="off"
+                    disabled={busy}
+                  />
+                </div>
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    id="delete-server-volumes"
+                    checked={ack}
+                    onCheckedChange={(v) => setAck(v === true)}
+                    disabled={busy}
+                  />
+                  <Label htmlFor="delete-server-volumes" className="leading-5">
+                    I understand that owned application volumes and their data
+                    will be permanently deleted.
+                  </Label>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <Button type="button" variant="outline" asChild>
+                    <Link to="/servers">Cancel</Link>
+                  </Button>
+                  <Button
+                    type="submit"
+                    variant="destructive"
+                    disabled={
+                      busy ||
+                      name !== plan.serverName ||
+                      !ack ||
+                      plan.blockers.length > 0
+                    }
+                  >
+                    {busy ? <Spinner className="size-4 " /> : <Trash2 />}
+                    Delete server
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </>
+      )}
+    </>
+  );
+}
+
+function ServerDeletionHeader({
+  server,
+  operation,
+}: {
+  server?: Resource;
+  operation?: Status;
+}) {
+  return (
+    <PageHeader
+      breadcrumbs={[
+        { label: "Servers", to: "/servers" },
+        { label: server?.name || operation?.plan.serverName || "Server" },
+        { label: operation ? "Cleanup" : "Delete" },
+      ]}
+      title={
+        operation?.done
+          ? "Server deleted"
+          : `Delete ${server?.name || operation?.plan.serverName || "server"}`
+      }
+      description="Review and permanently remove this server's Shipyard-managed resources."
+    >
+      <Button variant="outline" asChild>
+        <Link to="/servers">Back to servers</Link>
+      </Button>
+    </PageHeader>
   );
 }

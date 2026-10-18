@@ -1,23 +1,71 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { Empty, ErrorState, Loading, PageHeader } from "@/components/shared";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import {
-  Link,
-  NavLink,
-  Route,
-  Routes,
-  useLocation,
-  useNavigate,
-} from "react-router-dom";
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { Toaster } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import {
+  api,
+  APIError,
+  post,
+  setCSRF,
+  useDeployments,
+  useResources,
+  type Session,
+} from "@/lib/api";
+import {
+  loadApplication,
+  loadConfiguration,
+  loadInfrastructure,
+  loadNetworks,
+  loadProjects,
+  loadSettings,
+  preloadRoute,
+} from "@/lib/feature-loaders";
+import { readTheme, writeTheme } from "@/lib/theme";
+import { Auth } from "@/pages/auth";
+import { DeploymentTable, Overview } from "@/pages/overview";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Activity,
   Anchor,
-  ArrowUpRight,
   Box,
   ChevronDown,
-  Command,
   GitBranch,
   Globe2,
-  HelpCircle,
   Layers3,
   LayoutDashboard,
   LogOut,
@@ -28,72 +76,37 @@ import {
   Settings2,
   Sun,
   Users,
-  X,
 } from "lucide-react";
 import {
-  api,
-  APIError,
-  post,
-  setCSRF,
-  useResources,
-  useDeployments,
-  type Session,
-} from "@/lib/api";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
+  lazy,
+  Suspense,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Sheet,
-  SheetContent,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import { Card } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { Toaster } from "@/components/ui/sonner";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import { Empty, ErrorState, Loading, PageHeader } from "@/components/shared";
-import { Auth } from "@/pages/auth";
-import { Overview, DeploymentTable } from "@/pages/overview";
+  Link,
+  NavLink,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 const Configuration = lazy(() =>
-  import("@/pages/configuration").then((m) => ({ default: m.Configuration })),
+  loadConfiguration().then((m) => ({ default: m.Configuration })),
 );
 const Networks = lazy(() =>
-  import("@/pages/networks").then((m) => ({ default: m.Networks })),
+  loadNetworks().then((m) => ({ default: m.Networks })),
 );
 const Projects = lazy(() =>
-  import("@/pages/projects").then((m) => ({ default: m.Projects })),
+  loadProjects().then((m) => ({ default: m.Projects })),
 );
 const Application = lazy(() =>
-  import("@/pages/application").then((m) => ({ default: m.Application })),
+  loadApplication().then((m) => ({ default: m.Application })),
 );
 const Servers = lazy(() =>
-  import("@/pages/infrastructure").then((m) => ({ default: m.Servers })),
+  loadInfrastructure().then((m) => ({ default: m.Servers })),
 );
 const ServerDeletion = lazy(() =>
   import("@/pages/server-deletion").then((m) => ({
@@ -101,17 +114,13 @@ const ServerDeletion = lazy(() =>
   })),
 );
 const Integrations = lazy(() =>
-  import("@/pages/infrastructure").then((m) => ({ default: m.Integrations })),
+  loadInfrastructure().then((m) => ({ default: m.Integrations })),
 );
-const DNS = lazy(() =>
-  import("@/pages/infrastructure").then((m) => ({ default: m.DNS })),
-);
+const DNS = lazy(() => loadInfrastructure().then((m) => ({ default: m.DNS })));
 const Settings = lazy(() =>
-  import("@/pages/settings").then((m) => ({ default: m.Settings })),
+  loadSettings().then((m) => ({ default: m.Settings })),
 );
-const Teams = lazy(() =>
-  import("@/pages/settings").then((m) => ({ default: m.Teams })),
-);
+const Teams = lazy(() => loadSettings().then((m) => ({ default: m.Teams })));
 const navigation = [
   { label: "Overview", path: "/", icon: LayoutDashboard },
   { label: "Projects", path: "/projects", icon: Layers3 },
@@ -125,7 +134,12 @@ const navigation = [
   { label: "Settings", path: "/settings", icon: Settings2 },
 ];
 function Sidebar({ close }: { close?: () => void }) {
-  const q = useResources();
+  const projectCount = useResources((resources) =>
+    resources.reduce(
+      (count, resource) => count + Number(resource.kind === "project"),
+      0,
+    ),
+  );
   return (
     <div className="flex h-full flex-col">
       <Link
@@ -173,6 +187,8 @@ function Sidebar({ close }: { close?: () => void }) {
             {i === 7 && <Separator className="my-5" />}
             <NavLink
               to={item.path}
+              onMouseEnter={() => preloadRoute(item.path)}
+              onFocus={() => preloadRoute(item.path)}
               end={item.path === "/"}
               onClick={close}
               className={({ isActive }) =>
@@ -183,7 +199,7 @@ function Sidebar({ close }: { close?: () => void }) {
               {item.label}
               {item.label === "Projects" && (
                 <span className="ml-auto rounded bg-background/60 px-1.5 py-0.5 font-mono text-[9px]">
-                  {q.data?.filter((r) => r.kind === "project").length || 0}
+                  {projectCount.data || 0}
                 </span>
               )}
             </NavLink>
@@ -238,14 +254,10 @@ function Shell({ session }: { session: Session }) {
   const navigate = useNavigate();
   const resources = useResources();
   const [search, setSearch] = useState(false);
-  const [query, setQuery] = useState("");
   const [mobile, setMobile] = useState(false);
-  const [dark, setDark] = useState(
-    () => localStorage.getItem("shipyard-theme") === "dark",
-  );
+  const [dark, setDark] = useState(() => readTheme() === "dark");
   useEffect(() => {
-    document.documentElement.classList.toggle("dark", dark);
-    localStorage.setItem("shipyard-theme", dark ? "dark" : "light");
+    writeTheme(dark ? "dark" : "light");
   }, [dark]);
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
@@ -415,87 +427,111 @@ function Shell({ session }: { session: Session }) {
               </AlertDescription>
             </Alert>
           )}
-          <Routes>
-            <Route path="/" element={<Overview />} />
-            <Route path="/configure/:kind/:id" element={<Configuration />} />
-            <Route path="/networks" element={<Networks />} />
-            <Route path="/projects" element={<Projects />} />
-            <Route path="/projects/:id" element={<Projects />} />
+          <Suspense fallback={<Loading />}>
+            <Routes>
+              <Route path="/" element={<Overview />} />
+              <Route path="/configure/:kind/:id" element={<Configuration />} />
+              <Route path="/networks" element={<Networks />} />
+              <Route path="/projects" element={<Projects />} />
+              <Route path="/projects/:id" element={<Projects />} />
 
-            <Route path="/applications/:id" element={<Application />} />
-            <Route path="/deployments" element={<Deployments />} />
-            <Route path="/servers" element={<Servers />} />
-            <Route path="/servers/:id/delete" element={<ServerDeletion />} />
-            <Route path="/dns" element={<DNS />} />
-            <Route path="/dns/:id" element={<DNS />} />
-            <Route path="/dns/:id/records/:record" element={<DNS />} />
-            <Route path="/integrations" element={<Integrations />} />
-            <Route path="/teams" element={<Teams />} />
-            <Route path="/settings" element={<Settings session={session} />} />
-            <Route
-              path="*"
-              element={
-                <Empty
-                  title="Page not found"
-                  description="Use the navigation to return to your workspace."
-                />
-              }
-            />
-          </Routes>
+              <Route path="/applications/:id" element={<Application />} />
+              <Route path="/deployments" element={<Deployments />} />
+              <Route path="/servers" element={<Servers />} />
+              <Route path="/servers/:id/delete" element={<ServerDeletion />} />
+              <Route path="/dns" element={<DNS />} />
+              <Route path="/dns/:id" element={<DNS />} />
+              <Route path="/dns/:id/records/:record" element={<DNS />} />
+              <Route path="/integrations" element={<Integrations />} />
+              <Route path="/teams" element={<Teams />} />
+              <Route
+                path="/settings"
+                element={<Settings session={session} />}
+              />
+              <Route
+                path="*"
+                element={
+                  <Empty
+                    title="Page not found"
+                    description="Use the navigation to return to your workspace."
+                  />
+                }
+              />
+            </Routes>
+          </Suspense>
         </main>
       </div>
-      <Dialog open={search} onOpenChange={setSearch}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Search workspace</DialogTitle>
-            <DialogDescription>
-              Find projects, applications, and infrastructure.
-            </DialogDescription>
-          </DialogHeader>
-          <Input
-            autoFocus
-            placeholder="Search by name…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          <div className="max-h-80 space-y-1 overflow-auto">
-            {resources.data
-              ?.filter((r) =>
-                r.name.toLowerCase().includes(query.toLowerCase()),
-              )
-              .slice(0, 20)
-              .map((r) => (
-                <Button
-                  key={r.id}
-                  variant="ghost"
-                  className="w-full justify-between"
-                  onClick={() => {
-                    navigate(
-                      r.kind === "application"
-                        ? `/applications/${r.id}`
-                        : r.kind === "project"
-                          ? `/projects/${r.id}`
-                          : r.kind === "server"
-                            ? "/servers"
-                            : r.kind === "zone"
-                              ? "/dns"
-                              : "/integrations",
-                    );
-                    setSearch(false);
-                  }}
-                >
-                  <span>{r.name}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {r.kind}
-                  </span>
-                </Button>
-              ))}
-          </div>
-        </DialogContent>
-      </Dialog>
+      <WorkspaceSearch open={search} onOpenChange={setSearch} />
     </div>
   );
 }
+
+function WorkspaceSearch({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const resources = useResources();
+  const navigate = useNavigate();
+  const [query, setQuery] = useState("");
+  const deferredQuery = useDeferredValue(query);
+  const matches = useMemo(() => {
+    const result = [];
+    const term = deferredQuery.toLowerCase();
+    for (const resource of resources.data || []) {
+      if (resource.name.toLowerCase().includes(term)) result.push(resource);
+      if (result.length === 20) break;
+    }
+    return result;
+  }, [resources.data, deferredQuery]);
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Search workspace</DialogTitle>
+          <DialogDescription>
+            Find projects, applications, and infrastructure.
+          </DialogDescription>
+        </DialogHeader>
+        <Input
+          autoFocus
+          placeholder="Search by name…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        <div className="max-h-80 space-y-1 overflow-auto">
+          {matches.map((r) => (
+            <Button
+              key={r.id}
+              variant="ghost"
+              className="w-full justify-between"
+              onClick={() => {
+                navigate(
+                  r.kind === "application"
+                    ? `/applications/${r.id}`
+                    : r.kind === "project"
+                      ? `/projects/${r.id}`
+                      : r.kind === "server"
+                        ? "/servers"
+                        : r.kind === "zone"
+                          ? "/dns"
+                          : "/integrations",
+                );
+                onOpenChange(false);
+              }}
+            >
+              <span>{r.name}</span>
+              <span className="text-xs text-muted-foreground">{r.kind}</span>
+            </Button>
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function App() {
   const session = useQuery({
     queryKey: ["session"],
@@ -523,15 +559,7 @@ export default function App() {
             <Loading />
           </div>
         ) : session.data ? (
-          <Suspense
-            fallback={
-              <div className="p-10">
-                <Loading />
-              </div>
-            }
-          >
-            <Shell session={session.data} />
-          </Suspense>
+          <Shell session={session.data} />
         ) : (
           <Auth />
         )}

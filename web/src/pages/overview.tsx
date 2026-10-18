@@ -1,5 +1,24 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { ResourceEditor } from "@/components/resource-editor";
+import {
+  Empty,
+  ErrorState,
+  Loading,
+  PageHeader,
+  StateBadge,
+} from "@/components/shared";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { ago, type Resource, useDeployments, useResources } from "@/lib/api";
+import { indexResources } from "@/lib/resource-index";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -12,32 +31,8 @@ import {
   Server,
   TerminalSquare,
 } from "lucide-react";
-import {
-  useResources,
-  useDeployments,
-  ago,
-  type Resource,
-  text,
-} from "@/lib/api";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { ResourceEditor } from "@/components/resource-editor";
-import {
-  Empty,
-  ErrorState,
-  Loading,
-  PageHeader,
-  StateBadge,
-} from "@/components/shared";
+import { useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 export function DeploymentTable({
   deployments,
   resources,
@@ -47,6 +42,7 @@ export function DeploymentTable({
   resources: Resource[];
   onSelect?: (id: string) => void;
 }) {
+  const { byId } = useMemo(() => indexResources(resources), [resources]);
   return (
     <Table>
       <TableHeader>
@@ -69,8 +65,7 @@ export function DeploymentTable({
                 <div className="flex size-8 items-center justify-center rounded-lg border bg-muted/40">
                   <Box className="size-4 text-muted-foreground" />
                 </div>
-                {resources.find((r) => r.id === d.applicationId)?.name ||
-                  d.applicationId.slice(0, 8)}
+                {byId.get(d.applicationId)?.name || d.applicationId.slice(0, 8)}
               </Link>
             </TableCell>
             <TableCell>
@@ -121,16 +116,25 @@ export function DeploymentTable({
 export function Overview() {
   const resources = useResources();
   const deployments = useDeployments();
+  const index = useMemo(
+    () => indexResources(resources.data || []),
+    [resources.data],
+  );
   const [editor, setEditor] = useState("");
+  const navigate = useNavigate();
+  const openEditor = (kind: string) =>
+    ["team", "project", "environment"].includes(kind)
+      ? setEditor(kind)
+      : navigate(`/configure/${kind}/new?return=/`);
   if (resources.isPending) return <Loading />;
   if (resources.error) return <ErrorState error={resources.error} />;
   const rows = resources.data || [];
-  const projects = rows.filter((r) => r.kind === "project");
-  const apps = rows.filter(
-    (r) => r.kind === "application" && !r.data.previewOf,
+  const projects = index.byKind.get("project") || [];
+  const apps = (index.byKind.get("application") || []).filter(
+    (r) => !r.data.previewOf,
   );
-  const servers = rows.filter((r) => r.kind === "server");
-  const previews = rows.filter(
+  const servers = index.byKind.get("server") || [];
+  const previews = (index.byKind.get("application") || []).filter(
     (r) =>
       r.kind === "application" && r.data.previewOf && !r.data.previewClosed,
   );
@@ -172,7 +176,7 @@ export function Overview() {
         </Button>
         <Button
           disabled={!rows.some((r) => r.kind === "team" && r.canWrite)}
-          onClick={() => setEditor("project")}
+          onClick={() => openEditor("project")}
         >
           <Plus />
           New project
@@ -261,7 +265,7 @@ export function Overview() {
                     key={s.kind}
                     variant="outline"
                     className="h-auto justify-start gap-3 whitespace-normal bg-card/80 p-4 text-left"
-                    onClick={() => setEditor(s.kind)}
+                    onClick={() => openEditor(s.kind)}
                   >
                     {done ? (
                       <CheckCircle2 className="size-5 shrink-0 text-primary" />
@@ -314,27 +318,23 @@ export function Overview() {
                   <h3 className="text-sm font-medium">{p.name}</h3>
                   <p className="mt-2 text-xs text-muted-foreground">
                     {
-                      rows.filter(
-                        (r) => r.kind === "environment" && r.parentId === p.id,
+                      (index.byParent.get(p.id) || []).filter(
+                        (r) => r.kind === "environment",
                       ).length
                     }{" "}
                     environments <span className="mx-2">·</span>
                     {
-                      rows.filter(
+                      (index.byKind.get("application") || []).filter(
                         (r) =>
-                          r.kind === "application" &&
                           r.teamId === p.teamId &&
-                          rows.some(
-                            (e) => e.id === r.parentId && e.parentId === p.id,
-                          ),
+                          index.byId.get(r.parentId || "")?.parentId === p.id,
                       ).length
                     }{" "}
                     applications
                   </p>
                   <div className="mt-5 flex items-center justify-between border-t pt-4 text-[11px] text-muted-foreground">
                     <span>
-                      {rows.find((r) => r.id === p.teamId)?.name ||
-                        "Team workspace"}
+                      {index.byId.get(p.teamId || "")?.name || "Team workspace"}
                     </span>
                     <span>{ago(p.updatedAt)}</span>
                   </div>
@@ -352,7 +352,7 @@ export function Overview() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setEditor("project")}
+                onClick={() => openEditor("project")}
               >
                 <Plus />
                 Create project

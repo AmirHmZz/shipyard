@@ -1,24 +1,34 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { ExternalLink, Loader2, RefreshCw } from "lucide-react";
-import { api, errorMessage } from "@/lib/api";
-import type { components } from "@/lib/schema";
+import { ConfigurationGuard } from "@/components/configuration-surface";
+import { ErrorState, Loading, StateBadge } from "@/components/shared";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Card,
+  CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
-  CardDescription,
-  CardContent,
 } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
-import { Loading, ErrorState, StateBadge } from "@/components/shared";
-import { ConfigurationGuard } from "@/components/configuration-surface";
+import { api, errorMessage } from "@/lib/api";
+import { useConfigurationChanges } from "@/lib/configuration-state";
+import type { components } from "@/lib/schema";
+import { useQuery } from "@tanstack/react-query";
+import { ExternalLink, RefreshCw } from "lucide-react";
+import { useState } from "react";
 type State = components["schemas"]["DashboardAccess"];
 export function DashboardAccess() {
+  return (
+    <ConfigurationGuard className="max-w-none">
+      <DashboardAccessForm />
+    </ConfigurationGuard>
+  );
+}
+function DashboardAccessForm() {
+  const changes = useConfigurationChanges();
   const q = useQuery({
     queryKey: ["dashboard-access"],
     queryFn: () => api<State>("/settings/dashboard-access"),
@@ -53,7 +63,7 @@ export function DashboardAccess() {
         ),
       });
       setDraft(null);
-      window.dispatchEvent(new Event("configuration-saved"));
+      changes.saved();
       await q.refetch();
     } catch (e) {
       setError(errorMessage(e));
@@ -62,7 +72,7 @@ export function DashboardAccess() {
     }
   }
   return (
-    <ConfigurationGuard className="max-w-none">
+    <>
       <Card>
         <CardHeader>
           <CardTitle>Dashboard access</CardTitle>
@@ -74,105 +84,23 @@ export function DashboardAccess() {
         </CardHeader>
         {state.enabled && (
           <CardContent className="space-y-6">
-            <form
-              className="space-y-4"
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (!state.acmeConfigured && !accept) return;
-                void save();
-              }}
-            >
-              <div className="space-y-2">
-                <Label htmlFor="dashboard-domain">Dashboard hostname</Label>
-                <Input
-                  id="dashboard-domain"
-                  required
-                  placeholder="shipyard.example.com"
-                  value={draft ?? state.domain}
-                  onChange={(e) => setDraft(e.target.value)}
-                />
-                <p className="text-sm text-muted-foreground">
-                  DNS is managed manually for this hostname. Certificate
-                  issuance and renewal use HTTP validation on public port 80.
-                </p>
-              </div>
-              {!state.acmeConfigured && (
-                <div className="space-y-3">
-                  <Label htmlFor="dashboard-email">
-                    Certificate contact email (optional)
-                  </Label>
-                  <Input
-                    id="dashboard-email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                  <div className="flex items-start gap-3">
-                    <Switch
-                      id="dashboard-consent"
-                      checked={accept}
-                      onCheckedChange={setAccept}
-                    />
-                    <Label htmlFor="dashboard-consent">
-                      I accept the Let's Encrypt terms of service
-                    </Label>
-                    <a
-                      href="https://letsencrypt.org/repository/"
-                      className="text-sm underline"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Read terms
-                    </a>
-                  </div>
-                </div>
-              )}
-              <Button
-                disabled={
-                  busy ||
-                  !(draft ?? state.domain) ||
-                  (!state.acmeConfigured && !accept)
-                }
-              >
-                {busy && <Loader2 className="animate-spin" />}Save hostname
-              </Button>
-            </form>
+            <DashboardHostnameForm
+              state={state}
+              draft={draft}
+              setDraft={setDraft}
+              email={email}
+              setEmail={setEmail}
+              accept={accept}
+              setAccept={setAccept}
+              busy={busy}
+              save={save}
+            />
             {state.domain && (
-              <section className="space-y-4 border-t pt-5">
-                <p className="font-medium break-all">{state.domain}</p>
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                  {(
-                    ["dns", "propagation", "certificate", "routing"] as const
-                  ).map((key) => (
-                    <div key={key}>
-                      <p className="mb-2 text-xs capitalize text-muted-foreground">
-                        {key}
-                      </p>
-                      <StateBadge state={state.status?.[key] || "pending"} />
-                    </div>
-                  ))}
-                </div>
-                <div className="flex flex-wrap gap-3">
-                  <Button
-                    variant="outline"
-                    disabled={busy}
-                    onClick={() => void save(true)}
-                  >
-                    <RefreshCw />
-                    Retry setup
-                  </Button>
-                  <Button variant="outline" asChild>
-                    <a
-                      href={state.candidateOrigin + "/settings?tab=dashboard"}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Open dashboard
-                      <ExternalLink />
-                    </a>
-                  </Button>
-                </div>
-              </section>
+              <DashboardAccessStatus
+                state={state}
+                busy={busy}
+                retry={() => void save(true)}
+              />
             )}
             {(error || state.error || state.status?.error) && (
               <Alert variant="destructive">
@@ -190,6 +118,136 @@ export function DashboardAccess() {
           </CardContent>
         )}
       </Card>
-    </ConfigurationGuard>
+    </>
+  );
+}
+
+function DashboardAccessStatus({
+  state,
+  busy,
+  retry,
+}: {
+  state: State;
+  busy: boolean;
+  retry: () => void;
+}) {
+  return (
+    <section className="space-y-4 border-t pt-5">
+      <p className="font-medium break-all">{state.domain}</p>
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        {(["dns", "propagation", "certificate", "routing"] as const).map(
+          (key) => (
+            <div key={key}>
+              <p className="mb-2 text-xs capitalize text-muted-foreground">
+                {key}
+              </p>
+              <StateBadge state={state.status?.[key] || "pending"} />
+            </div>
+          ),
+        )}
+      </div>
+      <div className="flex flex-wrap gap-3">
+        <Button variant="outline" disabled={busy} onClick={retry}>
+          <RefreshCw />
+          Retry setup
+        </Button>
+        <Button variant="outline" asChild>
+          <a
+            href={state.candidateOrigin + "/settings?tab=dashboard"}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Open dashboard
+            <ExternalLink />
+          </a>
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+function DashboardHostnameForm({
+  state,
+  draft,
+  setDraft,
+  email,
+  setEmail,
+  accept,
+  setAccept,
+  busy,
+  save,
+}: {
+  state: State;
+  draft: string | null;
+  setDraft: (value: string) => void;
+  email: string;
+  setEmail: (value: string) => void;
+  accept: boolean;
+  setAccept: (value: boolean) => void;
+  busy: boolean;
+  save: () => Promise<void>;
+}) {
+  return (
+    <form
+      className="space-y-4"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!state.acmeConfigured && !accept) return;
+        void save();
+      }}
+    >
+      <div className="space-y-2">
+        <Label htmlFor="dashboard-domain">Dashboard hostname</Label>
+        <Input
+          id="dashboard-domain"
+          required
+          placeholder="shipyard.example.com"
+          value={draft ?? state.domain}
+          onChange={(e) => setDraft(e.target.value)}
+        />
+        <p className="text-sm text-muted-foreground">
+          DNS is managed manually for this hostname. Certificate issuance and
+          renewal use HTTP validation on public port 80.
+        </p>
+      </div>
+      {!state.acmeConfigured && (
+        <div className="space-y-3">
+          <Label htmlFor="dashboard-email">
+            Certificate contact email (optional)
+          </Label>
+          <Input
+            id="dashboard-email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+          <div className="flex items-start gap-3">
+            <Switch
+              id="dashboard-consent"
+              checked={accept}
+              onCheckedChange={setAccept}
+            />
+            <Label htmlFor="dashboard-consent">
+              I accept the Let's Encrypt terms of service
+            </Label>
+            <a
+              href="https://letsencrypt.org/repository/"
+              className="text-sm underline"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Read terms
+            </a>
+          </div>
+        </div>
+      )}
+      <Button
+        disabled={
+          busy || !(draft ?? state.domain) || (!state.acmeConfigured && !accept)
+        }
+      >
+        {busy && <Spinner className="size-4 " />}Save hostname
+      </Button>
+    </form>
   );
 }

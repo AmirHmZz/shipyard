@@ -1,36 +1,37 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Download, RefreshCw, Loader2 } from "lucide-react";
-import { api, post, errorMessage } from "@/lib/api";
-import type { components } from "@/lib/schema";
+import { ErrorState, Loading, StateBadge } from "@/components/shared";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Card,
+  CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
-  CardDescription,
-  CardContent,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Select,
-  SelectTrigger,
-  SelectValue,
   SelectContent,
   SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
 import {
   Table,
-  TableHeader,
-  TableHead,
   TableBody,
-  TableRow,
   TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
-import { Loading, ErrorState, StateBadge } from "@/components/shared";
+import { api, errorMessage, post } from "@/lib/api";
+import type { components } from "@/lib/schema";
+import { useQuery } from "@tanstack/react-query";
+import { Download, RefreshCw } from "lucide-react";
+import { useState } from "react";
 type Status = components["schemas"]["SystemUpdates"];
 type Plan = components["schemas"]["VersionChangePlan"];
 const terminal = ["succeeded", "rolled_back", "failed", "recovery_required"];
@@ -109,7 +110,7 @@ export function SystemUpdates() {
               void action(() => post("/settings/updates/check", {}))
             }
           >
-            <RefreshCw className={busy ? "animate-spin" : ""} />
+            {busy ? <Spinner className="size-4" /> : <RefreshCw />}
             Check for updates
           </Button>
         </div>
@@ -175,172 +176,31 @@ export function SystemUpdates() {
               </Button>
             </div>
             {plan && (
-              <section className="space-y-4 rounded-lg border p-4">
-                <h3 className="font-medium">
-                  {plan.current.version} → {plan.target.version}
-                </h3>
-                {plan.target.notes && (
-                  <p className="text-sm whitespace-pre-wrap text-muted-foreground">
-                    {plan.target.notes}
-                  </p>
-                )}
-                <p className="text-sm">
-                  Database schema {plan.migrations.current} →{" "}
-                  {plan.migrations.target}
-                </p>
-                {plan.migrations.steps.length ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Migration</TableHead>
-                        <TableHead>Effect</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {plan.migrations.steps.map((m) => (
-                        <TableRow key={`${m.version}-${m.direction}`}>
-                          <TableCell>
-                            {m.version} · {m.direction}
-                          </TableCell>
-                          <TableCell>
-                            <p>{m.impact}</p>
-                            <StateBadge state={m.classification} />
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    No database schema changes.
-                  </p>
-                )}
-                {plan.destructive && (
-                  <Alert variant="destructive">
-                    <AlertDescription>
-                      This change discards the data described above. Reverse
-                      migrations do not recreate discarded values; restoring the
-                      backup is required to recover them.
-                    </AlertDescription>
-                  </Alert>
-                )}
-                <form
-                  className="space-y-4"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    void action(async () => {
-                      await post("/settings/updates", {
-                        planId: plan.id,
-                        passphrase: pass,
-                        confirmation: confirm,
-                        approveDataLoss: approve,
-                      });
-                      setPass("");
-                      setPlan(null);
-                    });
-                  }}
-                >
-                  <div className="space-y-2">
-                    <Label htmlFor="upgrade-passphrase">
-                      Backup passphrase
-                    </Label>
-                    <Input
-                      id="upgrade-passphrase"
-                      type="password"
-                      autoComplete="new-password"
-                      minLength={12}
-                      required
-                      value={pass}
-                      onChange={(e) => setPass(e.target.value)}
-                    />
-                    <p className="text-sm text-muted-foreground">
-                      Keep this passphrase. You need it to restore the encrypted
-                      pre-change backup.
-                    </p>
-                  </div>
-                  {plan.destructive && (
-                    <>
-                      <div className="flex items-center gap-3">
-                        <Switch
-                          id="upgrade-loss"
-                          checked={approve}
-                          onCheckedChange={setApprove}
-                        />
-                        <Label htmlFor="upgrade-loss">
-                          I approve the listed data loss
-                        </Label>
-                      </div>
-                      <Label htmlFor="upgrade-confirm">
-                        Type {plan.target.version} to confirm
-                      </Label>
-                      <Input
-                        id="upgrade-confirm"
-                        value={confirm}
-                        onChange={(e) => setConfirm(e.target.value)}
-                      />
-                    </>
-                  )}
-                  <Button
-                    variant={plan.destructive ? "destructive" : "default"}
-                    disabled={
-                      busy ||
-                      blocked ||
-                      pass.length < 12 ||
-                      (plan.destructive &&
-                        (!approve || confirm !== plan.target.version))
-                    }
-                  >
-                    {busy && <Loader2 className="animate-spin" />}Back up &
-                    apply {plan.target.version}
-                  </Button>
-                </form>
-              </section>
+              <VersionChangeReview
+                plan={plan}
+                pass={pass}
+                setPass={setPass}
+                confirm={confirm}
+                setConfirm={setConfirm}
+                approve={approve}
+                setApprove={setApprove}
+                busy={busy}
+                blocked={blocked}
+                action={action}
+                setPlan={setPlan}
+              />
             )}
           </>
         )}
         {operation && (
-          <section className="space-y-3 border-t pt-5">
-            <div className="flex flex-wrap items-center gap-3">
-              <h3 className="font-medium">
-                Version change to {operation.plan.target.version}
-              </h3>
-              <StateBadge state={operation.state} />
-              {active && <Loader2 className="size-4 animate-spin" />}
-            </div>
-            {q.error && active && (
-              <p className="text-sm text-muted-foreground">
-                The dashboard is restarting. Reconnecting automatically…
-              </p>
-            )}
-            {operation.error && (
-              <Alert variant="destructive">
-                <AlertDescription>{operation.error}</AlertDescription>
-              </Alert>
-            )}
-            {operation.state === "recovery_required" && (
-              <p className="text-sm">
-                Maintenance mode remains enabled. An administrator must inspect
-                the updater journal on the server and recover using the
-                encrypted backup.
-              </p>
-            )}
-            {operation.backup && (
-              <Button
-                variant="outline"
-                onClick={() => void download()}
-                disabled={busy || active}
-              >
-                <Download />
-                Download encrypted backup
-              </Button>
-            )}
-            {operation.state === "succeeded" &&
-              s.version.version !== operation.plan.target.version && (
-                <Button onClick={() => location.reload()}>
-                  Reload dashboard
-                </Button>
-              )}
-          </section>
+          <VersionChangeOperation
+            operation={operation}
+            active={active}
+            busy={busy}
+            reconnecting={!!q.error}
+            version={s.version.version}
+            download={download}
+          />
         )}
         {error && (
           <Alert variant="destructive">
@@ -349,5 +209,208 @@ export function SystemUpdates() {
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function VersionChangeReview({
+  plan,
+  pass,
+  setPass,
+  confirm,
+  setConfirm,
+  approve,
+  setApprove,
+  busy,
+  blocked,
+  action,
+  setPlan,
+}: {
+  plan: Plan;
+  pass: string;
+  setPass: (value: string) => void;
+  confirm: string;
+  setConfirm: (value: string) => void;
+  approve: boolean;
+  setApprove: (value: boolean) => void;
+  busy: boolean;
+  blocked: boolean;
+  action: (fn: () => Promise<unknown>) => Promise<void>;
+  setPlan: (value: Plan | null) => void;
+}) {
+  return (
+    <section className="space-y-4 rounded-lg border p-4">
+      <h3 className="font-medium">
+        {plan.current.version} → {plan.target.version}
+      </h3>
+      {plan.target.notes && (
+        <p className="text-sm whitespace-pre-wrap text-muted-foreground">
+          {plan.target.notes}
+        </p>
+      )}
+      <p className="text-sm">
+        Database schema {plan.migrations.current} → {plan.migrations.target}
+      </p>
+      {plan.migrations.steps.length ? (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Migration</TableHead>
+              <TableHead>Effect</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {plan.migrations.steps.map((m) => (
+              <TableRow key={`${m.version}-${m.direction}`}>
+                <TableCell>
+                  {m.version} · {m.direction}
+                </TableCell>
+                <TableCell>
+                  <p>{m.impact}</p>
+                  <StateBadge state={m.classification} />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          No database schema changes.
+        </p>
+      )}
+      {plan.destructive && (
+        <Alert variant="destructive">
+          <AlertDescription>
+            This change discards the data described above. Reverse migrations do
+            not recreate discarded values; restoring the backup is required to
+            recover them.
+          </AlertDescription>
+        </Alert>
+      )}
+      <form
+        className="space-y-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void action(async () => {
+            await post("/settings/updates", {
+              planId: plan.id,
+              passphrase: pass,
+              confirmation: confirm,
+              approveDataLoss: approve,
+            });
+            setPass("");
+            setPlan(null);
+          });
+        }}
+      >
+        <div className="space-y-2">
+          <Label htmlFor="upgrade-passphrase">Backup passphrase</Label>
+          <Input
+            id="upgrade-passphrase"
+            type="password"
+            autoComplete="new-password"
+            minLength={12}
+            required
+            value={pass}
+            onChange={(e) => setPass(e.target.value)}
+          />
+          <p className="text-sm text-muted-foreground">
+            Keep this passphrase. You need it to restore the encrypted
+            pre-change backup.
+          </p>
+        </div>
+        {plan.destructive && (
+          <>
+            <div className="flex items-center gap-3">
+              <Switch
+                id="upgrade-loss"
+                checked={approve}
+                onCheckedChange={setApprove}
+              />
+              <Label htmlFor="upgrade-loss">
+                I approve the listed data loss
+              </Label>
+            </div>
+            <Label htmlFor="upgrade-confirm">
+              Type {plan.target.version} to confirm
+            </Label>
+            <Input
+              id="upgrade-confirm"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+            />
+          </>
+        )}
+        <Button
+          variant={plan.destructive ? "destructive" : "default"}
+          disabled={
+            busy ||
+            blocked ||
+            pass.length < 12 ||
+            (plan.destructive && (!approve || confirm !== plan.target.version))
+          }
+        >
+          {busy && <Spinner className="size-4 " />}Back up & apply{" "}
+          {plan.target.version}
+        </Button>
+      </form>
+    </section>
+  );
+}
+
+function VersionChangeOperation({
+  operation,
+  active,
+  busy,
+  reconnecting,
+  version,
+  download,
+}: {
+  operation: NonNullable<Status["operation"]>;
+  active: boolean;
+  busy: boolean;
+  reconnecting: boolean;
+  version: string;
+  download: () => Promise<void>;
+}) {
+  return (
+    <section className="space-y-3 border-t pt-5">
+      <div className="flex flex-wrap items-center gap-3">
+        <h3 className="font-medium">
+          Version change to {operation.plan.target.version}
+        </h3>
+        <StateBadge state={operation.state} />
+        {active && <Spinner className="size-4" />}
+      </div>
+      {reconnecting && active && (
+        <p className="text-sm text-muted-foreground">
+          The dashboard is restarting. Reconnecting automatically…
+        </p>
+      )}
+      {operation.error && (
+        <Alert variant="destructive">
+          <AlertDescription>{operation.error}</AlertDescription>
+        </Alert>
+      )}
+      {operation.state === "recovery_required" && (
+        <p className="text-sm">
+          Maintenance mode remains enabled. An administrator must inspect the
+          updater journal on the server and recover using the encrypted backup.
+        </p>
+      )}
+      {operation.backup && (
+        <Button
+          variant="outline"
+          onClick={() => void download()}
+          disabled={busy || active}
+        >
+          <Download />
+          Download encrypted backup
+        </Button>
+      )}
+      {operation.state === "succeeded" &&
+        version !== operation.plan.target.version && (
+          <Button onClick={() => location.reload()}>Reload dashboard</Button>
+        )}
+    </section>
   );
 }

@@ -1,26 +1,16 @@
-import { useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { SystemUpdates } from "@/components/system-updates";
 import { DashboardAccess } from "@/components/dashboard-access";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ResourceEditor } from "@/components/resource-editor";
 import {
-  Download,
-  KeyRound,
-  Loader2,
-  Plus,
-  ShieldCheck,
-  Users,
-} from "lucide-react";
-import { toast } from "sonner";
-import {
-  api,
-  post,
-  setCSRF,
-  useResources,
-  useAccount,
-  errorMessage,
-  type Session,
-} from "@/lib/api";
+  Confirm,
+  CopyButton,
+  Empty,
+  ErrorState,
+  Loading,
+  PageHeader,
+  StateBadge,
+} from "@/components/shared";
+import { SystemUpdates } from "@/components/system-updates";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -29,17 +19,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -47,6 +26,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -55,18 +45,22 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ResourceEditor } from "@/components/resource-editor";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  CopyButton,
-  Empty,
-  ErrorState,
-  Loading,
-  PageHeader,
-  StateBadge,
-  Confirm,
-} from "@/components/shared";
+  api,
+  errorMessage,
+  post,
+  setCSRF,
+  useAccount,
+  useResources,
+  type Session,
+} from "@/lib/api";
 import type { components } from "@/lib/schema";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Download, KeyRound, Plus, ShieldCheck, Users } from "lucide-react";
+import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { toast } from "sonner";
 type AlertPolicy = components["schemas"]["AlertPolicy"];
 
 function AlertSettings() {
@@ -138,7 +132,7 @@ function AlertSettings() {
             </div>
           ))}
           <Button disabled={busy}>
-            {busy && <Loader2 className="animate-spin" />}Save alert policy
+            {busy && <Spinner className="size-4 " />}Save alert policy
           </Button>
         </form>
       </CardContent>
@@ -807,7 +801,7 @@ function Backup({ session }: { session: Session }) {
               required
             />
             <Button disabled={busy || !session.maintenance}>
-              {busy ? <Loader2 className="animate-spin" /> : <Download />}Export
+              {busy ? <Spinner className="size-4 " /> : <Download />}Export
               encrypted backup
             </Button>
           </form>

@@ -1,33 +1,35 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
-import {
-  api,
-  post,
-  useResources,
-  errorMessage,
-  type Resource,
-  text,
-} from "@/lib/api";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Select,
-  SelectTrigger,
-  SelectValue,
   SelectContent,
   SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import {
+  api,
+  errorMessage,
+  post,
+  type Resource,
+  text,
+  useResources,
+} from "@/lib/api";
+import { useConfigurationChanges } from "@/lib/configuration-state";
+import { useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { Link } from "react-router-dom";
 export function ApplicationPreviews({ app }: { app: Resource }) {
+  const changes = useConfigurationChanges();
   const q = useResources();
   const client = useQueryClient();
   const [enabled, setEnabled] = useState(!!app.data.previews);
-  const [domain, setDomain] = useState(text(app.data, "previewDomain"));
-  const [zone, setZone] = useState(text(app.data, "previewZoneId"));
+  const [domain, setDomain] = useState(() => text(app.data, "previewDomain"));
+  const [zone, setZone] = useState(() => text(app.data, "previewZoneId"));
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -64,7 +66,7 @@ export function ApplicationPreviews({ app }: { app: Resource }) {
                   }),
                 });
                 await client.invalidateQueries({ queryKey: ["resources"] });
-                window.dispatchEvent(new Event("configuration-saved"));
+                changes.saved();
                 setSaved(true);
               } catch (e) {
                 setError(errorMessage(e));

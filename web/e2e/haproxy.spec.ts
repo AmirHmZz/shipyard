@@ -120,6 +120,30 @@ async function setup(page: Page, admin = true) {
   };
 }
 
+test("address identity survives removal and typing", async ({ page }) => {
+  const { writes } = await setup(page);
+  await page
+    .getByRole("button", { name: "HAProxy settings", exact: true })
+    .click();
+  const web = page.getByRole("region", { name: "Web", exact: true });
+  await web.getByRole("switch", { name: "Use default addresses" }).click();
+  const second = web.getByLabel("Web IP address 2", { exact: true });
+  await second.fill("::1");
+  await second.evaluate((node) => {
+    (node as HTMLElement).dataset.retained = "address";
+  });
+  await web
+    .getByRole("button", { name: "Remove Web address 1", exact: true })
+    .click();
+  const remaining = web.getByLabel("Web IP address 1", { exact: true });
+  await expect(remaining).toHaveAttribute("data-retained", "address");
+  await remaining.fill("127.0.0.1");
+  await expect(remaining).toHaveAttribute("data-retained", "address");
+  await page.getByRole("button", { name: "Save & apply" }).click();
+  await expect.poll(() => writes.length).toBe(1);
+  expect(writes[0]).toEqual({ version: 0, bindings: { web: ["127.0.0.1"] } });
+});
+
 test("web and TCP bindings can be edited and applied independently", async ({
   page,
 }, info) => {

@@ -1,70 +1,6 @@
-import { useEffect, useState } from "react";
 import {
-  Link,
-  useNavigate,
-  useParams,
-  useSearchParams,
-} from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  AreaChart,
-  Area,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-} from "recharts";
-import {
-  Activity,
-  ArrowRight,
-  Check,
-  Cloud,
-  GitBranch,
-  Globe2,
-  HardDrive,
-  MoreHorizontal,
-  Plus,
-  RefreshCw,
-  Server,
-  Settings2,
-  ShieldCheck,
-  Trash2,
-  Users,
-  Wrench,
-} from "lucide-react";
-import { toast } from "sonner";
-import {
-  api,
-  post,
-  text,
-  useResources,
-  useAccount,
-  errorMessage,
-  type Resource,
-  type Metric,
-  type DNSRecord,
-} from "@/lib/api";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import {
+  ConfigurationGuard,
+  ConfigurationPage,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -72,30 +8,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/configuration-surface";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ResourceEditor } from "@/components/resource-editor";
-import { GitConnection } from "@/components/git-connection";
-import {
-  ProviderName,
-  ProviderLogo,
-  providerName,
-} from "@/components/provider-name";
-import { ZoneCertificates } from "@/components/zone-certificates";
-import { HAProxySettings } from "@/components/haproxy-settings";
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart";
+import { Grants } from "@/components/grants";
+import { ProviderLogo, ProviderName } from "@/components/provider-name";
 import {
   Confirm,
   Empty,
@@ -105,58 +19,78 @@ import {
   PageHeader,
   StateBadge,
 } from "@/components/shared";
-export function Grants({
-  resource,
-  resources,
-}: {
-  resource: Resource;
-  resources: Resource[];
-}) {
-  const client = useQueryClient();
-  const q = useQuery({
-    queryKey: ["grants", resource.id],
-    queryFn: () => api<string[]>(`/resources/${resource.id}/grants`),
-    retry: false,
-  });
-  return (
-    <div className="space-y-3">
-      <p className="text-xs text-muted-foreground">
-        Grant this resource to a team before using it in an application.
-      </p>
-      {q.error ? (
-        <ErrorState error={q.error} />
-      ) : (
-        resources
-          .filter((r) => r.kind === "team")
-          .map((team) => (
-            <div
-              key={team.id}
-              className="flex items-center justify-between rounded-lg border p-3"
-            >
-              <Label>{team.name}</Label>
-              <Switch
-                checked={q.data?.includes(team.id) || false}
-                onCheckedChange={async (granted) => {
-                  try {
-                    await post(`/resources/${resource.id}/grants`, {
-                      teamId: team.id,
-                      granted,
-                    });
-                    await client.invalidateQueries({
-                      queryKey: ["grants", resource.id],
-                    });
-                    window.dispatchEvent(new Event("configuration-saved"));
-                  } catch (e) {
-                    toast.error(errorMessage(e));
-                  }
-                }}
-              />
-            </div>
-          ))
-      )}
-    </div>
-  );
-}
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { ZoneCertificates } from "@/components/zone-certificates";
+import {
+  api,
+  errorMessage,
+  post,
+  text,
+  useAccount,
+  useAdmin,
+  useResources,
+  type DNSRecord,
+  type Metric,
+  type Resource,
+} from "@/lib/api";
+import { useConfigurationChanges } from "@/lib/configuration-state";
+import { providerName } from "@/lib/providers";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  Activity,
+  ArrowRight,
+  Check,
+  Cloud,
+  GitBranch,
+  Globe2,
+  Plus,
+  RefreshCw,
+  Server,
+  Settings2,
+  ShieldCheck,
+  Trash2,
+  Users,
+  Wrench,
+} from "lucide-react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import {
+  Link,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
+import { toast } from "sonner";
+const ServerCPUChart = lazy(() => import("@/components/server-cpu-chart"));
 function ServerCard({
   server,
   onEdit,
@@ -170,7 +104,7 @@ function ServerCard({
   onHAProxy: () => void;
   onDelete: () => void;
 }) {
-  const account = useAccount();
+  const admin = useAdmin();
   const q = useQuery({
     queryKey: ["metrics", server.id],
     queryFn: () => api<Metric[]>(`/servers/${server.id}/metrics`),
@@ -204,7 +138,7 @@ function ServerCard({
                 ? text(server.data, "deletionError")
                 : "Server cleanup in progress."}
             </p>
-            {account?.admin && (
+            {admin && (
               <Button variant="outline" size="sm" onClick={onDelete}>
                 {server.data.deletionError
                   ? "Retry cleanup"
@@ -232,22 +166,13 @@ function ServerCard({
             </div>
             {q.data && q.data.length > 1 ? (
               <div className="mb-5 h-20">
-                <ChartContainer
-                  className="h-full w-full"
-                  config={{ cpu: { label: "CPU", color: "var(--primary)" } }}
+                <Suspense
+                  fallback={
+                    <div className="h-full animate-pulse rounded bg-muted" />
+                  }
                 >
-                  <AreaChart data={q.data.slice(-60)}>
-                    <Area
-                      type="monotone"
-                      dataKey="cpu"
-                      stroke="var(--primary)"
-                      fill="var(--primary)"
-                      fillOpacity={0.1}
-                      strokeWidth={1.5}
-                    />
-                    <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-                  </AreaChart>
-                </ChartContainer>
+                  <ServerCPUChart data={q.data} />
+                </Suspense>
               </div>
             ) : (
               <p className="mb-5 text-xs text-muted-foreground">
@@ -296,7 +221,7 @@ function ServerCard({
                 <Check />
                 Test
               </Button>
-              {account?.admin && server.data.connection !== "local" && (
+              {admin && server.data.connection !== "local" && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -318,10 +243,10 @@ export function Servers() {
   const navigate = useNavigate();
   const account = useAccount();
   const q = useResources();
-  const [editor, setEditor] = useState<Resource | "new" | null>(null);
+  const openServer = (server?: Resource) =>
+    navigate(`/configure/server/${server?.id || "new"}?return=/servers`);
   const [grants, setGrants] = useState<Resource | null>(null);
   const [provision, setProvision] = useState<Resource | null>(null);
-  const [haproxy, setHAProxy] = useState<Resource | null>(null);
   const [filter, setFilter] = useState("");
   if (q.isPending) return <Loading />;
   if (q.error) return <ErrorState error={q.error} />;
@@ -338,7 +263,7 @@ export function Servers() {
         title="Servers"
         description="Independent Docker hosts, connected securely over SSH. No cluster required."
       >
-        <Button disabled={!account?.admin} onClick={() => setEditor("new")}>
+        <Button disabled={!account?.admin} onClick={() => openServer()}>
           <Plus />
           Connect server
         </Button>
@@ -352,11 +277,13 @@ export function Servers() {
             <div key={server.id}>
               <ServerCard
                 server={server}
-                onEdit={() => setEditor(server)}
+                onEdit={() => openServer(server)}
                 onGrants={() =>
                   navigate(`/configure/access/${server.id}?return=/servers`)
                 }
-                onHAProxy={() => setHAProxy(server)}
+                onHAProxy={() =>
+                  navigate(`/configure/haproxy/${server.id}?return=/servers`)
+                }
                 onDelete={() => navigate(`/servers/${server.id}/delete`)}
               />
               {server.data.connection !== "local" && !server.data.deleting && (
@@ -380,25 +307,11 @@ export function Servers() {
           description="Add a Linux host, verify its SSH fingerprint, then let Shipyard prepare Docker and HAProxy."
           icon={<Server />}
           action={
-            <Button disabled={!account?.admin} onClick={() => setEditor("new")}>
+            <Button disabled={!account?.admin} onClick={() => openServer()}>
               <Plus />
               Connect server
             </Button>
           }
-        />
-      )}
-      <ResourceEditor
-        open={!!editor}
-        onOpenChange={(v) => !v && setEditor(null)}
-        kind="server"
-        existing={editor && editor !== "new" ? editor : undefined}
-        resources={resources}
-      />
-      {haproxy && (
-        <HAProxySettings
-          key={haproxy.id}
-          server={haproxy}
-          onOpenChange={(open) => !open && setHAProxy(null)}
         />
       )}
       <Dialog open={!!grants} onOpenChange={(v) => !v && setGrants(null)}>
@@ -429,14 +342,15 @@ export function Integrations() {
   const navigate = useNavigate();
   const account = useAccount();
   const q = useResources();
-  const [editor, setEditor] = useState<{
-    kind: string;
-    resource?: Resource;
-  } | null>(null);
+  const openEditor = (request: { kind: string; resource?: Resource }) =>
+    navigate(
+      `/configure/${request.kind}/${request.resource?.id || "new"}?return=/integrations`,
+    );
   const [grant, setGrant] = useState<Resource | null>(null);
-  const [gitEditor, setGitEditor] = useState<Resource | null | undefined>(
-    undefined,
-  );
+  const openGit = (resource?: Resource) =>
+    navigate(
+      `/configure/source-control/${resource?.id || "new"}?return=/integrations`,
+    );
   const [params] = useSearchParams();
   if (q.isPending) return <Loading />;
   if (q.error) return <ErrorState error={q.error} />;
@@ -497,8 +411,8 @@ export function Integrations() {
                   variant="outline"
                   onClick={() =>
                     item.kind === "git"
-                      ? setGitEditor(null)
-                      : setEditor({ kind: item.kind })
+                      ? openGit()
+                      : openEditor({ kind: item.kind })
                   }
                 >
                   <Plus />
@@ -540,7 +454,6 @@ export function Integrations() {
                                 ? providerName(text(resource.data, "provider"))
                                 : text(resource.data, "url")}
                             </p>
-
                           </div>
                         </div>
                         <div className="flex gap-2">
@@ -565,8 +478,8 @@ export function Integrations() {
                             size="sm"
                             onClick={() =>
                               resource.kind === "git"
-                                ? setGitEditor(resource)
-                                : setEditor({ kind: resource.kind, resource })
+                                ? openGit(resource)
+                                : openEditor({ kind: resource.kind, resource })
                             }
                           >
                             Configure
@@ -599,26 +512,6 @@ export function Integrations() {
           </AlertDescription>
         </Alert>
       )}
-      {gitEditor !== undefined && (
-        <GitConnection
-          key={gitEditor?.id || "new"}
-          existing={gitEditor || undefined}
-          onClose={() => setGitEditor(undefined)}
-          onManual={() => {
-            setEditor({ kind: "git", resource: gitEditor || undefined });
-            setGitEditor(undefined);
-          }}
-        />
-      )}
-      {editor && (
-        <ResourceEditor
-          open
-          onOpenChange={(v) => !v && setEditor(null)}
-          kind={editor.kind}
-          existing={editor.resource}
-          resources={resources}
-        />
-      )}
       <Dialog open={!!grant} onOpenChange={(v) => !v && setGrant(null)}>
         <DialogContent>
           <DialogHeader>
@@ -633,8 +526,22 @@ export function Integrations() {
     </>
   );
 }
+function DNSRecordSurface({ zone }: { zone: Resource }) {
+  const { record } = useParams();
+  return record ? (
+    <ConfigurationPage>
+      <ConfigurationGuard key={zone.id + record}>
+        <DNSRecords key={record} zone={zone} />
+      </ConfigurationGuard>
+    </ConfigurationPage>
+  ) : (
+    <DNSRecords key={zone.id} zone={zone} />
+  );
+}
 function DNSRecords({ zone }: { zone: Resource }) {
+  const changes = useConfigurationChanges();
   const { record: recordId } = useParams();
+  const initializedRecord = useRef("");
   const navigate = useNavigate();
   const client = useQueryClient();
   const q = useQuery({
@@ -644,7 +551,7 @@ function DNSRecords({ zone }: { zone: Resource }) {
   const [edit, setEdit] = useState<DNSRecord | null>(null);
   const [extra, setExtra] = useState("");
   useEffect(() => {
-    if (!recordId) return;
+    if (!recordId || initializedRecord.current === recordId) return;
     const record =
       recordId === "new"
         ? {
@@ -656,10 +563,11 @@ function DNSRecords({ zone }: { zone: Resource }) {
           }
         : q.data?.find((r) => r.id === recordId);
     if (record) {
+      initializedRecord.current = recordId;
       setEdit(record);
       setExtra(record.data ? JSON.stringify(record.data, null, 2) : "");
     }
-  }, [recordId, q.data]);
+  }, [recordId, q.data, zone.data.domain]);
   const [busy, setBusy] = useState(false);
   const [deleteId, setDeleteId] = useState("");
   async function save() {
@@ -673,7 +581,7 @@ function DNSRecords({ zone }: { zone: Resource }) {
       });
       await client.invalidateQueries({ queryKey: ["records", zone.id] });
       setEdit(null);
-      window.dispatchEvent(new Event("configuration-saved"));
+      changes.saved();
       navigate(`/dns/${zone.id}`);
       toast.success("DNS record saved");
     } catch (e) {
@@ -692,7 +600,7 @@ function DNSRecords({ zone }: { zone: Resource }) {
               disabled={q.isFetching}
               onClick={() => void q.refetch()}
             >
-              <RefreshCw className={q.isFetching ? "animate-spin" : ""} />
+              {q.isFetching ? <Spinner className="size-4" /> : <RefreshCw />}
               Refresh records
             </Button>
             <Button
@@ -931,12 +839,12 @@ export function DNS() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const [filter, setFilter] = useState("");
-  const [editor, setEditor] = useState(false);
   const [grant, setGrant] = useState(false);
   const client = useQueryClient();
   if (q.isPending) return <Loading />;
   if (q.error) return <ErrorState error={q.error} />;
   const resources = q.data || [];
+  const byId = new Map(resources.map((r) => [r.id, r]));
   const zones = resources.filter((r) => r.kind === "zone");
   const zone = zones.find((z) => z.id === id);
   const visible = zones.filter((z) =>
@@ -989,7 +897,7 @@ export function DNS() {
           <Button
             disabled={!account?.admin}
             variant="outline"
-            onClick={() => setEditor(true)}
+            onClick={() => navigate("/configure/zone/new?return=/dns")}
           >
             <Plus />
             Add zone
@@ -1019,7 +927,7 @@ export function DNS() {
             <TabsTrigger value="certificates">Certificates</TabsTrigger>
           </TabsList>
           <TabsContent value="records">
-            <DNSRecords key={zone.id} zone={zone} />
+            <DNSRecordSurface zone={zone} />
           </TabsContent>
           <TabsContent value="certificates">
             <ZoneCertificates key={zone.id} zone={zone} resources={resources} />
@@ -1042,7 +950,7 @@ export function DNS() {
             <TableBody>
               {visible.length ? (
                 visible.map((z) => {
-                  const connection = resources.find((r) => r.id === z.parentId);
+                  const connection = byId.get(z.parentId || "");
                   return (
                     <TableRow key={z.id} className="relative">
                       <TableCell>
@@ -1100,13 +1008,6 @@ export function DNS() {
           icon={<Globe2 />}
         />
       )}
-      <ResourceEditor
-        open={editor}
-        onOpenChange={setEditor}
-        kind="zone"
-        resources={resources}
-        onSaved={(saved) => navigate(`/dns/${saved.id}`)}
-      />
       <Dialog open={grant} onOpenChange={setGrant}>
         <DialogContent>
           <DialogHeader>

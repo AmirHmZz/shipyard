@@ -1,54 +1,58 @@
-import { useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import type { components } from "@/lib/schema";
-import {
-  api,
-  useAccount,
-  useResources,
-  text,
-  errorMessage,
-  type Resource,
-} from "@/lib/api";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Card, CardContent } from "@/components/ui/card";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableHeader,
-  TableHead,
-  TableRow,
-  TableBody,
-  TableCell,
-} from "@/components/ui/table";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Confirm,
-  PageHeader,
-  Loading,
-  ErrorState,
   Empty,
+  ErrorState,
+  Loading,
+  PageHeader,
 } from "@/components/shared";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  api,
+  errorMessage,
+  text,
+  useAccount,
+  useResources,
+  type Resource,
+} from "@/lib/api";
+import { useConfigurationChanges } from "@/lib/configuration-state";
+import { indexResources } from "@/lib/resource-index";
+import type { components } from "@/lib/schema";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, RefreshCw, Server, Trash2, Users } from "lucide-react";
+import { useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 type DockerNetwork = components["schemas"]["DockerNetwork"];
 function subnets(network?: DockerNetwork) {
   const config = network?.IPAM?.Config;
   return Array.isArray(config)
-    ? config
-        .map((entry) => entry.Subnet)
-        .filter((value): value is string => typeof value === "string")
+    ? config.flatMap((entry) =>
+        typeof entry.Subnet === "string" ? [entry.Subnet] : [],
+      )
     : [];
 }
 export function Networks() {
+  const changes = useConfigurationChanges();
   const q = useResources();
   const account = useAccount();
   const navigate = useNavigate();
@@ -64,21 +68,37 @@ export function Networks() {
   if (q.isPending) return <Loading />;
   if (q.error) return <ErrorState error={q.error} />;
   const resources = q.data || [];
+  const { byId } = indexResources(resources);
   const networks = resources.filter(
     (r) => r.kind === "network" && (!filter || r.data.serverId === filter),
   );
-  const rows = networks.map((resource) => ({
-    id: resource.id,
-    name: resource.name,
-    resource,
-    docker: inventory.data?.find(
-      (network) =>
-        network.Id === resource.data.dockerId ||
-        network.Labels?.["shipyard.network"] === resource.id,
-    ),
-  }));
-  const unregistered = (inventory.data || []).filter(
-    (network) => !rows.some((row) => row.docker?.Id === network.Id),
+  const inventoryRows = inventory.data || [];
+  const byDockerId = new Map<
+    string,
+    { network: DockerNetwork; order: number }
+  >();
+  const byLabel = new Map<string, { network: DockerNetwork; order: number }>();
+  inventoryRows.forEach((network, order) => {
+    if (!byDockerId.has(network.Id))
+      byDockerId.set(network.Id, { network, order });
+    const label = network.Labels?.["shipyard.network"];
+    if (label && !byLabel.has(label)) byLabel.set(label, { network, order });
+  });
+  const registered = new Set<string>();
+  const rows = networks.map((resource) => {
+    const byId = byDockerId.get(String(resource.data.dockerId || "")),
+      label = byLabel.get(resource.id);
+    const docker =
+      byId && label
+        ? byId.order < label.order
+          ? byId.network
+          : label.network
+        : byId?.network || label?.network;
+    if (docker) registered.add(docker.Id);
+    return { id: resource.id, name: resource.name, resource, docker };
+  });
+  const unregistered = inventoryRows.filter(
+    (network) => !registered.has(network.Id),
   );
   return (
     <>
@@ -129,7 +149,11 @@ export function Networks() {
             disabled={inventory.isFetching}
             onClick={() => void inventory.refetch()}
           >
-            <RefreshCw className={inventory.isFetching ? "animate-spin" : ""} />
+            {inventory.isFetching ? (
+              <Spinner className="size-4" />
+            ) : (
+              <RefreshCw />
+            )}
             Refresh networks
           </Button>
         )}
@@ -164,80 +188,83 @@ export function Networks() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map(({ resource: r, docker }) => (
-                <TableRow key={r.id}>
-                  <TableCell>
-                    <p className="font-medium">{r.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {r.data.ingressApp
-                        ? "Application ingress"
-                        : r.data.managed
-                          ? "Shipyard-managed"
-                          : "External · attach only"}
-                    </p>
-                    {!!r.data.ingressApp && (
-                      <Link
-                        className="text-xs text-primary hover:underline"
-                        to={`/applications/${text(r.data, "ingressApp")}`}
-                      >
-                        {resources.find((app) => app.id === r.data.ingressApp)
-                          ?.name || "Application"}
-                      </Link>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {resources.find((s) => s.id === r.data.serverId)?.name}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs">
-                    {(subnets(docker).length
-                      ? subnets(docker)
-                      : [text(r.data, "subnet"), text(r.data, "ipv6Subnet")]
-                    )
-                      .filter(Boolean)
-                      .map((subnet) => (
-                        <p key={subnet}>{subnet}</p>
-                      ))}
-                  </TableCell>
-                  <TableCell>
-                    {text(r.data, "status")}
-                    <p className="text-xs text-destructive">
-                      {text(r.data, "error")}
-                    </p>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {!r.data.ingressApp && (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          aria-label="Network team access"
-                          disabled={!account?.admin}
-                          asChild
+              {rows.map(({ resource: r, docker }) => {
+                const addresses = subnets(docker);
+                return (
+                  <TableRow key={r.id}>
+                    <TableCell>
+                      <p className="font-medium">{r.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {r.data.ingressApp
+                          ? "Application ingress"
+                          : r.data.managed
+                            ? "Shipyard-managed"
+                            : "External · attach only"}
+                      </p>
+                      {!!r.data.ingressApp && (
+                        <Link
+                          className="text-xs text-primary hover:underline"
+                          to={`/applications/${text(r.data, "ingressApp")}`}
                         >
-                          <Link
-                            to={`/configure/access/${r.id}?return=/networks`}
+                          {byId.get(String(r.data.ingressApp))?.name ||
+                            "Application"}
+                        </Link>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {byId.get(String(r.data.serverId))?.name}
+                    </TableCell>
+                    <TableCell className="font-mono text-xs">
+                      {(addresses.length
+                        ? addresses
+                        : [text(r.data, "subnet"), text(r.data, "ipv6Subnet")]
+                      )
+                        .filter(Boolean)
+                        .map((subnet) => (
+                          <p key={subnet}>{subnet}</p>
+                        ))}
+                    </TableCell>
+                    <TableCell>
+                      {text(r.data, "status")}
+                      <p className="text-xs text-destructive">
+                        {text(r.data, "error")}
+                      </p>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {!r.data.ingressApp && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Network team access"
+                            disabled={!account?.admin}
+                            asChild
                           >
-                            <Users />
-                          </Link>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          aria-label={
-                            r.data.managed
-                              ? "Delete network"
-                              : "Unregister network"
-                          }
-                          disabled={!account?.admin}
-                          onClick={() => setRemove(r)}
-                        >
-                          <Trash2 />
-                        </Button>
-                      </>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
+                            <Link
+                              to={`/configure/access/${r.id}?return=/networks`}
+                            >
+                              <Users />
+                            </Link>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={
+                              r.data.managed
+                                ? "Delete network"
+                                : "Unregister network"
+                            }
+                            disabled={!account?.admin}
+                            onClick={() => setRemove(r)}
+                          >
+                            <Trash2 />
+                          </Button>
+                        </>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
               {unregistered.map((network) => {
                 const register =
                   network.Driver === "bridge" &&
@@ -256,9 +283,7 @@ export function Networks() {
                             : "Not registered"}
                       </p>
                     </TableCell>
-                    <TableCell>
-                      {resources.find((server) => server.id === filter)?.name}
-                    </TableCell>
+                    <TableCell>{byId.get(filter)?.name}</TableCell>
                     <TableCell className="font-mono text-xs">
                       {subnets(network).map((subnet) => (
                         <p key={subnet}>{subnet}</p>
@@ -305,26 +330,29 @@ export function Networks() {
             method: "DELETE",
             body: "{}",
           });
-          await client.invalidateQueries({ queryKey: ["resources"] });
-          await client.invalidateQueries({ queryKey: ["docker-networks"] });
-          window.dispatchEvent(new Event("configuration-saved"));
+          await Promise.all([
+            client.invalidateQueries({ queryKey: ["resources"] }),
+            client.invalidateQueries({ queryKey: ["docker-networks"] }),
+          ]);
+          changes.saved();
         }}
       />
     </>
   );
 }
 export function NetworkForm() {
+  const changes = useConfigurationChanges();
   const q = useResources();
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const client = useQueryClient();
   const account = useAccount();
-  const [server, setServer] = useState(params.get("server") || "");
-  const [mode, setMode] = useState(
+  const [server, setServer] = useState(() => params.get("server") || "");
+  const [mode, setMode] = useState(() =>
     params.has("dockerId") ? "existing" : "create",
   );
-  const [name, setName] = useState(params.get("name") || "");
-  const [selected, setSelected] = useState(params.get("dockerId") || "");
+  const [name, setName] = useState(() => params.get("name") || "");
+  const [selected, setSelected] = useState(() => params.get("dockerId") || "");
   const [subnet, setSubnet] = useState("");
   const [range, setRange] = useState("");
   const [v6, setV6] = useState(false);
@@ -372,11 +400,11 @@ export function NetworkForm() {
                     ipv6Subnet: subnet6,
                   }),
                 });
-                await client.invalidateQueries({ queryKey: ["resources"] });
-                await client.invalidateQueries({
-                  queryKey: ["docker-networks"],
-                });
-                window.dispatchEvent(new Event("configuration-saved"));
+                await Promise.all([
+                  client.invalidateQueries({ queryKey: ["resources"] }),
+                  client.invalidateQueries({ queryKey: ["docker-networks"] }),
+                ]);
+                changes.saved();
                 navigate("/networks");
               } catch (e) {
                 setError(errorMessage(e));
@@ -532,7 +560,7 @@ export function NetworkForm() {
                 type="button"
                 variant="outline"
                 onClick={() => {
-                  window.dispatchEvent(new Event("configuration-saved"));
+                  changes.discard();
                   navigate("/networks");
                 }}
               >

@@ -1,31 +1,5 @@
-import { Fragment, useState, type ReactNode } from "react";
-import { Link } from "react-router-dom";
-import {
-  AlertCircle,
-  ArrowUpRight,
-  Box,
-  Check,
-  Circle,
-  Copy,
-  Loader2,
-  Plus,
-  Search,
-} from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -34,6 +8,32 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
+import {
+  AlertCircle,
+  ArrowUpRight,
+  Box,
+  Check,
+  Circle,
+  Copy,
+  Plus,
+  Search,
+} from "lucide-react";
+import { Fragment, useState, type ReactNode } from "react";
+import { Link } from "react-router-dom";
+import { toast } from "sonner";
 export function StateBadge({ state }: { state?: string }) {
   const healthy = [
     "healthy",
@@ -63,7 +63,7 @@ export function StateBadge({ state }: { state?: string }) {
       className={`gap-1.5 font-normal capitalize ${healthy ? "border-primary/20 bg-primary/8 text-primary" : failed ? "border-destructive/20 bg-destructive/8 text-destructive" : "bg-muted/60 text-muted-foreground"}`}
     >
       {pending ? (
-        <Loader2 className="size-3 animate-spin" />
+        <Spinner className="size-3" />
       ) : (
         <Circle
           className={`size-1.5 ${healthy || failed ? "fill-current" : ""}`}
@@ -93,7 +93,13 @@ export function PageHeader({
           <Breadcrumb className="mb-2">
             <BreadcrumbList className="font-mono text-[10px] uppercase tracking-[.2em]">
               {breadcrumbs.map((crumb, index) => (
-                <Fragment key={`${crumb.to || "current"}-${index}`}>
+                <Fragment
+                  key={JSON.stringify(
+                    breadcrumbs
+                      .slice(0, index + 1)
+                      .map(({ to, label }) => to || label),
+                  )}
+                >
                   {index > 0 && <BreadcrumbSeparator>/</BreadcrumbSeparator>}
                   <BreadcrumbItem className="min-w-0">
                     {crumb.to ? (
@@ -270,7 +276,7 @@ export function Confirm({
               }
             }}
           >
-            {busy && <Loader2 className="animate-spin" />}Confirm
+            {busy && <Spinner className="size-4 " />}Confirm
           </Button>
         </DialogFooter>
       </DialogContent>

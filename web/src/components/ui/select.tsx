@@ -1,14 +1,24 @@
-"use client";
+import { useConfigurationChanges } from "@/lib/configuration-state";
 
-import * as React from "react";
 import { cn } from "@/lib/utils";
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 import { Select as SelectPrimitive } from "radix-ui";
+import * as React from "react";
 
 function Select({
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Root>) {
-  return <SelectPrimitive.Root data-slot="select" {...props} />;
+  const changes = useConfigurationChanges();
+  return (
+    <SelectPrimitive.Root
+      data-slot="select"
+      {...props}
+      onValueChange={(value) => {
+        if (value !== props.value) changes.change();
+        props.onValueChange?.(value);
+      }}
+    />
+  );
 }
 
 function SelectGroup({

@@ -1,6 +1,7 @@
-import * as React from "react";
+import { useConfigurationChanges } from "@/lib/configuration-state";
 import { cn } from "@/lib/utils";
 import { Switch as SwitchPrimitive } from "radix-ui";
+import * as React from "react";
 
 function Switch({
   className,
@@ -9,6 +10,7 @@ function Switch({
 }: React.ComponentProps<typeof SwitchPrimitive.Root> & {
   size?: "sm" | "default";
 }) {
+  const changes = useConfigurationChanges();
   return (
     <SwitchPrimitive.Root
       data-slot="switch"
@@ -18,6 +20,10 @@ function Switch({
         className,
       )}
       {...props}
+      onCheckedChange={(checked) => {
+        if (checked !== props.checked) changes.change();
+        props.onCheckedChange?.(checked);
+      }}
     >
       <SwitchPrimitive.Thumb
         data-slot="switch-thumb"

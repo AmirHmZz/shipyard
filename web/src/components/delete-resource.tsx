@@ -1,20 +1,21 @@
-import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, Trash2 } from "lucide-react";
-import { toast } from "sonner";
-import { api, errorMessage, text, type Resource } from "@/lib/api";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Spinner } from "@/components/ui/spinner";
+import { api, errorMessage, text, type Resource } from "@/lib/api";
+import { useQueryClient } from "@tanstack/react-query";
+import { Trash2 } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 
 export function DeleteResource({
   resource,
@@ -86,7 +87,7 @@ export function DeleteResource({
             disabled={busy || !resource.canWrite || name !== resource.name}
             onClick={() => void remove()}
           >
-            {busy ? <Loader2 className="animate-spin" /> : <Trash2 />}Delete{" "}
+            {busy ? <Spinner className="size-4 " /> : <Trash2 />}Delete{" "}
             {resource.kind}
           </Button>
         </DialogFooter>

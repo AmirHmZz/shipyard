@@ -56,6 +56,26 @@ async function setup(
     },
   };
 }
+test("a successful hostname save clears navigation protection", async ({
+  page,
+}) => {
+  const data = await setup(page);
+  await page.goto("/settings?tab=dashboard");
+  await page.getByLabel("Dashboard hostname").fill("new.example.com");
+  await page.getByRole("button", { name: "Save hostname" }).click();
+  await expect.poll(() => data.writes.length).toBe(1);
+  await expect(
+    page.getByRole("button", { name: "Save hostname" }),
+  ).toBeEnabled();
+  await page
+    .getByRole("tab", { name: "Account security", exact: true })
+    .click();
+  await expect(page).toHaveURL(/tab=security/);
+  await expect(
+    page.getByRole("dialog", { name: "Discard unsaved changes?" }),
+  ).toHaveCount(0);
+});
+
 for (const theme of ["light", "dark"]) {
   test.describe(theme, () => {
     test.beforeEach(async ({ page }) => {

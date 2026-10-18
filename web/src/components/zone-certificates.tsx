@@ -1,17 +1,19 @@
-import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { ShieldCheck } from "lucide-react";
-import { api, type CertificateSummary, type Resource } from "@/lib/api";
+import { Empty, ErrorState, Loading, StateBadge } from "@/components/shared";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
-  CardDescription,
 } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { Empty, ErrorState, Loading, StateBadge } from "@/components/shared";
+import { api, type CertificateSummary, type Resource } from "@/lib/api";
+import { indexResources } from "@/lib/resource-index";
+import { useQuery } from "@tanstack/react-query";
+import { ShieldCheck } from "lucide-react";
+import { useMemo } from "react";
+import { Link } from "react-router-dom";
 
 function date(value: string | null) {
   return value
@@ -29,6 +31,7 @@ export function ZoneCertificates({
   zone: Resource;
   resources: Resource[];
 }) {
+  const { byId } = useMemo(() => indexResources(resources), [resources]);
   const q = useQuery({
     queryKey: ["zone-certificates", zone.id],
     queryFn: () => api<CertificateSummary[]>(`/zones/${zone.id}/certificates`),
@@ -51,7 +54,7 @@ export function ZoneCertificates({
         validity.
       </p>
       {q.data.map((cert) => {
-        const app = resources.find((r) => r.id === cert.applicationId);
+        const app = byId.get(cert.applicationId || "");
         const expires = cert.expiresAt
           ? new Date(cert.expiresAt).getTime()
           : null;

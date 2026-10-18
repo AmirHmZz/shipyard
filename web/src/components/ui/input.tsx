@@ -1,6 +1,7 @@
-import * as React from "react";
+import { useConfigurationChanges } from "@/lib/configuration-state";
 import { cn } from "@/lib/utils";
 import { Minus, Plus } from "lucide-react";
+import * as React from "react";
 import { Button } from "./button";
 
 function Input({
@@ -9,6 +10,7 @@ function Input({
   ref,
   ...props
 }: React.ComponentProps<"input">) {
+  const changes = useConfigurationChanges();
   const local = React.useRef<HTMLInputElement | null>(null);
   const numeric = type === "number";
   function step(direction: number) {
@@ -48,6 +50,10 @@ function Input({
         className,
       )}
       {...props}
+      onChange={(event) => {
+        changes.change();
+        props.onChange?.(event);
+      }}
     />
   );
   if (!numeric) return input;

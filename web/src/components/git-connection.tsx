@@ -1,23 +1,17 @@
-import { useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ExternalLink, Loader2, Plus, Settings2 } from "lucide-react";
-import { api, post, text, errorMessage, type Resource } from "@/lib/api";
-import type { components } from "@/lib/schema";
-import { ProviderName } from "@/components/provider-name";
-import { CopyButton } from "@/components/shared";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from "@/components/configuration-surface";
+import { ProviderName } from "@/components/provider-name";
+import { CopyButton } from "@/components/shared";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -25,13 +19,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
+import { api, errorMessage, post, text, type Resource } from "@/lib/api";
+import { useConfigurationChanges } from "@/lib/configuration-state";
+import type { components } from "@/lib/schema";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ExternalLink, Plus, Settings2 } from "lucide-react";
+import type { Dispatch, SetStateAction } from "react";
+import { useState } from "react";
+type InstanceDraft = {
+  id: string;
+  name: string;
+  url: string;
+  clientId: string;
+  clientSecret: string;
+};
 
 type Instance = components["schemas"]["GiteaInstance"];
 type Status = components["schemas"]["GitSetupStatus"];
 type Start = components["schemas"]["GitSetupStart"];
 
-export function followGitSetup(result: Start) {
-  window.dispatchEvent(new Event("configuration-saved"));
+function followGitSetup(result: Start) {
   if (result.manifest) {
     const form = document.createElement("form");
     form.method = "POST";
@@ -55,22 +63,14 @@ export function GitConnection({
   onClose: () => void;
   onManual: () => void;
 }) {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const page = location.pathname.startsWith("/configure/");
-  useEffect(() => {
-    if (!page)
-      navigate(
-        `/configure/source-control/${existing?.id || "new"}?return=/integrations`,
-      );
-  }, [page]);
+  const changes = useConfigurationChanges();
   const client = useQueryClient();
-  const [provider, setProvider] = useState(
+  const [provider, setProvider] = useState(() =>
     text(existing?.data || {}, "provider", "github"),
   );
   const [name, setName] = useState(existing?.name || "");
   const [owner, setOwner] = useState("");
-  const [instanceId, setInstanceId] = useState(
+  const [instanceId, setInstanceId] = useState(() =>
     text(existing?.data || {}, "instanceId"),
   );
   const [instanceForm, setInstanceForm] = useState<{
@@ -121,10 +121,10 @@ export function GitConnection({
             owner,
             instanceId,
           });
+      changes.saved();
       followGitSetup(result);
     });
   }
-  if (!page) return null;
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
@@ -262,83 +262,15 @@ export function GitConnection({
               )}
             </div>
             {instanceForm && (
-              <section
-                aria-label="Gitea OAuth application"
-                className="space-y-4 rounded-lg border p-4"
-              >
-                <p className="text-sm text-muted-foreground">
-                  Once per Gitea instance, register a confidential OAuth2
-                  application under Settings → Applications. Use the callback
-                  URL below, then copy its client ID and client secret. Gitea
-                  1.23 or newer is required.
-                </p>
-                <div className="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:items-center">
-                  <code className="w-full min-w-0 break-all text-xs sm:w-auto sm:flex-1">
-                    {callback || "Loading callback URL…"}
-                  </code>
-                  {callback && (
-                    <CopyButton
-                      label="Copy OAuth callback URL"
-                      value={callback}
-                    />
-                  )}
-                </div>
-                {(
-                  [
-                    ["name", "Instance name"],
-                    ["url", "Instance URL"],
-                    ["clientId", "Client ID"],
-                    ["clientSecret", "Client secret"],
-                  ] as const
-                ).map(([key, label]) => (
-                  <div className="space-y-2" key={key}>
-                    <Label htmlFor={`gitea-${key}`}>{label}</Label>
-                    <Input
-                      id={`gitea-${key}`}
-                      type={key === "clientSecret" ? "password" : "text"}
-                      autoComplete="off"
-                      value={instanceForm[key]}
-                      placeholder={
-                        key === "clientSecret" && instanceForm.id
-                          ? "Leave empty to keep saved secret"
-                          : undefined
-                      }
-                      onChange={(e) =>
-                        setInstanceForm({
-                          ...instanceForm,
-                          [key]: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                ))}
-                <div className="flex gap-2">
-                  <Button
-                    disabled={busy}
-                    onClick={() =>
-                      void perform(async () => {
-                        const v = await api<Instance>("/git/gitea/instances", {
-                          method: "PUT",
-                          body: JSON.stringify(instanceForm),
-                        });
-                        setInstanceId(v.id);
-                        setInstanceForm(null);
-                        await client.invalidateQueries({
-                          queryKey: ["gitea-instances"],
-                        });
-                      })
-                    }
-                  >
-                    Save instance
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => setInstanceForm(null)}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </section>
+              <GiteaInstanceEditor
+                instanceForm={instanceForm}
+                setInstanceForm={setInstanceForm}
+                callback={callback}
+                busy={busy}
+                perform={perform}
+                setInstanceId={setInstanceId}
+                client={client}
+              />
             )}
             <p className="text-sm text-muted-foreground">
               Browser authorization grants read-only repository access. You
@@ -348,80 +280,16 @@ export function GitConnection({
           </>
         )}
         {existing && status.data && (
-          <section
-            aria-label="Webhook configuration"
-            className="space-y-3 rounded-lg border p-4"
-          >
-            <h3 className="text-sm font-medium">
-              {provider === "gitea"
-                ? "Manual webhook setup"
-                : "GitHub App webhook"}
-            </h3>
-            <div className="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:items-center">
-              <code className="w-full min-w-0 break-all text-xs sm:w-auto sm:flex-1">
-                {status.data.webhookUrl}
-              </code>
-              <CopyButton
-                label="Copy webhook URL"
-                value={status.data.webhookUrl}
-              />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Events: push and pull_request. Use JSON payloads and the saved
-              signing secret.
-            </p>
-            {provider === "gitea" && (
-              <>
-                <p className="text-xs text-muted-foreground">
-                  {status.data.signingSecretConfigured
-                    ? "A signing secret is saved."
-                    : "Generate a signing secret and copy it into your Gitea webhook."}
-                </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={busy}
-                  onClick={() =>
-                    void perform(async () => {
-                      const v = await post<{ secret: string }>(
-                        `/git/${existing.id}/webhook-secret`,
-                      );
-                      setSecret(v.secret);
-                      await status.refetch();
-                      await client.invalidateQueries({
-                        queryKey: ["resources"],
-                      });
-                    })
-                  }
-                >
-                  {status.data.signingSecretConfigured
-                    ? "Replace signing secret"
-                    : "Generate signing secret"}
-                </Button>
-                {secret && (
-                  <div className="space-y-2">
-                    <p className="text-xs text-muted-foreground">
-                      Copy now; this secret is shown once. Update the Gitea
-                      webhook after replacing it.
-                    </p>
-                    <div className="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:items-center">
-                      <code className="w-full min-w-0 break-all text-xs sm:w-auto sm:flex-1">
-                        {secret}
-                      </code>
-                      <CopyButton label="Copy signing secret" value={secret} />
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-            <p className="text-xs text-muted-foreground">
-              Last accepted delivery:{" "}
-              {status.data.lastDelivery
-                ? new Date(status.data.lastDelivery).toLocaleString()
-                : "None received"}
-              . This does not verify the provider's webhook settings.
-            </p>
-          </section>
+          <GitWebhookConfiguration
+            existing={existing}
+            provider={provider}
+            status={{ data: status.data, refetch: status.refetch }}
+            busy={busy}
+            perform={perform}
+            setSecret={setSecret}
+            secret={secret}
+            client={client}
+          />
         )}
         {(error || status.error || config.error) && (
           <Alert variant="destructive">
@@ -430,38 +298,256 @@ export function GitConnection({
             </AlertDescription>
           </Alert>
         )}
-        <div className="flex flex-wrap justify-between gap-2 border-t pt-4">
-          <Button variant="ghost" onClick={onManual}>
-            Advanced: manual credentials
-          </Button>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={onClose}>
-              Close
-            </Button>
-            {(!existing ||
-              (provider === "gitea" &&
-                text(existing.data, "authMethod") === "oauth") ||
-              (provider === "github" && !!text(existing.data, "appSlug"))) && (
-              <Button
-                disabled={
-                  busy ||
-                  (!existing &&
-                    (!name.trim() || (provider === "gitea" && !instanceId))) ||
-                  !!instanceForm
-                }
-                onClick={() => void connect()}
-              >
-                {busy ? <Loader2 className="animate-spin" /> : <ExternalLink />}
-                {existing
-                  ? "Reconnect"
-                  : provider === "github"
-                    ? "Create GitHub App"
-                    : "Authorize Gitea"}
-              </Button>
-            )}
-          </div>
-        </div>
+        <GitConnectionActions
+          onManual={onManual}
+          onClose={onClose}
+          existing={existing}
+          provider={provider}
+          busy={busy}
+          name={name}
+          instanceId={instanceId}
+          instanceForm={instanceForm}
+          connect={connect}
+        />
       </DialogContent>
     </Dialog>
+  );
+}
+
+function GiteaInstanceEditor({
+  instanceForm,
+  setInstanceForm,
+  callback,
+  busy,
+  perform,
+  setInstanceId,
+  client,
+}: {
+  instanceForm: InstanceDraft;
+  setInstanceForm: Dispatch<SetStateAction<InstanceDraft | null>>;
+  callback: string;
+  busy: boolean;
+  perform: (action: () => Promise<void>) => Promise<void>;
+  setInstanceId: (id: string) => void;
+  client: ReturnType<typeof useQueryClient>;
+}) {
+  return (
+    <section
+      aria-label="Gitea OAuth application"
+      className="space-y-4 rounded-lg border p-4"
+    >
+      <p className="text-sm text-muted-foreground">
+        Once per Gitea instance, register a confidential OAuth2 application
+        under Settings → Applications. Use the callback URL below, then copy its
+        client ID and client secret. Gitea 1.23 or newer is required.
+      </p>
+      <div className="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:items-center">
+        <code className="w-full min-w-0 break-all text-xs sm:w-auto sm:flex-1">
+          {callback || "Loading callback URL…"}
+        </code>
+        {callback && (
+          <CopyButton label="Copy OAuth callback URL" value={callback} />
+        )}
+      </div>
+      {(
+        [
+          ["name", "Instance name"],
+          ["url", "Instance URL"],
+          ["clientId", "Client ID"],
+          ["clientSecret", "Client secret"],
+        ] as const
+      ).map(([key, label]) => (
+        <div className="space-y-2" key={key}>
+          <Label htmlFor={`gitea-${key}`}>{label}</Label>
+          <Input
+            id={`gitea-${key}`}
+            type={key === "clientSecret" ? "password" : "text"}
+            autoComplete="off"
+            value={instanceForm[key]}
+            placeholder={
+              key === "clientSecret" && instanceForm.id
+                ? "Leave empty to keep saved secret"
+                : undefined
+            }
+            onChange={(e) =>
+              setInstanceForm((current) =>
+                current ? { ...current, [key]: e.target.value } : current,
+              )
+            }
+          />
+        </div>
+      ))}
+      <div className="flex gap-2">
+        <Button
+          disabled={busy}
+          onClick={() =>
+            void perform(async () => {
+              const v = await api<Instance>("/git/gitea/instances", {
+                method: "PUT",
+                body: JSON.stringify(instanceForm),
+              });
+              setInstanceId(v.id);
+              setInstanceForm(null);
+              await client.invalidateQueries({
+                queryKey: ["gitea-instances"],
+              });
+            })
+          }
+        >
+          Save instance
+        </Button>
+        <Button variant="outline" onClick={() => setInstanceForm(null)}>
+          Cancel
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+function GitWebhookConfiguration({
+  existing,
+  provider,
+  status,
+  busy,
+  perform,
+  setSecret,
+  secret,
+  client,
+}: {
+  existing: Resource;
+  provider: string;
+  status: { data: Status; refetch: () => Promise<unknown> };
+  busy: boolean;
+  perform: (action: () => Promise<void>) => Promise<void>;
+  setSecret: (secret: string) => void;
+  secret: string;
+  client: ReturnType<typeof useQueryClient>;
+}) {
+  return (
+    <section
+      aria-label="Webhook configuration"
+      className="space-y-3 rounded-lg border p-4"
+    >
+      <h3 className="text-sm font-medium">
+        {provider === "gitea" ? "Manual webhook setup" : "GitHub App webhook"}
+      </h3>
+      <div className="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:items-center">
+        <code className="w-full min-w-0 break-all text-xs sm:w-auto sm:flex-1">
+          {status.data.webhookUrl}
+        </code>
+        <CopyButton label="Copy webhook URL" value={status.data.webhookUrl} />
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Events: push and pull_request. Use JSON payloads and the saved signing
+        secret.
+      </p>
+      {provider === "gitea" && (
+        <>
+          <p className="text-xs text-muted-foreground">
+            {status.data.signingSecretConfigured
+              ? "A signing secret is saved."
+              : "Generate a signing secret and copy it into your Gitea webhook."}
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={busy}
+            onClick={() =>
+              void perform(async () => {
+                const v = await post<{ secret: string }>(
+                  `/git/${existing.id}/webhook-secret`,
+                );
+                setSecret(v.secret);
+                await Promise.all([
+                  status.refetch(),
+                  client.invalidateQueries({ queryKey: ["resources"] }),
+                ]);
+              })
+            }
+          >
+            {status.data.signingSecretConfigured
+              ? "Replace signing secret"
+              : "Generate signing secret"}
+          </Button>
+          {secret && (
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">
+                Copy now; this secret is shown once. Update the Gitea webhook
+                after replacing it.
+              </p>
+              <div className="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:items-center">
+                <code className="w-full min-w-0 break-all text-xs sm:w-auto sm:flex-1">
+                  {secret}
+                </code>
+                <CopyButton label="Copy signing secret" value={secret} />
+              </div>
+            </div>
+          )}
+        </>
+      )}
+      <p className="text-xs text-muted-foreground">
+        Last accepted delivery:{" "}
+        {status.data.lastDelivery
+          ? new Date(status.data.lastDelivery).toLocaleString()
+          : "None received"}
+        . This does not verify the provider's webhook settings.
+      </p>
+    </section>
+  );
+}
+
+function GitConnectionActions({
+  onManual,
+  onClose,
+  existing,
+  provider,
+  busy,
+  name,
+  instanceId,
+  instanceForm,
+  connect,
+}: {
+  onManual: () => void;
+  onClose: () => void;
+  existing?: Resource;
+  provider: string;
+  busy: boolean;
+  name: string;
+  instanceId: string;
+  instanceForm: InstanceDraft | null;
+  connect: () => Promise<void>;
+}) {
+  return (
+    <div className="flex flex-wrap justify-between gap-2 border-t pt-4">
+      <Button variant="ghost" onClick={onManual}>
+        Advanced: manual credentials
+      </Button>
+      <div className="flex gap-2">
+        <Button variant="outline" onClick={onClose}>
+          Close
+        </Button>
+        {(!existing ||
+          (provider === "gitea" &&
+            text(existing.data, "authMethod") === "oauth") ||
+          (provider === "github" && !!text(existing.data, "appSlug"))) && (
+          <Button
+            disabled={
+              busy ||
+              (!existing &&
+                (!name.trim() || (provider === "gitea" && !instanceId))) ||
+              !!instanceForm
+            }
+            onClick={() => void connect()}
+          >
+            {busy ? <Spinner className="size-4 " /> : <ExternalLink />}
+            {existing
+              ? "Reconnect"
+              : provider === "github"
+                ? "Create GitHub App"
+                : "Authorize Gitea"}
+          </Button>
+        )}
+      </div>
+    </div>
   );
 }

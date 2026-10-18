@@ -1,28 +1,35 @@
 import {
+  ConfigurationGuard,
+  ConfigurationPage,
+} from "@/components/configuration-surface";
+import { GitConnection } from "@/components/git-connection";
+import { Grants } from "@/components/grants";
+import { HAProxySettings } from "@/components/haproxy-settings";
+import { ResourceForm } from "@/components/resource-editor";
+import { ErrorState, Loading, PageHeader } from "@/components/shared";
+import { Button } from "@/components/ui/button";
+import { Variables } from "@/components/variables";
+import { useResources, type Resource } from "@/lib/api";
+import { useConfigurationChanges } from "@/lib/configuration-state";
+import { NetworkForm } from "@/pages/networks";
+import {
+  Link,
   useLocation,
   useNavigate,
   useParams,
   useSearchParams,
-  Link,
 } from "react-router-dom";
-import { useResources, type Resource } from "@/lib/api";
-import { ResourceEditor } from "@/components/resource-editor";
-import { HAProxySettings } from "@/components/haproxy-settings";
-import { GitConnection } from "@/components/git-connection";
-import { Variables } from "@/components/variables";
-import { Grants } from "@/pages/infrastructure";
-import { Loading, PageHeader, ErrorState } from "@/components/shared";
-import { Button } from "@/components/ui/button";
-import { NetworkForm } from "@/pages/networks";
-import { ConfigurationGuard } from "@/components/configuration-surface";
 export function Configuration() {
   return (
-    <ConfigurationGuard>
-      <ConfigurationBody />
-    </ConfigurationGuard>
+    <ConfigurationPage>
+      <ConfigurationGuard>
+        <ConfigurationBody />
+      </ConfigurationGuard>
+    </ConfigurationPage>
   );
 }
 function ConfigurationBody() {
+  const changes = useConfigurationChanges();
   const { kind, id = "new" } = useParams();
   const [params] = useSearchParams();
   const navigate = useNavigate();
@@ -30,7 +37,8 @@ function ConfigurationBody() {
   const q = useResources();
   if (q.isPending) return <Loading />;
   if (q.error) return <ErrorState error={q.error} />;
-  if (kind === "network") return <NetworkForm />;
+  if (kind === "network")
+    return <NetworkForm key={location.pathname + location.search} />;
   const resources = q.data || [];
   const resource = resources.find((r) => r.id === id);
   const fallback =
@@ -51,12 +59,12 @@ function ConfigurationBody() {
       ? requestedBack
       : fallback;
   const close = () => {
-    window.dispatchEvent(new Event("configuration-saved"));
+    changes.discard();
     navigate(back.startsWith("/") && !back.startsWith("//") ? back : fallback);
   };
   if (id !== "new" && !resource) return <p>Resource not found.</p>;
   const saved = (r: Resource) => {
-    window.dispatchEvent(new Event("configuration-saved"));
+    changes.saved();
     navigate(
       r.kind === "application"
         ? `/applications/${r.id}`
@@ -76,11 +84,13 @@ function ConfigurationBody() {
       </div>
       {kind === "haproxy" && resource ? (
         <HAProxySettings
+          key={location.pathname}
           server={resource}
           onOpenChange={(open) => !open && close()}
         />
       ) : kind === "source-control" ? (
         <GitConnection
+          key={location.pathname}
           existing={resource}
           onClose={close}
           onManual={() =>
@@ -93,7 +103,7 @@ function ConfigurationBody() {
             title={`${resource.name} variables`}
             description="Encrypted variables. Redeploy to apply changes."
           />
-          <Variables resource={resource} />
+          <Variables key={resource.id} resource={resource} />
           <Button variant="outline" onClick={close}>
             Back
           </Button>
@@ -107,7 +117,7 @@ function ConfigurationBody() {
           <Grants resource={resource} resources={resources} />
         </>
       ) : (
-        <ResourceEditor
+        <ResourceForm
           key={location.pathname}
           open
           kind={kind || "application"}

@@ -55,8 +55,11 @@ export const post = <T = Record<string, unknown>>(
   path: string,
   body: unknown = {},
 ) => api<T>(path, { method: "POST", body: JSON.stringify(body) });
-export function useResources() {
+export function useResources<T = Resource[]>(
+  select?: (resources: Resource[]) => T,
+) {
   return useQuery({
+    select,
     queryKey: ["resources"],
     queryFn: () => api<Resource[]>("/resources"),
     refetchInterval: 15000,
@@ -87,4 +90,14 @@ export function ago(value: string) {
 }
 export function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Operation failed";
+}
+
+export function useAdmin() {
+  return (
+    useQuery({
+      queryKey: ["session"],
+      enabled: false,
+      select: (session: Session | null) => !!session?.user.admin,
+    }).data ?? false
+  );
 }

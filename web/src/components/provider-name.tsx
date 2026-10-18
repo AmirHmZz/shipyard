@@ -1,15 +1,6 @@
 import { cn } from "@/lib/utils";
 
-const names: Record<string, string> = {
-  github: "GitHub",
-  gitea: "Gitea",
-  cloudflare: "Cloudflare",
-  arvancloud: "ArvanCloud",
-};
-
-export function providerName(value: string) {
-  return names[value] || value;
-}
+import { providerName, providerNames } from "@/lib/providers";
 
 export function ProviderLogo({
   provider,
@@ -18,7 +9,7 @@ export function ProviderLogo({
   provider: string;
   className?: string;
 }) {
-  if (!names[provider]) return null;
+  if (!providerNames[provider]) return null;
   return (
     <img
       src={`/brands/${provider}.svg`}

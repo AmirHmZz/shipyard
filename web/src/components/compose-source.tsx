@@ -1,21 +1,47 @@
-import { lazy, Suspense, useEffect, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Play, Save } from "lucide-react";
-import { api, post, errorMessage, type Resource } from "@/lib/api";
-import type { components } from "@/lib/schema";
+import { ErrorState, Loading } from "@/components/shared";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
-  CardDescription,
 } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loading, ErrorState } from "@/components/shared";
+import { Spinner } from "@/components/ui/spinner";
+import { api, errorMessage, post, type Resource } from "@/lib/api";
+import { useConfigurationChanges } from "@/lib/configuration-state";
+import { loadComposeEditor } from "@/lib/feature-loaders";
+import type { components } from "@/lib/schema";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Play, Save } from "lucide-react";
+import { lazy, Suspense, useState } from "react";
 
-const Editor = lazy(() => import("./compose-code-editor"));
+const Editor = lazy(loadComposeEditor);
 type Source = components["schemas"]["ComposeSource"];
+
+function SourceEditor({
+  pending,
+  error,
+  draft,
+  disabled,
+  onChange,
+}: {
+  pending: boolean;
+  error: unknown;
+  draft: Source | null;
+  disabled: boolean;
+  onChange: (yaml: string) => void;
+}) {
+  if (pending) return <Loading />;
+  if (error) return <ErrorState error={error} />;
+  if (!draft) return null;
+  return (
+    <Suspense fallback={<Loading />}>
+      <Editor value={draft.yaml} disabled={disabled} onChange={onChange} />
+    </Suspense>
+  );
+}
 
 export function ComposeSource({
   app,
@@ -24,25 +50,24 @@ export function ComposeSource({
   app: Resource;
   onDeploy: (id: string) => void;
 }) {
+  const changes = useConfigurationChanges();
   const client = useQueryClient();
   const q = useQuery({
     queryKey: ["compose-source", app.id, app.version],
     queryFn: () => api<Source>(`/applications/${app.id}/compose`),
     enabled: app.canWrite,
   });
-  const [draft, setDraft] = useState<Source | null>(null);
+  const [editedDraft, setDraft] = useState<Source | null>(null);
+  const draft = editedDraft ?? q.data ?? null;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
-  useEffect(() => {
-    if (q.data && !draft) setDraft(q.data);
-  }, [q.data, draft]);
   async function reload() {
     try {
       const result = await q.refetch();
       if (result.error) throw result.error;
       if (result.data) {
-        window.dispatchEvent(new Event("configuration-saved"));
+        changes.saved();
         setDraft(result.data);
         setError("");
         setSaved(false);
@@ -61,16 +86,19 @@ export function ComposeSource({
         method: "PUT",
         body: JSON.stringify(draft),
       });
-      window.dispatchEvent(new Event("configuration-saved"));
+      changes.saved();
       setDraft(result);
       setSaved(true);
-      await client.invalidateQueries({ queryKey: ["resources"] });
+      const refresh = client.invalidateQueries({ queryKey: ["resources"] });
       if (deploy) {
-        const d = await post<{ id: string }>(`/applications/${app.id}/deploy`, {
-          version: result.version,
-        });
+        const [d] = await Promise.all([
+          post<{ id: string }>(`/applications/${app.id}/deploy`, {
+            version: result.version,
+          }),
+          refresh,
+        ]);
         onDeploy(d.id);
-      }
+      } else await refresh;
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -89,25 +117,20 @@ export function ComposeSource({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {q.isPending ? (
-          <Loading />
-        ) : q.error ? (
-          <ErrorState error={q.error} />
-        ) : (
-          draft && (
-            <Suspense fallback={<Loading />}>
-              <Editor
-                value={draft.yaml}
-                disabled={busy}
-                onChange={(yaml) => {
-                  window.dispatchEvent(new Event("configuration-dirty"));
-                  setDraft({ ...draft, yaml });
-                  setSaved(false);
-                }}
-              />
-            </Suspense>
-          )
-        )}
+        <SourceEditor
+          pending={q.isPending}
+          error={q.error}
+          draft={draft}
+          disabled={busy}
+          onChange={(yaml) => {
+            changes.change();
+            setDraft((current) => {
+              const source = current ?? draft;
+              return source ? { ...source, yaml } : source;
+            });
+            setSaved(false);
+          }}
+        />
         <p className="text-xs text-muted-foreground">
           Use images or inline Dockerfiles. Referenced host files must have
           absolute paths. Configure variables in the Variables tab and route
@@ -147,7 +170,7 @@ export function ComposeSource({
               disabled={busy || !draft?.yaml.trim()}
               onClick={() => void save(false)}
             >
-              {busy ? <Loader2 className="animate-spin" /> : <Save />}Save
+              {busy ? <Spinner className="size-4 " /> : <Save />}Save
             </Button>
             <Button
               disabled={busy || !draft?.yaml.trim()}

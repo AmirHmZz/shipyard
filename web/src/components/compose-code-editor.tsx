@@ -1,10 +1,10 @@
-import { useEffect, useId, useState } from "react";
-import Editor, { type OnMount } from "@monaco-editor/react";
-import type { editor } from "monaco-editor";
-import { FileCode2, WandSparkles, WrapText } from "lucide-react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import "@/lib/monaco";
+import Editor, { type OnMount } from "@monaco-editor/react";
+import { FileCode2, WandSparkles, WrapText } from "lucide-react";
+import type { editor } from "monaco-editor";
+import { useEffect, useId, useState } from "react";
+import { toast } from "sonner";
 
 let tabNavigationInitialized = false;
 
@@ -86,7 +86,7 @@ export default function ComposeCodeEditor({
             aria-pressed={wrap}
             title="Word wrap"
             disabled={!instance}
-            onClick={() => setWrap(!wrap)}
+            onClick={() => setWrap((current) => !current)}
           >
             <WrapText />
           </Button>

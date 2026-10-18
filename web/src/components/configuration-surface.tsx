@@ -1,33 +1,33 @@
+import { Confirm } from "@/components/shared";
+import * as Modal from "@/components/ui/dialog";
+import { ConfigurationContext } from "@/lib/configuration-state";
+import { createDirtyScopes } from "@/lib/dirty-scopes";
+import { cn } from "@/lib/utils";
 import {
   createContext,
-  useContext,
+  use,
+  useCallback,
+  useMemo,
   useState,
-  useEffect,
+  useSyncExternalStore,
   type ComponentProps,
   type ReactNode,
 } from "react";
-import { useLocation, useBlocker, useBeforeUnload } from "react-router-dom";
-import { flushSync } from "react-dom";
-import * as Modal from "@/components/ui/dialog";
-import { Confirm } from "@/components/shared";
-import { cn } from "@/lib/utils";
+import { useBeforeUnload, useBlocker } from "react-router-dom";
 const PageContext = createContext(false);
+export function ConfigurationPage({ children }: { children: ReactNode }) {
+  return <PageContext value={true}>{children}</PageContext>;
+}
 export function Dialog({
   children,
   ...props
 }: ComponentProps<typeof Modal.Dialog>) {
-  const path = useLocation().pathname;
-  const page = path.startsWith("/configure/") || /\/records\//.test(path);
-  return (
-    <PageContext value={page}>
-      {page ? (
-        props.open === false ? null : (
-          <section>{children}</section>
-        )
-      ) : (
-        <Modal.Dialog {...props}>{children}</Modal.Dialog>
-      )}
-    </PageContext>
+  return use(PageContext) ? (
+    props.open === false ? null : (
+      <section>{children}</section>
+    )
+  ) : (
+    <Modal.Dialog {...props}>{children}</Modal.Dialog>
   );
 }
 export function DialogContent({
@@ -35,14 +35,8 @@ export function DialogContent({
   className,
   ...props
 }: ComponentProps<typeof Modal.DialogContent>) {
-  const page = useContext(PageContext);
-  const location = useLocation();
-  return page ? (
-    location.pathname.startsWith("/configure/") ? (
-      <div className="space-y-6">{children}</div>
-    ) : (
-      <ConfigurationGuard>{children}</ConfigurationGuard>
-    )
+  return use(PageContext) ? (
+    <div className="space-y-6">{children}</div>
   ) : (
     <Modal.DialogContent className={className} {...props}>
       {children}
@@ -56,60 +50,57 @@ export function ConfigurationGuard({
   children: ReactNode;
   className?: string;
 }) {
-  const [dirty, setDirty] = useState(false);
-  const blocker = useBlocker(dirty);
-  useBeforeUnload((event) => {
-    if (dirty) event.preventDefault();
-  });
-  useEffect(() => {
-    const reset = () => flushSync(() => setDirty(false));
-    const changed = () => setDirty(true);
-    window.addEventListener("configuration-saved", reset);
-    window.addEventListener("configuration-dirty", changed);
-    return () => {
-      window.removeEventListener("configuration-saved", reset);
-      window.removeEventListener("configuration-dirty", changed);
-    };
-  }, []);
+  const [store] = useState(createDirtyScopes);
+  const dirty = useSyncExternalStore(
+    store.subscribe,
+    store.isDirty,
+    store.isDirty,
+  );
+  const blocker = useBlocker(useCallback(() => store.isDirty(), [store]));
+  useBeforeUnload(
+    useCallback(
+      (event: BeforeUnloadEvent) => {
+        if (dirty) event.preventDefault();
+      },
+      [dirty],
+    ),
+  );
+  const actions = store.actions;
+  const context = useMemo(
+    () => ({ state: { dirty }, actions }),
+    [dirty, actions],
+  );
   return (
-    <div
-      className={cn("mx-auto w-full max-w-4xl space-y-7 pb-10", className)}
-      onChangeCapture={() => setDirty(true)}
-      onInputCapture={() => setDirty(true)}
-      onClickCapture={(event) => {
-        if (
-          (event.target as HTMLElement).closest(
-            '[role="combobox"],[role="switch"]',
-          )
-        )
-          setDirty(true);
-      }}
-    >
-      {children}
-      <Confirm
-        open={blocker.state === "blocked"}
-        onOpenChange={(open) =>
-          !open && blocker.state === "blocked" && blocker.reset()
-        }
-        title="Discard unsaved changes?"
-        description="Your unsaved configuration will be lost."
-        onConfirm={async () => {
-          setDirty(false);
-          if (blocker.state === "blocked") blocker.proceed();
-        }}
-      />
-    </div>
+    <ConfigurationContext value={context}>
+      <div
+        className={cn("mx-auto w-full max-w-4xl space-y-7 pb-10", className)}
+      >
+        {children}
+        <Confirm
+          open={blocker.state === "blocked"}
+          onOpenChange={(open) => {
+            if (!open && blocker.state === "blocked") blocker.reset();
+          }}
+          title="Discard unsaved changes?"
+          description="Your unsaved configuration will be lost."
+          onConfirm={async () => {
+            actions.discard();
+            if (blocker.state === "blocked") blocker.proceed();
+          }}
+        />
+      </div>
+    </ConfigurationContext>
   );
 }
 export function DialogHeader(props: ComponentProps<typeof Modal.DialogHeader>) {
-  return useContext(PageContext) ? (
+  return use(PageContext) ? (
     <header {...props} className="space-y-3" />
   ) : (
     <Modal.DialogHeader {...props} />
   );
 }
 export function DialogTitle(props: ComponentProps<typeof Modal.DialogTitle>) {
-  return useContext(PageContext) ? (
+  return use(PageContext) ? (
     <h1 {...props} className="text-3xl font-semibold tracking-tight" />
   ) : (
     <Modal.DialogTitle {...props} />
@@ -118,14 +109,14 @@ export function DialogTitle(props: ComponentProps<typeof Modal.DialogTitle>) {
 export function DialogDescription(
   props: ComponentProps<typeof Modal.DialogDescription>,
 ) {
-  return useContext(PageContext) ? (
+  return use(PageContext) ? (
     <p {...props} className="text-sm leading-relaxed text-muted-foreground" />
   ) : (
     <Modal.DialogDescription {...props} />
   );
 }
 export function DialogFooter(props: ComponentProps<typeof Modal.DialogFooter>) {
-  return useContext(PageContext) ? (
+  return use(PageContext) ? (
     <div
       {...props}
       className="flex flex-wrap justify-end gap-3 border-t pt-5"

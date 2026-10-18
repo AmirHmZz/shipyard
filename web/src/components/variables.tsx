@@ -1,31 +1,34 @@
-import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, ShieldCheck } from "lucide-react";
-import { toast } from "sonner";
-import { api, errorMessage, type Resource } from "@/lib/api";
+import { Confirm } from "@/components/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
   Select,
-  SelectTrigger,
-  SelectValue,
   SelectContent,
   SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Table,
-  TableHeader,
-  TableRow,
-  TableHead,
   TableBody,
   TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
-import { Confirm } from "@/components/shared";
+import { Textarea } from "@/components/ui/textarea";
+import { api, errorMessage, type Resource } from "@/lib/api";
+import { useConfigurationChanges } from "@/lib/configuration-state";
+import { useQueryClient } from "@tanstack/react-query";
+import { ShieldCheck } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 export function Variables({ resource }: { resource: Resource }) {
+  const changes = useConfigurationChanges();
   const client = useQueryClient();
   const [key, setKey] = useState("");
   const [value, setValue] = useState("");
@@ -48,7 +51,7 @@ export function Variables({ resource }: { resource: Resource }) {
       await client.invalidateQueries({ queryKey: ["resources"] });
       setKey("");
       setValue("");
-      window.dispatchEvent(new Event("configuration-saved"));
+      changes.saved();
       toast.success("Variable saved. Deploy to apply it.");
     } catch (e) {
       toast.error(errorMessage(e));
@@ -118,8 +121,7 @@ export function Variables({ resource }: { resource: Resource }) {
                 />
               </div>
               <Button disabled={busy}>
-                {busy && <Loader2 className="animate-spin" />}Add / replace
-                variable
+                {busy && <Spinner className="size-4 " />}Add / replace variable
               </Button>
             </form>
           </CardContent>

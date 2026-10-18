@@ -1,16 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  Anchor,
-  ArrowRight,
-  GitBranch,
-  Loader2,
-  LockKeyhole,
-  Server,
-  ShieldCheck,
-} from "lucide-react";
-import { api, post, setCSRF, errorMessage, type Session } from "@/lib/api";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -21,8 +10,19 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
+import { Spinner } from "@/components/ui/spinner";
+import { api, errorMessage, post, setCSRF, type Session } from "@/lib/api";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  Anchor,
+  ArrowRight,
+  GitBranch,
+  LockKeyhole,
+  Server,
+  ShieldCheck,
+} from "lucide-react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 export function Auth() {
   const navigate = useNavigate();
   const client = useQueryClient();
@@ -32,7 +32,7 @@ export function Auth() {
       api<{ setupRequired: boolean; setupEnabled: boolean }>("/auth/status"),
   });
   const [token] = useState(
-    new URLSearchParams(location.search).get("token") || "",
+    () => new URLSearchParams(location.search).get("token") || "",
   );
   const setup = status.data?.setupRequired && !token;
   const [form, setForm] = useState({
@@ -145,7 +145,12 @@ export function Auth() {
                     id="name"
                     autoComplete="name"
                     value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    onChange={(e) =>
+                      setForm((current) => ({
+                        ...current,
+                        name: e.target.value,
+                      }))
+                    }
                     required
                   />
                 </div>
@@ -160,7 +165,10 @@ export function Auth() {
                     placeholder="you@company.com"
                     value={form.email}
                     onChange={(e) =>
-                      setForm({ ...form, email: e.target.value })
+                      setForm((current) => ({
+                        ...current,
+                        email: e.target.value,
+                      }))
                     }
                     required
                   />
@@ -175,7 +183,10 @@ export function Auth() {
                   autoComplete={setup ? "new-password" : "current-password"}
                   value={form.password}
                   onChange={(e) =>
-                    setForm({ ...form, password: e.target.value })
+                    setForm((current) => ({
+                      ...current,
+                      password: e.target.value,
+                    }))
                   }
                   required
                 />
@@ -188,7 +199,10 @@ export function Auth() {
                     type="password"
                     value={form.token}
                     onChange={(e) =>
-                      setForm({ ...form, token: e.target.value })
+                      setForm((current) => ({
+                        ...current,
+                        token: e.target.value,
+                      }))
                     }
                     required
                   />
@@ -207,7 +221,12 @@ export function Auth() {
                     id="code"
                     autoComplete="one-time-code"
                     value={form.code}
-                    onChange={(e) => setForm({ ...form, code: e.target.value })}
+                    onChange={(e) =>
+                      setForm((current) => ({
+                        ...current,
+                        code: e.target.value,
+                      }))
+                    }
                   />
                 </div>
               )}
@@ -222,7 +241,7 @@ export function Auth() {
                 className="h-11 w-full"
                 disabled={busy || status.isPending}
               >
-                {busy ? <Loader2 className="animate-spin" /> : null}
+                {busy ? <Spinner className="size-4 " /> : null}
                 {token
                   ? "Accept invitation"
                   : setup
