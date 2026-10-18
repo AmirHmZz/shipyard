@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/AmirHmZz/shipyard/compare/v0.2.0...v0.3.0) (2026-10-18)
+
+
+### Features
+
+* add deployment lifecycle actions and polish dashboard UI ([4dff298](https://github.com/AmirHmZz/shipyard/commit/4dff2984261c629c4bc497dfcb928fc8a16f5d2b))
+
 ## [0.2.0](https://github.com/AmirHmZz/shipyard/compare/v0.1.0...v0.2.0) (2026-10-18)
 
 
