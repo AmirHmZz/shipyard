@@ -183,6 +183,7 @@ func (a *API) Router() http.Handler {
 			r.Get("/applications/{id}/terminal", a.terminal)
 			r.Get("/deployments", a.deployments)
 			r.Get("/deployments/{id}", a.deployment)
+			r.Delete("/deployments/{id}", a.deleteDeployment)
 			r.Get("/deployments/{id}/events", a.events)
 			r.Get("/teams/{id}/members", a.members)
 			r.Post("/teams/{id}/invitations", a.invite)
@@ -1111,14 +1112,20 @@ func (a *API) deploy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var in struct {
-		Ref     string `json:"ref"`
-		Version int    `json:"version,omitempty"`
+		Ref         string `json:"ref"`
+		Version     int    `json:"version,omitempty"`
+		Fresh       bool   `json:"fresh"`
+		ConfirmName string `json:"confirmName"`
 	}
 	if !decode(w, r, &in) {
 		return
 	}
 	if in.Version != 0 && in.Version != v.Version {
 		fail(w, 409, "Application changed; reload before deploying")
+		return
+	}
+	if in.Fresh && (in.Version == 0 || in.ConfirmName != v.Name) {
+		fail(w, 400, "Fresh deploy requires the current application version and exact application name")
 		return
 	}
 	spec, _ := model.Decode[model.App](v)
@@ -1131,12 +1138,22 @@ func (a *API) deploy(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	d, e := a.Control.Queue(r.Context(), v, in.Ref, "")
+	var d model.Deployment
+	var e error
+	if in.Fresh {
+		d, e = a.Control.QueueFresh(r.Context(), v, in.Ref)
+	} else {
+		d, e = a.Control.Queue(r.Context(), v, in.Ref, "")
+	}
 	if e != nil {
+		if errors.Is(e, db.ErrConflict) || errors.Is(e, db.ErrDeleting) {
+			a.err(w, e)
+			return
+		}
 		fail(w, 400, e.Error())
 		return
 	}
-	_ = a.Store.Audit(r.Context(), user(r).ID, "deployment.requested", v.ID, v.TeamID, map[string]string{"deploymentId": d.ID})
+	_ = a.Store.Audit(r.Context(), user(r).ID, "deployment.requested", v.ID, v.TeamID, map[string]any{"deploymentId": d.ID, "fresh": in.Fresh})
 	respond(w, 202, d)
 }
 func (a *API) rollback(w http.ResponseWriter, r *http.Request) {
@@ -1157,6 +1174,10 @@ func (a *API) rollback(w http.ResponseWriter, r *http.Request) {
 	}
 	d, e := a.Control.Queue(r.Context(), v, "", in.ReleaseID)
 	if e != nil {
+		if errors.Is(e, control.ErrDeploymentProtected) {
+			fail(w, 409, e.Error())
+			return
+		}
 		fail(w, 400, e.Error())
 		return
 	}
@@ -1209,7 +1230,7 @@ func (a *API) releases(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	rows, e := a.Store.Pool.Query(r.Context(), "SELECT r.id FROM releases r JOIN deployments d ON d.id=r.deployment_id WHERE r.app_id=$1 AND d.state='healthy' ORDER BY r.created_at DESC LIMIT 50", v.ID)
+	rows, e := a.Store.Pool.Query(r.Context(), "SELECT r.id FROM releases r JOIN deployments d ON d.id=r.deployment_id WHERE r.app_id=$1 AND d.state='healthy' AND NOT EXISTS(SELECT 1 FROM settings WHERE key='deployment-deletion:'||d.id) ORDER BY r.created_at DESC LIMIT 50", v.ID)
 	if e != nil {
 		a.err(w, e)
 		return

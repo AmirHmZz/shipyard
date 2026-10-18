@@ -1,4 +1,5 @@
 import { ErrorState, Loading, StateBadge } from "@/components/shared";
+import { ReleaseNotes } from "@/components/release-notes";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -242,11 +243,7 @@ function VersionChangeReview({
       <h3 className="font-medium">
         {plan.current.version} → {plan.target.version}
       </h3>
-      {plan.target.notes && (
-        <p className="text-sm whitespace-pre-wrap text-muted-foreground">
-          {plan.target.notes}
-        </p>
-      )}
+      {plan.target.notes && <ReleaseNotes>{plan.target.notes}</ReleaseNotes>}
       <p className="text-sm">
         Database schema {plan.migrations.current} → {plan.migrations.target}
       </p>

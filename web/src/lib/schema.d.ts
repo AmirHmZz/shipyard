@@ -5806,6 +5806,10 @@ export interface paths {
                 content: {
                     "application/json": {
                         ref?: string;
+                        /** @description Recreate app-owned volumes; requires version and exact confirmName. Defaults to false. */
+                        fresh?: boolean;
+                        /** @description Exact application name acknowledging permanent volume data loss for Fresh deploy. */
+                        confirmName?: string;
                         /** @description Optional application revision; stale values return 409 */
                         version?: number;
                     };
@@ -6680,7 +6684,75 @@ export interface paths {
         };
         put?: never;
         post?: never;
-        delete?: never;
+        /** Delete a completed inactive deployment and its unused release artifacts */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            jobId: string;
+                        };
+                    };
+                };
+                /** @description Invalid input */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Authentication required */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Permission denied */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Resource not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Maintenance mode or dependency unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;
@@ -7839,6 +7911,8 @@ export interface components {
             rollbackId: string;
             createdAt: string;
             updatedAt: string;
+            deleting?: boolean;
+            deletionError?: string;
         };
         DNSRecord: {
             id?: string;

@@ -54,12 +54,16 @@ type DeploymentSnapshot struct {
 	Ref              string            `json:"ref"`
 	RegistryPassword string            `json:"registryPassword"`
 	ComposeSource    string            `json:"composeSource,omitempty"`
+	Fresh            bool              `json:"fresh,omitempty"`
 }
 
 func (c *Controller) Queue(ctx context.Context, app model.Resource, ref, rollback string) (model.Deployment, error) {
 	return c.queue(ctx, app, ref, rollback, "")
 }
-func (c *Controller) queue(ctx context.Context, app model.Resource, ref, rollback, key string) (model.Deployment, error) {
+func (c *Controller) QueueFresh(ctx context.Context, app model.Resource, ref string) (model.Deployment, error) {
+	return c.queue(ctx, app, ref, "", "", true)
+}
+func (c *Controller) queue(ctx context.Context, app model.Resource, ref, rollback, key string, freshMode ...bool) (model.Deployment, error) {
 	if c.Store.Maintenance(ctx) {
 		return model.Deployment{}, errors.New("Shipyard is in maintenance mode")
 	}
@@ -80,6 +84,7 @@ func (c *Controller) queue(ctx context.Context, app model.Resource, ref, rollbac
 		return model.Deployment{}, errors.New("server and Git connection must be granted to this team")
 	}
 	snapshot := DeploymentSnapshot{Resource: c.Store.Public(app), App: spec, Env: map[string]string{}, BuildSecrets: map[string]string{}, Ref: ref}
+	snapshot.Fresh = len(freshMode) > 0 && freshMode[0]
 	if spec.Source == "compose" {
 		if ref != "" {
 			return model.Deployment{}, errors.New("Direct Compose deployments do not accept a Git ref")
@@ -159,6 +164,31 @@ func (c *Controller) queue(ctx context.Context, app model.Resource, ref, rollbac
 	if deleting {
 		return model.Deployment{}, db.ErrDeleting
 	}
+	var freshBusy bool
+	if e = tx.QueryRow(ctx, freshDeploymentBusySQL, app.ID, "").Scan(&freshBusy); e != nil {
+		return model.Deployment{}, e
+	}
+	if freshBusy {
+		return model.Deployment{}, fmt.Errorf("%w: Fresh deploy recovery is still in progress", db.ErrConflict)
+	}
+	if snapshot.Fresh {
+		var version int
+		if e = tx.QueryRow(ctx, "SELECT version FROM resources WHERE id=$1", app.ID).Scan(&version); e != nil {
+			return model.Deployment{}, e
+		}
+		if version != app.Version {
+			return model.Deployment{}, db.ErrConflict
+		}
+	}
+	if rollback != "" {
+		var available bool
+		if e = tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM releases r WHERE r.id=$1 AND r.app_id=$2 AND NOT EXISTS(SELECT 1 FROM settings WHERE key='deployment-deletion:'||r.deployment_id))", rollback, app.ID).Scan(&available); e != nil {
+			return model.Deployment{}, e
+		}
+		if !available {
+			return model.Deployment{}, fmt.Errorf("%w: retained release is unavailable or being deleted", ErrDeploymentProtected)
+		}
+	}
 	if spec.PreviewOf != "" {
 		var enabled bool
 		if e = tx.QueryRow(ctx, "SELECT COALESCE(data->>'previews','false')='true' FROM resources WHERE id=$1", spec.PreviewOf).Scan(&enabled); e != nil {
@@ -206,7 +236,7 @@ func (c *Controller) Run(ctx context.Context) {
 			}
 		}
 	}
-	ops := []string{"git-event", "domain", "proxy", "proxy-settings", "provision", "prune", "notify", "preview-cleanup", "drain", "resource-delete", "server-delete", "network-create", "network-delete", "dashboard-apply", "dashboard-retire"}
+	ops := []string{"git-event", "domain", "proxy", "proxy-settings", "provision", "prune", "notify", "preview-cleanup", "drain", "resource-delete", "server-delete", "deployment-delete", "network-create", "network-delete", "dashboard-apply", "dashboard-retire"}
 	// Long builds and DNS challenges cannot monopolize metric sampling or all
 	// operational workers. Every lane still uses the same durable job leases.
 	for _, kinds := range [][]string{{"deploy"}, {"deploy"}, ops, ops, {"metrics"}} {
@@ -339,6 +369,14 @@ func (c *Controller) runJob(parent context.Context, j model.Job, worker string) 
 		e = json.Unmarshal(j.Payload, &p)
 		if e == nil {
 			e = c.deploy(ctx, p.ID)
+		}
+	case "deployment-delete":
+		var p struct {
+			ID string `json:"deploymentId"`
+		}
+		e = json.Unmarshal(j.Payload, &p)
+		if e == nil {
+			e = c.deleteDeployment(ctx, p.ID)
 		}
 	case "git-event":
 		var p struct {
@@ -527,6 +565,16 @@ func (c *Controller) deploy(ctx context.Context, id string) (result error) {
 	if model.IsDeleting(current) {
 		return c.Store.Stage(ctx, id, "failed", "cancelled", "Application deletion requested")
 	}
+	var freshBusy bool
+	if e = c.Store.Pool.QueryRow(ctx, freshDeploymentBusySQL, d.AppID, id).Scan(&freshBusy); e != nil {
+		return e
+	}
+	if freshBusy {
+		if e = c.Store.Stage(ctx, id, "queued", "reconcile", "Waiting for Fresh deploy recovery"); e != nil {
+			return e
+		}
+		return context.Canceled
+	}
 	var encrypted []byte
 	if e = c.Store.Pool.QueryRow(ctx, "SELECT snapshot FROM deployments WHERE id=$1", id).Scan(&encrypted); e != nil {
 		return e
@@ -572,6 +620,13 @@ func (c *Controller) deploy(ctx context.Context, id string) (result error) {
 	}
 	r := model.Release{ID: id, DeploymentID: id, AppID: d.AppID, TeamID: snapshot.Resource.TeamID, ServerID: snapshot.App.ServerID, App: snapshot.App, Env: snapshot.Env, BuildSecrets: snapshot.BuildSecrets, Routes: snapshot.Routes, Directory: remote.Root + "/releases/" + id, CreatedAt: time.Now()}
 	changed := false
+	freshStarted := false
+	if snapshot.Fresh {
+		freshStarted, e = c.freshDeploymentStarted(ctx, id)
+		if e != nil {
+			return e
+		}
+	}
 	defer func() {
 		if result == nil {
 			return
@@ -583,11 +638,20 @@ func (c *Controller) deploy(ctx context.Context, id string) (result error) {
 			return
 		}
 		log.emit("Deployment failed: " + result.Error())
-		log.emit("Deployment failed; checking previous release")
+		if freshStarted {
+			log.emit("Fresh deploy failed after reset began; application stays stopped. Erased volume data cannot be recovered by rollback.")
+		} else {
+			log.emit("Deployment failed; checking previous release")
+		}
 		state := "failed"
 		recoveryCtx, stop := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Minute)
 		defer stop()
-		if oldErr == nil && changed {
+		if freshStarted {
+			if err := c.stopFreshDeployment(recoveryCtx, r); err != nil {
+				state = "recovery_failed"
+				log.emit("Fresh deploy cleanup failed: " + err.Error())
+			}
+		} else if oldErr == nil && changed {
 			recoveryClient, _, ce := c.connect(recoveryCtx, old.ServerID)
 			if ce == nil {
 				defer recoveryClient.Close()
@@ -610,7 +674,7 @@ func (c *Controller) deploy(ctx context.Context, id string) (result error) {
 				log.emit("Previous release restored")
 			}
 		}
-		if r.App.Engine == "dockerfile" && changed {
+		if r.App.Engine == "dockerfile" && changed && !freshStarted {
 			_ = engine.Remove(recoveryCtx, r, false)
 		}
 		msg := result.Error()
@@ -721,7 +785,16 @@ func (c *Controller) deploy(ctx context.Context, id string) (result error) {
 	if e = c.preflightNetworks(ctx, r); e != nil {
 		return e
 	}
-	if RequiresRecreate(r.App) && oldErr == nil {
+	if snapshot.Fresh {
+		if oldErr == nil && old.ServerID != r.ServerID {
+			return errors.New("Fresh deploy requires the active release to be on the selected server; deploy normally after changing servers")
+		}
+		_ = c.Store.Stage(ctx, id, "deploying", "reset-volumes", "")
+		log.emit("Fresh deploy: recreating app-owned volumes. External/shared volumes and bind mounts are preserved.")
+		if e = c.resetFreshDeployment(ctx, client, r, &freshStarted); e != nil {
+			return e
+		}
+	} else if RequiresRecreate(r.App) && oldErr == nil {
 		changed = true
 		if e = engine.Remove(ctx, old, false); e != nil {
 			return e

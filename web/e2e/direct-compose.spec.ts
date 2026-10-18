@@ -100,6 +100,14 @@ async function setup(page: Page, existing = false, canWrite = true) {
       return route.fulfill({ json: { status: "stopped" } });
     if (path.endsWith("/events"))
       return route.fulfill({ contentType: "text/event-stream", body: "" });
+    if (path.startsWith("/api/v1/deployments/"))
+      return route.fulfill({
+        json: {
+          id: path.split("/").at(-1),
+          applicationId: "app",
+          state: "healthy",
+        },
+      });
     if (
       path.endsWith("/metrics") ||
       path.endsWith("/releases") ||

@@ -19,7 +19,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import {
   AlertCircle,
@@ -83,7 +82,7 @@ export function PageHeader({
   eyebrow?: string;
   breadcrumbs?: { label: string; to?: string }[];
   title: string;
-  description?: string;
+  description?: ReactNode;
   children?: ReactNode;
 }) {
   return (
@@ -91,7 +90,7 @@ export function PageHeader({
       <div className="min-w-0 max-w-full">
         {breadcrumbs?.length ? (
           <Breadcrumb className="mb-2">
-            <BreadcrumbList className="font-mono text-[10px] uppercase tracking-[.2em]">
+            <BreadcrumbList>
               {breadcrumbs.map((crumb, index) => (
                 <Fragment
                   key={JSON.stringify(
@@ -100,7 +99,7 @@ export function PageHeader({
                       .map(({ to, label }) => to || label),
                   )}
                 >
-                  {index > 0 && <BreadcrumbSeparator>/</BreadcrumbSeparator>}
+                  {index > 0 && <BreadcrumbSeparator />}
                   <BreadcrumbItem className="min-w-0">
                     {crumb.to ? (
                       <BreadcrumbLink
@@ -175,12 +174,24 @@ export function ErrorState({ error }: { error: unknown }) {
     </Alert>
   );
 }
-export function Loading() {
+export function Loading({
+  label = "Loading workspace…",
+  className,
+  id,
+}: {
+  label?: string;
+  className?: string;
+  id?: string;
+}) {
   return (
-    <div className="grid gap-5 md:grid-cols-3">
-      {[0, 1, 2].map((n) => (
-        <Skeleton key={n} className="h-48 rounded-xl" />
-      ))}
+    <div
+      id={id}
+      role="status"
+      aria-label={label}
+      className={`flex h-9 w-full items-center justify-between gap-3 rounded-md border border-input bg-muted/60 px-3 text-sm text-muted-foreground ${className || ""}`}
+    >
+      <span className="min-w-0 truncate">{label}</span>
+      <Spinner className="size-4 text-muted-foreground" />
     </div>
   );
 }

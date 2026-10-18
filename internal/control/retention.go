@@ -12,7 +12,7 @@ import (
 )
 
 func (c *Controller) prune(ctx context.Context, app string) error {
-	rows, e := c.Store.Pool.Query(ctx, "SELECT r.id,d.state FROM releases r JOIN deployments d ON d.id=r.deployment_id WHERE r.app_id=$1 AND d.state IN ('healthy','failed','recovery_failed') ORDER BY r.created_at DESC", app)
+	rows, e := c.Store.Pool.Query(ctx, "SELECT r.id,d.state FROM releases r JOIN deployments d ON d.id=r.deployment_id WHERE r.app_id=$1 AND d.state IN ('healthy','failed','recovery_failed') AND NOT EXISTS(SELECT 1 FROM settings WHERE key='deployment-deletion:'||d.id) ORDER BY r.created_at DESC", app)
 	if e != nil {
 		return e
 	}

@@ -97,6 +97,14 @@ async function setup(page: Page, { admin = true, writable = true } = {}) {
         contentType: "text/event-stream",
         body: 'event: log\ndata: {"message":"Application is ready"}\n\nevent: status\ndata: {"state":"healthy"}\n\n',
       });
+    if (path.startsWith("/api/v1/deployments/"))
+      return route.fulfill({
+        json: {
+          id: path.split("/").at(-1),
+          applicationId: "rustrack",
+          state: "healthy",
+        },
+      });
     if (
       ["/metrics", "/releases", "/deployments"].some((suffix) =>
         path.endsWith(suffix),
@@ -163,6 +171,39 @@ for (const theme of ["light", "dark"]) {
         (value) => localStorage.setItem("shipyard-theme", value),
         theme,
       );
+    });
+    test("application tabs have icons and compact spacing", async ({
+      page,
+    }, info) => {
+      await setup(page);
+      await page.goto("/applications/rustrack");
+      const tabs = page.getByRole("tablist");
+      const overview = tabs.getByRole("tab", { name: /^overview$/i });
+      await expect(overview).toHaveAttribute("aria-selected", "true");
+      for (const tab of await tabs.getByRole("tab").all()) {
+        await expect(tab.locator('svg[aria-hidden="true"]')).toHaveCount(1);
+      }
+      const panel = page.getByRole("tabpanel");
+      const box = (await panel.boundingBox())!;
+      const tabBox = (await tabs.boundingBox())!;
+      expect(box.y - tabBox.y - tabBox.height).toBeGreaterThanOrEqual(4);
+      expect(box.y - tabBox.y - tabBox.height).toBeLessThanOrEqual(12);
+      await overview.focus();
+      await page.keyboard.press("ArrowRight");
+      await expect(
+        tabs.getByRole("tab", { name: /^compose$/i }),
+      ).toHaveAttribute("aria-selected", "true");
+      await page.keyboard.press("ArrowLeft");
+      await expect(overview).toHaveAttribute("aria-selected", "true");
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true);
+      await page.screenshot({
+        path: info.outputPath(`tab-layout-${theme}.png`),
+        fullPage: true,
+      });
     });
     test("route controls and application tabs fit without a vertical scrollbar", async ({
       page,

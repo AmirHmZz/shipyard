@@ -17,7 +17,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ago, type Resource, useDeployments, useResources } from "@/lib/api";
+import {
+  ago,
+  type Deployment,
+  type Resource,
+  useDeployments,
+  useResources,
+} from "@/lib/api";
 import { indexResources } from "@/lib/resource-index";
 import {
   ArrowRight,
@@ -30,17 +36,23 @@ import {
   Plus,
   Server,
   TerminalSquare,
+  Trash2,
 } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 export function DeploymentTable({
   deployments,
   resources,
   onSelect,
+  onDelete,
+  canDelete,
 }: {
   deployments: ReturnType<typeof useDeployments>["data"];
   resources: Resource[];
   onSelect?: (id: string) => void;
+  onDelete?: (deployment: Deployment) => void;
+  canDelete?: (deployment: Deployment) => boolean;
 }) {
   const { byId } = useMemo(() => indexResources(resources), [resources]);
   return (
@@ -70,6 +82,11 @@ export function DeploymentTable({
             </TableCell>
             <TableCell>
               <StateBadge state={d.state} />
+              {d.deleting && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {d.deletionError || "Deleting…"}
+                </p>
+              )}
             </TableCell>
             <TableCell className="font-mono text-xs text-muted-foreground">
               {d.commit ? (
@@ -87,25 +104,53 @@ export function DeploymentTable({
               {ago(d.createdAt)}
             </TableCell>
             <TableCell className="text-right">
-              {onSelect ? (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onSelect(d.id)}
-                >
-                  Logs
-                  <ArrowUpRight className="size-3" />
-                </Button>
-              ) : (
-                <Button variant="ghost" size="icon" asChild>
-                  <Link
-                    aria-label="View deployment"
-                    to={`/applications/${d.applicationId}?deployment=${d.id}`}
+              <div className="flex items-center justify-end gap-1">
+                {onSelect ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onSelect(d.id)}
                   >
-                    <ArrowUpRight className="size-4" />
-                  </Link>
-                </Button>
-              )}
+                    Logs
+                    <ArrowUpRight className="size-3" />
+                  </Button>
+                ) : (
+                  <Button variant="ghost" size="icon" asChild>
+                    <Link
+                      aria-label="View deployment"
+                      to={`/applications/${d.applicationId}?deployment=${d.id}`}
+                    >
+                      <ArrowUpRight className="size-4" />
+                    </Link>
+                  </Button>
+                )}
+                {onDelete && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label={
+                      d.deletionError
+                        ? "Retry deployment deletion"
+                        : "Delete deployment"
+                    }
+                    disabled={
+                      !canDelete?.(d) || (!!d.deleting && !d.deletionError)
+                    }
+                    onClick={() => onDelete(d)}
+                  >
+                    {d.deleting && !d.deletionError ? (
+                      <Spinner className="size-4" />
+                    ) : (
+                      <Trash2 className="size-4" />
+                    )}
+                    {d.deletionError ? (
+                      "Retry"
+                    ) : (
+                      <span className="sr-only">Delete deployment</span>
+                    )}
+                  </Button>
+                )}
+              </div>
             </TableCell>
           </TableRow>
         ))}

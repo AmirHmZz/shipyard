@@ -89,7 +89,7 @@ func (n *deletionNode) Run(_ context.Context, cmd string, _ io.Reader, out io.Wr
 				break
 			}
 		}
-	case strings.HasPrefix(cmd, remote.Command("docker", "ps", "-aq", "--filter")), strings.HasPrefix(cmd, remote.Command("docker", "image", "ls")), strings.HasPrefix(cmd, remote.Command("sh", "-c")):
+	case strings.HasPrefix(cmd, remote.Command("docker", "ps", "-aq", "--filter")), strings.HasPrefix(cmd, remote.Command("docker", "image", "ls")), strings.HasPrefix(cmd, remote.Command("sh", "-c")), strings.HasPrefix(cmd, remote.Command("rm", "-rf")):
 	default:
 		return errors.New("unexpected command: " + cmd)
 	}

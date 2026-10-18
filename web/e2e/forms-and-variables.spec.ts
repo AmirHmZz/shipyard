@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-async function fixture(page: Page, writable = true) {
+async function fixture(page: Page, writable = true, provider = "gitea") {
   const resource = (
     id: string,
     kind: string,
@@ -29,7 +29,7 @@ async function fixture(page: Page, writable = true) {
       name: "Production",
     },
     resource("server", "server"),
-    resource("git", "git", "", { provider: "gitea" }),
+    resource("git", "git", "", { provider }),
     resource("zone", "zone", "dns", { domain: "example.com" }),
     resource("other-zone", "zone", "dns", { domain: "example.org" }),
     resource("app", "application", "env", {
@@ -63,6 +63,7 @@ async function fixture(page: Page, writable = true) {
     emptyRepos: false,
     failSave: false,
     gate: null as Promise<void> | null,
+    repoGate: null as Promise<void> | null,
   };
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request(),
@@ -74,7 +75,8 @@ async function fixture(page: Page, writable = true) {
       return route.fulfill({
         json: { user: { id: "user", name: "User", admin: true }, csrf: "csrf" },
       });
-    if (path.endsWith("/repositories"))
+    if (path.endsWith("/repositories")) {
+      if (state.repoGate) await state.repoGate;
       return state.repoFailure
         ? route.fulfill({
             status: 502,
@@ -85,6 +87,7 @@ async function fixture(page: Page, writable = true) {
               ? []
               : [{ full_name: "owner/repo" }, { full_name: "owner/second" }],
           });
+    }
     if (path.endsWith("/branches")) {
       const repository = url.searchParams.get("repository")!;
       state.branchRequests.push(repository);
@@ -370,6 +373,116 @@ for (const theme of ["light", "dark"]) {
   });
 }
 
+for (const provider of ["github", "gitea"]) {
+  test(`${provider} repository branding, compact loading, and configuration breadcrumbs`, async ({
+    page,
+  }, info) => {
+    const state = await fixture(page, true, provider);
+    let releaseRepositories!: () => void;
+    let releaseBranches!: () => void;
+    state.repoGate = new Promise<void>((resolve) => {
+      releaseRepositories = resolve;
+    });
+    state.gate = new Promise<void>((resolve) => {
+      releaseBranches = resolve;
+    });
+    await page.goto("/configure/application/new?parent=env");
+    const breadcrumb = page.getByRole("navigation", {
+      name: "Configuration navigation",
+    });
+    await expect(breadcrumb.locator('[aria-current="page"]')).toHaveText(
+      "New application",
+    );
+    await expect(
+      page
+        .getByRole("navigation", { name: "Workspace navigation" })
+        .locator('[aria-current="page"]'),
+    ).toHaveText("New application");
+    const connection = page.getByRole("combobox", {
+      name: "Select git",
+      exact: true,
+    });
+    await connection.click();
+    const git = page.getByRole("option", { name: "git", exact: true });
+    await expect(git.locator("img")).toHaveAttribute(
+      "src",
+      `/brands/${provider}.svg`,
+    );
+    await page.keyboard.press("g");
+    await page.keyboard.press("Enter");
+    await expect(connection.locator("img")).toHaveAttribute(
+      "src",
+      `/brands/${provider}.svg`,
+    );
+    const loadingRepositories = page.getByRole("status", {
+      name: "Loading repositories…",
+      exact: true,
+    });
+    await expect(
+      loadingRepositories.locator('[data-slot="spinner"]'),
+    ).toBeVisible();
+    releaseRepositories();
+    const repository = page.getByRole("combobox", {
+      name: "Select repository",
+      exact: true,
+    });
+    await repository.click();
+    await expect(
+      page
+        .getByRole("option", { name: "owner/repo", exact: true })
+        .locator("img"),
+    ).toHaveAttribute("src", `/brands/${provider}.svg`);
+    await page.getByRole("option", { name: "owner/repo", exact: true }).click();
+    await expect(repository.locator("img")).toHaveAttribute(
+      "src",
+      `/brands/${provider}.svg`,
+    );
+    const loadingBranches = page.getByRole("status", {
+      name: "Loading branches…",
+      exact: true,
+    });
+    await expect(
+      loadingBranches.locator('[data-slot="spinner"]'),
+    ).toBeVisible();
+    await expect(loadingBranches).toHaveCSS("height", "36px");
+    await expect(page.locator('[data-slot="skeleton"]')).toHaveCount(0);
+    await page.screenshot({
+      path: info.outputPath(`${provider}-loading-light.png`),
+      fullPage: true,
+    });
+    await page.getByRole("button", { name: "Use dark theme" }).click();
+    await page.screenshot({
+      path: info.outputPath(`${provider}-loading-dark.png`),
+      fullPage: true,
+    });
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBeTruthy();
+    releaseBranches();
+    await choose(page, "Select branch", "main");
+    await expect(loadingBranches).toHaveCount(0);
+    // A fresh navigation keeps this visual test independent of the unsaved form.
+    await page.goto("/projects/project");
+    const card = page
+      .getByRole("main")
+      .getByRole("link", { name: /app.*owner\/repo/ });
+    await expect(
+      card.locator(`img[src="/brands/${provider}.svg"]`),
+    ).toBeVisible();
+    await card.click();
+    await expect(
+      page
+        .getByRole("navigation", { name: "Workspace navigation" })
+        .locator('[aria-current="page"]'),
+    ).toHaveText("app");
+    await expect(
+      page.getByRole("main").locator(`img[src="/brands/${provider}.svg"]`),
+    ).toHaveCount(2);
+  });
+}
+
 test("branch loading, errors, retries, empty results, and stale responses", async ({
   page,
 }) => {
@@ -382,6 +495,12 @@ test("branch loading, errors, retries, empty results, and stale responses", asyn
   await expect(
     page.getByRole("status", { name: "Loading branches…", exact: true }),
   ).toBeVisible();
+  await expect(
+    page
+      .getByRole("status", { name: "Loading branches…", exact: true })
+      .locator('[data-slot="spinner"]'),
+  ).toBeVisible();
+  await expect(page.locator('[data-slot="skeleton"]')).toHaveCount(0);
   await choose(page, "Select repository", "owner/second");
   state.gate = null;
   await expect

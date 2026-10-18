@@ -1,3 +1,5 @@
+import { ApplicationDeployActions } from "@/components/application-deploy-actions";
+import { DeleteDeployment } from "@/components/delete-deployment";
 import { ApplicationNetworking } from "@/components/application-networking";
 import { ApplicationPreviews } from "@/components/application-previews";
 import { ComposeSource } from "@/components/compose-source";
@@ -8,8 +10,10 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { Variables } from "@/components/variables";
 import type { Deployment } from "@/lib/api";
+import { RepositoryName } from "@/components/repository-name";
 import {
   api,
+  APIError,
   errorMessage,
   number,
   post,
@@ -26,17 +30,22 @@ import {
   ArrowUpRight,
   FileCode2,
   GitBranch,
+  Globe2,
+  History,
+  LayoutDashboard,
+  Network,
   Pencil,
-  Play,
   Plus,
   RefreshCw,
   RotateCcw,
   Server,
   Settings2,
-  Square,
+  SlidersHorizontal,
+  ScrollText,
+  Terminal,
   Trash2,
 } from "lucide-react";
-import { lazy, Suspense, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -269,6 +278,35 @@ export function Application() {
   const [confirmAction, setConfirmAction] = useState("");
   const [busy, setBusy] = useState(false);
   const client = useQueryClient();
+  const [deleteDeployment, setDeleteDeployment] = useState<Deployment | null>(
+    null,
+  );
+  const selected = params.get("deployment");
+  const selectedDeployment = useQuery({
+    queryKey: ["deployment", selected],
+    enabled:
+      !!selected &&
+      !!deployments.data &&
+      !deployments.data.some((d) => d.id === selected),
+    queryFn: () => api<Deployment>(`/deployments/${selected}`),
+    retry: false,
+  });
+  useEffect(() => {
+    if (
+      selected &&
+      selectedDeployment.error instanceof APIError &&
+      selectedDeployment.error.status === 404
+    ) {
+      setParams(
+        (previous) => {
+          const next = new URLSearchParams(previous);
+          next.delete("deployment");
+          return next;
+        },
+        { replace: true },
+      );
+    }
+  }, [selected, selectedDeployment.error, setParams]);
   if (resources.isPending) return <Loading />;
   if (resources.error) return <ErrorState error={resources.error} />;
   const rows = resources.data || [];
@@ -291,14 +329,18 @@ export function Application() {
   const containers = runtime.data?.containers || [];
   const latest = deployments.data?.[0];
   const directCompose = app.data.source === "compose";
-  async function deploy() {
+  async function deploy(fresh = false, confirmName = "") {
     setBusy(true);
     try {
-      const d = await post<{ id: string }>(`/applications/${id}/deploy`);
+      const d = await post<{ id: string }>(
+        `/applications/${id}/deploy`,
+        fresh ? { fresh: true, confirmName, version: app!.version } : {},
+      );
       setParams({ deployment: d.id, tab: "deployments" });
       await client.invalidateQueries({ queryKey: ["deployments"] });
-      toast.success("Deployment queued");
+      toast.success(fresh ? "Fresh deployment queued" : "Deployment queued");
     } catch (e) {
+      if (fresh) throw e;
       toast.error(errorMessage(e));
     } finally {
       setBusy(false);
@@ -313,6 +355,10 @@ export function Application() {
     <>
       <ApplicationHeader
         app={app}
+        provider={text(
+          index.byId.get(text(app.data, "gitId"))?.data || {},
+          "provider",
+        )}
         project={project}
         environment={environment}
         runtime={runtime}
@@ -322,22 +368,32 @@ export function Application() {
         setConfirmAction={setConfirmAction}
         setDeleting={setDeleting}
       />
+      {deleteDeployment && (
+        <DeleteDeployment
+          deployment={deleteDeployment}
+          onClose={() => setDeleteDeployment(null)}
+        />
+      )}
       <ApplicationStatus app={app} runtime={runtime} server={server} />
       <DeletionStatus resource={foundApp!} onRetry={() => setDeleting(true)} />
       <Tabs value={tab} onValueChange={setTab}>
-        <div className="mb-6 overflow-x-auto overflow-y-hidden p-1 -m-1">
+        <div className="overflow-x-auto overflow-y-hidden p-1 -m-1">
           <TabsList>
             {[
-              "overview",
-              ...(directCompose && app.canWrite ? ["compose"] : []),
-              "deployments",
-              "domains",
-              "variables",
-              "networking",
-              ...(!directCompose && !app.data.previewOf ? ["previews"] : []),
-              "logs",
-              "terminal",
-            ].map((t) => (
+              { value: "overview", icon: LayoutDashboard },
+              ...(directCompose && app.canWrite
+                ? [{ value: "compose", icon: FileCode2 }]
+                : []),
+              { value: "deployments", icon: History },
+              { value: "domains", icon: Globe2 },
+              { value: "variables", icon: SlidersHorizontal },
+              { value: "networking", icon: Network },
+              ...(!directCompose && !app.data.previewOf
+                ? [{ value: "previews", icon: GitBranch }]
+                : []),
+              { value: "logs", icon: ScrollText },
+              { value: "terminal", icon: Terminal },
+            ].map(({ value: t, icon: Icon }) => (
               <TabsTrigger
                 disabled={t === "terminal" && !app.canWrite}
                 key={t}
@@ -354,6 +410,7 @@ export function Application() {
                     : undefined
                 }
               >
+                <Icon aria-hidden="true" />
                 {t}
               </TabsTrigger>
             ))}
@@ -375,6 +432,10 @@ export function Application() {
         )}
         <ApplicationOverview
           app={app}
+          provider={text(
+            index.byId.get(text(app.data, "gitId"))?.data || {},
+            "provider",
+          )}
           server={server}
           latest={latest}
           metrics={metrics}
@@ -389,6 +450,9 @@ export function Application() {
           params={params}
           setParams={setParams}
           setConfirmAction={setConfirmAction}
+          onDeleteDeployment={(d) => {
+            setDeleteDeployment(d);
+          }}
         />
         <ApplicationDomains
           app={app}
@@ -457,12 +521,14 @@ export function Application() {
 
 function ApplicationOverview({
   app,
+  provider,
   server,
   latest,
   metrics,
   setParams,
 }: {
   app: Resource;
+  provider: string;
   server?: Resource;
   latest?: Deployment;
   metrics: { data?: Metric[] };
@@ -502,7 +568,11 @@ function ApplicationOverview({
                 <div key={label} className="flex justify-between gap-4">
                   <dt className="text-muted-foreground">{label}</dt>
                   <dd className="max-w-[65%] truncate font-mono text-xs">
-                    {value}
+                    {label === "Source" && !directCompose ? (
+                      <RepositoryName repository={value} provider={provider} />
+                    ) : (
+                      value
+                    )}
                   </dd>
                 </div>
               ))}
@@ -632,6 +702,7 @@ function ApplicationDeployments({
   params,
   setParams,
   setConfirmAction,
+  onDeleteDeployment,
 }: {
   app: Resource;
   rows: Resource[];
@@ -641,8 +712,19 @@ function ApplicationDeployments({
   params: URLSearchParams;
   setParams: ReturnType<typeof useSearchParams>[1];
   setConfirmAction: (action: string) => void;
+  onDeleteDeployment: (deployment: Deployment) => void;
 }) {
   const directCompose = app.data.source === "compose";
+  const canDelete = (d: Deployment) =>
+    !!app.canWrite &&
+    !!runtime.data &&
+    ["healthy", "failed", "recovery_failed"].includes(d.state) &&
+    runtime.data.releaseId !== (d.releaseId || d.id) &&
+    !deployments.data?.some(
+      (other) =>
+        ["queued", "building", "deploying"].includes(other.state) &&
+        other.rollbackId === (d.releaseId || d.id),
+    );
   return (
     <TabsContent value="deployments">
       <Card className="gap-0 overflow-hidden py-0 shadow-none">
@@ -650,6 +732,8 @@ function ApplicationDeployments({
           <DeploymentTable
             resources={rows}
             deployments={deployments.data}
+            onDelete={app.canWrite ? onDeleteDeployment : undefined}
+            canDelete={canDelete}
             onSelect={(deployment) =>
               setParams({ deployment, tab: "deployments" })
             }
@@ -757,6 +841,7 @@ function ApplicationDomains({
 
 function ApplicationHeader({
   app,
+  provider,
   project,
   environment,
   runtime,
@@ -767,11 +852,12 @@ function ApplicationHeader({
   setDeleting,
 }: {
   app: Resource;
+  provider: string;
   project?: Resource;
   environment?: Resource;
   runtime: { data?: Runtime };
   busy: boolean;
-  deploy: () => Promise<void>;
+  deploy: (fresh?: boolean, confirmName?: string) => Promise<void>;
   openEditor: (resource: Resource | "new") => void;
   setConfirmAction: (action: string) => void;
   setDeleting: (value: boolean) => void;
@@ -796,37 +882,16 @@ function ApplicationHeader({
       ]}
       title={app.name}
       description={
-        directCompose
-          ? "Direct Docker Compose deployment"
-          : text(app.data, "repository")
+        directCompose ? (
+          "Direct Docker Compose deployment"
+        ) : (
+          <RepositoryName
+            repository={text(app.data, "repository")}
+            provider={provider}
+          />
+        )
       }
     >
-      <Button
-        variant="outline"
-        size="icon"
-        aria-label="Restart application"
-        disabled={!app.canWrite || !runtime.data?.releaseId}
-        onClick={() => setConfirmAction("restart")}
-      >
-        <RotateCcw className="size-4" />
-      </Button>
-      <Button
-        variant="outline"
-        size="icon"
-        aria-label="Stop application"
-        disabled={!app.canWrite || !runtime.data?.releaseId}
-        onClick={() =>
-          setConfirmAction(
-            runtime.data?.status === "stopped" ? "start" : "stop",
-          )
-        }
-      >
-        {runtime.data?.status === "stopped" ? (
-          <Play className="size-4" />
-        ) : (
-          <Square className="size-4" />
-        )}
-      </Button>
       <Button
         disabled={!app.canWrite}
         variant="outline"
@@ -835,26 +900,14 @@ function ApplicationHeader({
         <Settings2 />
         Configure
       </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        aria-label="Delete application"
-        disabled={!app.canWrite}
-        onClick={() => setDeleting(true)}
-      >
-        <Trash2 className="size-4" />
-      </Button>
-      <Button
-        disabled={
-          busy ||
-          !app.canWrite ||
-          !!app.data.previewClosed ||
-          (!!app.data.previewOf && !app.data.approvedSha)
-        }
-        onClick={() => void deploy()}
-      >
-        {busy ? <Spinner className="size-4 " /> : <Play />}Deploy
-      </Button>
+      <ApplicationDeployActions
+        app={app}
+        runtime={runtime.data}
+        busy={busy}
+        deploy={deploy}
+        onAction={setConfirmAction}
+        onDelete={() => setDeleting(true)}
+      />
     </PageHeader>
   );
 }

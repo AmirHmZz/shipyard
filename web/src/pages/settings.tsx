@@ -57,7 +57,18 @@ import {
 } from "@/lib/api";
 import type { components } from "@/lib/schema";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, KeyRound, Plus, ShieldCheck, Users } from "lucide-react";
+import {
+  Bell,
+  Download,
+  History as HistoryIcon,
+  KeyRound,
+  ListTodo,
+  LockKeyhole,
+  Plus,
+  RefreshCw,
+  ShieldCheck,
+  Users,
+} from "lucide-react";
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -881,20 +892,44 @@ export function Settings({ session }: { session: Session }) {
         value={params.get("tab") || "security"}
         onValueChange={(tab) => setParams({ tab })}
       >
-        <div className="overflow-x-auto">
-          <TabsList className="mb-6">
-            <TabsTrigger value="security">Account security</TabsTrigger>
+        <div className="overflow-x-auto overflow-y-hidden p-1 -m-1">
+          <TabsList>
+            <TabsTrigger value="security">
+              <ShieldCheck aria-hidden="true" />
+              Account security
+            </TabsTrigger>
             {session.user.admin && (
               <>
-                <TabsTrigger value="updates">System updates</TabsTrigger>
-                <TabsTrigger value="dashboard">Dashboard access</TabsTrigger>
-                <TabsTrigger value="backup">Backup & recovery</TabsTrigger>
-                <TabsTrigger value="jobs">Jobs</TabsTrigger>
-                <TabsTrigger value="alerts">Alerts</TabsTrigger>
-                <TabsTrigger value="users">Users</TabsTrigger>
+                <TabsTrigger value="updates">
+                  <RefreshCw aria-hidden="true" />
+                  System updates
+                </TabsTrigger>
+                <TabsTrigger value="dashboard">
+                  <LockKeyhole aria-hidden="true" />
+                  Dashboard access
+                </TabsTrigger>
+                <TabsTrigger value="backup">
+                  <Download aria-hidden="true" />
+                  Backup & recovery
+                </TabsTrigger>
+                <TabsTrigger value="jobs">
+                  <ListTodo aria-hidden="true" />
+                  Jobs
+                </TabsTrigger>
+                <TabsTrigger value="alerts">
+                  <Bell aria-hidden="true" />
+                  Alerts
+                </TabsTrigger>
+                <TabsTrigger value="users">
+                  <Users aria-hidden="true" />
+                  Users
+                </TabsTrigger>
               </>
             )}
-            <TabsTrigger value="audit">Audit log</TabsTrigger>
+            <TabsTrigger value="audit">
+              <HistoryIcon aria-hidden="true" />
+              Audit log
+            </TabsTrigger>
           </TabsList>
         </div>
         <TabsContent value="security">

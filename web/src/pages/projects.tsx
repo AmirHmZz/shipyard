@@ -1,6 +1,7 @@
 type EditorRequest = { kind: string; existing?: Resource; parentId?: string };
 import { DeleteResource, DeletionStatus } from "@/components/delete-resource";
 import { ResourceEditor } from "@/components/resource-editor";
+import { RepositoryName } from "@/components/repository-name";
 import {
   Empty,
   ErrorState,
@@ -142,10 +143,11 @@ export function Projects({ previews = false }: { previews?: boolean }) {
               })
             }
           >
-            <div className="overflow-x-auto">
-              <TabsList className="mb-6">
+            <div className="overflow-x-auto overflow-y-hidden p-1 -m-1">
+              <TabsList>
                 {environments.map((env) => (
                   <TabsTrigger key={env.id} value={env.id}>
+                    <Layers3 aria-hidden="true" />
                     {env.name}
                   </TabsTrigger>
                 ))}
@@ -371,9 +373,17 @@ function ApplicationCards({
                   </Badge>
                 )}
                 <p className="mt-2 truncate text-xs text-muted-foreground">
-                  {text(r.data, "source") === "compose"
-                    ? "Direct Compose"
-                    : text(r.data, "repository")}
+                  {text(r.data, "source") === "compose" ? (
+                    "Direct Compose"
+                  ) : (
+                    <RepositoryName
+                      repository={text(r.data, "repository")}
+                      provider={text(
+                        index.byId.get(text(r.data, "gitId"))?.data || {},
+                        "provider",
+                      )}
+                    />
+                  )}
                 </p>
                 <div className="mt-5 flex items-center justify-between border-t pt-4 text-xs text-muted-foreground">
                   <span className="flex items-center gap-1.5">

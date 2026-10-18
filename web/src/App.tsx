@@ -248,6 +248,14 @@ function Deployments() {
     </>
   );
 }
+function routePageLabel(pathname: string) {
+  const [, section, kind = "", id] = pathname.split("/");
+  if (section === "applications") return "Applications";
+  if (section === "configure")
+    return id === "new" ? `New ${kind.replaceAll("-", " ")}` : "Configuration";
+  return "Overview";
+}
+
 function Shell({ session }: { session: Session }) {
   const client = useQueryClient();
   const location = useLocation();
@@ -272,11 +280,7 @@ function Shell({ session }: { session: Session }) {
   const section = navigation.find(
     (n) => n.path !== "/" && location.pathname.startsWith(n.path),
   );
-  const page =
-    section?.label ||
-    (location.pathname.startsWith("/applications/")
-      ? "Applications"
-      : "Overview");
+  const page = section?.label || routePageLabel(location.pathname);
   const current = resources.data?.find(
     (r) =>
       r.id === location.pathname.split("/")[2] &&
@@ -322,9 +326,7 @@ function Shell({ session }: { session: Session }) {
                   <Link to="/">Workspace</Link>
                 </BreadcrumbLink>
               </BreadcrumbItem>
-              <BreadcrumbSeparator className="hidden sm:inline">
-                /
-              </BreadcrumbSeparator>
+              <BreadcrumbSeparator className="hidden sm:inline" />
               <BreadcrumbItem className="min-w-0">
                 {current ? (
                   <BreadcrumbLink
@@ -339,11 +341,9 @@ function Shell({ session }: { session: Session }) {
               </BreadcrumbItem>
               {current && (
                 <>
-                  <BreadcrumbSeparator className="hidden md:inline">
-                    /
-                  </BreadcrumbSeparator>
-                  <BreadcrumbItem className="hidden min-w-0 md:inline-flex">
-                    <BreadcrumbPage className="max-w-40 truncate">
+                  <BreadcrumbSeparator className="shrink-0" />
+                  <BreadcrumbItem className="min-w-0">
+                    <BreadcrumbPage className="max-w-24 truncate sm:max-w-40">
                       {current.name}
                     </BreadcrumbPage>
                   </BreadcrumbItem>

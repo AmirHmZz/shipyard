@@ -1,6 +1,90 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @custom-variant dark (&:is(.dark *));
+.release-notes {
+  & > * + * {
+    margin-top: 0.75rem;
+  }
+  & :is(h1, h2, h3, h4, h5, h6) {
+    color: var(--foreground);
+    font-weight: 600;
+    line-height: 1.4;
+  }
+  & :is(h1, h2) {
+    font-size: 1.125rem;
+  }
+  & :is(h3, h4, h5, h6) {
+    font-size: 1rem;
+  }
+  & :is(ul, ol) {
+    padding-left: 1.5rem;
+  }
+  & ul {
+    list-style: disc;
+  }
+  & ol {
+    list-style: decimal;
+  }
+  & li + li {
+    margin-top: 0.25rem;
+  }
+  & li > * + * {
+    margin-top: 0.5rem;
+  }
+  & a {
+    color: var(--primary);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  & a:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+  & strong {
+    color: var(--foreground);
+    font-weight: 600;
+  }
+  & code {
+    border-radius: 0.25rem;
+    background: var(--muted);
+    padding: 0.125rem 0.25rem;
+    font-size: 0.875em;
+  }
+  & pre {
+    max-width: 100%;
+    overflow-x: auto;
+    border-radius: var(--radius);
+    background: var(--muted);
+    padding: 0.75rem;
+  }
+  & pre code {
+    padding: 0;
+  }
+  & blockquote {
+    border-left: 2px solid var(--border);
+    padding-left: 1rem;
+  }
+  & table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    border-collapse: collapse;
+  }
+  & :is(th, td) {
+    border: 1px solid var(--border);
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+  }
+  & img {
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--radius);
+  }
+  & hr {
+    border-color: var(--border);
+  }
+}
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

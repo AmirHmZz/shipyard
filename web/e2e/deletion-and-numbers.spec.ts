@@ -142,8 +142,9 @@ test("application deletion keeps error context, retries and returns to the paren
   const state = await setup(page);
   await page.goto("/applications/app");
   await page.getByRole("button", { name: "Use dark theme" }).click();
+  await page.getByRole("button", { name: "Application actions" }).click();
   await page
-    .getByRole("button", { name: "Delete application", exact: true })
+    .getByRole("menuitem", { name: "Delete application", exact: true })
     .click();
   const dialog = page.getByRole("dialog", {
     name: "Delete application?",
@@ -182,7 +183,7 @@ test("viewers cannot delete projects or applications", async ({ page }) => {
   await page.keyboard.press("Escape");
   await page.goto("/applications/app");
   await expect(
-    page.getByRole("button", { name: "Delete application", exact: true }),
+    page.getByRole("button", { name: "Application actions", exact: true }),
   ).toBeDisabled();
 });
 

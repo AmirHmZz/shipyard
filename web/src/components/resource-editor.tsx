@@ -6,7 +6,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/configuration-surface";
-import { ProviderName } from "@/components/provider-name";
+import { ProviderLogo, ProviderName } from "@/components/provider-name";
+import { RepositoryName } from "@/components/repository-name";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +17,6 @@ import {
   InputGroupAddon,
   InputGroupText,
 } from "@/components/ui/input-group";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -47,7 +47,7 @@ import {
 } from "./resource-forms/definitions";
 import type { Options } from "./resource-forms/options";
 import { ResourceOptions } from "./resource-forms/options";
-import { ErrorState } from "./shared";
+import { ErrorState, Loading } from "./shared";
 const COMPOSE_HIDDEN_FIELDS = new Set([
   "engine",
   "gitId",
@@ -765,7 +765,18 @@ function ResourceFieldSelect(props: Parameters<typeof ResourceField>[0]) {
       (v) => update(f.key, v),
       resources
         .filter((r) => r.kind === f.resource)
-        .map((r) => ({ value: r.id, label: r.name })),
+        .map((r) => ({
+          value: r.id,
+          label:
+            f.resource === "git" ? (
+              <span className="inline-flex min-w-0 items-center gap-2">
+                <ProviderLogo provider={String(r.data.provider || "")} />
+                <span className="truncate">{r.name}</span>
+              </span>
+            ) : (
+              r.name
+            ),
+        })),
       `Select ${f.resource}`,
       false,
       `${formId}-${f.key}`,
@@ -956,7 +967,10 @@ function ResourceFieldActions({
   );
 }
 
-function RepositoryField({ repos }: Parameters<typeof ResourceField>[0]) {
+function RepositoryField({
+  repos,
+  resources,
+}: Parameters<typeof ResourceField>[0]) {
   const {
     state: { data },
     actions: { update },
@@ -964,29 +978,38 @@ function RepositoryField({ repos }: Parameters<typeof ResourceField>[0]) {
   } = useResourceForm();
   const gitId = String(data.gitId || "");
   const repository = String(data.repository || "");
+  const provider = String(
+    resources.find((r) => r.id === gitId)?.data.provider || "",
+  );
   const [manualConnection, setManualConnection] = useState<string | null>(null);
   const manual =
     manualConnection === gitId ||
     (!!repository &&
       !!repos.data &&
       !repos.data.some((repo) => repo.full_name === repository));
-  const options = (repos.data || []).map((repo) => ({
-    value: repo.full_name,
-    label: repo.full_name,
-  }));
+  const options: { value: string; label: ReactNode }[] = (repos.data || []).map(
+    (repo) => ({
+      value: repo.full_name,
+      label: <RepositoryName repository={repo.full_name} provider={provider} />,
+    }),
+  );
   options.push({ value: "__other__", label: "Other" });
   return (
     <>
-      {choose(
-        manual ? "__other__" : repository,
-        (value) => {
-          setManualConnection(value === "__other__" ? gitId : null);
-          update("repository", value === "__other__" ? "" : value);
-        },
-        options,
-        repos.isFetching ? "Loading repositories…" : "Select repository",
-        !gitId,
-        `${formId}-repository`,
+      {repos.isFetching ? (
+        <Loading label="Loading repositories…" id={`${formId}-repository`} />
+      ) : (
+        choose(
+          manual ? "__other__" : repository,
+          (value) => {
+            setManualConnection(value === "__other__" ? gitId : null);
+            update("repository", value === "__other__" ? "" : value);
+          },
+          options,
+          "Select repository",
+          !gitId,
+          `${formId}-repository`,
+        )
       )}
       <RepositoryStatus repos={repos} connected={!!gitId} />
       {manual && (
@@ -1032,10 +1055,7 @@ function BranchField({
   return (
     <>
       {branches.isFetching ? (
-        <div role="status" aria-label="Loading branches…" className="space-y-2">
-          <Skeleton className="h-9 w-full" />
-          <p className="text-xs text-muted-foreground">Loading branches…</p>
-        </div>
+        <Loading label="Loading branches…" id={`${formId}-branch`} />
       ) : (
         choose(
           branch,
@@ -1167,11 +1187,6 @@ function RepositoryStatus({
   return (
     <>
       {" "}
-      {repos.isFetching && (
-        <p role="status" className="text-xs text-muted-foreground">
-          Loading repositories…
-        </p>
-      )}
       {repos.isError && (
         <Alert variant="destructive">
           <AlertDescription>

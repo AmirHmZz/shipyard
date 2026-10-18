@@ -323,6 +323,13 @@ func (c *Controller) Action(ctx context.Context, app model.Resource, action stri
 	if model.IsDeleting(current) {
 		return errors.New("Application deletion is in progress")
 	}
+	var freshBusy bool
+	if e = c.Store.Pool.QueryRow(ctx, freshDeploymentBusySQL, app.ID, "").Scan(&freshBusy); e != nil {
+		return e
+	}
+	if freshBusy {
+		return errors.New("Fresh deploy recovery is still in progress")
+	}
 	r, e := c.Store.Active(ctx, app.ID)
 	if e != nil {
 		return e

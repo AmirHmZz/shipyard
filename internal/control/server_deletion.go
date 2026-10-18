@@ -48,9 +48,10 @@ type deletionContainer struct {
 	Name   string
 	Image  string
 	Config struct {
-		Image  string
-		Labels map[string]string
-		Cmd    []string
+		Image   string
+		Labels  map[string]string
+		Cmd     []string
+		Volumes map[string]json.RawMessage
 	}
 	HostConfig struct{ NetworkMode string }
 	Mounts     []struct {
@@ -1161,6 +1162,9 @@ func (c *Controller) deleteServer(ctx context.Context, job model.Job) (result er
 	defer tx.Rollback(ctx)
 	if _, e = tx.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended('resource-tree',0))"); e != nil {
 		return e
+	}
+	if _, err := tx.Exec(ctx, "DELETE FROM settings WHERE (starts_with(key,'deployment-deletion:') OR starts_with(key,'fresh-deployment:')) AND value->>'application'=ANY($1)", m.Apps); err != nil {
+		return err
 	}
 	for _, sql := range []string{"DELETE FROM app_runtime WHERE app_id=ANY($1)", "DELETE FROM releases WHERE app_id=ANY($1)", "DELETE FROM deployments WHERE app_id=ANY($1)"} {
 		if _, e = tx.Exec(ctx, sql, m.Apps); e != nil {

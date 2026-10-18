@@ -8,6 +8,14 @@ import { HAProxySettings } from "@/components/haproxy-settings";
 import { ResourceForm } from "@/components/resource-editor";
 import { ErrorState, Loading, PageHeader } from "@/components/shared";
 import { Button } from "@/components/ui/button";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { Variables } from "@/components/variables";
 import { useResources, type Resource } from "@/lib/api";
 import { useConfigurationChanges } from "@/lib/configuration-state";
@@ -75,13 +83,21 @@ function ConfigurationBody() {
   };
   return (
     <>
-      <div className="mb-6 text-xs text-muted-foreground">
-        <Link className="hover:text-foreground" to={back}>
-          Workspace
-        </Link>
-        <span className="mx-2">/</span>
-        {resource?.name || `New ${kind}`}
-      </div>
+      <Breadcrumb aria-label="Configuration navigation" className="mb-6">
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link to={back}>Workspace</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem className="min-w-0">
+            <BreadcrumbPage className="[overflow-wrap:anywhere]">
+              {resource?.name || `New ${kind}`}
+            </BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
       {kind === "haproxy" && resource ? (
         <HAProxySettings
           key={location.pathname}
