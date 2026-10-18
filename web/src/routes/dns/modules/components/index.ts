@@ -1,0 +1,1 @@
+export { DNSMainView } from "./DNSMainView";

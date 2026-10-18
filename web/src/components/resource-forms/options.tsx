@@ -1,5 +1,9 @@
-import { api } from "@/lib/api";
-import { useQuery } from "@tanstack/react-query";
+import {
+  useProviderZones,
+  useServiceOptions,
+  useRepositories,
+  useBranches,
+} from "@/lib/hooks";
 import { useEffect, useState, type ReactNode } from "react";
 
 type Result<T> = {
@@ -50,24 +54,11 @@ export function ResourceOptions(props: Props) {
   }
 }
 function ZoneOptions({ parent, open, children }: Props) {
-  const availableZones = useQuery({
-    queryKey: ["provider-zones", parent],
-    queryFn: () => api<{ id: string; name: string }[]>(`/dns/${parent}/zones`),
-    enabled: open && !!parent,
-    retry: false,
-  });
+  const availableZones = useProviderZones(parent, open);
   return children({ ...emptyOptions, availableZones });
 }
 function RouteOptions({ parent, open, children }: Props) {
-  const services = useQuery({
-    queryKey: ["application-services", parent],
-    queryFn: () =>
-      api<{ name: string; ignoredPorts: boolean }[]>(
-        `/applications/${parent}/services`,
-      ),
-    enabled: open && !!parent,
-    retry: false,
-  });
+  const services = useServiceOptions(parent, open);
   return children({ ...emptyOptions, services });
 }
 function ApplicationOptions({ data, open, children }: Props) {
@@ -80,23 +71,12 @@ function ApplicationOptions({ data, open, children }: Props) {
     return () => clearTimeout(timer);
   }, [repository]);
   const validRepository = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository);
-  const repos = useQuery({
-    queryKey: ["repositories", gitId],
-    queryFn: ({ signal }) =>
-      api<{ full_name: string }[]>(`/git/${gitId}/repositories`, { signal }),
-    enabled,
-    retry: false,
-  });
-  const branches = useQuery({
-    queryKey: ["branches", gitId, repository],
-    queryFn: ({ signal }) =>
-      api<{ name: string }[]>(
-        `/git/${gitId}/branches?repository=${encodeURIComponent(repository)}`,
-        { signal },
-      ),
-    enabled: enabled && validRepository && repository === settledRepository,
-    retry: false,
-  });
+  const repos = useRepositories(gitId, enabled);
+  const branches = useBranches(
+    gitId,
+    repository,
+    enabled && validRepository && repository === settledRepository,
+  );
   return children({
     ...emptyOptions,
     repos,

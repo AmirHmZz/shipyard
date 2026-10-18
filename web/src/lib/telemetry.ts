@@ -97,11 +97,11 @@ async function configureTelemetry(): Promise<TelemetryClient | undefined> {
   }
 }
 
-export async function reportError(error: Error, info: ErrorInfo) {
+export async function reportError(error: Error, info?: ErrorInfo) {
   try {
     const Sentry = await ready;
     Sentry?.captureException(error, {
-      contexts: { react: { componentStack: info.componentStack } },
+      contexts: { react: { componentStack: info?.componentStack } },
     });
   } catch {
     /* Reporting must never replace the fallback UI. */

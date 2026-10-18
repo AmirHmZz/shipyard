@@ -37,6 +37,10 @@ jobs:
           bun-version: 1.4.2
       - run: bun install --frozen-lockfile
         working-directory: web
+      - run: bun run lint
+        working-directory: web
+      - run: bun install --frozen-lockfile
+      - run: bun run format:check
       - run: node scripts/openapi.mjs
       - run: node --test scripts/release-manifest.test.mjs
       - name: Installer artifact and resumption checks

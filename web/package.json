@@ -8,6 +8,7 @@
     "build": "react-router typegen && tsc -b && react-router build && node scripts/embed.mjs",
     "typecheck": "react-router typegen && tsc -b",
     "test": "vitest run",
+    "lint": "eslint src",
     "test:e2e": "playwright test",
     "api:generate": "openapi-typescript ../api/openapi.yaml -o src/lib/schema.d.ts"
   },
@@ -42,10 +43,13 @@
     "@types/node": "^24.3.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
+    "eslint": "^10.13.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "openapi-typescript": "^7.9.1",
     "tailwindcss": "^4.1.13",
     "tw-animate-css": "^1.3.8",
     "typescript": "~5.9.2",
+    "typescript-eslint": "^8.71.2",
     "vite": "^7.1.5",
     "vitest": "^3.2.4"
   }
