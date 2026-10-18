@@ -24,7 +24,7 @@ new_schema=$(jq -r .schema "$manifest")
 jq -S '.migrations' "$tmp/release.json" > "$tmp/old-migrations.json"
 jq -S --argjson count "$old_schema" '.migrations[:$count]' "$manifest" > "$tmp/preserved-migrations.json"
 cmp "$tmp/old-migrations.json" "$tmp/preserved-migrations.json"
-docker run --rm --network "$network" -e DATABASE_URL="$db" "$old_image" migrate apply "$old_schema"
+docker run --rm --network "$network" -e DATABASE_URL="$db" "$old_image" migrate apply "$old_schema" --allow-data-loss
 docker exec "$network-db" psql -U postgres -d shipyard -v ON_ERROR_STOP=1 -c "INSERT INTO settings(key,value) VALUES('release-test-sentinel','{\"preserved\":true}')"
 docker run --rm --network "$network" -e DATABASE_URL="$db" "$new_image" migrate catalog > "$tmp/catalog.json"
 jq -S '.migrations' "$manifest" > "$tmp/expected.json"

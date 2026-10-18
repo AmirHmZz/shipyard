@@ -204,18 +204,34 @@ const schemas = {
     },
     ["kind", "data"],
   ),
-  Deployment: object({
-    id: str,
-    applicationId: str,
-    state: str,
-    phase: str,
-    commit: str,
-    error: str,
-    releaseId: str,
-    rollbackId: str,
-    createdAt: str,
-    updatedAt: str,
-  }),
+  Deployment: object(
+    {
+      id: str,
+      applicationId: str,
+      state: str,
+      phase: str,
+      commit: str,
+      error: str,
+      releaseId: str,
+      rollbackId: str,
+      createdAt: str,
+      updatedAt: str,
+      deleting: bool,
+      deletionError: str,
+    },
+    [
+      "id",
+      "applicationId",
+      "state",
+      "phase",
+      "commit",
+      "error",
+      "releaseId",
+      "rollbackId",
+      "createdAt",
+      "updatedAt",
+    ],
+  ),
   DNSRecord: object(
     {
       id: str,
@@ -898,6 +914,16 @@ for (const action of ["deploy", "rollback", "action", "approve-preview"])
       ? object(
           {
             ref: str,
+            fresh: {
+              type: "boolean",
+              description:
+                "Recreate app-owned volumes; requires version and exact confirmName. Defaults to false.",
+            },
+            confirmName: {
+              type: "string",
+              description:
+                "Exact application name acknowledging permanent volume data loss for Fresh deploy.",
+            },
             version: {
               type: "integer",
               description:
@@ -936,6 +962,18 @@ add(
   array(ref("Deployment")),
 );
 add("/deployments/{id}", "get", "Deployment status", ref("Deployment"));
+add(
+  "/deployments/{id}",
+  "delete",
+  "Delete a completed inactive deployment and its unused release artifacts",
+  object({ jobId: str }),
+);
+paths["/deployments/{id}"].delete.responses[202] =
+  paths["/deployments/{id}"].delete.responses[200];
+delete paths["/deployments/{id}"].delete.responses[200];
+paths["/deployments/{id}"].delete.responses[404] = {
+  description: "Deployment not found",
+};
 add("/teams/{id}/members", "get", "Team members", array(obj));
 add("/teams/{id}/invitations", "post", "Create invitation link", obj, obj);
 add("/projects/{id}/members", "post", "Assign project role", obj, obj);

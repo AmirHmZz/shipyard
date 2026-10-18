@@ -922,9 +922,15 @@ export function DNS() {
             setParams(value === "records" ? {} : { tab: value })
           }
         >
-          <TabsList className="mb-6">
-            <TabsTrigger value="records">DNS records</TabsTrigger>
-            <TabsTrigger value="certificates">Certificates</TabsTrigger>
+          <TabsList>
+            <TabsTrigger value="records">
+              <Globe2 aria-hidden="true" />
+              DNS records
+            </TabsTrigger>
+            <TabsTrigger value="certificates">
+              <ShieldCheck aria-hidden="true" />
+              Certificates
+            </TabsTrigger>
           </TabsList>
           <TabsContent value="records">
             <DNSRecordSurface zone={zone} />

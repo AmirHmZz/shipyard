@@ -6,6 +6,14 @@ Administrators can also enable maintenance in Settings, wait for running jobs, a
 
 Application volumes, release images and remote workspaces are excluded. Preserve /var/lib/shipyard and Docker's application images/volumes separately when needed for application rollback. Restoring the panel cannot recreate missing application data.
 
+## Fresh deploy and deployment history
+
+Use the arrow beside **Deploy** for **Fresh deploy**, **Restart**, **Stop/Start**, or **Delete application**. Fresh deploy requires the exact application name and recreates app-owned named and anonymous volumes after preparing and validating the new release. Shared/external volumes and host bind mounts are preserved. This causes downtime and permanently erases eligible volume data; take application-data backups separately if needed.
+
+If preparation fails, the previous application remains available. Once reset starts, a failed Fresh deploy stays stopped and its traffic is withdrawn. Deploy or roll back explicitly after repairing the failure. Rollback restores images and configuration, never erased data. An interrupted volume removal with an ambiguous acknowledgement requires confirming a new Fresh deploy; the worker will not automatically delete a potentially recreated volume.
+
+In **Deployments**, use **Delete deployment** to remove a completed, inactive deployment, its logs, retained rollback release and unused artifacts. Active deployments, running deployments and pending rollback targets are protected. Cleanup runs durably in the background; use **Retry** if it needs attention. Deleting deployment history preserves application data and the active runtime. **Delete application** remains a separate action and preserves persistent volumes and bind-mounted data.
+
 ## Failed version changes
 
 Root-only operation state and encrypted backups live under /var/lib/shipyard/upgrades/<operation-id>. Preflight failures preserve the installed version. Automatic recovery restores compatible images and only non-destructive reverse migrations. **recovery_required** retains maintenance when this is unsafe. It never runs an unapproved destructive recovery.

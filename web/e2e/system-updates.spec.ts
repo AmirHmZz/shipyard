@@ -1,12 +1,17 @@
 import { test, expect, type Page } from "@playwright/test";
 async function setup(
   page: Page,
-  { admin = true, destructive = false, enabled = true } = {},
+  {
+    admin = true,
+    destructive = false,
+    enabled = true,
+    notes = "Fix deployment recovery",
+  } = {},
 ) {
   const target = {
     version: "0.1.0",
     previous: "",
-    notes: "Fix deployment recovery",
+    notes,
     schema: 3,
   };
   const current = { version: "0.2.0", previous: target.version, schema: 4 };
@@ -157,6 +162,70 @@ for (const theme of ["light", "dark"]) {
       await expect(
         page.getByRole("button", { name: "Check for updates" }),
       ).toBeDisabled();
+    });
+    test("release notes render Markdown without executing HTML or unsafe links", async ({
+      page,
+    }, info) => {
+      await setup(page, {
+        notes: [
+          "## [0.1.0](https://github.com/AmirHmZz/shipyard/releases/tag/v0.1.0)",
+          "### Features",
+          "* Improve **deployment recovery** with `compose up`.",
+          "* Support ~~legacy~~ settings.",
+          "### Bug fixes",
+          "1. Fix routing.",
+          "2. Preserve configuration.",
+          "```sh\ncompose up --wait\n```",
+          "| Change | Status |\n| --- | --- |\n| Routing | Fixed |",
+          "[Unsafe link](javascript:alert('bad'))",
+          "<script>window.releaseNotesExecuted = true</script>",
+          '<img src="missing" onerror="window.releaseNotesExecuted = true">',
+          `[Long reference](https://example.com/${"release".repeat(50)})`,
+        ].join("\n\n"),
+      });
+      await page.goto("/settings?tab=updates");
+      await page.getByRole("combobox", { name: "Target version" }).click();
+      await page.getByRole("option", { name: "0.1.0 (downgrade)" }).click();
+      await page
+        .getByRole("button", { name: "Preview version change" })
+        .click();
+      const notes = page.locator(".release-notes");
+      await expect(
+        notes.getByRole("heading", { name: "Features" }),
+      ).toBeVisible();
+      await expect(
+        notes.getByRole("heading", { name: "Bug fixes" }),
+      ).toBeVisible();
+      await expect(
+        notes.getByRole("link", { name: "0.1.0", exact: true }),
+      ).toHaveAttribute(
+        "href",
+        "https://github.com/AmirHmZz/shipyard/releases/tag/v0.1.0",
+      );
+      await expect(notes.locator("ul > li")).toHaveCount(2);
+      await expect(notes.locator("ol > li")).toHaveCount(2);
+      await expect(notes.locator("strong")).toHaveText("deployment recovery");
+      await expect(notes.locator("del")).toHaveText("legacy");
+      await expect(notes.locator("pre code")).toContainText(
+        "compose up --wait",
+      );
+      await expect(notes.getByRole("table")).toBeVisible();
+      await expect(
+        notes.locator("a", { hasText: "Unsafe link" }),
+      ).toHaveAttribute("href", "");
+      await expect(notes.locator("script, img")).toHaveCount(0);
+      expect(await page.evaluate(() => "releaseNotesExecuted" in window)).toBe(
+        false,
+      );
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true);
+      await page.screenshot({
+        path: info.outputPath(`release-notes-${theme}.png`),
+        fullPage: true,
+      });
     });
     test("viewer cannot open system updates", async ({ page }) => {
       await setup(page, { admin: false });

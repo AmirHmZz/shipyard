@@ -441,11 +441,13 @@ func (s *Store) Events(ctx context.Context, id string, after int64) ([]model.Eve
 	return out, rows.Err()
 }
 
-const deploymentColumns = `id,app_id,state,phase,commit_sha,error,release_id,rollback_id,created_at,updated_at`
+const deploymentColumns = `id,app_id,state,phase,commit_sha,error,release_id,rollback_id,created_at,updated_at,
+EXISTS(SELECT 1 FROM settings WHERE key='deployment-deletion:'||deployments.id),
+COALESCE((SELECT value->>'error' FROM settings WHERE key='deployment-deletion:'||deployments.id),'')`
 
 func scanDeployment(row pgx.Row) (model.Deployment, error) {
 	var d model.Deployment
-	e := row.Scan(&d.ID, &d.AppID, &d.State, &d.Phase, &d.Commit, &d.Error, &d.ReleaseID, &d.RollbackID, &d.CreatedAt, &d.UpdatedAt)
+	e := row.Scan(&d.ID, &d.AppID, &d.State, &d.Phase, &d.Commit, &d.Error, &d.ReleaseID, &d.RollbackID, &d.CreatedAt, &d.UpdatedAt, &d.Deleting, &d.DeletionError)
 	return d, e
 }
 func (s *Store) Deployment(ctx context.Context, id string) (model.Deployment, error) {
@@ -575,7 +577,7 @@ func (s *Store) Retention(ctx context.Context) error {
 	if _, e := s.Pool.Exec(ctx, "DELETE FROM settings WHERE key LIKE 'http01:%' AND (value->>'expires')::timestamptz < now()"); e != nil {
 		return e
 	}
-	if _, err := s.Pool.Exec(ctx, "DELETE FROM jobs WHERE state IN ('done','failed') AND created_at<now()-interval '30 days' AND NOT(kind IN ('resource-delete','server-delete') AND EXISTS(SELECT 1 FROM resources WHERE id=jobs.resource_id AND data->>'deleting'='true'))"); err != nil {
+	if _, err := s.Pool.Exec(ctx, "DELETE FROM jobs WHERE state IN ('done','failed') AND created_at<now()-interval '30 days' AND NOT(kind IN ('resource-delete','server-delete') AND EXISTS(SELECT 1 FROM resources WHERE id=jobs.resource_id AND data->>'deleting'='true')) AND NOT(kind='deployment-delete' AND EXISTS(SELECT 1 FROM settings WHERE key='deployment-deletion:'||(jobs.payload->>'deploymentId')))"); err != nil {
 		return err
 	}
 	for _, q := range []string{"DELETE FROM metrics WHERE created_at<now()-interval '7 days'", "DELETE FROM events WHERE created_at<now()-interval '30 days'", "DELETE FROM audit WHERE created_at<now()-interval '90 days'", "DELETE FROM sessions WHERE expires_at<now()", "DELETE FROM invitations WHERE expires_at<now()", "DELETE FROM webhook_deliveries WHERE created_at<now()-interval '30 days'"} {

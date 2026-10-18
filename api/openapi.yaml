@@ -4399,6 +4399,14 @@
                   "ref": {
                     "type": "string"
                   },
+                  "fresh": {
+                    "type": "boolean",
+                    "description": "Recreate app-owned volumes; requires version and exact confirmName. Defaults to false."
+                  },
+                  "confirmName": {
+                    "type": "string",
+                    "description": "Exact application name acknowledging permanent volume data loss for Fresh deploy."
+                  },
                   "version": {
                     "type": "integer",
                     "description": "Optional application revision; stale values return 409"
@@ -4979,6 +4987,70 @@
             "description": "Maintenance mode or dependency unavailable"
           }
         }
+      },
+      "delete": {
+        "summary": "Delete a completed inactive deployment and its unused release artifacts",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "jobId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "jobId"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Resource not found"
+          },
+          "409": {
+            "description": "Conflict"
+          },
+          "503": {
+            "description": "Maintenance mode or dependency unavailable"
+          }
+        },
+        "security": [
+          {
+            "session": [],
+            "csrf": []
+          }
+        ]
       }
     },
     "/teams/{id}/members": {
@@ -6381,6 +6453,12 @@
             "type": "string"
           },
           "updatedAt": {
+            "type": "string"
+          },
+          "deleting": {
+            "type": "boolean"
+          },
+          "deletionError": {
             "type": "string"
           }
         },

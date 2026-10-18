@@ -163,16 +163,18 @@ type ReleaseEnvelope struct {
 	BuildSecrets map[string]string `json:"buildSecrets"`
 }
 type Deployment struct {
-	ID         string    `json:"id"`
-	AppID      string    `json:"applicationId"`
-	State      string    `json:"state"`
-	Phase      string    `json:"phase"`
-	Commit     string    `json:"commit"`
-	Error      string    `json:"error"`
-	ReleaseID  string    `json:"releaseId"`
-	RollbackID string    `json:"rollbackId"`
-	CreatedAt  time.Time `json:"createdAt"`
-	UpdatedAt  time.Time `json:"updatedAt"`
+	ID            string    `json:"id"`
+	AppID         string    `json:"applicationId"`
+	State         string    `json:"state"`
+	Phase         string    `json:"phase"`
+	Commit        string    `json:"commit"`
+	Error         string    `json:"error"`
+	ReleaseID     string    `json:"releaseId"`
+	RollbackID    string    `json:"rollbackId"`
+	CreatedAt     time.Time `json:"createdAt"`
+	UpdatedAt     time.Time `json:"updatedAt"`
+	Deleting      bool      `json:"deleting,omitempty"`
+	DeletionError string    `json:"deletionError,omitempty"`
 }
 type Event struct {
 	ID           int64     `json:"id"`
