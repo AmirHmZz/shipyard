@@ -1,3 +1,4 @@
+import { resourceKeys } from "@/lib/query-keys";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,7 +12,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
-import { api, errorMessage, text, type Resource } from "@/lib/api";
+import { errorMessage, text, type Resource } from "@/lib/api";
+import { deleteResource } from "@/lib/services";
 import { resourceDeletionSchema } from "@/lib/validation";
 import { useQueryClient } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react";
@@ -36,8 +38,8 @@ export function DeleteResource({
     setError("");
     try {
       resourceDeletionSchema(resource.name).parse({ name });
-      await api(`/resources/${resource.id}`, { method: "DELETE", body: "{}" });
-      await client.invalidateQueries({ queryKey: ["resources"] });
+      await deleteResource(resource.id);
+      await client.invalidateQueries({ queryKey: resourceKeys.all });
       toast.success(
         "Deletion queued. Cleanup will continue in the background.",
       );

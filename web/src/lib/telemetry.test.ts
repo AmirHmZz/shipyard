@@ -1,15 +1,36 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ErrorEvent } from "@sentry/react";
-import { initTelemetry, scrubEvent } from "./telemetry";
-import { init } from "@sentry/react";
+import { initTelemetry, scrubEvent, reportError } from "./telemetry";
+import { init, captureException } from "@sentry/react";
 
-vi.mock("@sentry/react", () => ({ init: vi.fn() }));
+vi.mock("@sentry/react", () => ({ init: vi.fn(), captureException: vi.fn() }));
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.clearAllMocks();
 });
 
 describe("Sentry boundary", () => {
+  it("reports route errors without component info and preserves class boundary stacks", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response('{"dsn":"https://public@sentry.test/1"}'),
+        ),
+    );
+    await initTelemetry();
+    const error = new Error("page failed");
+    await reportError(error);
+    expect(captureException).toHaveBeenLastCalledWith(error, {
+      contexts: { react: { componentStack: undefined } },
+    });
+    await reportError(error, { componentStack: "at Example" });
+    expect(captureException).toHaveBeenLastCalledWith(error, {
+      contexts: { react: { componentStack: "at Example" } },
+    });
+  });
+
   it("excludes credentials and preserves error diagnostics", () => {
     const event = scrubEvent({
       type: undefined,

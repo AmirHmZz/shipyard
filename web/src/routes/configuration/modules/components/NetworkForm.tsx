@@ -1,0 +1,259 @@
+import { dockerNetworkKeys } from "@/lib/query-keys";
+import { resourceKeys } from "@/lib/query-keys";
+import { PageHeader } from "@/components/shared";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { errorMessage, useAccount, useResources } from "@/lib/api";
+import { createNetwork } from "../services";
+import { useNetworkInventory } from "../hooks";
+import { useConfigurationChanges } from "@/lib/configuration-state";
+import { networkFormSchema } from "@/lib/validation";
+import { useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { useNavigate, useSearchParams } from "react-router";
+
+export function NetworkForm() {
+  const changes = useConfigurationChanges();
+  const q = useResources();
+  const [params] = useSearchParams();
+  const navigate = useNavigate();
+  const client = useQueryClient();
+  const account = useAccount();
+  const [server, setServer] = useState(() => params.get("server") || "");
+  const [mode, setMode] = useState(() =>
+    params.has("dockerId") ? "existing" : "create",
+  );
+  const [name, setName] = useState(() => params.get("name") || "");
+  const [selected, setSelected] = useState(() => params.get("dockerId") || "");
+  const [subnet, setSubnet] = useState("");
+  const [range, setRange] = useState("");
+  const [v6, setV6] = useState(false);
+  const [subnet6, setSubnet6] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const inventory = useNetworkInventory(server, !!account?.admin);
+  if (!account?.admin) return <p>Platform administrator access required.</p>;
+  return (
+    <div className="mx-auto max-w-3xl">
+      <PageHeader
+        title="Add Docker network"
+        description="Create a managed bridge or register an external bridge for team access."
+      />
+      <Card>
+        <CardContent>
+          <form
+            className="space-y-5"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setBusy(true);
+              setError("");
+              try {
+                const values = networkFormSchema.parse({
+                  name,
+                  server,
+                  mode,
+                  selected,
+                  subnet,
+                  range,
+                  v6,
+                  subnet6,
+                });
+                await createNetwork(server, {
+                  name: values.name,
+                  dockerId: values.mode === "existing" ? values.selected : "",
+                  subnet: values.mode === "create" ? values.subnet : "",
+                  dynamicRange: values.range,
+                  enableIPv6: values.v6,
+                  ipv6Subnet: values.subnet6,
+                });
+                await Promise.all([
+                  client.invalidateQueries({ queryKey: resourceKeys.all }),
+                  client.invalidateQueries({ queryKey: dockerNetworkKeys.all }),
+                ]);
+                changes.saved();
+                navigate("/networks");
+              } catch (e) {
+                setError(errorMessage(e));
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            <div className="space-y-2">
+              <Label htmlFor="network-name">Name</Label>
+              <Input
+                id="network-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Server</Label>
+              <Select
+                value={server}
+                onValueChange={(value) => {
+                  setServer(value);
+                  setSelected("");
+                }}
+              >
+                <SelectTrigger className="w-full" aria-label="Network server">
+                  <SelectValue placeholder="Select server" />
+                </SelectTrigger>
+                <SelectContent>
+                  {q.data
+                    ?.filter((r) => r.kind === "server")
+                    .map((r) => (
+                      <SelectItem key={r.id} value={r.id}>
+                        {r.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Select value={mode} onValueChange={setMode}>
+              <SelectTrigger aria-label="Network source">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="create">Create managed bridge</SelectItem>
+                <SelectItem value="existing">
+                  Register existing bridge
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            {mode === "existing" ? (
+              <div className="space-y-2">
+                <Label>Existing bridge</Label>
+                <Select value={selected} onValueChange={setSelected}>
+                  <SelectTrigger aria-label="Existing bridge">
+                    <SelectValue
+                      placeholder={
+                        inventory.isFetching
+                          ? "Loading networks…"
+                          : "Select network"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {inventory.data
+                      ?.filter(
+                        (n) =>
+                          n.Driver === "bridge" &&
+                          n.Name !== "bridge" &&
+                          !n.Labels?.["shipyard.network"] &&
+                          !q.data?.some(
+                            (r) =>
+                              r.kind === "network" && r.data.dockerId === n.Id,
+                          ),
+                      )
+                      .map((n) => (
+                        <SelectItem key={n.Id} value={n.Id}>
+                          {n.Name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                {inventory.error && (
+                  <Alert variant="destructive">
+                    <AlertDescription>
+                      {errorMessage(inventory.error)}
+                      <Button
+                        type="button"
+                        onClick={() => void inventory.refetch()}
+                      >
+                        Retry
+                      </Button>
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="network-subnet">IPv4 subnet (optional)</Label>
+                  <Input
+                    id="network-subnet"
+                    value={subnet}
+                    onChange={(e) => setSubnet(e.target.value)}
+                    placeholder="Automatic non-overlapping /24"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="network-range">
+                    Dynamic IP range (optional)
+                  </Label>
+                  <Input
+                    id="network-range"
+                    value={range}
+                    onChange={(e) => setRange(e.target.value)}
+                    placeholder="Upper half of the subnet by default"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Fixed reservations use addresses outside this range.
+                  </p>
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="network-v6">Enable IPv6</Label>
+                  <Switch
+                    id="network-v6"
+                    checked={v6}
+                    onCheckedChange={setV6}
+                  />
+                </div>
+                {v6 && (
+                  <div className="space-y-2">
+                    <Label htmlFor="network-subnet6">
+                      IPv6 subnet (optional)
+                    </Label>
+                    <Input
+                      id="network-subnet6"
+                      value={subnet6}
+                      onChange={(e) => setSubnet6(e.target.value)}
+                      placeholder="Automatic private /64"
+                    />
+                  </div>
+                )}
+              </>
+            )}
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            <div className="flex justify-end gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  changes.discard();
+                  navigate("/networks");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                disabled={
+                  busy || !server || !name || (mode === "existing" && !selected)
+                }
+              >
+                Save network
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

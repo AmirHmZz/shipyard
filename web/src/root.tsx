@@ -3,8 +3,16 @@ import {
   AppErrorFallback,
 } from "@/components/app-error-boundary";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
-import type { ReactNode } from "react";
+import {
+  Links,
+  Meta,
+  Outlet,
+  Scripts,
+  ScrollRestoration,
+  useRouteError,
+} from "react-router";
+import { useEffect, type ReactNode } from "react";
+import { reportError } from "@/lib/telemetry";
 import "./index.css";
 
 const client = new QueryClient({
@@ -21,7 +29,6 @@ export function Layout({ children }: { children: ReactNode }) {
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta name="theme-color" content="#111813" />
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-        <title>Shipyard — Deployment control</title>
         <Meta />
         <Links />
       </head>
@@ -39,6 +46,10 @@ export function HydrateFallback() {
 }
 
 export function ErrorBoundary() {
+  const error = useRouteError();
+  useEffect(() => {
+    void reportError(error instanceof Error ? error : new Error(String(error)));
+  }, [error]);
   return <AppErrorFallback />;
 }
 
@@ -51,3 +62,5 @@ export default function Root() {
     </AppErrorBoundary>
   );
 }
+
+export const meta = () => [{ title: "Shipyard — Deployment control" }];

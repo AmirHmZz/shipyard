@@ -1,5 +1,11 @@
+import { resourceKeys } from "@/lib/query-keys";
 import { ProviderLogo } from "@/components/provider-name";
-import { api, errorMessage, post, type Resource } from "@/lib/api";
+import { errorMessage, type Resource } from "@/lib/api";
+import {
+  probeServerFingerprint,
+  saveResource,
+  testDNSCredentials,
+} from "@/lib/services";
 import { useConfigurationChanges } from "@/lib/configuration-state";
 import { useQueryClient } from "@tanstack/react-query";
 import { createContext, use, useId, useState, type ReactNode } from "react";
@@ -138,8 +144,7 @@ function useResourceFormController({
     setDNSTested("");
     setError("");
     try {
-      await post(
-        "/dns/test",
+      await testDNSCredentials(
         dnsCredentialSchema.parse({
           provider: data.provider,
           token: secrets.token,
@@ -200,16 +205,8 @@ function useResourceFormController({
           : writeSecrets,
         version,
       });
-      const resource = await api<Resource>(
-        existing ? `/resources/${existing.id}` : "/resources",
-        {
-          method: existing ? "PUT" : "POST",
-          body: JSON.stringify(
-            kind === "route" ? { ...payload, name: undefined } : payload,
-          ),
-        },
-      );
-      await client.invalidateQueries({ queryKey: ["resources"] });
+      const resource = await saveResource(existing?.id, kind, payload);
+      await client.invalidateQueries({ queryKey: resourceKeys.all });
       changes.saved();
       toast.success(`${kind[0].toUpperCase() + kind.slice(1)} saved`);
       onOpenChange(false);
@@ -224,10 +221,7 @@ function useResourceFormController({
   async function probeFingerprint() {
     setProbe(true);
     try {
-      const value = await post<{ fingerprint: string }>(
-        "/servers/fingerprint",
-        { host: data.host, port: data.port || 22 },
-      );
+      const value = await probeServerFingerprint(data);
       update("fingerprint", value.fingerprint);
       changes.change();
     } catch (error) {

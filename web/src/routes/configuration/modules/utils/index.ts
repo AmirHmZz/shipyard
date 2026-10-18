@@ -1,0 +1,1 @@
+export { followGitSetup } from "./followGitSetup";

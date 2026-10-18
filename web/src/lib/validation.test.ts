@@ -6,6 +6,7 @@ import {
   dnsRecordFormSchema,
   freshDeploySchema,
   invitationFormSchema,
+  networkingPayloadSchema,
   parseResourceForm,
   passwordFormSchema,
   previewCommitSchema,
@@ -13,6 +14,69 @@ import {
 } from "./validation";
 
 describe("dashboard form validation", () => {
+  it("preserves unknown DNS record fields", () => {
+    const record = {
+      type: "A",
+      name: "example.com",
+      content: "192.0.2.1",
+      ttl: 120,
+      providerOptions: { flattened: true },
+    };
+    expect(dnsRecordFormSchema.parse(record)).toEqual(record);
+  });
+
+  it("keeps the DNS TTL validation message", () => {
+    const result = dnsRecordFormSchema.safeParse({
+      type: "A",
+      name: "example.com",
+      content: "192.0.2.1",
+      ttl: 0,
+    });
+    expect(result.error?.issues.map((issue) => issue.message)).toEqual([
+      "TTL must be positive.",
+    ]);
+  });
+
+  it("preserves unknown Compose fields", () => {
+    const source = {
+      yaml: "services:\n",
+      version: 1,
+      metadata: { owner: "team" },
+    };
+    expect(composeSourceSchema.parse(source)).toEqual(source);
+  });
+
+  it("keeps the empty Compose validation message", () => {
+    const result = composeSourceSchema.safeParse({ yaml: "  \n", version: 1 });
+    expect(result.error?.issues.map((issue) => issue.message)).toEqual([
+      "Compose document is required.",
+    ]);
+  });
+
+  it("preserves unknown networking service fields", () => {
+    const payload = {
+      version: 1,
+      services: {
+        web: {
+          hostname: "app",
+          connections: [],
+          providerOptions: { internal: true },
+        },
+      },
+    };
+    expect(networkingPayloadSchema.parse(payload)).toEqual(payload);
+  });
+
+  it("keeps the invalid networking hostname validation message", () => {
+    const result = networkingPayloadSchema.safeParse({
+      version: 1,
+      services: { web: { hostname: 42, connections: [] } },
+    });
+    expect(result.error?.issues.map((issue) => issue.message)).toEqual([
+      "Invalid input: expected string, received number",
+    ]);
+  });
+
   it("applies the appropriate auth requirements", () => {
     expect(
       authFormSchema("login").safeParse({

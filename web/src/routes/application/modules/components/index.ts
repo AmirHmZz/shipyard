@@ -1,0 +1,1 @@
+export { ApplicationMainView } from "./ApplicationMainView";

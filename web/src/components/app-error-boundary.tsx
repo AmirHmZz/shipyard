@@ -23,9 +23,15 @@ export class AppErrorBoundary extends Component<
   }
 }
 
-export function AppErrorFallback() {
+export function AppErrorFallback({ compact = false }: { compact?: boolean }) {
   return (
-    <div className="flex min-h-screen items-center justify-center p-6">
+    <div
+      className={
+        compact
+          ? "flex items-center justify-center p-6"
+          : "flex min-h-screen items-center justify-center p-6"
+      }
+    >
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Something went wrong</CardTitle>

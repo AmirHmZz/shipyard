@@ -81,16 +81,14 @@ export const invitationFormSchema = z
       });
   });
 
-export const dnsRecordFormSchema = z
-  .object({
-    type: requiredText("Record type"),
-    name: requiredText("Record name"),
-    content: requiredText("Record content"),
-    ttl: z.number().int().min(1, "TTL must be positive."),
-    proxied: z.boolean().optional(),
-    data: z.json().optional(),
-  })
-  .passthrough();
+export const dnsRecordFormSchema = z.looseObject({
+  type: requiredText("Record type"),
+  name: requiredText("Record name"),
+  content: requiredText("Record content"),
+  ttl: z.number().int().min(1, "TTL must be positive."),
+  proxied: z.boolean().optional(),
+  data: z.json().optional(),
+});
 
 export const dnsCredentialSchema = z.object({
   provider: z.enum(["cloudflare", "arvancloud"]),
@@ -227,17 +225,15 @@ export const resourceDeletionSchema = (name: string) =>
     name: z.literal(name, { error: "Type the resource name to confirm." }),
   });
 
-export const composeSourceSchema = z
-  .object({
-    yaml: z
-      .string()
-      .refine(
-        (value) => value.trim().length > 0,
-        "Compose document is required.",
-      ),
-    version: z.number().int().nonnegative(),
-  })
-  .passthrough();
+export const composeSourceSchema = z.looseObject({
+  yaml: z
+    .string()
+    .refine(
+      (value) => value.trim().length > 0,
+      "Compose document is required.",
+    ),
+  version: z.number().int().nonnegative(),
+});
 
 const networkConnectionSchema = z.object({
   networkId: z.string(),
@@ -256,12 +252,10 @@ export const networkingPayloadSchema = z.object({
   version: z.number().int().nonnegative(),
   services: z.record(
     z.string(),
-    z
-      .object({
-        hostname: z.string().optional(),
-        connections: z.array(networkConnectionSchema),
-      })
-      .passthrough(),
+    z.looseObject({
+      hostname: z.string().optional(),
+      connections: z.array(networkConnectionSchema),
+    }),
   ),
 });
 

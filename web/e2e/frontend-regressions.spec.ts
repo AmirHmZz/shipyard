@@ -414,10 +414,10 @@ test("server charts load only where a metrics chart is rendered", async ({
   await expect(
     page.getByRole("heading", { name: "Integrations", exact: true }),
   ).toBeVisible();
-  expect(scripts.some((url) => url.includes("server-cpu-chart"))).toBe(false);
+  expect(scripts.some((url) => url.includes("ServerCPUChart"))).toBe(false);
   await page.goto("/servers");
   await expect(page.locator('[data-slot="chart"]')).toBeVisible();
-  expect(scripts.some((url) => url.includes("server-cpu-chart"))).toBe(true);
+  expect(scripts.some((url) => url.includes("ServerCPUChart"))).toBe(true);
 });
 
 test("generating a signing secret protects the unsaved draft", async ({

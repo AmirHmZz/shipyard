@@ -1,0 +1,1 @@
+export { SettingsMainView } from "./SettingsMainView";

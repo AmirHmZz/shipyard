@@ -1,9 +1,12 @@
+import { grantKeys } from "@/lib/query-keys";
 import { ErrorState } from "@/components/shared";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { api, errorMessage, post, type Resource } from "@/lib/api";
+import { errorMessage, type Resource } from "@/lib/api";
+import { useGrants } from "@/lib/hooks";
+import { setGrant } from "@/lib/services";
 import { useConfigurationChanges } from "@/lib/configuration-state";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { toast } from "sonner";
 export function Grants({
@@ -15,11 +18,7 @@ export function Grants({
 }) {
   const changes = useConfigurationChanges();
   const client = useQueryClient();
-  const q = useQuery({
-    queryKey: ["grants", resource.id],
-    queryFn: () => api<string[]>(`/resources/${resource.id}/grants`),
-    retry: false,
-  });
+  const q = useGrants(resource);
   const granted = useMemo(() => new Set(q.data), [q.data]);
   return (
     <div className="space-y-3">
@@ -41,12 +40,9 @@ export function Grants({
                 checked={granted.has(team.id)}
                 onCheckedChange={async (granted) => {
                   try {
-                    await post(`/resources/${resource.id}/grants`, {
-                      teamId: team.id,
-                      granted,
-                    });
+                    await setGrant(resource.id, team.id, granted);
                     await client.invalidateQueries({
-                      queryKey: ["grants", resource.id],
+                      queryKey: grantKeys.resource(resource.id),
                     });
                     changes.saved();
                   } catch (e) {
