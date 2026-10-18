@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/table";
 import { api, errorMessage, post } from "@/lib/api";
 import type { components } from "@/lib/schema";
+import { updateFormSchema } from "@/lib/validation";
 import { useQuery } from "@tanstack/react-query";
 import { Download, RefreshCw } from "lucide-react";
 import { useState } from "react";
@@ -288,12 +289,15 @@ function VersionChangeReview({
         onSubmit={(e) => {
           e.preventDefault();
           void action(async () => {
-            await post("/settings/updates", {
-              planId: plan.id,
-              passphrase: pass,
-              confirmation: confirm,
-              approveDataLoss: approve,
-            });
+            await post(
+              "/settings/updates",
+              updateFormSchema(plan.target.version, plan.destructive).parse({
+                planId: plan.id,
+                passphrase: pass,
+                confirmation: confirm,
+                approveDataLoss: approve,
+              }),
+            );
             setPass("");
             setPlan(null);
           });

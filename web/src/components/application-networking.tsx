@@ -21,6 +21,10 @@ import {
 } from "@/lib/api";
 import { useConfigurationChanges } from "@/lib/configuration-state";
 import { draftRow, withoutRowId, type DraftRow } from "@/lib/draft-rows";
+import {
+  networkingPayloadSchema,
+  publishedPortsPayloadSchema,
+} from "@/lib/validation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -117,25 +121,30 @@ export function ApplicationNetworking({ app }: { app: Resource }) {
         `/applications/${app.id}/${published ? "published-ports" : "networking"}`,
         {
           method: "PUT",
-          body: JSON.stringify({
-            version: app.version,
-            services: published
-              ? Object.fromEntries(
-                  Object.entries(publicPorts).map(([name, ports]) => [
-                    name,
-                    ports.map(withoutRowId),
-                  ]),
-                )
-              : Object.fromEntries(
-                  Object.entries(value).map(([name, service]) => [
-                    name,
-                    {
-                      ...service,
-                      connections: service.connections.map(withoutRowId),
-                    },
-                  ]),
-                ),
-          }),
+          body: JSON.stringify(
+            (published
+              ? publishedPortsPayloadSchema
+              : networkingPayloadSchema
+            ).parse({
+              version: app.version,
+              services: published
+                ? Object.fromEntries(
+                    Object.entries(publicPorts).map(([name, ports]) => [
+                      name,
+                      ports.map(withoutRowId),
+                    ]),
+                  )
+                : Object.fromEntries(
+                    Object.entries(value).map(([name, service]) => [
+                      name,
+                      {
+                        ...service,
+                        connections: service.connections.map(withoutRowId),
+                      },
+                    ]),
+                  ),
+            }),
+          ),
         },
       );
       (published ? portChanges : networkingChanges).saved();

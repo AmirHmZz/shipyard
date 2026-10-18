@@ -13,6 +13,7 @@ import { api, errorMessage, post, type Resource } from "@/lib/api";
 import { useConfigurationChanges } from "@/lib/configuration-state";
 import { loadComposeEditor } from "@/lib/feature-loaders";
 import type { components } from "@/lib/schema";
+import { composeSourceSchema } from "@/lib/validation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Play, Save } from "lucide-react";
 import { lazy, Suspense, useState } from "react";
@@ -84,7 +85,7 @@ export function ComposeSource({
     try {
       const result = await api<Source>(`/applications/${app.id}/compose`, {
         method: "PUT",
-        body: JSON.stringify(draft),
+        body: JSON.stringify(composeSourceSchema.parse(draft)),
       });
       changes.saved();
       setDraft(result);
@@ -97,6 +98,7 @@ export function ComposeSource({
           }),
           refresh,
         ]);
+        changes.saved();
         onDeploy(d.id);
       } else await refresh;
     } catch (e) {
@@ -123,6 +125,7 @@ export function ComposeSource({
           draft={draft}
           disabled={busy}
           onChange={(yaml) => {
+            if (yaml === draft?.yaml) return;
             changes.change();
             setDraft((current) => {
               const source = current ?? draft;

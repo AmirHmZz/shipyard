@@ -4,8 +4,10 @@ import { useConfigurationChanges } from "@/lib/configuration-state";
 import { useQueryClient } from "@tanstack/react-query";
 import { createContext, use, useId, useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { defaults, fields, parents, type ResourceKind } from "./definitions";
+import { defaults, parents, type ResourceKind } from "./definitions";
 import { relativeHostname, routeHostname } from "@/lib/route-hostname";
+import { dnsCredentialSchema, parseResourceForm } from "@/lib/validation";
+import * as z from "zod";
 export type ResourceFormProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -136,10 +138,13 @@ function useResourceFormController({
     setDNSTested("");
     setError("");
     try {
-      await post("/dns/test", {
-        provider: data.provider,
-        token: secrets.token,
-      });
+      await post(
+        "/dns/test",
+        dnsCredentialSchema.parse({
+          provider: data.provider,
+          token: secrets.token,
+        }),
+      );
       setDNSTested(credentials);
     } catch (e) {
       setError(errorMessage(e));
@@ -152,60 +157,56 @@ function useResourceFormController({
       setError("Test the DNS provider successfully before saving.");
       return;
     }
-    if (kind === "zone" && !parent) {
-      setError("Select a DNS provider before saving the zone.");
-      return;
-    }
     setBusy(true);
     setError("");
     try {
       const resolved = { ...data };
       const writeSecrets = { ...secrets };
       if (kind === "application") {
-        if (!parentOptions.some((option) => option.value === parent))
-          throw Error("Select an environment in this project.");
-        if (resolved.source !== "compose" && !resolved.branch)
-          throw Error("Select a repository branch.");
+        z.string()
+          .refine(
+            (value) => parentOptions.some((option) => option.value === value),
+            "Select an environment in this project.",
+          )
+          .parse(parent);
       }
       if (kind === "route") {
         delete resolved.backendTls;
         delete resolved.backendServerName;
         delete resolved.redirect;
         if (resolved.protocol !== "tcp") resolved.tls = "terminate";
-        const zone = resources.find((r) => r.id === resolved.zoneId);
-        if (!zone) throw Error("Select a connected zone");
+        const zoneId = z
+          .string()
+          .refine(
+            (value) =>
+              resources.some(
+                (resource) => resource.kind === "zone" && resource.id === value,
+              ),
+            "Select a connected zone",
+          )
+          .parse(resolved.zoneId);
+        const zone = resources.find((resource) => resource.id === zoneId)!;
         const base = String(zone.data.domain);
         resolved.domain = routeHostname(String(resolved.domain || ""), base);
       }
-      for (const f of fields[kind] || []) {
-        if (f.type === "json" && typeof resolved[f.key] === "string")
-          resolved[f.key] = JSON.parse(String(resolved[f.key] || "{}"));
-        if (f.type === "csv" && typeof resolved[f.key] === "string")
-          resolved[f.key] = String(resolved[f.key])
-            .split(",")
-            .map((s) => s.trim())
-            .filter(Boolean);
-      }
+      const payload = parseResourceForm({
+        kind,
+        name: kind === "zone" ? String(resolved.domain || "zone") : name,
+        parentId: parent,
+        teamId: team,
+        data: resolved,
+        secrets: needsComposeDocument
+          ? { ...writeSecrets, compose: composeYAML }
+          : writeSecrets,
+        version,
+      });
       const resource = await api<Resource>(
         existing ? `/resources/${existing.id}` : "/resources",
         {
           method: existing ? "PUT" : "POST",
-          body: JSON.stringify({
-            kind,
-            ...(kind === "route"
-              ? {}
-              : {
-                  name:
-                    kind === "zone" ? String(resolved.domain || "zone") : name,
-                }),
-            parentId: parent,
-            teamId: team,
-            data: resolved,
-            secrets: needsComposeDocument
-              ? { ...writeSecrets, compose: composeYAML }
-              : writeSecrets,
-            version,
-          }),
+          body: JSON.stringify(
+            kind === "route" ? { ...payload, name: undefined } : payload,
+          ),
         },
       );
       await client.invalidateQueries({ queryKey: ["resources"] });

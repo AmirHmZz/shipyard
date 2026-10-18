@@ -110,6 +110,44 @@ async function fixture(page: Page) {
   return state;
 }
 
+test("framework routes survive direct loads, refreshes, and session changes", async ({
+  page,
+}) => {
+  await fixture(page);
+  let signedIn = true;
+  await page.route("**/api/v1/auth/me", (route) =>
+    route.fulfill({
+      json: signedIn
+        ? {
+            user: {
+              id: "user",
+              name: "User",
+              email: "user@example.com",
+              admin: true,
+            },
+            csrf: "csrf",
+          }
+        : null,
+    }),
+  );
+  await page.goto("/servers");
+  await expect(
+    page.getByRole("heading", { name: "Servers", exact: true }),
+  ).toBeVisible();
+  await page.goto("/dns/zone/records/record");
+  await expect(page.locator("form input").nth(1)).toHaveValue("initial");
+  await page.reload();
+  await expect(page.locator("form input").nth(1)).toHaveValue("initial");
+  await page.goto("/unknown/dashboard/path");
+  await expect(page.getByText("Page not found", { exact: true })).toBeVisible();
+  signedIn = false;
+  await page.reload();
+  await expect(page.getByText("Welcome back", { exact: true })).toBeVisible();
+  signedIn = true;
+  await page.reload();
+  await expect(page.getByText("Page not found", { exact: true })).toBeVisible();
+});
+
 test("a stalled telemetry request cannot hold the dashboard's first render", async ({
   page,
 }) => {

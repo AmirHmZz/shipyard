@@ -13,7 +13,7 @@ import {
   type ComponentProps,
   type ReactNode,
 } from "react";
-import { useBeforeUnload, useBlocker } from "react-router-dom";
+import { useBeforeUnload, useBlocker } from "react-router";
 const PageContext = createContext(false);
 export function ConfigurationPage({ children }: { children: ReactNode }) {
   return <PageContext value={true}>{children}</PageContext>;

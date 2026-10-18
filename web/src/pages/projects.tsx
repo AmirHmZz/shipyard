@@ -40,12 +40,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useMemo, useState } from "react";
-import {
-  Link,
-  useNavigate,
-  useParams,
-  useSearchParams,
-} from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 export function Projects({ previews = false }: { previews?: boolean }) {
   const q = useResources();
   const navigate = useNavigate();

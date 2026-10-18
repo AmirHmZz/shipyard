@@ -31,7 +31,7 @@ import {
   Search,
 } from "lucide-react";
 import { Fragment, useState, type ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { toast } from "sonner";
 export function StateBadge({ state }: { state?: string }) {
   const healthy = [

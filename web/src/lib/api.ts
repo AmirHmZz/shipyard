@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import type { components } from "./schema";
+import { ZodError } from "zod";
 export type Resource = components["schemas"]["Resource"];
 export type Deployment = components["schemas"]["Deployment"];
 export type Session = components["schemas"]["Session"];
@@ -89,6 +90,8 @@ export function ago(value: string) {
   return `${Math.floor(seconds / 86400)}d ago`;
 }
 export function errorMessage(error: unknown) {
+  if (error instanceof ZodError)
+    return error.issues.map((issue) => issue.message).join(" ");
   return error instanceof Error ? error.message : "Operation failed";
 }
 

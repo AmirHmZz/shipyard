@@ -18,6 +18,7 @@ import { api, errorMessage, type Resource } from "@/lib/api";
 import { useConfigurationChanges } from "@/lib/configuration-state";
 import { draftRow, type DraftRow } from "@/lib/draft-rows";
 import type { components } from "@/lib/schema";
+import { haproxySettingsSchema } from "@/lib/validation";
 import { useQuery } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -382,15 +383,17 @@ function useHAProxyController(server: Resource) {
         `/servers/${server.id}/haproxy`,
         {
           method: "PUT",
-          body: JSON.stringify({
-            version: draft.version,
-            bindings: Object.fromEntries(
-              Object.entries(draft.bindings).map(([id, rows]) => [
-                id,
-                rows.map((row) => row.value),
-              ]),
-            ),
-          }),
+          body: JSON.stringify(
+            haproxySettingsSchema.parse({
+              version: draft.version,
+              bindings: Object.fromEntries(
+                Object.entries(draft.bindings).map(([id, rows]) => [
+                  id,
+                  rows.map((row) => row.value),
+                ]),
+              ),
+            }),
+          ),
         },
       );
       setJob(result.jobId);

@@ -15,4 +15,4 @@ for (const name of await readdir(destination)) {
   if (name !== ".gitkeep")
     await rm(join(destination, name), { recursive: true, force: true });
 }
-await cp(resolve(scripts, "../dist"), destination, { recursive: true });
+await cp(resolve(scripts, "../build/client"), destination, { recursive: true });

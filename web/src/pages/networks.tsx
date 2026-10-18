@@ -36,12 +36,13 @@ import {
   type Resource,
 } from "@/lib/api";
 import { useConfigurationChanges } from "@/lib/configuration-state";
+import { networkFormSchema } from "@/lib/validation";
 import { indexResources } from "@/lib/resource-index";
 import type { components } from "@/lib/schema";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, RefreshCw, Server, Trash2, Users } from "lucide-react";
 import { useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router";
 type DockerNetwork = components["schemas"]["DockerNetwork"];
 function subnets(network?: DockerNetwork) {
   const config = network?.IPAM?.Config;
@@ -389,15 +390,25 @@ export function NetworkForm() {
               setBusy(true);
               setError("");
               try {
+                const values = networkFormSchema.parse({
+                  name,
+                  server,
+                  mode,
+                  selected,
+                  subnet,
+                  range,
+                  v6,
+                  subnet6,
+                });
                 await api(`/servers/${server}/networks`, {
                   method: "POST",
                   body: JSON.stringify({
-                    name,
-                    dockerId: mode === "existing" ? selected : "",
-                    subnet: mode === "create" ? subnet : "",
-                    dynamicRange: range,
-                    enableIPv6: v6,
-                    ipv6Subnet: subnet6,
+                    name: values.name,
+                    dockerId: values.mode === "existing" ? values.selected : "",
+                    subnet: values.mode === "create" ? values.subnet : "",
+                    dynamicRange: values.range,
+                    enableIPv6: values.v6,
+                    ipv6Subnet: values.subnet6,
                   }),
                 });
                 await Promise.all([

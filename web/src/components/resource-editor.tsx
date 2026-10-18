@@ -34,7 +34,7 @@ import { loadComposeEditor } from "@/lib/feature-loaders";
 import { Fingerprint, RefreshCw } from "lucide-react";
 import type * as React from "react";
 import { lazy, Suspense, useState, type ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import {
   ResourceFormProvider,
   useResourceForm,

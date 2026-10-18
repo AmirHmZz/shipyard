@@ -20,9 +20,10 @@ import {
   useResources,
 } from "@/lib/api";
 import { useConfigurationChanges } from "@/lib/configuration-state";
+import { previewFormSchema } from "@/lib/validation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 export function ApplicationPreviews({ app }: { app: Resource }) {
   const changes = useConfigurationChanges();
   const q = useResources();
@@ -51,6 +52,11 @@ export function ApplicationPreviews({ app }: { app: Resource }) {
               setBusy(true);
               setError("");
               try {
+                const preview = previewFormSchema.parse({
+                  enabled,
+                  domain,
+                  zone,
+                });
                 await api(`/resources/${app.id}`, {
                   method: "PUT",
                   body: JSON.stringify({
@@ -59,9 +65,9 @@ export function ApplicationPreviews({ app }: { app: Resource }) {
                     version: app.version,
                     data: {
                       ...app.data,
-                      previews: enabled,
-                      previewDomain: domain,
-                      previewZoneId: zone,
+                      previews: preview.enabled,
+                      previewDomain: preview.domain,
+                      previewZoneId: preview.zone,
                     },
                   }),
                 });

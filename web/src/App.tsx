@@ -46,18 +46,9 @@ import {
   useResources,
   type Session,
 } from "@/lib/api";
-import {
-  loadApplication,
-  loadConfiguration,
-  loadInfrastructure,
-  loadNetworks,
-  loadProjects,
-  loadSettings,
-  preloadRoute,
-} from "@/lib/feature-loaders";
 import { readTheme, writeTheme } from "@/lib/theme";
 import { Auth } from "@/pages/auth";
-import { DeploymentTable, Overview } from "@/pages/overview";
+import { DeploymentTable } from "@/pages/overview";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Activity,
@@ -78,49 +69,13 @@ import {
   Users,
 } from "lucide-react";
 import {
-  lazy,
   Suspense,
   useDeferredValue,
   useEffect,
   useMemo,
   useState,
 } from "react";
-import {
-  Link,
-  NavLink,
-  Route,
-  Routes,
-  useLocation,
-  useNavigate,
-} from "react-router-dom";
-const Configuration = lazy(() =>
-  loadConfiguration().then((m) => ({ default: m.Configuration })),
-);
-const Networks = lazy(() =>
-  loadNetworks().then((m) => ({ default: m.Networks })),
-);
-const Projects = lazy(() =>
-  loadProjects().then((m) => ({ default: m.Projects })),
-);
-const Application = lazy(() =>
-  loadApplication().then((m) => ({ default: m.Application })),
-);
-const Servers = lazy(() =>
-  loadInfrastructure().then((m) => ({ default: m.Servers })),
-);
-const ServerDeletion = lazy(() =>
-  import("@/pages/server-deletion").then((m) => ({
-    default: m.ServerDeletion,
-  })),
-);
-const Integrations = lazy(() =>
-  loadInfrastructure().then((m) => ({ default: m.Integrations })),
-);
-const DNS = lazy(() => loadInfrastructure().then((m) => ({ default: m.DNS })));
-const Settings = lazy(() =>
-  loadSettings().then((m) => ({ default: m.Settings })),
-);
-const Teams = lazy(() => loadSettings().then((m) => ({ default: m.Teams })));
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router";
 const navigation = [
   { label: "Overview", path: "/", icon: LayoutDashboard },
   { label: "Projects", path: "/projects", icon: Layers3 },
@@ -187,8 +142,7 @@ function Sidebar({ close }: { close?: () => void }) {
             {i === 7 && <Separator className="my-5" />}
             <NavLink
               to={item.path}
-              onMouseEnter={() => preloadRoute(item.path)}
-              onFocus={() => preloadRoute(item.path)}
+              prefetch="intent"
               end={item.path === "/"}
               onClick={close}
               className={({ isActive }) =>
@@ -218,7 +172,7 @@ function Sidebar({ close }: { close?: () => void }) {
     </div>
   );
 }
-function Deployments() {
+export function Deployments() {
   const q = useDeployments();
   const resources = useResources();
   return (
@@ -428,36 +382,7 @@ function Shell({ session }: { session: Session }) {
             </Alert>
           )}
           <Suspense fallback={<Loading />}>
-            <Routes>
-              <Route path="/" element={<Overview />} />
-              <Route path="/configure/:kind/:id" element={<Configuration />} />
-              <Route path="/networks" element={<Networks />} />
-              <Route path="/projects" element={<Projects />} />
-              <Route path="/projects/:id" element={<Projects />} />
-
-              <Route path="/applications/:id" element={<Application />} />
-              <Route path="/deployments" element={<Deployments />} />
-              <Route path="/servers" element={<Servers />} />
-              <Route path="/servers/:id/delete" element={<ServerDeletion />} />
-              <Route path="/dns" element={<DNS />} />
-              <Route path="/dns/:id" element={<DNS />} />
-              <Route path="/dns/:id/records/:record" element={<DNS />} />
-              <Route path="/integrations" element={<Integrations />} />
-              <Route path="/teams" element={<Teams />} />
-              <Route
-                path="/settings"
-                element={<Settings session={session} />}
-              />
-              <Route
-                path="*"
-                element={
-                  <Empty
-                    title="Page not found"
-                    description="Use the navigation to return to your workspace."
-                  />
-                }
-              />
-            </Routes>
+            <Outlet context={session} />
           </Suspense>
         </main>
       </div>

@@ -245,7 +245,13 @@ func (a *API) headers(next http.Handler) http.Handler {
 		if origin := a.Telemetry.ConnectOrigin(); origin != "" {
 			connect += " " + origin
 		}
-		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src "+connect+"; frame-ancestors 'none'; base-uri 'self'")
+		script := "'self'"
+		if !strings.HasPrefix(r.URL.Path, "/api/") {
+			if hashes := dashboardScriptHashes(); hashes != "" {
+				script += " " + hashes
+			}
+		}
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src "+script+"; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src "+connect+"; frame-ancestors 'none'; base-uri 'self'")
 		if strings.HasPrefix(r.URL.Path, "/api/") {
 			w.Header().Set("Cache-Control", "no-store")
 		}
