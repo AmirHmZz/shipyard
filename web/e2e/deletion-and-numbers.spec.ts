@@ -204,13 +204,11 @@ test("container ports use themed steppers and preserve typing, keyboard steps an
   await port.press("ArrowUp");
   await expect(port).toHaveValue("8081");
   await expect(dialog.getByLabel("Name", { exact: true })).toHaveCount(0);
-  await dialog
-    .getByLabel("Subdomain or full hostname", { exact: true })
-    .fill("app.example.com");
-  await port.scrollIntoViewIfNeeded();
-  await page.screenshot({ path: info.outputPath("number-controls-light.png") });
   await page.getByRole("combobox", { name: "Select connected zone" }).click();
   await page.getByRole("option", { name: "example.com", exact: true }).click();
+  await dialog.getByLabel("Subdomain", { exact: true }).fill("app");
+  await port.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: info.outputPath("number-controls-light.png") });
   await dialog.getByRole("button", { name: "Save route" }).click();
   await expect(page).toHaveURL(/applications\/app(?:\?tab=domains)?$/);
   await page.getByRole("tab", { name: "domains", exact: true }).click();

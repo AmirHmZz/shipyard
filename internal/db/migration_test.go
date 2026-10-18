@@ -12,7 +12,7 @@ func TestMigrationsRoundTripHistoryAndApproval(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	if len(catalog) != 4 {
+	if len(catalog) != 5 {
 		t.Fatal("update this test with the new schema")
 	}
 	if _, e = s.Pool.Exec(ctx, "INSERT INTO users(id,email,name,password,disabled) VALUES('retained','retained@example.com','Retained','hash',true)"); e != nil {
@@ -22,7 +22,7 @@ func TestMigrationsRoundTripHistoryAndApproval(t *testing.T) {
 		t.Fatal("destructive downgrade accepted without approval")
 	}
 	state, e := MigrationState(ctx, s.Pool)
-	if e != nil || state.Current != 4 {
+	if e != nil || state.Current != 5 {
 		t.Fatal(state, e)
 	}
 	if e = ApplyMigrations(ctx, s.Pool, 1, true); e != nil {
@@ -35,7 +35,7 @@ func TestMigrationsRoundTripHistoryAndApproval(t *testing.T) {
 	if _, e = Open(ctx, testURLForPool(t, s), s.Vault); e == nil {
 		t.Fatal("older schema was silently upgraded")
 	}
-	if e = ApplyMigrations(ctx, s.Pool, 4, true); e != nil {
+	if e = ApplyMigrations(ctx, s.Pool, 5, true); e != nil {
 		t.Fatal(e)
 	}
 	var disabled bool
@@ -53,6 +53,9 @@ func testURLForPool(t *testing.T, s *Store) string { t.Helper(); return s.Pool.C
 func TestLegacyMigrationMetadataAndTransactionalFailure(t *testing.T) {
 	s := testStore(t)
 	ctx := context.Background()
+	if e := ApplyMigrations(ctx, s.Pool, 4, true); e != nil {
+		t.Fatal(e)
+	}
 	// Only versions 1-3 predate checksum metadata.
 	if e := ApplyMigrations(ctx, s.Pool, 3, false); e != nil {
 		t.Fatal(e)
@@ -98,13 +101,14 @@ func TestRouteIdentityMigration(t *testing.T) {
 	if err := ApplyMigrations(ctx, s.Pool, 4, true); err != nil {
 		t.Fatal(err)
 	}
-	route, err := s.Resource(ctx, "route")
-	if err != nil || route.Name != "api.example.com" {
-		t.Fatal(route, err)
+	var routeName, teamName string
+	err := s.Pool.QueryRow(ctx, "SELECT data->>'domain' FROM resources WHERE id='route'").Scan(&routeName)
+	if err != nil || routeName != "api.example.com" {
+		t.Fatal(routeName, err)
 	}
-	team, err := s.Resource(ctx, "team")
-	if err != nil || team.Name != "Keep me" {
-		t.Fatal(team, err)
+	err = s.Pool.QueryRow(ctx, "SELECT name FROM resources WHERE id='team'").Scan(&teamName)
+	if err != nil || teamName != "Keep me" {
+		t.Fatal(teamName, err)
 	}
 	if _, err := s.Pool.Exec(ctx, "UPDATE resources SET name='redundant' WHERE id='route'"); err == nil {
 		t.Fatal("redundant route name accepted")

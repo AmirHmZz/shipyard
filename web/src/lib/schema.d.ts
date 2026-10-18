@@ -7802,6 +7802,9 @@ export interface components {
                 [key: string]: unknown;
             };
             secretKeys: string[];
+            variables: {
+                [key: string]: string;
+            };
             canWrite: boolean;
             version: number;
             createdAt: string;
@@ -7818,6 +7821,10 @@ export interface components {
             };
             secrets?: {
                 [key: string]: string;
+            };
+            /** @description Scoped runtime values. Omitted keys are unchanged; null deletes a value. Secrets must be supplied through secrets. */
+            variables?: {
+                [key: string]: string | null;
             };
             version?: number;
         };

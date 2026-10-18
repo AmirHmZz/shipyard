@@ -51,13 +51,17 @@ func (c *Controller) Services(ctx context.Context, app model.Resource) ([]Servic
 		chain = append(chain, parent)
 	}
 	for i := len(chain) - 1; i >= 0; i-- {
-		secrets, err := c.Store.Secrets(chain[i])
+		secrets, err := c.Store.Values(chain[i])
 		if err != nil {
 			return nil, err
 		}
 		for k, v := range secrets {
-			if strings.HasPrefix(k, "env:") {
-				env[strings.TrimPrefix(k, "env:")] = v
+			prefix := "env:"
+			if a.PreviewOf != "" && chain[i].ID != app.ID {
+				prefix = "preview-env:"
+			}
+			if strings.HasPrefix(k, prefix) {
+				env[strings.TrimPrefix(k, prefix)] = v
 			}
 		}
 	}

@@ -100,11 +100,11 @@ func (s *Store) checkKey(ctx context.Context) error {
 	return tx.Commit(ctx)
 }
 
-const resourceColumns = `id,kind,CASE WHEN kind='route' THEN COALESCE(data->>'domain',id) ELSE name END AS name,team_id,parent_id,data,secret,version,created_at,updated_at`
+const resourceColumns = `id,kind,CASE WHEN kind='route' THEN COALESCE(data->>'domain',id) ELSE name END AS name,team_id,parent_id,data,secret,version,created_at,updated_at,variables`
 
 func scanResource(row pgx.Row) (model.Resource, error) {
 	var r model.Resource
-	err := row.Scan(&r.ID, &r.Kind, &r.Name, &r.TeamID, &r.ParentID, &r.Data, &r.Secret, &r.Version, &r.CreatedAt, &r.UpdatedAt)
+	err := row.Scan(&r.ID, &r.Kind, &r.Name, &r.TeamID, &r.ParentID, &r.Data, &r.Secret, &r.Version, &r.CreatedAt, &r.UpdatedAt, &r.Variables)
 	return r, err
 }
 func (s *Store) Resource(ctx context.Context, id string) (model.Resource, error) {
@@ -155,6 +155,9 @@ func (s *Store) Secrets(r model.Resource) (map[string]string, error) {
 	return out, e
 }
 func (s *Store) Public(r model.Resource) model.Resource {
+	if r.Variables == nil {
+		r.Variables = map[string]string{}
+	}
 	m, e := s.Secrets(r)
 	r.SecretKeys = []string{}
 	if e == nil {
@@ -165,6 +168,19 @@ func (s *Store) Public(r model.Resource) model.Resource {
 	}
 	r.Secret = nil
 	return r
+}
+
+// Values combines ordinary and secret values at one inheritance level. Public
+// resources still expose only Variables and the names of encrypted secrets.
+func (s *Store) Values(r model.Resource) (map[string]string, error) {
+	values, err := s.Secrets(r)
+	if err != nil {
+		return nil, err
+	}
+	for k, v := range r.Variables {
+		values[k] = v
+	}
+	return values, nil
 }
 func (s *Store) Save(ctx context.Context, id string, in model.ResourceInput) (model.Resource, error) {
 	tx, err := s.Pool.Begin(ctx)
@@ -244,10 +260,25 @@ func (s *Store) Save(ctx context.Context, id string, in model.ResourceInput) (mo
 		}
 	}
 	for k, v := range in.Secrets {
+		if _, exists := in.Variables[k]; exists {
+			return model.Resource{}, errors.New("conflicting variable and secret writes")
+		}
 		if v == "" {
 			delete(secrets, k)
 		} else {
 			secrets[k] = v
+			delete(old.Variables, k)
+		}
+	}
+	if old.Variables == nil {
+		old.Variables = map[string]string{}
+	}
+	for k, v := range in.Variables {
+		if v == nil {
+			delete(old.Variables, k)
+		} else {
+			old.Variables[k] = *v
+			delete(secrets, k)
 		}
 	}
 	b, e := json.Marshal(secrets)
@@ -263,9 +294,9 @@ func (s *Store) Save(ctx context.Context, id string, in model.ResourceInput) (mo
 		storedName = nil
 	}
 	if old.ID == "" {
-		old, e = scanResource(tx.QueryRow(ctx, "INSERT INTO resources(id,kind,name,team_id,parent_id,data,secret) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING "+resourceColumns, id, in.Kind, storedName, in.TeamID, in.ParentID, in.Data, encrypted))
+		old, e = scanResource(tx.QueryRow(ctx, "INSERT INTO resources(id,kind,name,team_id,parent_id,data,secret,variables) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING "+resourceColumns, id, in.Kind, storedName, in.TeamID, in.ParentID, in.Data, encrypted, old.Variables))
 	} else {
-		old, e = scanResource(tx.QueryRow(ctx, "UPDATE resources SET name=$2,data=$3,secret=$4,version=version+1,updated_at=now() WHERE id=$1 AND version=$5 RETURNING "+resourceColumns, id, storedName, in.Data, encrypted, in.Version))
+		old, e = scanResource(tx.QueryRow(ctx, "UPDATE resources SET name=$2,data=$3,secret=$4,variables=$6,version=version+1,updated_at=now() WHERE id=$1 AND version=$5 RETURNING "+resourceColumns, id, storedName, in.Data, encrypted, in.Version, old.Variables))
 	}
 	if e != nil {
 		return model.Resource{}, e

@@ -90,6 +90,7 @@ test("installation, project configuration, invitations and viewer boundaries", a
   await page.goto("/projects/" + project.id);
   await page.getByRole("button", { name: "Environment variables" }).click();
   await page.getByLabel("Variable name").fill("API_TOKEN");
+  await page.getByRole("switch", { name: "Secret", exact: true }).check();
   const secret = "browser-secret-" + unique;
   await page.getByLabel("Value", { exact: true }).fill(secret);
   await page.getByRole("button", { name: "Add / replace variable" }).click();

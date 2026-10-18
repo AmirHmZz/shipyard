@@ -10,6 +10,13 @@ import { ProviderName } from "@/components/provider-name";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  InputGroup,
+  InputGroupInput,
+  InputGroupAddon,
+  InputGroupText,
+} from "@/components/ui/input-group";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -26,7 +33,7 @@ import { errorMessage } from "@/lib/api";
 import { loadComposeEditor } from "@/lib/feature-loaders";
 import { Fingerprint, RefreshCw } from "lucide-react";
 import type * as React from "react";
-import { lazy, Suspense, type ReactNode } from "react";
+import { lazy, Suspense, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
   ResourceFormProvider,
@@ -93,6 +100,7 @@ function ResourceFormView({
     state: {
       name,
       parent,
+      project,
       team,
       data,
       secrets,
@@ -100,15 +108,14 @@ function ResourceFormView({
       error,
       dnsTesting,
       dnsVerified,
-      runtimeVariables,
       composeYAML,
     },
     actions: {
       setName,
       setParent,
+      setProject,
       setTeam,
       setData,
-      setRuntimeVariables,
       setComposeYAML,
       save,
       testDNS,
@@ -187,6 +194,21 @@ function ResourceFormView({
                       />
                     </div>
                   )}
+                  {kind === "application" && !existing && (
+                    <div className="space-y-2">
+                      <Label htmlFor={`${formId}-project`}>Project</Label>
+                      {choose(
+                        project,
+                        setProject,
+                        resources
+                          .filter((r) => r.kind === "project")
+                          .map((r) => ({ value: r.id, label: r.name })),
+                        "Select project",
+                        false,
+                        `${formId}-project`,
+                      )}
+                    </div>
+                  )}
                   {parentKind && (
                     <div className="space-y-2">
                       <Label htmlFor={`${formId}-parent`}>{parentLabel}</Label>
@@ -201,7 +223,8 @@ function ResourceFormView({
                           ? "Select DNS provider"
                           : `Select ${parentKind}`,
                         !!existing ||
-                          (kind === "zone" && !parentOptions.length),
+                          (kind === "zone" && !parentOptions.length) ||
+                          (kind === "application" && !parentOptions.length),
                         `${formId}-parent`,
                       )}
                     </div>
@@ -288,23 +311,6 @@ function ResourceFormView({
                           disabled={busy}
                         />
                       </Suspense>
-                    </section>
-                  )}
-                  {kind === "application" && !existing && (
-                    <section className="space-y-2 border-t pt-5">
-                      <Label htmlFor="new-app-variables">
-                        Application runtime variables (KEY=value)
-                      </Label>
-                      <Textarea
-                        id="new-app-variables"
-                        className="min-h-32 font-mono"
-                        value={runtimeVariables}
-                        onChange={(e) => setRuntimeVariables(e.target.value)}
-                      />
-                      <p className="text-sm text-muted-foreground">
-                        Encrypted and write-only. These override inherited
-                        environment values.
-                      </p>
                     </section>
                   )}
                   {error && (
@@ -532,7 +538,13 @@ function ResourceField({
         )}
       {f.type === "switch" ? (
         <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
-          <Label htmlFor={`${formId}-${f.key}`}>{f.label}</Label>
+          <Label htmlFor={`${formId}-${f.key}`}>
+            {kind === "application" && f.key === "file"
+              ? data.engine === "compose"
+                ? "Compose file"
+                : "Dockerfile"
+              : f.label}
+          </Label>
           <Switch
             id={`${formId}-${f.key}`}
             checked={!!data[f.key]}
@@ -541,7 +553,13 @@ function ResourceField({
         </div>
       ) : (
         <>
-          <Label htmlFor={`${formId}-${f.key}`}>{f.label}</Label>
+          <Label htmlFor={`${formId}-${f.key}`}>
+            {kind === "application" && f.key === "file"
+              ? data.engine === "compose"
+                ? "Compose file"
+                : "Dockerfile"
+              : f.label}
+          </Label>
           <ResourceFieldControl
             kind={kind}
             resources={resources}
@@ -657,6 +675,17 @@ function ResourceSchemaFields({
 }
 
 function ResourceFieldControl(props: Parameters<typeof ResourceField>[0]) {
+  const { kind, f } = props;
+  if (kind === "application" && f.key === "repository")
+    return <RepositoryField {...props} />;
+  if (kind === "application" && f.key === "branch")
+    return <BranchField {...props} />;
+  return <StandardResourceFieldControl {...props} />;
+}
+
+function StandardResourceFieldControl(
+  props: Parameters<typeof ResourceField>[0],
+) {
   const { kind, services, f } = props;
 
   const {
@@ -827,6 +856,7 @@ function RouteFields({
     state: { data },
     actions: { update },
   } = useResourceForm();
+  const zone = resources.find((r) => r.id === data.zoneId && r.kind === "zone");
   return (
     <section className="space-y-4">
       <div className="space-y-2">
@@ -844,13 +874,24 @@ function RouteFields({
         )}
       </div>
       <div className="space-y-2">
-        <Label htmlFor="route-subdomain">Subdomain or full hostname</Label>
-        <Input
-          id="route-subdomain"
-          value={String(data.domain || "")}
-          onChange={(e) => update("domain", e.target.value)}
-          placeholder="api, *.apps, or leave empty for the apex"
-        />
+        <Label htmlFor="route-subdomain">Subdomain</Label>
+        <InputGroup>
+          <InputGroupInput
+            id="route-subdomain"
+            value={String(data.domain || "")}
+            onChange={(e) => update("domain", e.target.value)}
+            disabled={!zone}
+            placeholder="api or *.apps"
+          />
+          {zone && (
+            <InputGroupAddon align="inline-end">
+              <InputGroupText>.{String(zone.data.domain)}</InputGroupText>
+            </InputGroupAddon>
+          )}
+        </InputGroup>
+        <p className="text-xs text-muted-foreground">
+          Leave blank for the zone itself.
+        </p>
       </div>
       {services.error && (
         <Alert variant="destructive">
@@ -869,8 +910,6 @@ function RouteFields({
 function ResourceFieldActions({
   kind,
   f,
-  repos,
-  branches,
 }: Pick<
   Parameters<typeof ResourceField>[0],
   "kind" | "f" | "repos" | "branches"
@@ -893,21 +932,6 @@ function ResourceFieldActions({
           Probe fingerprint
         </Button>
       )}
-      {kind === "application" && f.key === "repository" && (
-        <RepositoryBrowser repos={repos} />
-      )}
-      {kind === "application" &&
-        f.key === "branch" &&
-        branches.data &&
-        choose(
-          String(data.branch || ""),
-          (v) => update("branch", v),
-          branches.data.map((v) => ({
-            value: v.name,
-            label: v.name,
-          })),
-          "Browse branches",
-        )}
       {f.key === "webhook_secret" && (
         <Button
           type="button"
@@ -928,6 +952,121 @@ function ResourceFieldActions({
           Generate signing secret
         </Button>
       )}
+    </>
+  );
+}
+
+function RepositoryField({ repos }: Parameters<typeof ResourceField>[0]) {
+  const {
+    state: { data },
+    actions: { update },
+    meta: { formId },
+  } = useResourceForm();
+  const gitId = String(data.gitId || "");
+  const repository = String(data.repository || "");
+  const [manualConnection, setManualConnection] = useState<string | null>(null);
+  const manual =
+    manualConnection === gitId ||
+    (!!repository &&
+      !!repos.data &&
+      !repos.data.some((repo) => repo.full_name === repository));
+  const options = (repos.data || []).map((repo) => ({
+    value: repo.full_name,
+    label: repo.full_name,
+  }));
+  options.push({ value: "__other__", label: "Other" });
+  return (
+    <>
+      {choose(
+        manual ? "__other__" : repository,
+        (value) => {
+          setManualConnection(value === "__other__" ? gitId : null);
+          update("repository", value === "__other__" ? "" : value);
+        },
+        options,
+        repos.isFetching ? "Loading repositories…" : "Select repository",
+        !gitId,
+        `${formId}-repository`,
+      )}
+      <RepositoryStatus repos={repos} connected={!!gitId} />
+      {manual && (
+        <div className="space-y-2">
+          <Label htmlFor={`${formId}-manual-repository`}>
+            Repository owner/name
+          </Label>
+          <Input
+            id={`${formId}-manual-repository`}
+            value={repository}
+            onChange={(event) => update("repository", event.target.value)}
+            placeholder="owner/name"
+            pattern="[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+"
+            required
+          />
+        </div>
+      )}
+    </>
+  );
+}
+
+function BranchField({
+  branches,
+  existing,
+}: Parameters<typeof ResourceField>[0]) {
+  const {
+    state: { data },
+    actions: { update },
+    meta: { formId },
+  } = useResourceForm();
+  const branch = String(data.branch || "");
+  const options = (branches.data || []).map((value) => ({
+    value: value.name,
+    label: value.name,
+  }));
+  const savedBranch =
+    existing?.data.gitId === data.gitId &&
+    existing?.data.repository === data.repository
+      ? String(existing?.data.branch || "")
+      : "";
+  if (savedBranch && !options.some((option) => option.value === savedBranch))
+    options.unshift({ value: savedBranch, label: savedBranch });
+  return (
+    <>
+      {branches.isFetching ? (
+        <div role="status" aria-label="Loading branches…" className="space-y-2">
+          <Skeleton className="h-9 w-full" />
+          <p className="text-xs text-muted-foreground">Loading branches…</p>
+        </div>
+      ) : (
+        choose(
+          branch,
+          (value) => update("branch", value),
+          options,
+          "Select branch",
+          !data.gitId || !data.repository || options.length === 0,
+          `${formId}-branch`,
+        )
+      )}
+      {branches.isError && (
+        <Alert variant="destructive">
+          <AlertDescription>
+            {errorMessage(branches.error)}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void branches.refetch()}
+            >
+              Retry branches
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+      {branches.data?.length === 0 &&
+        !branches.isFetching &&
+        !branches.isError && (
+          <p className="text-xs text-muted-foreground">
+            No branches found in this repository.
+          </p>
+        )}
     </>
   );
 }
@@ -967,47 +1106,25 @@ function SecretResourceField({
   );
 }
 
-function RepositoryBrowser({ repos }: { repos: Options["repos"] }) {
-  const {
-    actions: { update },
-    meta: { gitId, repository },
-  } = useResourceForm();
-  return (
-    <>
-      {gitId && (
-        <>
-          {repos.isFetching ? (
-            <p className="text-xs text-muted-foreground">
-              Loading repositories…
-            </p>
-          ) : repos.isError ? (
-            <p className="text-xs text-destructive">
-              {errorMessage(repos.error)}
-            </p>
-          ) : (
-            repos.data &&
-            choose(
-              repository,
-              (v) => update("repository", v),
-              repos.data.map((v) => ({
-                value: v.full_name,
-                label: v.full_name,
-              })),
-              "Browse provider repositories",
-            )
-          )}
-        </>
-      )}
-    </>
-  );
-}
-
-function ScalarResourceField({ f }: Parameters<typeof ResourceField>[0]) {
+function ScalarResourceField({ f, kind }: Parameters<typeof ResourceField>[0]) {
   const {
     state: { data },
     actions: { update },
     meta: { formId },
   } = useResourceForm();
+  if (kind === "application" && (f.key === "context" || f.key === "file"))
+    return (
+      <InputGroup>
+        <InputGroupInput
+          id={`${formId}-${f.key}`}
+          value={String(data[f.key] ?? "")}
+          onChange={(e) => update(f.key, e.target.value)}
+        />
+        <InputGroupAddon>
+          <InputGroupText>repository_root/</InputGroupText>
+        </InputGroupAddon>
+      </InputGroup>
+    );
   if (f.type === "json")
     return (
       <Textarea
@@ -1037,5 +1154,46 @@ function ScalarResourceField({ f }: Parameters<typeof ResourceField>[0]) {
         )
       }
     />
+  );
+}
+
+function RepositoryStatus({
+  repos,
+  connected,
+}: {
+  repos: Options["repos"];
+  connected: boolean;
+}) {
+  return (
+    <>
+      {" "}
+      {repos.isFetching && (
+        <p role="status" className="text-xs text-muted-foreground">
+          Loading repositories…
+        </p>
+      )}
+      {repos.isError && (
+        <Alert variant="destructive">
+          <AlertDescription>
+            {errorMessage(repos.error)}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void repos.refetch()}
+            >
+              Retry repositories
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+      {connected &&
+        !repos.isFetching &&
+        !repos.isError &&
+        repos.data?.length === 0 && (
+          <p className="text-xs text-muted-foreground">
+            No repositories found. Select Other to enter one manually.
+          </p>
+        )}
+    </>
   );
 }

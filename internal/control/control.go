@@ -108,7 +108,7 @@ func (c *Controller) queue(ctx context.Context, app model.Resource, ref, rollbac
 		chain = append(chain, parent)
 	}
 	for i := len(chain) - 1; i >= 0; i-- {
-		values, e := c.Store.Secrets(chain[i])
+		values, e := c.Store.Values(chain[i])
 		if e != nil {
 			return model.Deployment{}, e
 		}

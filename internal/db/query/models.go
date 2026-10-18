@@ -121,7 +121,7 @@ type Release struct {
 type Resource struct {
 	ID        string
 	Kind      string
-	Name      string
+	Name      pgtype.Text
 	TeamID    string
 	ParentID  string
 	Data      []byte
@@ -129,6 +129,7 @@ type Resource struct {
 	Version   int32
 	CreatedAt pgtype.Timestamptz
 	UpdatedAt pgtype.Timestamptz
+	Variables []byte
 }
 
 type ResourceGrant struct {

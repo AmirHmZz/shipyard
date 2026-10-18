@@ -1,0 +1,1 @@
+{"name":"Ordinary runtime variables","up":{"classification":"non-destructive","impact":"Add plaintext runtime variables; existing encrypted secrets remain unchanged."},"down":{"classification":"destructive","impact":"Discard ordinary runtime variables. Encrypted secrets and other resource data remain unchanged."}}

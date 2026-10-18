@@ -6271,6 +6271,12 @@
               "type": "string"
             }
           },
+          "variables": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
           "canWrite": {
             "type": "boolean"
           },
@@ -6292,6 +6298,7 @@
           "parentId",
           "data",
           "secretKeys",
+          "variables",
           "canWrite",
           "version",
           "createdAt",
@@ -6323,6 +6330,16 @@
             "additionalProperties": {
               "type": "string"
             }
+          },
+          "variables": {
+            "type": "object",
+            "additionalProperties": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "description": "Scoped runtime values. Omitted keys are unchanged; null deletes a value. Secrets must be supplied through secrets."
           },
           "version": {
             "type": "integer"

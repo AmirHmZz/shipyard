@@ -1,6 +1,6 @@
 import { api } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 type Result<T> = {
   data?: T[];
@@ -74,20 +74,43 @@ function ApplicationOptions({ data, open, children }: Props) {
   const gitId = String(data.gitId || ""),
     repository = String(data.repository || "");
   const enabled = open && data.source !== "compose" && !!gitId;
+  const [settledRepository, setSettledRepository] = useState(repository);
+  useEffect(() => {
+    const timer = setTimeout(() => setSettledRepository(repository), 300);
+    return () => clearTimeout(timer);
+  }, [repository]);
+  const validRepository = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository);
   const repos = useQuery({
     queryKey: ["repositories", gitId],
-    queryFn: () => api<{ full_name: string }[]>(`/git/${gitId}/repositories`),
+    queryFn: ({ signal }) =>
+      api<{ full_name: string }[]>(`/git/${gitId}/repositories`, { signal }),
     enabled,
     retry: false,
   });
   const branches = useQuery({
     queryKey: ["branches", gitId, repository],
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       api<{ name: string }[]>(
         `/git/${gitId}/branches?repository=${encodeURIComponent(repository)}`,
+        { signal },
       ),
-    enabled: enabled && !!repository,
+    enabled: enabled && validRepository && repository === settledRepository,
     retry: false,
   });
-  return children({ ...emptyOptions, repos, branches });
+  return children({
+    ...emptyOptions,
+    repos,
+    branches: {
+      error: branches.error,
+      isError: branches.isError,
+      refetch: branches.refetch,
+      data:
+        validRepository && repository === settledRepository
+          ? branches.data
+          : undefined,
+      isFetching:
+        branches.isFetching ||
+        (enabled && validRepository && repository !== settledRepository),
+    },
+  });
 }

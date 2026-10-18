@@ -176,6 +176,7 @@ const schemas = {
         "Kind-specific configuration. Server resources use ServerConfiguration; connection and daemonId are managed by Shipyard.",
     },
     secretKeys: { type: "array", items: str },
+    variables: { type: "object", additionalProperties: str },
     canWrite: bool,
     version: { type: "integer" },
     createdAt: str,
@@ -184,11 +185,21 @@ const schemas = {
   ResourceInput: object(
     {
       kind: str,
-      name: { type: "string", description: "Required except for routes, whose display name is derived from data.domain." },
+      name: {
+        type: "string",
+        description:
+          "Required except for routes, whose display name is derived from data.domain.",
+      },
       teamId: str,
       parentId: str,
       data: obj,
       secrets: { type: "object", additionalProperties: str },
+      variables: {
+        type: "object",
+        additionalProperties: { type: ["string", "null"] },
+        description:
+          "Scoped runtime values. Omitted keys are unchanged; null deletes a value. Secrets must be supplied through secrets.",
+      },
       version: { type: "integer" },
     },
     ["kind", "data"],
@@ -812,9 +823,14 @@ paths["/git/{id}/branches"].get.parameters.push({
   schema: str,
 });
 add(
-  "/dns/test", "post", "Test unsaved DNS provider credentials",
+  "/dns/test",
+  "post",
+  "Test unsaved DNS provider credentials",
   object({ ok: bool }),
-  object({ provider: { type: "string", enum: ["cloudflare", "arvancloud"] }, token: str }),
+  object({
+    provider: { type: "string", enum: ["cloudflare", "arvancloud"] },
+    token: str,
+  }),
 );
 add("/dns/{id}/zones", "get", "Provider zones", array(obj));
 add(

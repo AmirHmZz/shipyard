@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { createContext, use, useId, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { defaults, fields, parents, type ResourceKind } from "./definitions";
+import { relativeHostname, routeHostname } from "@/lib/route-hostname";
 export type ResourceFormProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -24,18 +25,33 @@ function useResourceFormController({
   onSaved,
 }: ControllerProps) {
   const changes = useConfigurationChanges();
-  const [runtimeVariables, setRuntimeVariables] = useState("");
   const formId = useId();
   const client = useQueryClient();
   const [name, setName] = useState(existing?.name || "");
   const [parent, setParent] = useState(existing?.parentId || parentId || "");
+  const initialParent = resources.find(
+    (r) => r.id === (existing?.parentId || parentId),
+  );
+  const [project, setProject] = useState(
+    initialParent?.kind === "environment"
+      ? initialParent.parentId || ""
+      : initialParent?.kind === "project"
+        ? initialParent.id
+        : "",
+  );
   const [team, setTeam] = useState(existing?.teamId || "");
   const [data, setData] = useState<Record<string, unknown>>(() => {
     const initial = { ...defaults[kind], ...existing?.data };
     if (kind === "route") {
       delete initial.path;
       delete initial.stripPrefix;
+      const zone = resources.find((r) => r.id === initial.zoneId);
+      initial.domain = relativeHostname(
+        String(initial.domain || ""),
+        String(zone?.data.domain || ""),
+      );
     }
+    if (kind === "application" && !existing) initial.branch = "";
     return initial;
   });
   const [secrets, setSecrets] = useState<Record<string, string>>({});
@@ -61,7 +77,11 @@ function useResourceFormController({
         ? parentKind[0].toUpperCase() + parentKind.slice(1)
         : "";
   const parentOptions = resources
-    .filter((r) => r.kind === parentKind)
+    .filter(
+      (r) =>
+        r.kind === parentKind &&
+        (kind !== "application" || (!!project && r.parentId === project)),
+    )
     .map((r) => ({
       value: r.id,
       label:
@@ -97,6 +117,14 @@ function useResourceFormController({
     setData((d) => ({
       ...d,
       [key]: value,
+      ...(kind === "application" && key === "gitId" && value !== d.gitId
+        ? { repository: "", branch: "" }
+        : {}),
+      ...(kind === "application" &&
+      key === "repository" &&
+      value !== d.repository
+        ? { branch: "" }
+        : {}),
       ...(key === "engine"
         ? { file: value === "compose" ? "compose.yaml" : "Dockerfile" }
         : {}),
@@ -133,6 +161,12 @@ function useResourceFormController({
     try {
       const resolved = { ...data };
       const writeSecrets = { ...secrets };
+      if (kind === "application") {
+        if (!parentOptions.some((option) => option.value === parent))
+          throw Error("Select an environment in this project.");
+        if (resolved.source !== "compose" && !resolved.branch)
+          throw Error("Select a repository branch.");
+      }
       if (kind === "route") {
         delete resolved.backendTls;
         delete resolved.backendServerName;
@@ -141,23 +175,7 @@ function useResourceFormController({
         const zone = resources.find((r) => r.id === resolved.zoneId);
         if (!zone) throw Error("Select a connected zone");
         const base = String(zone.data.domain);
-        const value = String(resolved.domain || "");
-        resolved.domain =
-          value === base || value.endsWith("." + base)
-            ? value
-            : value
-              ? value + "." + base
-              : base;
-      }
-      if (kind === "application") {
-        for (const line of runtimeVariables.split(/\r?\n/)) {
-          if (!line.trim() || line.trim().startsWith("#")) continue;
-          const index = line.indexOf("=");
-          if (index < 1) throw Error("Use KEY=value for runtime variables");
-          writeSecrets["env:" + line.slice(0, index).trim()] = line.slice(
-            index + 1,
-          );
-        }
+        resolved.domain = routeHostname(String(resolved.domain || ""), base);
       }
       for (const f of fields[kind] || []) {
         if (f.type === "json" && typeof resolved[f.key] === "string")
@@ -222,6 +240,7 @@ function useResourceFormController({
     state: {
       name,
       parent,
+      project,
       team,
       data,
       secrets,
@@ -230,16 +249,18 @@ function useResourceFormController({
       probe,
       dnsTesting,
       dnsVerified,
-      runtimeVariables,
       composeYAML,
     },
     actions: {
       setName,
       setParent,
+      setProject: (value: string) => {
+        setProject(value);
+        setParent("");
+      },
       setTeam,
       setData,
       setSecrets,
-      setRuntimeVariables,
       setComposeYAML,
       update,
       save,

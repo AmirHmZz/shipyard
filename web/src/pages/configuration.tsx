@@ -101,7 +101,7 @@ function ConfigurationBody() {
         <>
           <PageHeader
             title={`${resource.name} variables`}
-            description="Encrypted variables. Redeploy to apply changes."
+            description="Runtime variables and write-only secrets. Redeploy to apply changes."
           />
           <Variables key={resource.id} resource={resource} />
           <Button variant="outline" onClick={close}>

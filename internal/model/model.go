@@ -23,18 +23,19 @@ type User struct {
 	TOTP  bool   `json:"totp"`
 }
 type Resource struct {
-	ID         string          `json:"id"`
-	Kind       string          `json:"kind"`
-	Name       string          `json:"name"`
-	TeamID     string          `json:"teamId"`
-	ParentID   string          `json:"parentId"`
-	Data       json.RawMessage `json:"data"`
-	Secret     []byte          `json:"-"`
-	SecretKeys []string        `json:"secretKeys"`
-	CanWrite   bool            `json:"canWrite"`
-	Version    int             `json:"version"`
-	CreatedAt  time.Time       `json:"createdAt"`
-	UpdatedAt  time.Time       `json:"updatedAt"`
+	ID         string            `json:"id"`
+	Kind       string            `json:"kind"`
+	Name       string            `json:"name"`
+	TeamID     string            `json:"teamId"`
+	ParentID   string            `json:"parentId"`
+	Data       json.RawMessage   `json:"data"`
+	Secret     []byte            `json:"-"`
+	SecretKeys []string          `json:"secretKeys"`
+	Variables  map[string]string `json:"variables"`
+	CanWrite   bool              `json:"canWrite"`
+	Version    int               `json:"version"`
+	CreatedAt  time.Time         `json:"createdAt"`
+	UpdatedAt  time.Time         `json:"updatedAt"`
 }
 
 func Decode[T any](r Resource) (T, error) { var v T; err := json.Unmarshal(r.Data, &v); return v, err }
@@ -48,13 +49,14 @@ func IsDeleting(r Resource) bool {
 }
 
 type ResourceInput struct {
-	Kind     string            `json:"kind"`
-	Name     string            `json:"name"`
-	TeamID   string            `json:"teamId"`
-	ParentID string            `json:"parentId"`
-	Data     json.RawMessage   `json:"data"`
-	Secrets  map[string]string `json:"secrets"`
-	Version  int               `json:"version"`
+	Kind      string             `json:"kind"`
+	Name      string             `json:"name"`
+	TeamID    string             `json:"teamId"`
+	ParentID  string             `json:"parentId"`
+	Data      json.RawMessage    `json:"data"`
+	Secrets   map[string]string  `json:"secrets"`
+	Variables map[string]*string `json:"variables"`
+	Version   int                `json:"version"`
 }
 type Server struct {
 	Connection  string `json:"connection,omitempty"`
@@ -254,11 +256,21 @@ func Validate(r ResourceInput) error {
 		if len(v) > 1048576 || len(k) > 200 {
 			return errors.New("secret too large")
 		}
-		if strings.HasPrefix(k, "env:") && !ValidEnv(strings.TrimPrefix(k, "env:")) {
-			return errors.New("invalid environment variable name")
+		if strings.Contains(k, ":") {
+			if err := ValidateVariableKey(r.Kind, k, true); err != nil {
+				return err
+			}
 		}
-		if strings.HasPrefix(k, "build:") && !ValidEnv(strings.TrimPrefix(k, "build:")) {
-			return errors.New("invalid build secret name")
+	}
+	for k, v := range r.Variables {
+		if err := ValidateVariableKey(r.Kind, k, false); err != nil {
+			return err
+		}
+		if len(k) > 200 || v != nil && len(*v) > 1048576 {
+			return errors.New("variable too large")
+		}
+		if _, exists := r.Secrets[k]; exists {
+			return errors.New("conflicting variable and secret writes")
 		}
 	}
 	x := Resource{Data: r.Data}
@@ -444,4 +456,20 @@ func Validate(r ResourceInput) error {
 		return fmt.Errorf("unknown resource kind %q", r.Kind)
 	}
 	return nil
+}
+
+// ValidateVariableKey limits ordinary values to runtime scopes. BuildKit values
+// always remain write-only secrets.
+func ValidateVariableKey(kind, key string, secret bool) error {
+	if kind != "team" && kind != "project" && kind != "environment" && kind != "application" {
+		return errors.New("variables require a team, project, environment or application")
+	}
+	scope, name, ok := strings.Cut(key, ":")
+	if !ok || !ValidEnv(name) {
+		return errors.New("invalid variable name")
+	}
+	if scope == "env" || scope == "preview-env" || secret && (scope == "build" || scope == "preview-build") {
+		return nil
+	}
+	return errors.New("invalid variable scope")
 }

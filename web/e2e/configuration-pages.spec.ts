@@ -248,7 +248,7 @@ test("routes select zones and Compose services and only offer secure protocols",
   await expect(page.getByLabel("Name", { exact: true })).toHaveCount(0);
   await page.getByRole("combobox", { name: "Select connected zone" }).click();
   await page.getByRole("option", { name: "example.com", exact: true }).click();
-  await page.getByLabel("Subdomain or full hostname").fill("api");
+  await page.getByLabel("Subdomain", { exact: true }).fill("api");
   await page.getByRole("combobox", { name: "Select Compose service" }).click();
   await page.getByRole("option", { name: "web", exact: true }).click();
   await page.getByLabel("Container port", { exact: true }).fill("8080");

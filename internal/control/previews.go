@@ -65,6 +65,7 @@ func (c *Controller) preview(ctx context.Context, app model.Resource, spec model
 	if model.IsDeleting(current) {
 		return nil
 	}
+	app = current
 	spec, err = model.Decode[model.App](current)
 	if err != nil {
 		return err
@@ -152,6 +153,13 @@ func (c *Controller) preview(ctx context.Context, app model.Resource, spec model
 	}
 	data, _ := json.Marshal(preview)
 	secrets := map[string]string{}
+	variables := map[string]*string{}
+	for k, v := range app.Variables {
+		if strings.HasPrefix(k, "preview-env:") {
+			value := v
+			variables["env:"+strings.TrimPrefix(k, "preview-env:")] = &value
+		}
+	}
 	values, err := c.Store.Secrets(app)
 	if err != nil {
 		return err
@@ -174,6 +182,11 @@ func (c *Controller) preview(ctx context.Context, app model.Resource, spec model
 			return e
 		}
 		version = r.Version
+		for k := range r.Variables {
+			if _, ok := variables[k]; !ok {
+				variables[k] = nil
+			}
+		}
 		oldSecrets, e := c.Store.Secrets(r)
 		if e != nil {
 			return e
@@ -181,12 +194,19 @@ func (c *Controller) preview(ctx context.Context, app model.Resource, spec model
 		for k := range oldSecrets {
 			if strings.HasPrefix(k, "env:") || strings.HasPrefix(k, "build:") || k == "registry_password" {
 				if _, ok := secrets[k]; !ok {
+					if value, replacing := variables[k]; replacing && value != nil {
+						continue
+					}
 					secrets[k] = ""
 				}
 			}
 		}
 	}
-	r, err := c.Store.Save(ctx, id, model.ResourceInput{Kind: "application", Name: fmt.Sprintf("%s · PR #%d", app.Name, e.PR), TeamID: app.TeamID, ParentID: app.ParentID, Data: data, Secrets: secrets, Version: version})
+	// A secret replacing an ordinary preview value removes it atomically in Save.
+	for k := range secrets {
+		delete(variables, k)
+	}
+	r, err := c.Store.Save(ctx, id, model.ResourceInput{Kind: "application", Name: fmt.Sprintf("%s · PR #%d", app.Name, e.PR), TeamID: app.TeamID, ParentID: app.ParentID, Data: data, Secrets: secrets, Variables: variables, Version: version})
 	if err != nil {
 		return err
 	}

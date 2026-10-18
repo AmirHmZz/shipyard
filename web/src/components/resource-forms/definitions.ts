@@ -81,18 +81,15 @@ export const fields: Record<ResourceKind, Field[]> = {
     {
       key: "repository",
       label: "Repository",
-      help: "Choose a repository below or enter owner/name.",
     },
     { key: "branch", label: "Branch" },
     {
       key: "context",
       label: "Build context",
-      help: "Path relative to repository root.",
     },
     {
       key: "file",
-      label: "Dockerfile / Compose file",
-      help: "Path relative to repository root.",
+      label: "Dockerfile",
     },
     { key: "port", label: "Application port (0 for workers)", type: "number" },
     {
