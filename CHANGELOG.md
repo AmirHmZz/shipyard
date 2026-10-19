@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.0](https://github.com/AmirHmZz/shipyard/compare/v0.4.0...v0.5.0) (2026-10-19)
+
+
+### Features
+
+* **applications:** simplify setup and improve storage and logs ([1207d43](https://github.com/AmirHmZz/shipyard/commit/1207d4356c6b905eeecd1009de9f6f624b163026))
+* **dashboard:** migrate to React Router v8 framework mode ([486c65d](https://github.com/AmirHmZz/shipyard/commit/486c65d909eee7af8ea0d9a85e1e352ab7b17de1))
+
 ## [0.4.0](https://github.com/AmirHmZz/shipyard/compare/v0.3.0...v0.4.0) (2026-10-18)
 
 
