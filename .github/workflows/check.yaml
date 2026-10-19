@@ -14,7 +14,152 @@ on:
 permissions:
   contents: read
 jobs:
-  check:
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+        working-directory: web
+      - run: bun run lint
+        working-directory: web
+      - run: bun install --frozen-lockfile
+      - run: bun run format:check
+      - run: node scripts/openapi.mjs
+      - run: node --test scripts/release-manifest.test.mjs
+      - name: Installer artifact and resumption checks
+        run: docker run --rm -v "$PWD:/src" -w /src docker:29-cli sh tests/installer.sh
+      - run: bun run api:generate && bun run test && bun run build
+        working-directory: web
+      - run: git diff --exit-code api/openapi.yaml web/src/lib/schema.d.ts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frontend-assets
+          path: internal/web/dist
+          if-no-files-found: error
+          include-hidden-files: true
+
+  go:
+    needs: frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_PASSWORD: shipyard-test
+          POSTGRES_DB: shipyard
+        ports: [5432:5432]
+        options: --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      TEST_DATABASE_URL: postgres://postgres:shipyard-test@127.0.0.1:5432/shipyard?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: frontend-assets
+          path: internal/web/dist
+      - run: test -s internal/web/dist/index.html
+      - run: docker run --rm -v "$PWD:/src" -w /src sqlc/sqlc:1.29.0 generate
+      - run: git diff --exit-code internal/db/query
+      - run: docker build -t shipyard:test-tools -f tests/Dockerfile .
+      - name: Go race tests and static checks, including PostgreSQL backup restoration
+        run: >-
+          docker run --rm --network host -e TEST_DATABASE_URL
+          -v "$PWD:/src" -w /src
+          -v shipyard-go-mod:/go/pkg/mod -v shipyard-go-cache:/root/.cache/go-build
+          shipyard:test-tools sh -c 'go test -race ./api/... ./cmd/... ./internal/... ./tests/... && go vet ./api/... ./cmd/... ./internal/... ./tests/...'
+
+  deployment-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_PASSWORD: shipyard-test
+          POSTGRES_DB: shipyard
+        ports: [5432:5432]
+        options: --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      TEST_DATABASE_URL: postgres://postgres:shipyard-test@127.0.0.1:5432/shipyard?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - run: docker build -t shipyard:test-tools -f tests/Dockerfile .
+      - name: Prepare isolated Linux deployment host
+        run: |
+          node scripts/integration-key.mjs
+          docker build -t shipyard:ssh-fixture tests/sshd
+          docker run -d --privileged --name shipyard-integration-fixture --label shipyard.test=deployment-fixture --env-file .local/fixture.env -e DOCKER_TLS_CERTDIR= shipyard:ssh-fixture
+          for _ in $(seq 1 60); do
+            if docker exec shipyard-integration-fixture docker info >/dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          docker exec shipyard-integration-fixture docker info >/dev/null
+      - name: Real Docker, Compose, HAProxy and protocol integration tests
+        run: |
+          fixture_ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' shipyard-integration-fixture)
+          docker run --rm --network host -e TEST_DATABASE_URL -e SHIPYARD_INTEGRATION=1 -e SHIPYARD_FIXTURE_HOST="$fixture_ip" -e SHIPYARD_FIXTURE_PRIVATE_KEY_FILE=/src/.local/integration_rsa -v "$PWD:/src" -w /src -v shipyard-go-mod:/go/pkg/mod -v shipyard-go-cache:/root/.cache/go-build shipyard:test-tools go test -race ./internal/control -run TestLinux -v -count=1 -timeout=30m
+      - name: Remove disposable deployment host
+        if: always()
+        run: docker rm -fv shipyard-integration-fixture || true
+
+  native-host:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - name: Native host HTTPS and platform upgrade/downgrade
+        run: sh scripts/test-native-host.sh
+
+  server-deletion:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_PASSWORD: shipyard-test
+          POSTGRES_DB: shipyard
+        ports: [5432:5432]
+        options: --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      TEST_DATABASE_URL: postgres://postgres:shipyard-test@127.0.0.1:5432/shipyard?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - run: docker build -t shipyard:test-tools -f tests/Dockerfile .
+      - name: Prepare isolated server deletion host
+        run: |
+          node scripts/integration-key.mjs
+          docker build -t shipyard:ssh-fixture tests/sshd
+      - name: Server removal on a dedicated disposable Docker host
+        run: |
+          docker run -d --privileged --name shipyard-server-deletion-fixture --label shipyard.test=server-deletion --env-file .local/fixture.env -e DOCKER_TLS_CERTDIR= shipyard:ssh-fixture
+          for _ in $(seq 1 60); do
+            if docker exec shipyard-server-deletion-fixture docker info >/dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          docker exec shipyard-server-deletion-fixture docker info >/dev/null
+          fixture_ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' shipyard-server-deletion-fixture)
+          docker run --rm --network host -e TEST_DATABASE_URL -e SHIPYARD_SERVER_DELETION_INTEGRATION=1 -e SHIPYARD_FIXTURE_HOST="$fixture_ip" -e SHIPYARD_FIXTURE_PRIVATE_KEY_FILE=/src/.local/integration_rsa -v "$PWD:/src" -w /src -v shipyard-go-mod:/go/pkg/mod -v shipyard-go-cache:/root/.cache/go-build shipyard:test-tools go test -race ./internal/control -run TestLinuxServerDeletion -v -count=1 -timeout=10m
+      - name: Remove disposable server deletion host
+        if: always()
+        run: docker rm -fv shipyard-server-deletion-fixture || true
+
+  browser:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     services:
@@ -37,51 +182,6 @@ jobs:
           bun-version: 1.4.2
       - run: bun install --frozen-lockfile
         working-directory: web
-      - run: bun run lint
-        working-directory: web
-      - run: bun install --frozen-lockfile
-      - run: bun run format:check
-      - run: node scripts/openapi.mjs
-      - run: node --test scripts/release-manifest.test.mjs
-      - name: Installer artifact and resumption checks
-        run: docker run --rm -v "$PWD:/src" -w /src docker:29-cli sh tests/installer.sh
-      - run: bun run api:generate && bun run test && bun run build
-        working-directory: web
-      - run: docker run --rm -v "$PWD:/src" -w /src sqlc/sqlc:1.29.0 generate
-      - run: git diff --exit-code api/openapi.yaml internal/db/query web/src/lib/schema.d.ts
-      - run: docker build -t shipyard:test-tools -f tests/Dockerfile .
-      - name: Go race tests and static checks, including PostgreSQL backup restoration
-        run: >-
-          docker run --rm --network host -e TEST_DATABASE_URL
-          -v "$PWD:/src" -w /src
-          -v shipyard-go-mod:/go/pkg/mod -v shipyard-go-cache:/root/.cache/go-build
-          shipyard:test-tools sh -c 'go test -race ./api/... ./cmd/... ./internal/... ./tests/... && go vet ./api/... ./cmd/... ./internal/... ./tests/...'
-      - name: Prepare isolated Linux deployment host
-        run: |
-          node scripts/integration-key.mjs
-          docker build -t shipyard:ssh-fixture tests/sshd
-          docker run -d --privileged --name shipyard-integration-fixture --label shipyard.test=deployment-fixture --env-file .local/fixture.env -e DOCKER_TLS_CERTDIR= shipyard:ssh-fixture
-          for _ in $(seq 1 60); do
-            if docker exec shipyard-integration-fixture docker info >/dev/null 2>&1; then break; fi
-            sleep 1
-          done
-          docker exec shipyard-integration-fixture docker info >/dev/null
-      - name: Real Docker, Compose, HAProxy and protocol integration tests
-        run: |
-          fixture_ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' shipyard-integration-fixture)
-          docker run --rm --network host -e TEST_DATABASE_URL -e SHIPYARD_INTEGRATION=1 -e SHIPYARD_FIXTURE_HOST="$fixture_ip" -e SHIPYARD_FIXTURE_PRIVATE_KEY_FILE=/src/.local/integration_rsa -v "$PWD:/src" -w /src -v shipyard-go-mod:/go/pkg/mod -v shipyard-go-cache:/root/.cache/go-build shipyard:test-tools go test -race ./internal/control -run TestLinux -v -count=1 -timeout=30m
-      - name: Native host HTTPS and platform upgrade/downgrade
-        run: sh scripts/test-native-host.sh
-      - name: Server removal on a dedicated disposable Docker host
-        run: |
-          docker run -d --privileged --name shipyard-server-deletion-fixture --label shipyard.test=server-deletion --env-file .local/fixture.env -e DOCKER_TLS_CERTDIR= shipyard:ssh-fixture
-          for _ in $(seq 1 60); do
-            if docker exec shipyard-server-deletion-fixture docker info >/dev/null 2>&1; then break; fi
-            sleep 1
-          done
-          docker exec shipyard-server-deletion-fixture docker info >/dev/null
-          fixture_ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' shipyard-server-deletion-fixture)
-          docker run --rm --network host -e TEST_DATABASE_URL -e SHIPYARD_SERVER_DELETION_INTEGRATION=1 -e SHIPYARD_FIXTURE_HOST="$fixture_ip" -e SHIPYARD_FIXTURE_PRIVATE_KEY_FILE=/src/.local/integration_rsa -v "$PWD:/src" -w /src -v shipyard-go-mod:/go/pkg/mod -v shipyard-go-cache:/root/.cache/go-build shipyard:test-tools go test -race ./internal/control -run TestLinuxServerDeletion -v -count=1 -timeout=10m
       - name: Build installation image and start browser fixture
         run: |
           docker build -t shipyard:test .
@@ -103,6 +203,17 @@ jobs:
         with:
           name: browser-diagnostics
           path: web/test-results
-      - name: Remove disposable test containers
+      - name: Remove disposable browser fixture
         if: always()
-        run: docker rm -fv shipyard-integration-fixture shipyard-server-deletion-fixture shipyard-browser || true
+        run: docker rm -fv shipyard-browser || true
+
+  check:
+    needs: [frontend, go, deployment-integration, native-host, server-deletion, browser]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Require every suite to succeed
+        env:
+          SUITE_RESULTS: ${{ toJSON(needs) }}
+        run: jq -e 'all(.[]; .result == "success")' <<< "$SUITE_RESULTS"
