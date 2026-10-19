@@ -2,6 +2,7 @@ import { type Resource } from "@/lib/api";
 import { loadComposeEditor } from "@/lib/feature-loaders";
 import {
   FileCode2,
+  HardDrive,
   GitBranch,
   Globe2,
   History,
@@ -32,6 +33,7 @@ export function ApplicationTabList({
           { value: "domains", icon: Globe2 },
           { value: "variables", icon: SlidersHorizontal },
           { value: "networking", icon: Network },
+          { value: "volumes", icon: HardDrive },
           ...(!directCompose && !app.data.previewOf
             ? [{ value: "previews", icon: GitBranch }]
             : []),

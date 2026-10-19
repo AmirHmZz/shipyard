@@ -1,3 +1,4 @@
+import { ApplicationVolumes } from "./ApplicationVolumes";
 import { ApplicationTabList } from "./ApplicationTabList";
 import { deploymentKeys } from "@/lib/query-keys";
 import { createDeployment } from "../services";
@@ -231,6 +232,9 @@ export function ApplicationMainView() {
           <ConfigurationGuard className="max-w-none">
             <ApplicationNetworking key={app.id} app={app} />
           </ConfigurationGuard>
+        </TabsContent>
+        <TabsContent value="volumes">
+          <ApplicationVolumes applicationId={id} enabled={tab === "volumes"} />
         </TabsContent>
         <TabsContent value="previews">
           <ConfigurationGuard>

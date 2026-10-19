@@ -1,3 +1,4 @@
+import { normalizeApplicationSettings } from "@/lib/application-settings";
 import { resourceKeys } from "@/lib/query-keys";
 import { ProviderLogo } from "@/components/provider-name";
 import { errorMessage, type Resource } from "@/lib/api";
@@ -49,7 +50,17 @@ function useResourceFormController({
   );
   const [team, setTeam] = useState(existing?.teamId || "");
   const [data, setData] = useState<Record<string, unknown>>(() => {
-    const initial = { ...defaults[kind], ...existing?.data };
+    let initial = { ...defaults[kind], ...existing?.data };
+    if (kind === "application")
+      initial = {
+        ...initial,
+        ...normalizeApplicationSettings(
+          existing?.data || initial,
+          resources.filter(
+            (r) => r.kind === "route" && r.parentId === existing?.id,
+          ),
+        ),
+      };
     if (kind === "route") {
       delete initial.path;
       delete initial.stripPrefix;
@@ -117,7 +128,6 @@ function useResourceFormController({
         file: "compose.yaml",
         autoDeploy: false,
         previews: false,
-        port: 0,
       }));
       return;
     }
@@ -165,7 +175,15 @@ function useResourceFormController({
     setBusy(true);
     setError("");
     try {
-      const resolved = { ...data };
+      const resolved =
+        kind === "application"
+          ? normalizeApplicationSettings(
+              data,
+              resources.filter(
+                (r) => r.kind === "route" && r.parentId === existing?.id,
+              ),
+            )
+          : { ...data };
       const writeSecrets = { ...secrets };
       if (kind === "application") {
         z.string()
@@ -194,6 +212,20 @@ function useResourceFormController({
         const base = String(zone.data.domain);
         resolved.domain = routeHostname(String(resolved.domain || ""), base);
       }
+      if (
+        kind === "application" &&
+        resolved.previews &&
+        (resolved.previewRouting as { mode?: string })?.mode === "inherit" &&
+        !resources.some(
+          (r) =>
+            r.kind === "route" &&
+            r.parentId === existing?.id &&
+            r.data.protocol !== "tcp",
+        )
+      )
+        throw new Error(
+          "Configure an explicit preview target or private previews when there are no HTTP/gRPC routes.",
+        );
       const payload = parseResourceForm({
         kind,
         name: kind === "zone" ? String(resolved.domain || "zone") : name,

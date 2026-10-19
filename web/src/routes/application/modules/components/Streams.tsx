@@ -12,7 +12,7 @@ import {
 import { type Deployment } from "@/lib/api";
 import { LogBuffer, type LogLine } from "@/lib/log-buffer";
 import { logText } from "@/lib/log-text";
-import { Copy } from "lucide-react";
+import { Copy, Eraser } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 export function LogStream({
@@ -43,7 +43,16 @@ export function LogStream({
     const current = new LogBuffer(setLines);
     buffer.current = current;
     const source = new EventSource("/api/v1" + endpoint);
+    let lastEventID = 0;
     source.addEventListener("log", (event) => {
+      if (deploymentId) {
+        const id = Number((event as MessageEvent).lastEventId);
+        if (id > 0) {
+          if (id <= lastEventID) return;
+          lastEventID = id;
+        }
+      }
+
       const data = JSON.parse((event as MessageEvent).data) as {
         message: string;
       };
@@ -66,7 +75,7 @@ export function LogStream({
       current.dispose();
       if (buffer.current === current) buffer.current = null;
     };
-  }, [endpoint]);
+  }, [endpoint, deploymentId]);
   useEffect(() => {
     scroll.current?.scrollTo({ top: scroll.current.scrollHeight });
   }, [lines]);
@@ -101,6 +110,17 @@ export function LogStream({
             </Select>
           )}
           <StateBadge state={state} />
+          {!deploymentId && (
+            <Button
+              size="icon"
+              className="size-8"
+              variant="ghost"
+              aria-label="Clear logs"
+              onClick={() => buffer.current?.clear()}
+            >
+              <Eraser className="size-3.5" />
+            </Button>
+          )}
           <Button
             size="icon"
             className="size-8"

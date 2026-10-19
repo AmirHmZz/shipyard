@@ -249,6 +249,15 @@ func (s *Store) Save(ctx context.Context, id string, in model.ResourceInput) (mo
 	if in.Kind == "application" {
 		var app model.App
 		_ = json.Unmarshal(in.Data, &app)
+		if app.Previews && app.PreviewRouting != nil && app.PreviewRouting.Mode == "inherit" {
+			var routed bool
+			if err := tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM resources WHERE kind='route' AND parent_id=$1 AND data->>'protocol' IN ('https','grpc'))", id).Scan(&routed); err != nil {
+				return model.Resource{}, err
+			}
+			if !routed {
+				return model.Resource{}, errors.New("configure an explicit preview target or private previews when there are no HTTP/gRPC routes")
+			}
+		}
 		if app.PreviewOf == "" && app.PreviewDomain != "" {
 			var exists bool
 			if e = tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM resources WHERE kind='application' AND id<>$1 AND COALESCE(data->>'previewOf','')='' AND lower(data->>'previewDomain')=lower($2))", id, app.PreviewDomain).Scan(&exists); e != nil {

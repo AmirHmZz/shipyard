@@ -88,33 +88,35 @@ type Zone struct {
 	Domain         string `json:"domain"`
 }
 type App struct {
-	Source         string                       `json:"source,omitempty"`
-	Engine         string                       `json:"engine"`
-	ServerID       string                       `json:"serverId"`
-	GitID          string                       `json:"gitId"`
-	Repository     string                       `json:"repository"`
-	Branch         string                       `json:"branch"`
-	Context        string                       `json:"context"`
-	File           string                       `json:"file"`
-	Port           int                          `json:"port"`
-	Worker         bool                         `json:"worker"`
-	AutoDeploy     bool                         `json:"autoDeploy"`
-	Previews       bool                         `json:"previews"`
-	HealthPath     string                       `json:"healthPath"`
-	HealthTimeout  int                          `json:"healthTimeout"`
-	Profiles       []string                     `json:"profiles"`
-	BuildArgs      map[string]string            `json:"buildArgs"`
-	Registry       string                       `json:"registry"`
-	RegistryUser   string                       `json:"registryUser"`
-	PreviewOf      string                       `json:"previewOf,omitempty"`
-	PR             int                          `json:"pr,omitempty"`
-	ApprovedSHA    string                       `json:"approvedSha,omitempty"`
-	PreviewSHA     string                       `json:"previewSha,omitempty"`
-	PreviewClosed  bool                         `json:"previewClosed,omitempty"`
-	PreviewDomain  string                       `json:"previewDomain,omitempty"`
-	PreviewZoneID  string                       `json:"previewZoneId,omitempty"`
-	Networking     map[string]ServiceNetworking `json:"networking,omitempty"`
-	PublishedPorts map[string][]PublishedPort   `json:"publishedPorts,omitempty"`
+	Source          string                       `json:"source,omitempty"`
+	Engine          string                       `json:"engine"`
+	ServerID        string                       `json:"serverId"`
+	GitID           string                       `json:"gitId"`
+	Repository      string                       `json:"repository"`
+	Branch          string                       `json:"branch"`
+	Context         string                       `json:"context"`
+	File            string                       `json:"file"`
+	Port            int                          `json:"port,omitempty"` // Legacy snapshots only.
+	Worker          bool                         `json:"worker"`
+	AutoDeploy      bool                         `json:"autoDeploy"`
+	Previews        bool                         `json:"previews"`
+	HealthPath      string                       `json:"healthPath,omitempty"` // Legacy snapshots only.
+	ReadinessChecks []HTTPReadinessCheck         `json:"readinessChecks"`
+	PreviewRouting  *PreviewRouting              `json:"previewRouting,omitempty"`
+	HealthTimeout   int                          `json:"healthTimeout"`
+	Profiles        []string                     `json:"profiles"`
+	BuildArgs       map[string]string            `json:"buildArgs"`
+	Registry        string                       `json:"registry"`
+	RegistryUser    string                       `json:"registryUser"`
+	PreviewOf       string                       `json:"previewOf,omitempty"`
+	PR              int                          `json:"pr,omitempty"`
+	ApprovedSHA     string                       `json:"approvedSha,omitempty"`
+	PreviewSHA      string                       `json:"previewSha,omitempty"`
+	PreviewClosed   bool                         `json:"previewClosed,omitempty"`
+	PreviewDomain   string                       `json:"previewDomain,omitempty"`
+	PreviewZoneID   string                       `json:"previewZoneId,omitempty"`
+	Networking      map[string]ServiceNetworking `json:"networking,omitempty"`
+	PublishedPorts  map[string][]PublishedPort   `json:"publishedPorts,omitempty"`
 }
 type Route struct {
 	Protocol   string `json:"protocol"`
@@ -341,7 +343,7 @@ func Validate(r ResourceInput) error {
 		if e = ValidateNetworking(v); e != nil {
 			return e
 		}
-		if v.Previews {
+		if v.Previews && (v.PreviewRouting == nil || v.PreviewRouting.Mode != "private") {
 			if d, err := Domain(v.PreviewDomain); err != nil || !strings.HasPrefix(d, "*.") || v.PreviewZoneID == "" {
 				return errors.New("previews require a wildcard domain and connected DNS zone")
 			}
@@ -376,6 +378,9 @@ func Validate(r ResourceInput) error {
 		}
 		if v.HealthPath != "" && (!strings.HasPrefix(v.HealthPath, "/") || strings.ContainsAny(v.HealthPath, "\r\n")) {
 			return errors.New("health path must begin with /")
+		}
+		if err := ValidateApplicationChecks(v); err != nil {
+			return err
 		}
 		for k := range v.BuildArgs {
 			if !ValidEnv(k) {

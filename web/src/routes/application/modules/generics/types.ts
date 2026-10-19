@@ -62,3 +62,6 @@ export type DomainStatusResponse = Record<string, string>;
 
 // TODO(openapi): add DeploymentCreationResult to api/openapi.yaml.
 export type DeploymentCreationResult = { id: string };
+
+export type ApplicationVolumesResponse =
+  components["schemas"]["ApplicationVolumes"];

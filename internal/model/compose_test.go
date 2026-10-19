@@ -17,18 +17,3 @@ func TestDirectComposeValidation(t *testing.T) {
 		}
 	}
 }
-func TestComposeSecretsRedacted(t *testing.T) {
-	source := "services:\n  app:\n    image: test\n    environment:\n      PASSWORD: inline-password\n    build:\n      args:\n        TOKEN: build-token\nsecrets:\n  password:\n    content: file-secret\n"
-	values := ComposeRedactions(source)
-	for _, want := range []string{"inline-password", "build-token", "file-secret"} {
-		found := false
-		for _, v := range values {
-			if v == want {
-				found = true
-			}
-		}
-		if !found {
-			t.Fatal("unprotected inline value", want)
-		}
-	}
-}

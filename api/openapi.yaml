@@ -711,6 +711,58 @@
         ]
       }
     },
+    "/applications/{id}/volumes": {
+      "get": {
+        "summary": "Read-only owned application volumes and measured Docker usage",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationVolumes"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "404": {
+            "description": "Resource not found"
+          },
+          "409": {
+            "description": "Conflict"
+          },
+          "503": {
+            "description": "Maintenance mode or dependency unavailable"
+          }
+        }
+      }
+    },
     "/applications/{id}/services": {
       "get": {
         "summary": "Resolve service names and ignored port declarations without returning secrets",
@@ -5725,6 +5777,184 @@
   },
   "components": {
     "schemas": {
+      "HTTPReadinessCheck": {
+        "type": "object",
+        "properties": {
+          "service": {
+            "type": "string"
+          },
+          "port": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          "path": {
+            "type": "string",
+            "pattern": "^/"
+          }
+        },
+        "required": [
+          "service",
+          "port",
+          "path"
+        ]
+      },
+      "PreviewRouting": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "inherit",
+              "target",
+              "private"
+            ]
+          },
+          "service": {
+            "type": "string"
+          },
+          "port": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "ApplicationChecks": {
+        "type": "object",
+        "properties": {
+          "readinessChecks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HTTPReadinessCheck"
+            }
+          },
+          "previewRouting": {
+            "$ref": "#/components/schemas/PreviewRouting"
+          },
+          "healthTimeout": {
+            "type": "integer"
+          }
+        },
+        "required": []
+      },
+      "VolumeMount": {
+        "type": "object",
+        "properties": {
+          "service": {
+            "type": "string"
+          },
+          "container": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "service",
+          "container",
+          "path"
+        ]
+      },
+      "ApplicationVolume": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "serverId": {
+            "type": "string"
+          },
+          "serverName": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "named",
+              "anonymous"
+            ]
+          },
+          "driver": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "mounts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VolumeMount"
+            }
+          },
+          "inUse": {
+            "type": "boolean"
+          },
+          "sizeBytes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "measuredAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "name",
+          "serverId",
+          "serverName",
+          "type",
+          "driver",
+          "createdAt",
+          "mounts",
+          "inUse",
+          "sizeBytes",
+          "measuredAt"
+        ]
+      },
+      "ApplicationVolumes": {
+        "type": "object",
+        "properties": {
+          "volumes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApplicationVolume"
+            }
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "serverId": {
+                  "type": "string"
+                },
+                "error": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "serverId",
+                "error"
+              ]
+            }
+          }
+        },
+        "required": [
+          "volumes",
+          "errors"
+        ]
+      },
       "DeletionItem": {
         "type": "object",
         "properties": {
@@ -6335,7 +6565,7 @@
           "data": {
             "type": "object",
             "additionalProperties": true,
-            "description": "Kind-specific configuration. Server resources use ServerConfiguration; connection and daemonId are managed by Shipyard."
+            "description": "Kind-specific configuration. Application readiness and preview settings use ApplicationChecks. Server resources use ServerConfiguration; connection and daemonId are managed by Shipyard."
           },
           "secretKeys": {
             "type": "array",

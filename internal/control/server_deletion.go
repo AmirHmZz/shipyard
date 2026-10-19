@@ -1180,7 +1180,7 @@ func (c *Controller) deleteServer(ctx context.Context, job model.Job) (result er
 	if _, e = tx.Exec(ctx, "DELETE FROM settings WHERE key=$1 OR (starts_with(key,'server-deletion-plan:') AND value->'plan'->>'serverId'=$2)", "cpu:"+job.ResourceID, job.ResourceID); e != nil {
 		return e
 	}
-	if _, e = tx.Exec(ctx, `DELETE FROM settings WHERE key=$1 OR (starts_with(key,'network-lease:') AND (value->>'application'=ANY($2) OR EXISTS(SELECT 1 FROM unnest($3::text[]) id WHERE starts_with(key,'network-lease:'||id||':')))) OR EXISTS(SELECT 1 FROM unnest($2::text[]) id WHERE starts_with(key,'preview-event:'||id||':'))`, ProxySettingsKey(job.ResourceID), m.Apps, m.Networks); e != nil {
+	if _, e = tx.Exec(ctx, `DELETE FROM settings WHERE key=$1 OR (starts_with(key,'network-lease:') AND (value->>'application'=ANY($2) OR EXISTS(SELECT 1 FROM unnest($3::text[]) id WHERE starts_with(key,'network-lease:'||id||':')))) OR EXISTS(SELECT 1 FROM unnest($2::text[]) id WHERE starts_with(key,'preview-event:'||id||':') OR starts_with(key,'application-volumes:'||id||':')) OR (starts_with(key,'application-volumes:') AND right(key,length($4::text)+1)=':'||$4::text)`, ProxySettingsKey(job.ResourceID), m.Apps, m.Networks, job.ResourceID); e != nil {
 		return e
 	}
 	if _, e = tx.Exec(ctx, "DELETE FROM resources WHERE id=ANY($1)", m.Resources); e != nil {

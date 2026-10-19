@@ -314,6 +314,39 @@ export const giteaInstanceSchema = z
       });
   });
 
+export const httpReadinessChecksSchema = z
+  .array(
+    z.object({
+      service: z.string().trim().min(1, "Enter a readiness service."),
+      port: z.number().int().min(1).max(65535),
+      path: z
+        .string()
+        .startsWith("/")
+        .refine((v) => !/[\r\n]/.test(v), "Invalid readiness path."),
+    }),
+  )
+  .superRefine((checks, context) => {
+    const seen = new Set<string>();
+    for (const check of checks) {
+      const key = JSON.stringify(check);
+      if (seen.has(key))
+        context.addIssue({
+          code: "custom",
+          message: "Duplicate HTTP readiness check.",
+        });
+      seen.add(key);
+    }
+  });
+export const previewRoutingSchema = z.discriminatedUnion("mode", [
+  z.object({ mode: z.literal("inherit") }),
+  z.object({ mode: z.literal("private") }),
+  z.object({
+    mode: z.literal("target"),
+    service: z.string().trim().min(1, "Enter a preview service."),
+    port: z.number().int().min(1).max(65535),
+  }),
+]);
+
 export function parseResourceForm(input: {
   kind: ResourceKind;
   name: string;
@@ -325,7 +358,11 @@ export function parseResourceForm(input: {
 }) {
   const shape: Record<string, z.ZodType> = {};
   for (const field of fields[input.kind]) {
-    if (field.type === "json")
+    if (field.type === "readiness")
+      shape[field.key] = httpReadinessChecksSchema.optional();
+    else if (field.type === "previewRouting")
+      shape[field.key] = previewRoutingSchema.optional();
+    else if (field.type === "json")
       shape[field.key] = z
         .union([
           jsonText,

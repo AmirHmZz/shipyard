@@ -209,7 +209,7 @@ func (g *GitClient) Checkout(ctx context.Context, repo, ref, directory string) (
 		c.Env = env
 		b, e := c.CombinedOutput()
 		if e != nil {
-			return "", fmt.Errorf("git %s failed: %s", args[0], strings.ReplaceAll(string(b), token, "[redacted]"))
+			return "", fmt.Errorf("git %s failed: %s", args[0], string(b))
 		}
 		return strings.TrimSpace(string(b)), nil
 	}

@@ -35,7 +35,26 @@ func Write(ctx context.Context, r remote.Executor, path string, b []byte) error 
 	return r.Run(ctx, "umask 077; cat > "+remote.Quote(path)+" && chmod 600 "+remote.Quote(path), bytes.NewReader(b), io.Discard)
 }
 func (e *Engine) command(ctx context.Context, args ...string) error {
-	return e.Remote.Run(ctx, remote.Command(args...), nil, e.Log)
+	output := e.Log
+	if output == nil {
+		output = io.Discard
+	}
+	for i := 0; i+1 < len(args); i++ {
+		if args[i] == "docker" && args[i+1] == "compose" {
+			return e.runComposeProgress(ctx, remote.Command(args...))
+		}
+	}
+	return e.Remote.Run(ctx, remote.Command(args...), nil, output)
+}
+func (e *Engine) runComposeProgress(ctx context.Context, command string) error {
+	output := e.Log
+	if output == nil {
+		output = io.Discard
+	}
+	progress := &composeProgress{output: output, states: map[string]string{}}
+	err := e.Remote.Run(ctx, command, nil, progress)
+	progress.Flush()
+	return err
 }
 func Project(r model.Release) string {
 	if r.App.Engine == "dockerfile" {
@@ -105,7 +124,7 @@ func (e *Engine) Build(ctx context.Context, r *model.Release, registry, user, pa
 	}
 	if r.App.Engine == "dockerfile" {
 		tag := "shipyard/" + r.AppID + ":" + r.ID
-		args := []string{"env", "DOCKER_CONFIG=" + r.Directory + "/auth", "docker", "buildx", "build", "--load", "--tag", tag, "--file", file}
+		args := []string{"env", "DOCKER_CONFIG=" + r.Directory + "/auth", "docker", "buildx", "build", "--load", "--progress", "plain", "--tag", tag, "--file", file}
 		keys := []string{}
 		for k := range r.App.BuildArgs {
 			keys = append(keys, k)
@@ -131,7 +150,7 @@ func (e *Engine) Build(ctx context.Context, r *model.Release, registry, user, pa
 		b, _ := json.Marshal(config)
 		r.Compose = string(b)
 	} else {
-		args := []string{"env", "DOCKER_CONFIG=" + r.Directory + "/auth", "docker", "compose", "-p", Project(*r), "--project-directory", contextDir, "--env-file", r.Directory + "/build.env", "-f", file}
+		args := []string{"env", "DOCKER_CONFIG=" + r.Directory + "/auth", "docker", "compose", "--ansi", "never", "--progress", "plain", "-p", Project(*r), "--project-directory", contextDir, "--env-file", r.Directory + "/build.env", "-f", file}
 		for _, p := range r.App.Profiles {
 			args = append(args, "--profile", p)
 		}
@@ -241,7 +260,7 @@ func (e *Engine) Build(ctx context.Context, r *model.Release, registry, user, pa
 		if err = Write(ctx, e.Remote, r.Directory+"/build.json", resolved); err != nil {
 			return err
 		}
-		buildArgs := []string{"env", "DOCKER_CONFIG=" + r.Directory + "/auth", "docker", "compose", "-p", Project(*r), "-f", r.Directory + "/build.json"}
+		buildArgs := []string{"env", "DOCKER_CONFIG=" + r.Directory + "/auth", "docker", "compose", "--ansi", "never", "--progress", "plain", "-p", Project(*r), "-f", r.Directory + "/build.json"}
 		if err = e.command(ctx, append(buildArgs, "build", "--pull")...); err != nil {
 			return err
 		}
@@ -349,7 +368,7 @@ func (e *Engine) Start(ctx context.Context, r *model.Release) error {
 	if err := Write(ctx, e.Remote, r.Directory+"/runtime.json", runtime); err != nil {
 		return err
 	}
-	if err := e.command(ctx, "docker", "compose", "-p", Project(*r), "-f", r.Directory+"/runtime.json", "create", "--no-build", "--pull", "never", "--remove-orphans"); err != nil {
+	if err := e.command(ctx, "docker", "compose", "--ansi", "never", "--progress", "plain", "-p", Project(*r), "-f", r.Directory+"/runtime.json", "create", "--no-build", "--pull", "never", "--remove-orphans"); err != nil {
 		return fmt.Errorf("start release containers: %w", err)
 	}
 	if e.PrepareNetworks != nil {
@@ -366,7 +385,7 @@ func (e *Engine) Start(ctx context.Context, r *model.Release) error {
 			return fmt.Errorf("prepare container networks: %w", err)
 		}
 	}
-	if err := e.command(ctx, "docker", "compose", "-p", Project(*r), "-f", r.Directory+"/runtime.json", "up", "-d", "--no-recreate", "--no-build", "--pull", "never"); err != nil {
+	if err := e.command(ctx, "docker", "compose", "--ansi", "never", "--progress", "plain", "-p", Project(*r), "-f", r.Directory+"/runtime.json", "up", "-d", "--no-recreate", "--no-build", "--pull", "never"); err != nil {
 		return err
 	}
 	if err := e.Discover(ctx, r); err != nil {
@@ -478,8 +497,15 @@ func (e *Engine) Healthy(ctx context.Context, r model.Release) error {
 		if err != nil {
 			last = err
 		}
+		checks := r.App.EffectiveReadiness(r.Routes)
 		for _, c := range containers {
-			if r.App.Engine == "compose" && c.State.Status == "exited" && c.State.ExitCode == 0 && len(portsFor(r, c.Config.Labels["com.docker.compose.service"])) == 0 {
+			requiresHTTP := false
+			for _, check := range checks {
+				if check.Service == c.Config.Labels["com.docker.compose.service"] {
+					requiresHTTP = true
+				}
+			}
+			if !requiresHTTP && r.App.Engine == "compose" && c.State.Status == "exited" && c.State.ExitCode == 0 && len(portsFor(r, c.Config.Labels["com.docker.compose.service"])) == 0 {
 				continue
 			}
 			if c.State.Status != "running" || c.State.Health != nil && c.State.Health.Status != "healthy" {
@@ -488,12 +514,27 @@ func (e *Engine) Healthy(ctx context.Context, r model.Release) error {
 			}
 		}
 		if healthy && e.Dial != nil {
+			probes := make([]readinessProbe, 0, len(r.Targets))
 			for _, t := range r.Targets {
+				probes = append(probes, readinessProbe{Target: t})
+			}
+			httpProbes, probeErr := httpReadinessProbes(r, containers)
+			if probeErr != nil {
+				healthy = false
+				last = probeErr
+			}
+			probes = append(probes, httpProbes...)
+			for _, probe := range probes {
+				t := probe.Target
 				address := net.JoinHostPort(t.Address, strconv.Itoa(t.Port))
 				probeCtx, stop := context.WithTimeout(ctx, 3*time.Second)
-				if r.App.HealthPath != "" && t.Port == r.App.Port {
+				if probe.Path != "" {
 					client := &http.Client{Timeout: 3 * time.Second, Transport: &http.Transport{DialContext: e.Dial}}
-					req, _ := http.NewRequestWithContext(probeCtx, "GET", "http://"+address+r.App.HealthPath, nil)
+					req, requestErr := http.NewRequestWithContext(probeCtx, "GET", "http://"+address+probe.Path, nil)
+					if requestErr != nil {
+						stop()
+						return requestErr
+					}
 					res, e := client.Do(req)
 					if e != nil {
 						err = e
@@ -535,13 +576,13 @@ func (e *Engine) Healthy(ctx context.Context, r model.Release) error {
 func (e *Engine) Action(ctx context.Context, r model.Release, action string) error {
 	switch action {
 	case "start", "stop", "restart":
-		return e.command(ctx, "docker", "compose", "-p", Project(r), "-f", r.Directory+"/runtime.json", action)
+		return e.command(ctx, "docker", "compose", "--ansi", "never", "--progress", "plain", "-p", Project(r), "-f", r.Directory+"/runtime.json", action)
 	default:
 		return errors.New("unsupported application action")
 	}
 }
 func (e *Engine) Remove(ctx context.Context, r model.Release, volumes bool) error {
-	args := []string{"docker", "compose", "-p", Project(r), "-f", r.Directory + "/runtime.json", "down", "--remove-orphans"}
+	args := []string{"docker", "compose", "--ansi", "never", "--progress", "plain", "-p", Project(r), "-f", r.Directory + "/runtime.json", "down", "--remove-orphans"}
 	if volumes {
 		if r.App.PreviewOf == "" {
 			return errors.New("only preview volumes can be removed")
@@ -558,7 +599,7 @@ func (e *Engine) Remove(ctx context.Context, r model.Release, volumes bool) erro
 		script += "docker volume ls -q --filter " + projectFilter + " | while IFS= read -r id; do docker volume rm \"$id\"; done\n"
 	}
 	script += "fi"
-	return e.Remote.Run(ctx, remote.Command("sh", "-c", script), nil, e.Log)
+	return e.runComposeProgress(ctx, remote.Command("sh", "-c", script))
 }
 
 // Resource deletion must work even if a retained Compose file references host

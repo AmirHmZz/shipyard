@@ -64,6 +64,10 @@ func (c *Controller) prune(ctx context.Context, app string) error {
 		if e != nil {
 			return e
 		}
+		if e = c.recordApplicationVolumes(ctx, client, r); e != nil {
+			client.Close()
+			return e
+		}
 		engine := deploy.Engine{Remote: client, Log: io.Discard}
 		if r.App.Engine == "dockerfile" {
 			if e = engine.Remove(ctx, r, false); e != nil {

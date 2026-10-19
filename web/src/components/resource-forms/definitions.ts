@@ -13,7 +13,15 @@ export type Field = {
   key: string;
   label: string;
   type?:
-    "number" | "switch" | "secret" | "password" | "textarea" | "json" | "csv";
+    | "number"
+    | "switch"
+    | "secret"
+    | "password"
+    | "textarea"
+    | "json"
+    | "csv"
+    | "readiness"
+    | "previewRouting";
   options?: string[];
   resource?: string;
   help?: string;
@@ -91,13 +99,16 @@ export const fields: Record<ResourceKind, Field[]> = {
       key: "file",
       label: "Dockerfile",
     },
-    { key: "port", label: "Application port (0 for workers)", type: "number" },
     {
       key: "worker",
       label: "Background worker (recreate deployment)",
       type: "switch",
     },
-    { key: "healthPath", label: "HTTP readiness path (optional)" },
+    {
+      key: "readinessChecks",
+      label: "HTTP readiness checks (optional)",
+      type: "readiness",
+    },
     {
       key: "healthTimeout",
       label: "Readiness deadline (seconds)",
@@ -105,6 +116,7 @@ export const fields: Record<ResourceKind, Field[]> = {
     },
     { key: "autoDeploy", label: "Deploy on branch pushes", type: "switch" },
     { key: "previews", label: "Pull request previews", type: "switch" },
+    { key: "previewRouting", label: "Preview routing", type: "previewRouting" },
     {
       key: "previewDomain",
       label: "Preview wildcard domain",
@@ -167,7 +179,8 @@ export const defaults: Record<string, Record<string, unknown>> = {
     branch: "main",
     context: ".",
     file: "Dockerfile",
-    port: 3000,
+    readinessChecks: [],
+    previewRouting: { mode: "inherit" },
     healthTimeout: 120,
     profiles: [],
     buildArgs: {},

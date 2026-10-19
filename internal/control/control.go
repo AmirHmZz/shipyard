@@ -44,6 +44,8 @@ type Controller struct {
 	DialNode          func(context.Context, model.Server, map[string]string) (remote.Node, error)
 	terminalMu        sync.Mutex
 	terminals         map[string]map[string]func()
+	volumeUsageMu     sync.Mutex
+	volumeUsage       map[string]volumeUsageCache
 }
 type DeploymentSnapshot struct {
 	Resource         model.Resource    `json:"resource"`
@@ -495,9 +497,8 @@ func (c *Controller) provision(ctx context.Context, id string) error {
 	return e
 }
 
-type redactor struct {
+type deploymentLog struct {
 	mu      sync.Mutex
-	values  []string
 	write   func(string)
 	pending string
 }
@@ -508,7 +509,7 @@ func interrupted(err error) bool {
 	return errors.Is(err, context.Canceled) || errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) || errors.As(err, &netErr) || errors.As(err, &exitMissing)
 }
 
-func (w *redactor) Write(b []byte) (int, error) {
+func (w *deploymentLog) Write(b []byte) (int, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	w.pending += string(b)
@@ -527,15 +528,10 @@ func (w *redactor) Write(b []byte) (int, error) {
 	}
 	return len(b), nil
 }
-func (w *redactor) emit(line string) {
-	for _, v := range w.values {
-		if v != "" {
-			line = strings.ReplaceAll(line, v, "[redacted]")
-		}
-	}
+func (w *deploymentLog) emit(line string) {
 	w.write(line)
 }
-func (w *redactor) Flush() {
+func (w *deploymentLog) Flush() {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if w.pending != "" {
@@ -590,17 +586,8 @@ func (c *Controller) deploy(ctx context.Context, id string) (result error) {
 	if currentSpec.PreviewOf != "" && d.RollbackID == "" && (snapshot.Ref != currentSpec.PreviewSHA || snapshot.Ref != currentSpec.ApprovedSHA) {
 		return c.Store.Stage(ctx, id, "failed", "cancelled", "Preview commit was superseded or its approval was revoked")
 	}
-	log := &redactor{write: func(line string) { c.Store.Event(ctx, id, line) }}
-	for _, v := range snapshot.Env {
-		log.values = append(log.values, v)
-	}
-	for _, v := range snapshot.BuildSecrets {
-		log.values = append(log.values, v)
-	}
+	log := &deploymentLog{write: func(line string) { c.Store.Event(ctx, id, line) }}
 	defer log.Flush()
-	if snapshot.ComposeSource != "" {
-		log.values = append(log.values, model.ComposeRedactions(snapshot.ComposeSource)...)
-	}
 	client, _, e := c.connect(ctx, snapshot.App.ServerID)
 	if e != nil {
 		state, phase := "failed", "connect"
@@ -615,9 +602,6 @@ func (c *Controller) deploy(ctx context.Context, id string) (result error) {
 	defer client.Close()
 	engine := &deploy.Engine{Remote: client, Log: log, Dial: client.DialContext, PrepareNetworks: c.prepareNetworks, ValidateConfig: c.validateRenderedNetworks}
 	old, oldErr := c.Store.Active(ctx, d.AppID)
-	if oldErr == nil && old.App.Source == "compose" {
-		log.values = append(log.values, model.ComposeRedactions(old.Compose)...)
-	}
 	r := model.Release{ID: id, DeploymentID: id, AppID: d.AppID, TeamID: snapshot.Resource.TeamID, ServerID: snapshot.App.ServerID, App: snapshot.App, Env: snapshot.Env, BuildSecrets: snapshot.BuildSecrets, Routes: snapshot.Routes, Directory: remote.Root + "/releases/" + id, CreatedAt: time.Now()}
 	changed := false
 	freshStarted := false
@@ -678,13 +662,6 @@ func (c *Controller) deploy(ctx context.Context, id string) (result error) {
 			_ = engine.Remove(recoveryCtx, r, false)
 		}
 		msg := result.Error()
-		for _, secret := range log.values {
-			if secret != "" {
-				msg = strings.ReplaceAll(msg, secret, "[redacted]")
-			}
-		}
-		// The worker also logs returned errors. Keep remote stderr diagnostics
-		// subject to the same secret redaction as stored status and SSE events.
 		result = errors.New(msg)
 		_ = c.Store.Stage(recoveryCtx, id, state, "failed", msg)
 		_ = c.Store.Enqueue(recoveryCtx, "prune", d.AppID, "prune-failed:"+id, nil)
@@ -733,9 +710,6 @@ func (c *Controller) deploy(ctx context.Context, id string) (result error) {
 			if err != nil {
 				return err
 			}
-			for _, v := range secrets {
-				log.values = append(log.values, v)
-			}
 			client, err := gitauth.New(c.Store, "").Client(ctx, gitResource)
 			if err != nil {
 				return err
@@ -766,16 +740,10 @@ func (c *Controller) deploy(ctx context.Context, id string) (result error) {
 			}
 		}
 		password := snapshot.RegistryPassword
-		if password != "" {
-			log.values = append(log.values, password)
-		}
 		_ = c.Store.Stage(ctx, id, "building", "build", "")
 		if e = engine.Build(ctx, &r, r.App.Registry, r.App.RegistryUser, password); e != nil {
 			return e
 		}
-	}
-	if r.App.Source == "compose" {
-		log.values = append(log.values, model.ComposeRedactions(r.Compose)...)
 	}
 	// Freeze exact image/configuration identities before any container mutation.
 	// A resumed job starts this same release instead of rebuilding mutable input.
@@ -795,6 +763,9 @@ func (c *Controller) deploy(ctx context.Context, id string) (result error) {
 			return e
 		}
 	} else if RequiresRecreate(r.App) && oldErr == nil {
+		if e = c.recordApplicationVolumes(ctx, client, old); e != nil {
+			return e
+		}
 		changed = true
 		if e = engine.Remove(ctx, old, false); e != nil {
 			return e
@@ -803,6 +774,9 @@ func (c *Controller) deploy(ctx context.Context, id string) (result error) {
 	_ = c.Store.Stage(ctx, id, "deploying", "start", "")
 	changed = true
 	if e = engine.Start(ctx, &r); e != nil {
+		return e
+	}
+	if e = c.recordApplicationVolumes(ctx, client, r); e != nil {
 		return e
 	}
 	_ = c.Store.Stage(ctx, id, "deploying", "readiness", "")

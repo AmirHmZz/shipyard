@@ -164,6 +164,7 @@ func (a *API) Router() http.Handler {
 			r.Get("/routes/{id}/status", a.domainStatus)
 			r.Post("/routes/{id}/sync", a.syncDomain)
 			r.Get("/applications/{id}/runtime", a.runtime)
+			r.Get("/applications/{id}/volumes", a.applicationVolumes)
 			r.Get("/applications/{id}/services", a.applicationServices)
 			r.Get("/applications/{id}/networking", a.networking)
 			r.Put("/applications/{id}/networking", a.networking)

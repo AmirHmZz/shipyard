@@ -1,3 +1,9 @@
+import { PreviewRoutingFields } from "@/components/preview-routing-fields";
+import {
+  normalizeApplicationSettings,
+  type PreviewRouting,
+} from "@/lib/application-settings";
+import { previewRoutingSchema } from "@/lib/validation";
 import {
   useSaveApplicationPreview,
   useCreateApplicationPreview,
@@ -23,6 +29,14 @@ import { Link } from "react-router";
 export function ApplicationPreviews({ app }: { app: Resource }) {
   const changes = useConfigurationChanges();
   const q = useResources();
+  const routes = (q.data || []).filter(
+    (r) => r.kind === "route" && r.parentId === app.id,
+  );
+  const [routingDraft, setRouting] = useState<PreviewRouting | null>(null);
+  const routing =
+    routingDraft ??
+    (normalizeApplicationSettings(app.data, routes)
+      .previewRouting as PreviewRouting);
   const savePreview = useSaveApplicationPreview();
   const createPreview = useCreateApplicationPreview();
   const [enabled, setEnabled] = useState(!!app.data.previews);
@@ -50,10 +64,19 @@ export function ApplicationPreviews({ app }: { app: Resource }) {
               setError("");
               try {
                 const preview = previewFormSchema.parse({
-                  enabled,
+                  enabled: enabled && routing.mode !== "private",
                   domain,
                   zone,
                 });
+                const nextRouting = previewRoutingSchema.parse(routing);
+                if (
+                  enabled &&
+                  nextRouting.mode === "inherit" &&
+                  !routes.some((r) => r.data.protocol !== "tcp")
+                )
+                  throw new Error(
+                    "Configure an explicit preview target or private previews when there are no HTTP/gRPC routes.",
+                  );
                 await savePreview.mutateAsync({
                   id: app.id,
                   payload: {
@@ -61,8 +84,9 @@ export function ApplicationPreviews({ app }: { app: Resource }) {
                     name: app.name,
                     version: app.version,
                     data: {
-                      ...app.data,
-                      previews: preview.enabled,
+                      ...normalizeApplicationSettings(app.data, routes),
+                      previewRouting: nextRouting,
+                      previews: enabled,
                       previewDomain: preview.domain,
                       previewZoneId: preview.zone,
                     },
@@ -92,44 +116,54 @@ export function ApplicationPreviews({ app }: { app: Resource }) {
             </p>
             {enabled && (
               <>
-                <div className="space-y-2">
-                  <Label>Connected zone</Label>
-                  <Select
-                    value={zone}
-                    onValueChange={setZone}
-                    disabled={!app.canWrite}
-                  >
-                    <SelectTrigger aria-label="Preview connected zone">
-                      <SelectValue placeholder="Select zone" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {q.data
-                        ?.filter((r) => r.kind === "zone")
-                        .map((r) => (
-                          <SelectItem key={r.id} value={r.id}>
-                            {text(r.data, "domain")}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="preview-wildcard">
-                    Preview wildcard domain
-                  </Label>
-                  <Input
-                    id="preview-wildcard"
-                    value={domain}
-                    onChange={(e) => setDomain(e.target.value)}
-                    placeholder="*.preview.example.com"
-                    disabled={!app.canWrite}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    PR #42 uses pr-42.
-                    {domain.replace(/^\*\./, "") || "preview.example.com"}.
-                    Preview variables are configured in the Variables tab.
-                  </p>
-                </div>
+                <PreviewRoutingFields
+                  value={routing}
+                  onChange={setRouting}
+                  hasRoutes={routes.some((r) => r.data.protocol !== "tcp")}
+                  disabled={!app.canWrite}
+                />
+                {routing.mode !== "private" && (
+                  <>
+                    <div className="space-y-2">
+                      <Label>Connected zone</Label>
+                      <Select
+                        value={zone}
+                        onValueChange={setZone}
+                        disabled={!app.canWrite}
+                      >
+                        <SelectTrigger aria-label="Preview connected zone">
+                          <SelectValue placeholder="Select zone" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {q.data
+                            ?.filter((r) => r.kind === "zone")
+                            .map((r) => (
+                              <SelectItem key={r.id} value={r.id}>
+                                {text(r.data, "domain")}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="preview-wildcard">
+                        Preview wildcard domain
+                      </Label>
+                      <Input
+                        id="preview-wildcard"
+                        value={domain}
+                        onChange={(e) => setDomain(e.target.value)}
+                        placeholder="*.preview.example.com"
+                        disabled={!app.canWrite}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        PR #42 uses pr-42.
+                        {domain.replace(/^\*\./, "") || "preview.example.com"}.
+                        Preview variables are configured in the Variables tab.
+                      </p>
+                    </div>
+                  </>
+                )}
               </>
             )}
             <Button disabled={busy || !app.canWrite}>

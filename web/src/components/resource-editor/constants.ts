@@ -7,9 +7,8 @@ export const COMPOSE_HIDDEN_FIELDS = new Set([
   "file",
   "autoDeploy",
   "previews",
+  "previewRouting",
   "previewDomain",
   "previewZoneId",
-  "port",
   "worker",
-  "healthPath",
 ]);

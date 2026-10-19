@@ -14,7 +14,6 @@ import (
 	"github.com/coder/websocket"
 	"github.com/go-chi/chi/v5"
 	"shipyard/internal/control"
-	"shipyard/internal/model"
 	"shipyard/internal/remote"
 	"shipyard/internal/secure"
 )
@@ -95,7 +94,6 @@ type logWriter struct {
 	mu      sync.Mutex
 	w       http.ResponseWriter
 	pending string
-	secrets []string
 }
 
 func (l *logWriter) Write(b []byte) (int, error) {
@@ -109,11 +107,6 @@ func (l *logWriter) Write(b []byte) (int, error) {
 		}
 		line := l.pending[:index]
 		l.pending = l.pending[index+1:]
-		for _, secret := range l.secrets {
-			if secret != "" {
-				line = strings.ReplaceAll(line, secret, "[redacted]")
-			}
-		}
 		sendEvent(l.w, "log", 0, map[string]string{"message": line})
 	}
 	if len(l.pending) > 32768 {
@@ -121,6 +114,14 @@ func (l *logWriter) Write(b []byte) (int, error) {
 		sendEvent(l.w, "log", 0, map[string]string{"message": "[oversized log line omitted]"})
 	}
 	return len(b), nil
+}
+func (l *logWriter) Flush() {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.pending != "" {
+		sendEvent(l.w, "log", 0, map[string]string{"message": l.pending})
+		l.pending = ""
+	}
 }
 func (a *API) logs(w http.ResponseWriter, r *http.Request) {
 	app, ok := a.get(w, r, false)
@@ -145,12 +146,7 @@ func (a *API) logs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writer := &logWriter{w: w}
-	for _, secret := range release.Env {
-		writer.secrets = append(writer.secrets, secret)
-	}
-	if release.App.Source == "compose" {
-		writer.secrets = append(writer.secrets, model.ComposeRedactions(release.Compose)...)
-	}
+	defer writer.Flush()
 	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
 	go func() {

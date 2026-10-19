@@ -315,13 +315,13 @@ func TestDNSConflictAndRenewalPreservesCertificate(t *testing.T) {
 		t.Fatal("adopted external record deleted")
 	}
 }
-func TestRedactorAcrossWrites(t *testing.T) {
+func TestDeploymentLogAcrossWrites(t *testing.T) {
 	lines := []string{}
-	w := redactor{values: []string{"sensitive-token"}, write: func(s string) { lines = append(lines, s) }}
+	w := deploymentLog{write: func(s string) { lines = append(lines, s) }}
 	_, _ = w.Write([]byte("sensitive-"))
 	_, _ = w.Write([]byte("token\nnext"))
 	w.Flush()
-	if len(lines) != 2 || lines[0] != "[redacted]" || lines[1] != "next" {
+	if len(lines) != 2 || lines[0] != "sensitive-token" || lines[1] != "next" {
 		t.Fatal(lines)
 	}
 }

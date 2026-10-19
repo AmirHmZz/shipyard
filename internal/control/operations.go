@@ -339,7 +339,7 @@ func (c *Controller) Action(ctx context.Context, app model.Resource, action stri
 		return e
 	}
 	defer client.Close()
-	engine := deploy.Engine{Remote: client, Log: io.Discard, PrepareNetworks: c.prepareNetworks, ValidateConfig: c.validateRenderedNetworks}
+	engine := deploy.Engine{Remote: client, Log: io.Discard, Dial: client.DialContext, PrepareNetworks: c.prepareNetworks, ValidateConfig: c.validateRenderedNetworks}
 	if action == "start" {
 		e = engine.Start(ctx, &r)
 		if e == nil {

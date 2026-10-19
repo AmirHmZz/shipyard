@@ -3,6 +3,7 @@ export const applicationKeys = {
   domain: (routeId: string) => ["domain", routeId] as const,
   composeSource: (appId: string, version: number) =>
     ["compose-source", appId, version] as const,
+  volumes: (id: string) => ["application-volumes", id] as const,
   runtime: (id: string) => ["runtime", id] as const,
   releases: (id: string) => ["releases", id] as const,
   networking: (appId: string, version?: number) =>

@@ -10,3 +10,5 @@ export { useRemoveDeployment } from "./useRemoveDeployment";
 export { useRunApplicationAction } from "./useRunApplicationAction";
 export { useSaveApplicationPreview } from "./useSaveApplicationPreview";
 export { useCreateApplicationPreview } from "./useCreateApplicationPreview";
+
+export { useApplicationVolumes } from "./useApplicationVolumes";

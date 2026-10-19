@@ -130,10 +130,10 @@ func (c *Controller) preview(ctx context.Context, app model.Resource, spec model
 	if e.Action != "opened" && e.Action != "reopened" && e.Action != "synchronize" && e.Action != "synchronized" && !approved {
 		return nil
 	}
-	if spec.PreviewDomain == "" || spec.PreviewZoneID == "" {
+	if (spec.PreviewRouting == nil || spec.PreviewRouting.Mode != "private") && (spec.PreviewDomain == "" || spec.PreviewZoneID == "") {
 		return errors.New("configure a wildcard preview domain on the application")
 	}
-	if !c.Store.TeamGranted(ctx, app.TeamID, spec.PreviewZoneID) {
+	if (spec.PreviewRouting == nil || spec.PreviewRouting.Mode != "private") && !c.Store.TeamGranted(ctx, app.TeamID, spec.PreviewZoneID) {
 		return errors.New("preview zone must be granted to the application's team")
 	}
 	preview := spec
@@ -217,21 +217,28 @@ func (c *Controller) preview(ctx context.Context, app model.Resource, spec model
 	if err != nil {
 		return err
 	}
-	if len(routes) == 0 {
+	if len(routes) == 0 || spec.PreviewRouting != nil {
 		original, err := c.Store.Children(ctx, app.ID, "route")
 		if err != nil {
 			return err
 		}
 		definitions := []model.Route{}
-		for _, rr := range original {
-			route, e := model.Decode[model.Route](rr)
-			if e == nil && route.Protocol != "tcp" {
-				definitions = append(definitions, route)
+		routing := spec.EffectivePreviewRouting(original)
+		switch routing.Mode {
+		case "inherit":
+			for _, rr := range original {
+				route, e := model.Decode[model.Route](rr)
+				if e == nil && route.Protocol != "tcp" {
+					definitions = append(definitions, route)
+				}
 			}
+			if len(definitions) == 0 {
+				return errors.New("preview has no HTTP/gRPC routes; configure an explicit preview target or private previews")
+			}
+		case "target":
+			definitions = append(definitions, model.Route{Protocol: "https", TargetPort: routing.Port, Service: routing.Service})
 		}
-		if len(definitions) == 0 && spec.Port > 0 {
-			definitions = append(definitions, model.Route{Protocol: "https", TargetPort: spec.Port, Service: "app"})
-		}
+		kept := map[string]bool{}
 		for index, definition := range definitions {
 			domain := fmt.Sprintf("pr-%d.%s", e.PR, strings.TrimPrefix(spec.PreviewDomain, "*."))
 			if index > 0 {
@@ -242,11 +249,47 @@ func (c *Controller) preview(ctx context.Context, app model.Resource, spec model
 			route.TLS = "terminate"
 			route.ZoneID = spec.PreviewZoneID
 			raw, _ := json.Marshal(route)
-			rr, err := c.Store.Save(ctx, "", model.ResourceInput{Kind: "route", Name: domain, ParentID: r.ID, TeamID: r.TeamID, Data: raw})
+			existingID, version := "", 0
+			for _, existing := range routes {
+				previous, decodeErr := model.Decode[model.Route](existing)
+				if decodeErr == nil && previous.Domain == domain {
+					existingID, version = existing.ID, existing.Version
+					if previous.ZoneID != route.ZoneID {
+						if err := c.DeleteDomain(ctx, existing.ID); err != nil {
+							return err
+						}
+					}
+					break
+				}
+			}
+			rr, err := c.Store.Save(ctx, existingID, model.ResourceInput{Kind: "route", Name: domain, ParentID: r.ID, TeamID: r.TeamID, Data: raw, Version: version})
 			if err != nil {
 				return err
 			}
-			_ = c.Store.Enqueue(ctx, "domain", rr.ID, "preview-domain:"+rr.ID, nil)
+			kept[rr.ID] = true
+			_ = c.Store.Enqueue(ctx, "domain", rr.ID, "preview-domain:"+rr.ID+":"+db.NowID(), nil)
+		}
+		removed := false
+		for _, previous := range routes {
+			if kept[previous.ID] {
+				continue
+			}
+			if err := c.DeleteDomain(ctx, previous.ID); err != nil {
+				return err
+			}
+			if _, err := c.Store.Pool.Exec(ctx, "DELETE FROM resources WHERE id=$1 AND parent_id=$2", previous.ID, r.ID); err != nil {
+				return err
+			}
+			_, _ = c.Store.Pool.Exec(ctx, "UPDATE jobs SET state='done' WHERE resource_id=$1 AND kind='domain' AND state='queued'", previous.ID)
+			removed = true
+		}
+		if removed {
+			if err := c.PruneProxySettings(ctx, spec.ServerID); err != nil {
+				return err
+			}
+			if err := c.Store.Enqueue(ctx, "proxy", spec.ServerID, uuid.NewString(), nil); err != nil {
+				return err
+			}
 		}
 	}
 	_, err = c.queue(ctx, r, e.HeadSHA, "", "preview:"+r.ID+":"+e.HeadSHA)

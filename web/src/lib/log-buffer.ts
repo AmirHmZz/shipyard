@@ -24,6 +24,12 @@ export class LogBuffer {
       this.sequence >= this.capacity ? this.sequence % this.capacity : 0;
     return [...this.lines.slice(start), ...this.lines.slice(0, start)];
   }
+  clear() {
+    this.dispose();
+    this.lines = [];
+    this.sequence = 0;
+    this.publish([]);
+  }
   dispose() {
     clearTimeout(this.timer);
     this.timer = undefined;

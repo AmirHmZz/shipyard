@@ -188,7 +188,7 @@ func (c *Controller) deleteTree(ctx context.Context, job model.Job) (result erro
 	if _, err = tx.Exec(ctx, "DELETE FROM invitations WHERE project_id=ANY($1)", plan.Resources); err != nil {
 		return err
 	}
-	if _, err = tx.Exec(ctx, "DELETE FROM settings WHERE key=$1 OR EXISTS(SELECT 1 FROM unnest($2::text[]) id WHERE starts_with(key,'preview-event:'||id||':'))", "deletion:"+plan.Root, plan.Applications); err != nil {
+	if _, err = tx.Exec(ctx, "DELETE FROM settings WHERE key=$1 OR EXISTS(SELECT 1 FROM unnest($2::text[]) id WHERE (starts_with(key,'preview-event:'||id||':') OR starts_with(key,'application-volumes:'||id||':')))", "deletion:"+plan.Root, plan.Applications); err != nil {
 		return err
 	}
 	if _, err = tx.Exec(ctx, "DELETE FROM resources WHERE id=ANY($1)", plan.Resources); err != nil {

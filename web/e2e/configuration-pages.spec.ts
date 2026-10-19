@@ -362,6 +362,13 @@ test("application preview settings have deep links and retain wildcard settings 
   await page
     .getByRole("switch", { name: "Enable PR previews", exact: true })
     .click();
+  await page
+    .getByRole("combobox", { name: "Preview routing", exact: true })
+    .click();
+  await page
+    .getByRole("option", { name: "Explicit service and port", exact: true })
+    .click();
+  await page.getByLabel("Preview port", { exact: true }).fill("8080");
   await page.getByRole("combobox", { name: "Preview connected zone" }).click();
   await page.getByRole("option", { name: "example.com", exact: true }).click();
   await page
@@ -385,25 +392,35 @@ test("application preview settings have deep links and retain wildcard settings 
   await expect(page).toHaveURL(/tab=networking/);
 });
 
-
-test("new DNS providers require a successful test of the current credentials", async ({ page }) => {
+test("new DNS providers require a successful test of the current credentials", async ({
+  page,
+}) => {
   const state = await mock(page);
   const probes: any[] = [];
-  await page.route("**/api/v1/dns/test", async route => {
+  await page.route("**/api/v1/dns/test", async (route) => {
     const body = route.request().postDataJSON();
     probes.push(body);
-    if (body.token === "invalid") return route.fulfill({ status: 502, json: { error: "DNS provider test failed" } });
+    if (body.token === "invalid")
+      return route.fulfill({
+        status: 502,
+        json: { error: "DNS provider test failed" },
+      });
     return route.fulfill({ json: { ok: true } });
   });
   await page.goto("/configure/dns/new?return=/integrations");
   await page.getByLabel("Name", { exact: true }).fill("My DNS");
   const save = page.getByRole("button", { name: "Save provider", exact: true });
-  const probe = page.getByRole("button", { name: "Test provider", exact: true });
+  const probe = page.getByRole("button", {
+    name: "Test provider",
+    exact: true,
+  });
   await expect(save).toBeDisabled();
   await expect(probe).toBeDisabled();
   await page.getByLabel("Provider API token").fill("invalid");
   await probe.click();
-  await expect(page.getByRole("alert")).toContainText("DNS provider test failed");
+  await expect(page.getByRole("alert")).toContainText(
+    "DNS provider test failed",
+  );
   await expect(save).toBeDisabled();
   await page.getByLabel("Provider API token").fill("valid");
   await probe.click();
@@ -423,10 +440,16 @@ test("new DNS providers require a successful test of the current credentials", a
   expect(state.writes[0].body.secrets.token).toBe("changed");
 });
 
-test("Git integration cards hide webhook URLs and copy buttons", async ({ page }) => {
+test("Git integration cards hide webhook URLs and copy buttons", async ({
+  page,
+}) => {
   await mock(page);
   await page.goto("/integrations");
-  await expect(page.getByRole("main").getByText("git", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Copy webhook URL" })).toHaveCount(0);
+  await expect(
+    page.getByRole("main").getByText("git", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Copy webhook URL" }),
+  ).toHaveCount(0);
   await expect(page.getByText(/api\/v1\/hooks/)).toHaveCount(0);
 });

@@ -486,6 +486,9 @@ func (c *Controller) prepareNetworks(ctx context.Context, r *model.Release, cont
 		}
 		routed[service] = true
 	}
+	for _, check := range r.App.EffectiveReadiness(r.Routes) {
+		routed[check.Service] = true
+	}
 	if len(routed) > 0 {
 		for _, n := range resources {
 			s, _ := model.Decode[model.Network](n)
@@ -684,6 +687,9 @@ func (c *Controller) validateRenderedNetworks(ctx context.Context, r model.Relea
 		if _, ok := services[name]; !ok {
 			return fmt.Errorf("route references missing Compose service %s", name)
 		}
+	}
+	if err := r.App.ValidateReadinessServices(r.Routes, services); err != nil {
+		return err
 	}
 	for name, s := range r.App.Networking {
 		if _, ok := services[name]; !ok && (s.Hostname != "" || len(s.Connections) > 0) {

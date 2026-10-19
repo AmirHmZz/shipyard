@@ -216,17 +216,17 @@ volumes:
 		t.Fatal(err)
 	}
 	err = c.deploy(ctx, d.ID)
-	if err == nil || !strings.Contains(err.Error(), "render Compose configuration") || strings.Contains(err.Error(), "private-invalid-port") {
-		t.Fatal("missing or unredacted worker error", err)
+	if err == nil || !strings.Contains(err.Error(), "render Compose configuration") || !strings.Contains(err.Error(), "private-invalid-port") {
+		t.Fatal("missing or filtered worker error", err)
 	}
 	var events string
 	_ = c.Store.Pool.QueryRow(ctx, "SELECT string_agg(message,E'\n' ORDER BY id) FROM events WHERE deployment_id=$1", d.ID).Scan(&events)
-	if !strings.Contains(events, "Deployment failed: render Compose configuration") || strings.Contains(events, "private-invalid-port") {
-		t.Fatal("missing or unredacted log diagnostic", events)
+	if !strings.Contains(events, "Deployment failed: render Compose configuration") || !strings.Contains(events, "private-invalid-port") {
+		t.Fatal("missing or filtered log diagnostic", events)
 	}
 	failed, _ = c.Store.Deployment(ctx, d.ID)
-	if failed.Error == "" || strings.Contains(failed.Error, "private-invalid-port") {
-		t.Fatal("missing or unredacted status", failed)
+	if failed.Error == "" || !strings.Contains(failed.Error, "private-invalid-port") {
+		t.Fatal("missing or filtered status", failed)
 	}
 	if got := get(); got != "inline-one" {
 		t.Fatal("configuration validation changed the running release", got)

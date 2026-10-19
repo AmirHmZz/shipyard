@@ -67,6 +67,14 @@ func TestDeploymentActionsPermissionsConfirmationAndStatus(t *testing.T) {
 		return res.StatusCode, out
 	}
 	deployPath := "/applications/" + app.ID + "/deploy"
+	for _, role := range []struct {
+		token    string
+		expected int
+	}{{operator, 200}, {viewer, 200}, {outsider, 403}} {
+		if code, raw := request("GET", "/applications/"+app.ID+"/volumes", nil, role.token, ""); code != role.expected {
+			t.Fatal("volume read permissions", code, string(raw))
+		}
+	}
 	valid := map[string]any{"fresh": true, "confirmName": app.Name, "version": app.Version}
 	for _, body := range []map[string]any{{"fresh": true}, {"fresh": true, "confirmName": "wrong", "version": app.Version}, {"fresh": true, "confirmName": app.Name}} {
 		if code, raw := request("POST", deployPath, body, operator, "csrf"); code != 400 {

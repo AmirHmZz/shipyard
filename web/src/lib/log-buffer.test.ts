@@ -34,4 +34,18 @@ describe("log publication boundary", () => {
     vi.runAllTimers();
     expect(publish).not.toHaveBeenCalled();
   });
+  it("clears pending and visible lines without allowing a scheduled batch to restore them", () => {
+    vi.useFakeTimers();
+    const publish = vi.fn(),
+      buffer = new LogBuffer(publish);
+    buffer.push("before clear");
+    buffer.clear();
+    expect(buffer.snapshot()).toEqual([]);
+    vi.runAllTimers();
+    expect(publish.mock.calls).toEqual([[[]]]);
+    buffer.push("after clear");
+    vi.runAllTimers();
+    expect(buffer.snapshot()).toEqual([{ number: 1, text: "after clear" }]);
+    expect(publish.mock.calls.at(-1)?.[0]).toEqual(buffer.snapshot());
+  });
 });

@@ -10,6 +10,45 @@ const object = (properties, required = Object.keys(properties)) => ({
   required,
 });
 const schemas = {
+  HTTPReadinessCheck: object({
+    service: str,
+    port: { type: "integer", minimum: 1, maximum: 65535 },
+    path: { type: "string", pattern: "^/" },
+  }),
+  PreviewRouting: object(
+    {
+      mode: { type: "string", enum: ["inherit", "target", "private"] },
+      service: str,
+      port: { type: "integer", minimum: 1, maximum: 65535 },
+    },
+    ["mode"],
+  ),
+  ApplicationChecks: object(
+    {
+      readinessChecks: { type: "array", items: ref("HTTPReadinessCheck") },
+      previewRouting: ref("PreviewRouting"),
+      healthTimeout: { type: "integer" },
+    },
+    [],
+  ),
+  VolumeMount: object({ service: str, container: str, path: str }),
+  ApplicationVolume: object({
+    name: str,
+    serverId: str,
+    serverName: str,
+    type: { type: "string", enum: ["named", "anonymous"] },
+    driver: str,
+    createdAt: str,
+    mounts: { type: "array", items: ref("VolumeMount") },
+    inUse: bool,
+    sizeBytes: { type: ["integer", "null"], minimum: 0 },
+    measuredAt: { type: ["string", "null"], format: "date-time" },
+  }),
+  ApplicationVolumes: object({
+    volumes: { type: "array", items: ref("ApplicationVolume") },
+    errors: { type: "array", items: object({ serverId: str, error: str }) },
+  }),
+
   DeletionItem: object({ kind: str, id: str, name: str, reason: str }),
   ServerDeletionPlan: object({
     id: str,
@@ -173,7 +212,7 @@ const schemas = {
     data: {
       ...obj,
       description:
-        "Kind-specific configuration. Server resources use ServerConfiguration; connection and daemonId are managed by Shipyard.",
+        "Kind-specific configuration. Application readiness and preview settings use ApplicationChecks. Server resources use ServerConfiguration; connection and daemonId are managed by Shipyard.",
     },
     secretKeys: { type: "array", items: str },
     variables: { type: "object", additionalProperties: str },
@@ -586,6 +625,12 @@ add(
 paths["/servers/{id}/networks"].post.responses[202] =
   paths["/servers/{id}/networks"].post.responses[200];
 delete paths["/servers/{id}/networks"].post.responses[200];
+add(
+  "/applications/{id}/volumes",
+  "get",
+  "Read-only owned application volumes and measured Docker usage",
+  ref("ApplicationVolumes"),
+);
 add(
   "/applications/{id}/services",
   "get",

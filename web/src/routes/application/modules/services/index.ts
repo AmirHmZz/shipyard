@@ -18,3 +18,5 @@ export { deployComposeSource } from "./deployComposeSource";
 export { saveComposeSource } from "./saveComposeSource";
 export { removeDeployment } from "./removeDeployment";
 export { syncRoute } from "./syncRoute";
+
+export { getApplicationVolumes } from "./getApplicationVolumes";

@@ -38,8 +38,18 @@ export function ResourceSchemaFields({
           (f) =>
             !(
               kind === "application" &&
-              ["previewDomain", "previewZoneId"].includes(f.key) &&
+              ["previewDomain", "previewZoneId", "previewRouting"].includes(
+                f.key,
+              ) &&
               !data.previews
+            ),
+        )
+        .filter(
+          (f) =>
+            !(
+              kind === "application" &&
+              ["previewDomain", "previewZoneId"].includes(f.key) &&
+              (data.previewRouting as { mode?: string })?.mode === "private"
             ),
         )
         .filter(

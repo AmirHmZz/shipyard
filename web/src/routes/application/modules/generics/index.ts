@@ -7,3 +7,5 @@ export type { ApplicationServicesResponse } from "./types";
 export type { DomainStatusResponse } from "./types";
 export type { DeploymentCreationResult } from "./types";
 export { applicationKeys } from "./constants";
+
+export type { ApplicationVolumesResponse } from "./types";

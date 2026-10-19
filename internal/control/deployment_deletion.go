@@ -151,6 +151,9 @@ func (c *Controller) deleteDeployment(ctx context.Context, id string) (result er
 		return err
 	}
 	defer client.Close()
+	if err = c.recordApplicationVolumes(ctx, client, r); err != nil {
+		return err
+	}
 	containers, err := inspectDeletionObjects[deletionContainer](ctx, client, "container")
 	if err != nil {
 		return err
