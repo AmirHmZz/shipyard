@@ -1,4 +1,3 @@
-import { useQueryClient } from "@tanstack/react-query";
 import {
   ChevronDown,
   LogOut,
@@ -46,24 +45,29 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { setCSRF, useResources } from "@/lib/api";
-import { sessionKeys } from "@/lib/query-keys";
+import { useResources } from "@/lib/api";
 import { resolvePageLabel } from "@/lib/route-handle";
 import { readTheme, writeTheme } from "@/lib/theme";
 
 import { navigation } from "../generics";
-import { logout } from "../services";
+import { useLogout } from "../hooks";
 import { Sidebar } from "./Sidebar";
 import { WorkspaceSearch } from "./WorkspaceSearch";
 
 export function Shell({ session }: { session: Session }) {
-  const client = useQueryClient();
+  const logout = useLogout();
   const location = useLocation();
   const navigate = useNavigate();
   const resources = useResources();
   const [search, setSearch] = useState(false);
   const [mobile, setMobile] = useState(false);
   const [dark, setDark] = useState(() => readTheme() === "dark");
+  function signOut() {
+    if (logout.isPending) return;
+    logout.mutate(undefined, {
+      onSuccess: () => navigate("/", { replace: true }),
+    });
+  }
   useEffect(() => {
     writeTheme(dark ? "dark" : "light");
   }, [dark]);
@@ -201,18 +205,7 @@ export function Shell({ session }: { session: Session }) {
                 <Settings2 />
                 Account settings
               </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={async () => {
-                  await logout();
-                  await client.cancelQueries();
-                  client.removeQueries({
-                    predicate: (q) => q.queryKey[0] !== "session",
-                  });
-                  client.setQueryData(sessionKeys.all, null);
-                  setCSRF("");
-                  navigate("/", { replace: true });
-                }}
-              >
+              <DropdownMenuItem onClick={signOut}>
                 <LogOut />
                 Sign out
               </DropdownMenuItem>

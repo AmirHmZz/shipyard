@@ -34,4 +34,8 @@ test("sign-in API errors are visible in the provider toaster", async ({
   await expect(
     page.getByText("Invalid credentials", { exact: true }),
   ).toBeVisible();
+  await expect(page.locator("[data-sonner-toast]")).toHaveCount(1);
+  await expect(page.locator("[data-sonner-toast]")).toContainText(
+    "Your session has expired. Sign in again.",
+  );
 });

@@ -1,4 +1,3 @@
-import { useQueryClient } from "@tanstack/react-query";
 import {
   Anchor,
   ArrowRight,
@@ -23,16 +22,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
-import { errorMessage, setCSRF } from "@/lib/api";
-import { resourceKeys } from "@/lib/query-keys";
-import { sessionKeys } from "@/lib/query-keys";
+import { toastValidationError } from "@/lib/api/toaster";
+import { describeError } from "@/lib/api/translate-error";
 
 import { authFormSchema } from "../generics";
-import { useSetupStatus } from "../hooks";
-import { submitAuth } from "../services";
+import { useSetupStatus, useSubmitAuth } from "../hooks";
+import { describeAuthError } from "../utils";
 export function Auth() {
   const navigate = useNavigate();
-  const client = useQueryClient();
   const status = useSetupStatus();
   const [token] = useState(
     () => new URLSearchParams(location.search).get("token") || "",
@@ -45,24 +42,22 @@ export function Auth() {
     code: "",
     token,
   });
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  async function submit() {
-    setBusy(true);
-    setError("");
-    try {
-      const mode = token ? "accept" : setup ? "setup" : "login";
-      const s = await submitAuth(mode, authFormSchema(mode).parse(form));
-      setCSRF(s.csrf);
-      client.removeQueries({ predicate: (q) => q.queryKey[0] !== "session" });
-      client.setQueryData(sessionKeys.all, s);
-      await client.invalidateQueries({ queryKey: resourceKeys.all });
-      if (token) navigate("/", { replace: true });
-    } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setBusy(false);
+  const mode = token ? "accept" : setup ? "setup" : "login";
+  const signIn = useSubmitAuth(mode);
+  const busy = signIn.isPending;
+  const error = describeAuthError(signIn.error);
+  function submit() {
+    if (busy) return;
+    const parsed = authFormSchema(mode).safeParse(form);
+    if (!parsed.success) {
+      toastValidationError(parsed.error);
+      return;
     }
+    signIn.mutate(parsed.data, {
+      onSuccess: () => {
+        if (token) navigate("/", { replace: true });
+      },
+    });
   }
   return (
     <div className="grid min-h-screen lg:grid-cols-[1.05fr_1fr]">
@@ -234,7 +229,7 @@ export function Auth() {
               {(error || status.error) && (
                 <Alert variant="destructive">
                   <AlertDescription>
-                    {error || errorMessage(status.error)}
+                    {error || describeError(status.error)}
                   </AlertDescription>
                 </Alert>
               )}

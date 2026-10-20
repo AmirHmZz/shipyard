@@ -7,3 +7,6 @@ export const sessionResponseSchema = z.object({
   csrf: z.string(),
   maintenance: z.optional(z.union([z.literal(false), z.literal(true)])),
 });
+export const sessionOrSignedOutResponseSchema = z.nullable(
+  sessionResponseSchema,
+);

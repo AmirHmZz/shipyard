@@ -1,0 +1,1 @@
+export { describeAuthError } from "./describeAuthError";

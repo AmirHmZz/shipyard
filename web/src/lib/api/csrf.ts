@@ -1,5 +1,14 @@
 import { sessionResponseSchema } from "@/lib/schemas/session";
 
+import type { ApiError } from "./errors";
+
+export function captureSessionFailure(path: string, error: ApiError) {
+  if (path !== "/auth/me" || error.kind !== "http" || error.status !== 401)
+    return false;
+  setCSRF("");
+  return true;
+}
+
 let csrf = "";
 export function getCSRF() {
   return csrf;
