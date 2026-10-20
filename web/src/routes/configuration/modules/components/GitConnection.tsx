@@ -1,4 +1,3 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Settings2 } from "lucide-react";
 import { useState } from "react";
 
@@ -24,16 +23,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { errorMessage, text } from "@/lib/api";
+import { text } from "@/lib/api";
+import { toastValidationError } from "@/lib/api/toaster";
+import { describeError } from "@/lib/api/translate-error";
 import { useConfigurationChanges } from "@/lib/configuration-state";
+import { GIT_PROVIDERS } from "@/lib/enums";
+
+import type { Start } from "../generics";
 
 import { gitSetupSchema } from "../generics";
 import {
   useGiteaInstances,
   useGitSetupConfig,
   useGitSetupStatus,
+  useStartGitSetup,
+  useReconnectGit,
+  useSaveGiteaInstance,
+  useCreateGitWebhook,
 } from "../hooks";
-import { reconnectGit, startGitSetup } from "../services";
 import { followGitSetup } from "../utils";
 import { GitConnectionActions } from "./GitConnectionActions";
 import { GiteaInstanceEditor } from "./GiteaInstanceEditor";
@@ -49,7 +56,6 @@ export function GitConnection({
   onManual: () => void;
 }) {
   const changes = useConfigurationChanges();
-  const client = useQueryClient();
   const [provider, setProvider] = useState(() =>
     text(existing?.data || {}, "provider", "github"),
   );
@@ -65,40 +71,55 @@ export function GitConnection({
     clientId: string;
     clientSecret: string;
   } | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const startSetup = useStartGitSetup();
+  const reconnect = useReconnectGit(existing?.id ?? "");
+  const saveInstance = useSaveGiteaInstance();
+  const createWebhook = useCreateGitWebhook(existing?.id ?? "");
+  const busy =
+    startSetup.isPending ||
+    reconnect.isPending ||
+    saveInstance.isPending ||
+    createWebhook.isPending;
+  const mutationError =
+    startSetup.error ||
+    reconnect.error ||
+    saveInstance.error ||
+    createWebhook.error;
+  const error = mutationError ? describeError(mutationError) : "";
   const [secret, setSecret] = useState("");
   const instances = useGiteaInstances(provider);
   const config = useGitSetupConfig();
   const status = useGitSetupStatus(existing);
   const callback = config.data?.giteaCallback || "";
   const selected = instances.data?.find((v) => v.id === instanceId);
-  async function perform(action: () => Promise<void>) {
-    setBusy(true);
-    setError("");
-    try {
-      await action();
-    } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setBusy(false);
-    }
+  function resetErrors() {
+    startSetup.reset();
+    reconnect.reset();
+    saveInstance.reset();
+    createWebhook.reset();
   }
-  async function connect() {
-    await perform(async () => {
-      const result = existing
-        ? await reconnectGit(existing.id)
-        : await startGitSetup(
-            gitSetupSchema.parse({
-              provider,
-              name,
-              owner,
-              instanceId,
-            }),
-          );
-      changes.saved();
-      followGitSetup(result);
+  function completeConnection(result: Start) {
+    changes.saved();
+    followGitSetup(result);
+  }
+  function connect() {
+    if (busy) return;
+    resetErrors();
+    if (existing) {
+      reconnect.mutate(undefined, { onSuccess: completeConnection });
+      return;
+    }
+    const parsed = gitSetupSchema.safeParse({
+      provider,
+      name,
+      owner,
+      instanceId,
     });
+    if (!parsed.success) {
+      toastValidationError(parsed.error);
+      return;
+    }
+    startSetup.mutate(parsed.data, { onSuccess: completeConnection });
   }
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -128,7 +149,7 @@ export function GitConnection({
                 value={provider}
                 onValueChange={(v) => {
                   setProvider(v);
-                  setError("");
+                  resetErrors();
                   setInstanceForm(null);
                 }}
               >
@@ -136,7 +157,7 @@ export function GitConnection({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {["github", "gitea"].map((v) => (
+                  {GIT_PROVIDERS.map((v) => (
                     <SelectItem key={v} value={v}>
                       <ProviderName provider={v} />
                     </SelectItem>
@@ -202,7 +223,7 @@ export function GitConnection({
             {instances.error && (
               <Alert variant="destructive">
                 <AlertDescription>
-                  {errorMessage(instances.error)}
+                  {describeError(instances.error)}
                 </AlertDescription>
               </Alert>
             )}
@@ -242,9 +263,9 @@ export function GitConnection({
                 setInstanceForm={setInstanceForm}
                 callback={callback}
                 busy={busy}
-                perform={perform}
+                saveInstance={saveInstance}
+                resetErrors={resetErrors}
                 setInstanceId={setInstanceId}
-                client={client}
               />
             )}
             <p className="text-sm text-muted-foreground">
@@ -256,20 +277,19 @@ export function GitConnection({
         )}
         {existing && status.data && (
           <GitWebhookConfiguration
-            existing={existing}
             provider={provider}
-            status={{ data: status.data, refetch: status.refetch }}
+            status={{ data: status.data }}
             busy={busy}
-            perform={perform}
+            createWebhook={createWebhook}
+            resetErrors={resetErrors}
             setSecret={setSecret}
             secret={secret}
-            client={client}
           />
         )}
         {(error || status.error || config.error) && (
           <Alert variant="destructive">
             <AlertDescription className="break-words">
-              {error || errorMessage(status.error || config.error)}
+              {error || describeError(status.error || config.error)}
             </AlertDescription>
           </Alert>
         )}

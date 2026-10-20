@@ -1,34 +1,33 @@
-import type { useQueryClient } from "@tanstack/react-query";
-
-import type { Resource } from "@/lib/api";
-
 import { CopyButton } from "@/components/shared";
 import { Button } from "@/components/ui/button";
-import { resourceKeys } from "@/lib/query-keys";
 
 import type { Status } from "../generics";
-
-import { createGitWebhook } from "../services";
+import type { useCreateGitWebhook } from "../hooks";
 
 export function GitWebhookConfiguration({
-  existing,
   provider,
   status,
   busy,
-  perform,
+  createWebhook,
+  resetErrors,
   setSecret,
   secret,
-  client,
 }: {
-  existing: Resource;
   provider: string;
-  status: { data: Status; refetch: () => Promise<unknown> };
+  status: { data: Status };
   busy: boolean;
-  perform: (action: () => Promise<void>) => Promise<void>;
+  createWebhook: ReturnType<typeof useCreateGitWebhook>;
+  resetErrors: () => void;
   setSecret: (secret: string) => void;
   secret: string;
-  client: ReturnType<typeof useQueryClient>;
 }) {
+  function generateSecret() {
+    if (busy) return;
+    resetErrors();
+    createWebhook.mutate(undefined, {
+      onSuccess: (value) => setSecret(value.secret),
+    });
+  }
   return (
     <section
       aria-label="Webhook configuration"
@@ -58,16 +57,7 @@ export function GitWebhookConfiguration({
             variant="outline"
             size="sm"
             disabled={busy}
-            onClick={() =>
-              void perform(async () => {
-                const v = await createGitWebhook(existing.id);
-                setSecret(v.secret);
-                await Promise.all([
-                  status.refetch(),
-                  client.invalidateQueries({ queryKey: resourceKeys.all }),
-                ]);
-              })
-            }
+            onClick={generateSecret}
           >
             {status.data.signingSecretConfigured
               ? "Replace signing secret"

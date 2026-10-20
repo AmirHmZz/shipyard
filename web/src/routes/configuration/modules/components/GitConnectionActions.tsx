@@ -27,7 +27,7 @@ export function GitConnectionActions({
   name: string;
   instanceId: string;
   instanceForm: InstanceDraft | null;
-  connect: () => Promise<void>;
+  connect: () => void;
 }) {
   return (
     <div className="flex flex-wrap justify-between gap-2 border-t pt-4">

@@ -1,34 +1,48 @@
-import type { useQueryClient } from "@tanstack/react-query";
 import type { Dispatch, SetStateAction } from "react";
 
 import { CopyButton } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toastValidationError } from "@/lib/api/toaster";
 
 import type { InstanceDraft } from "../generics";
+import type { useSaveGiteaInstance } from "../hooks";
 
 import { giteaInstanceSchema } from "../generics";
-import { configurationKeys } from "../generics";
-import { saveGiteaInstance } from "../services";
 
 export function GiteaInstanceEditor({
   instanceForm,
   setInstanceForm,
   callback,
   busy,
-  perform,
+  saveInstance,
+  resetErrors,
   setInstanceId,
-  client,
 }: {
   instanceForm: InstanceDraft;
   setInstanceForm: Dispatch<SetStateAction<InstanceDraft | null>>;
   callback: string;
   busy: boolean;
-  perform: (action: () => Promise<void>) => Promise<void>;
+  saveInstance: ReturnType<typeof useSaveGiteaInstance>;
+  resetErrors: () => void;
   setInstanceId: (id: string) => void;
-  client: ReturnType<typeof useQueryClient>;
 }) {
+  function save() {
+    if (busy) return;
+    resetErrors();
+    const parsed = giteaInstanceSchema.safeParse(instanceForm);
+    if (!parsed.success) {
+      toastValidationError(parsed.error);
+      return;
+    }
+    saveInstance.mutate(parsed.data, {
+      onSuccess: (value) => {
+        setInstanceId(value.id);
+        setInstanceForm(null);
+      },
+    });
+  }
   return (
     <section
       aria-label="Gitea OAuth application"
@@ -76,21 +90,7 @@ export function GiteaInstanceEditor({
         </div>
       ))}
       <div className="flex gap-2">
-        <Button
-          disabled={busy}
-          onClick={() =>
-            void perform(async () => {
-              const v = await saveGiteaInstance(
-                giteaInstanceSchema.parse(instanceForm),
-              );
-              setInstanceId(v.id);
-              setInstanceForm(null);
-              await client.invalidateQueries({
-                queryKey: configurationKeys.giteaInstances,
-              });
-            })
-          }
-        >
+        <Button disabled={busy} onClick={save}>
           Save instance
         </Button>
         <Button variant="outline" onClick={() => setInstanceForm(null)}>

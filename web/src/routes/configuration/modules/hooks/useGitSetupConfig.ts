@@ -1,11 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
+import { useApiQuery } from "@/lib/api/use-api-query";
 
-import { configurationKeys } from "../generics";
-import { getGitSetupConfig } from "../services";
+import { configurationKeys, gitSetupConfigResponseSchema } from "../generics";
 
 export function useGitSetupConfig() {
-  return useQuery({
+  return useApiQuery({
     queryKey: configurationKeys.gitSetupConfig,
-    queryFn: () => getGitSetupConfig(),
+    path: "/git/setup/config",
+    schema: gitSetupConfigResponseSchema,
   });
 }

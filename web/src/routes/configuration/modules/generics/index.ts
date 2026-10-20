@@ -25,3 +25,9 @@ export {
   gitWebhookSecretResultResponseSchema,
   getGiteaInstancesResponseSchema,
 } from "./schema";
+export type {
+  GiteaInstanceValues,
+  GitSetupValues,
+  HAProxyValues,
+  NewNetworkValues,
+} from "./types";

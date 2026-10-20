@@ -11,6 +11,9 @@ import type {
   haProxyUpdateResultResponseSchema,
   dockerNetworkInventoryResponseSchema,
   gitWebhookSecretResultResponseSchema,
+  giteaInstanceSchema,
+  gitSetupSchema,
+  haproxySettingsSchema,
 } from "./schema";
 
 export type InstanceDraft = {
@@ -53,3 +56,14 @@ export type DockerNetworkInventory = z.infer<
 export type GitWebhookSecretResult = z.infer<
   typeof gitWebhookSecretResultResponseSchema
 >;
+export type GiteaInstanceValues = z.infer<typeof giteaInstanceSchema>;
+export type GitSetupValues = z.infer<typeof gitSetupSchema>;
+export type HAProxyValues = z.infer<typeof haproxySettingsSchema>;
+export type NewNetworkValues = {
+  name: string;
+  dockerId: string;
+  subnet: string;
+  dynamicRange: string;
+  enableIPv6: boolean;
+  ipv6Subnet: string;
+};

@@ -143,17 +143,7 @@ export const haProxyUpdateResultResponseSchema = z.object({
   jobId: z.string(),
 });
 
-export const dockerNetworkInventoryResponseSchema = z.array(
-  z.object({
-    Id: z.string(),
-    Name: z.string(),
-    Driver: z.string(),
-    Labels: z.pipe(
-      z.nullable(z.record(z.string(), z.string())),
-      z.transform((value) => value ?? {}),
-    ),
-  }),
-);
+export { getDockerNetworksResponseSchema as dockerNetworkInventoryResponseSchema } from "@/lib/schemas/docker-networks";
 
 export const gitWebhookSecretResultResponseSchema = z.object({
   secret: z.string(),

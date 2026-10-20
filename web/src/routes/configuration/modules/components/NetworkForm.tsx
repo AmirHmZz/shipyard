@@ -1,4 +1,5 @@
-import { useQueryClient } from "@tanstack/react-query";
+import type { FormEvent } from "react";
+
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
@@ -16,21 +17,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { errorMessage, useAccount, useResources } from "@/lib/api";
+import { useResources } from "@/lib/api";
+import { toastValidationError } from "@/lib/api/toaster";
+import { describeError } from "@/lib/api/translate-error";
 import { useConfigurationChanges } from "@/lib/configuration-state";
-import { dockerNetworkKeys } from "@/lib/query-keys";
-import { resourceKeys } from "@/lib/query-keys";
+import { useAccount } from "@/lib/session";
 
 import { networkFormSchema } from "../generics";
-import { useNetworkInventory } from "../hooks";
-import { createNetwork } from "../services";
+import { useNetworkInventory, useCreateNetwork } from "../hooks";
 
 export function NetworkForm() {
   const changes = useConfigurationChanges();
   const q = useResources();
   const [params] = useSearchParams();
   const navigate = useNavigate();
-  const client = useQueryClient();
   const account = useAccount();
   const [server, setServer] = useState(() => params.get("server") || "");
   const [mode, setMode] = useState(() =>
@@ -42,9 +42,46 @@ export function NetworkForm() {
   const [range, setRange] = useState("");
   const [v6, setV6] = useState(false);
   const [subnet6, setSubnet6] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const createNetwork = useCreateNetwork(server);
+  const busy = createNetwork.isPending;
+  const error = createNetwork.error ? describeError(createNetwork.error) : "";
   const inventory = useNetworkInventory(server, !!account?.admin);
+  function submitNetwork(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (busy) return;
+    createNetwork.reset();
+    const parsed = networkFormSchema.safeParse({
+      name,
+      server,
+      mode,
+      selected,
+      subnet,
+      range,
+      v6,
+      subnet6,
+    });
+    if (!parsed.success) {
+      toastValidationError(parsed.error);
+      return;
+    }
+    const values = parsed.data;
+    createNetwork.mutate(
+      {
+        name: values.name,
+        dockerId: values.mode === "existing" ? values.selected : "",
+        subnet: values.mode === "create" ? values.subnet : "",
+        dynamicRange: values.range,
+        enableIPv6: values.v6,
+        ipv6Subnet: values.subnet6,
+      },
+      {
+        onSuccess: () => {
+          changes.saved();
+          navigate("/networks");
+        },
+      },
+    );
+  }
   if (!account?.admin) return <p>Platform administrator access required.</p>;
   return (
     <div className="mx-auto max-w-3xl">
@@ -54,44 +91,7 @@ export function NetworkForm() {
       />
       <Card>
         <CardContent>
-          <form
-            className="space-y-5"
-            onSubmit={async (e) => {
-              e.preventDefault();
-              setBusy(true);
-              setError("");
-              try {
-                const values = networkFormSchema.parse({
-                  name,
-                  server,
-                  mode,
-                  selected,
-                  subnet,
-                  range,
-                  v6,
-                  subnet6,
-                });
-                await createNetwork(server, {
-                  name: values.name,
-                  dockerId: values.mode === "existing" ? values.selected : "",
-                  subnet: values.mode === "create" ? values.subnet : "",
-                  dynamicRange: values.range,
-                  enableIPv6: values.v6,
-                  ipv6Subnet: values.subnet6,
-                });
-                await Promise.all([
-                  client.invalidateQueries({ queryKey: resourceKeys.all }),
-                  client.invalidateQueries({ queryKey: dockerNetworkKeys.all }),
-                ]);
-                changes.saved();
-                navigate("/networks");
-              } catch (e) {
-                setError(errorMessage(e));
-              } finally {
-                setBusy(false);
-              }
-            }}
-          >
+          <form className="space-y-5" onSubmit={submitNetwork}>
             <div className="space-y-2">
               <Label htmlFor="network-name">Name</Label>
               <Input
@@ -170,7 +170,7 @@ export function NetworkForm() {
                 {inventory.error && (
                   <Alert variant="destructive">
                     <AlertDescription>
-                      {errorMessage(inventory.error)}
+                      {describeError(inventory.error)}
                       <Button
                         type="button"
                         onClick={() => void inventory.refetch()}

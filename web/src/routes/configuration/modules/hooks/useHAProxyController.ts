@@ -3,15 +3,16 @@ import { useMemo, useState } from "react";
 import type { Resource } from "@/lib/api";
 import type { DraftRow } from "@/lib/draft-rows";
 
-import { errorMessage } from "@/lib/api";
+import { toastValidationError } from "@/lib/api/toaster";
+import { describeError } from "@/lib/api/translate-error";
 import { useConfigurationChanges } from "@/lib/configuration-state";
 import { draftRow } from "@/lib/draft-rows";
 
 import type { Settings, Draft } from "../generics";
 
 import { haproxySettingsSchema } from "../generics";
-import { saveHAProxySettings } from "../services";
 import { useHAProxySettings } from "./useHAProxySettings";
+import { useSaveHAProxySettings } from "./useSaveHAProxySettings";
 
 export function settingsDraft(
   settings: Pick<Settings, "version" | "bindings">,
@@ -31,7 +32,8 @@ export function useHAProxyController(server: Resource) {
   const changes = useConfigurationChanges();
   const [editedDraft, setDraft] = useState<Draft | null>(null);
   const [job, setJob] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const saveSettings = useSaveHAProxySettings(server.id);
+  const busy = saveSettings.isPending;
   const [localError, setError] = useState("");
   const q = useHAProxySettings(server);
   const bindings = q.data?.bindings;
@@ -89,33 +91,31 @@ export function useHAProxyController(server: Resource) {
       setJob(null);
     }
   }
-  async function save() {
+  function save() {
     if (!draft) return;
     setDraft(draft);
     setJob(null);
-    setBusy(true);
     setError("");
-    try {
-      const result = await saveHAProxySettings(
-        server.id,
-        haproxySettingsSchema.parse({
-          version: draft.version,
-          bindings: Object.fromEntries(
-            Object.entries(draft.bindings).map(([id, rows]) => [
-              id,
-              rows.map((row) => row.value),
-            ]),
-          ),
-        }),
-      );
-      setJob(result.jobId);
-      changes.saved();
-      await q.refetch();
-    } catch (err) {
-      setError(errorMessage(err));
-    } finally {
-      setBusy(false);
+    const parsed = haproxySettingsSchema.safeParse({
+      version: draft.version,
+      bindings: Object.fromEntries(
+        Object.entries(draft.bindings).map(([id, rows]) => [
+          id,
+          rows.map((row) => row.value),
+        ]),
+      ),
+    });
+    if (!parsed.success) {
+      toastValidationError(parsed.error);
+      return;
     }
+    saveSettings.mutate(parsed.data, {
+      onSuccess: (result) => {
+        setJob(result.jobId);
+        changes.saved();
+      },
+      onError: (error) => setError(describeError(error)),
+    });
   }
 
   return {
