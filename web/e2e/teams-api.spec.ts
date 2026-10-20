@@ -41,6 +41,8 @@ async function setup(page: Page) {
     },
   ];
   let rejectRemoval = true;
+  let releaseRemoval: (() => void) | undefined;
+  let removalGate: Promise<void> | undefined;
   let finishInvitation = () => {};
   const invitationGate = new Promise<void>((resolve) => {
     finishInvitation = resolve;
@@ -91,6 +93,7 @@ async function setup(page: Page) {
     if (path === "/api/v1/projects/project%2Fone/members")
       return route.fulfill({ json: { ok: true } });
     if (path === "/api/v1/teams/team%2Fone/members/other%2Fuser") {
+      if (removalGate) await removalGate;
       if (rejectRemoval)
         return route.fulfill({
           status: 409,
@@ -113,6 +116,15 @@ async function setup(page: Page) {
   return {
     requests,
     finishInvitation,
+    holdRemoval() {
+      removalGate = new Promise<void>((resolve) => {
+        releaseRemoval = resolve;
+      });
+    },
+    finishRemoval() {
+      releaseRemoval?.();
+      removalGate = undefined;
+    },
     allowRemoval() {
       rejectRemoval = false;
     },
@@ -131,6 +143,11 @@ test("teams invitations stay pending and project assignments preserve their payl
     });
     await create.click();
     await expect(create).toBeDisabled();
+    await expect(
+      page
+        .getByRole("status")
+        .filter({ hasText: "Creating invitation for new@example.test" }),
+    ).toBeVisible();
     await page.locator("form").evaluate((form) => {
       if (form instanceof HTMLFormElement) form.requestSubmit();
     });
@@ -174,17 +191,28 @@ test("failed member removal keeps confirmation open and shows one API toast", as
   page,
 }) => {
   const fixture = await setup(page);
+  fixture.holdRemoval();
+  const memberRow = page
+    .getByRole("row", { includeHidden: true })
+    .filter({ hasText: "Other User" });
   await page
     .getByRole("row")
     .filter({ hasText: "Other User" })
     .getByRole("button", { name: "Remove member" })
     .click();
   const dialog = page.getByRole("dialog");
+  await expect(memberRow).toHaveCount(1);
   await dialog.getByRole("button", { name: "Confirm", exact: true }).click();
+  await expect(memberRow).toHaveCount(0);
+  await expect(
+    dialog.getByRole("button", { name: "Confirm", exact: true }),
+  ).toBeDisabled();
+  fixture.finishRemoval();
   await expect(
     page.getByText("Membership changed. Try again.", { exact: true }),
   ).toHaveCount(1);
   await expect(dialog).toBeVisible();
+  await expect(memberRow).toHaveCount(1);
   await expect(
     dialog.getByRole("button", { name: "Confirm", exact: true }),
   ).toBeEnabled();

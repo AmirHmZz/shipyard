@@ -15,3 +15,6 @@ export {
 } from "./schema";
 
 export { projectAssignmentSchema } from "./schema";
+export { initialTeamsState, teamsReducer } from "./state";
+export type { TeamsState, TeamsAction } from "./state";
+export type { RemovedMemberSnapshot } from "./types";

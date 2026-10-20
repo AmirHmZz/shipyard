@@ -1,5 +1,6 @@
 import type * as z from "zod/mini";
 
+import type { teamKeys } from "./constants";
 import type {
   teamMembersResponseSchema,
   invitationResultResponseSchema,
@@ -16,4 +17,8 @@ export type ProjectAssignment = z.infer<typeof projectAssignmentSchema>;
 export type AssignTeamMemberVariables = {
   projectId: string;
   assignment: ProjectAssignment;
+};
+export type RemovedMemberSnapshot = {
+  queryKey: ReturnType<typeof teamKeys.members>;
+  members: TeamMembersResponse | undefined;
 };

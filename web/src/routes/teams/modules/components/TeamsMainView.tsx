@@ -1,7 +1,4 @@
-import type { FormEvent } from "react";
-
 import { Plus, Users } from "lucide-react";
-import { useState } from "react";
 
 import { ResourceEditor } from "@/components/resource-editor";
 import {
@@ -30,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Table,
   TableBody,
@@ -38,57 +36,37 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { toastValidationError } from "@/lib/api/toaster";
 import { PROJECT_ROLES } from "@/lib/enums";
-import { useResources } from "@/lib/hooks/useResources";
-import { useAccount } from "@/lib/session";
 
-import { invitationFormSchema } from "../generics";
-import {
-  useAssignTeamMember,
-  useCreateInvitation,
-  useRemoveTeamMember,
-  useTeamMembers,
-} from "../hooks";
+import { useTeamsPage } from "../hooks";
 import { ProjectAccessDialog } from "./ProjectAccessDialog";
 
 export function TeamsMainView() {
-  const account = useAccount();
-  const q = useResources();
-  const [teamId, setTeamId] = useState("");
-  const [editor, setEditor] = useState(false);
-  const [email, setEmail] = useState("");
-  const [role, setRole] = useState("member");
-  const [project, setProject] = useState("");
-  const [invitation, setInvitation] = useState("");
-  const resources = q.data || [];
-  const teams = resources.filter((r) => r.kind === "team");
-  const team = teams.find((r) => r.id === (teamId || teams[0]?.id));
-  const members = useTeamMembers(team);
-  const removeMutation = useRemoveTeamMember(team?.id);
-  const invitationMutation = useCreateInvitation(team?.id ?? "");
-  const assignmentMutation = useAssignTeamMember();
-  const [assign, setAssign] = useState("");
-  const [remove, setRemove] = useState("");
-  function submitInvitation(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (invitationMutation.isPending) return;
-    const parsed = invitationFormSchema.safeParse({
-      email,
-      role,
-      projectId: project,
-    });
-    if (!parsed.success) {
-      toastValidationError(parsed.error);
-      return;
-    }
-    invitationMutation.mutate(parsed.data, {
-      onSuccess: (value) => setInvitation(value.url),
-    });
-  }
-  function confirmRemoval() {
-    removeMutation.mutate(remove, { onSuccess: () => setRemove("") });
-  }
+  const { state, derived, handlers } = useTeamsPage();
+  const { editor, email, role, project, assign, remove } = state;
+  const {
+    account,
+    q,
+    resources,
+    teams,
+    team,
+    members,
+    removeMutation,
+    invitationMutation,
+    assignmentMutation,
+    invitation,
+  } = derived;
+  const {
+    setTeamId,
+    setEditor,
+    setEmail,
+    setScope,
+    setRole,
+    setAssign,
+    setRemove,
+    submitInvitation,
+    confirmRemoval,
+  } = handlers;
   if (q.isPending) return <Loading />;
   if (q.error) return <ErrorState error={q.error} />;
   return (
@@ -193,13 +171,7 @@ export function TeamsMainView() {
                   </div>
                   <div className="space-y-2">
                     <Label>Access scope</Label>
-                    <Select
-                      value={project || "team"}
-                      onValueChange={(v) => {
-                        setProject(v === "team" ? "" : v);
-                        setRole(v === "team" ? "member" : "viewer");
-                      }}
-                    >
+                    <Select value={project || "team"} onValueChange={setScope}>
                       <SelectTrigger className="w-full">
                         <SelectValue />
                       </SelectTrigger>
@@ -238,9 +210,19 @@ export function TeamsMainView() {
                     disabled={!team.canWrite || invitationMutation.isPending}
                     type="submit"
                   >
-                    <Plus />
+                    {invitationMutation.isPending ? (
+                      <Spinner className="size-4" />
+                    ) : (
+                      <Plus />
+                    )}
                     Create invitation
                   </Button>
+                  {invitationMutation.isPending && (
+                    <p role="status" className="text-xs text-muted-foreground">
+                      Creating invitation for{" "}
+                      {invitationMutation.variables?.email}…
+                    </p>
+                  )}
                   {invitation && (
                     <div className="space-y-3 rounded-lg border bg-muted/50 p-3">
                       <p className="break-all font-mono text-[10px]">
