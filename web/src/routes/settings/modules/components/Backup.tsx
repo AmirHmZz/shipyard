@@ -1,6 +1,7 @@
+import type { FormEvent } from "react";
+
 import { Download } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import type { Session } from "@/lib/api";
 
@@ -17,16 +18,36 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
-import { errorMessage } from "@/lib/api";
+import { toastValidationError } from "@/lib/api/toaster";
 
 import { passphraseSchema } from "../generics";
-import { useSetMaintenanceMode } from "../hooks";
-import { downloadBackup } from "../services";
+import { useSetMaintenanceMode, useDownloadBackup } from "../hooks";
 
 export function Backup({ session }: { session: Session }) {
   const maintenance = useSetMaintenanceMode();
   const [passphrase, setPassphrase] = useState("");
-  const [busy, setBusy] = useState(false);
+  const backup = useDownloadBackup();
+  const busy = backup.isPending;
+  function exportBackup(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (busy) return;
+    const parsed = passphraseSchema.safeParse({ passphrase });
+    if (!parsed.success) {
+      toastValidationError(parsed.error);
+      return;
+    }
+    backup.mutate(parsed.data, {
+      onSuccess: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = `shipyard-${new Date().toISOString().slice(0, 10)}.sybackup`;
+        anchor.click();
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+        setPassphrase("");
+      },
+    });
+  }
   return (
     <div className="max-w-2xl space-y-5">
       <Card className="shadow-none">
@@ -42,13 +63,7 @@ export function Backup({ session }: { session: Session }) {
           <Switch
             checked={session.maintenance || false}
             disabled={maintenance.isPending}
-            onCheckedChange={async (enabled) => {
-              try {
-                await maintenance.mutateAsync(enabled);
-              } catch (e) {
-                toast.error(errorMessage(e));
-              }
-            }}
+            onCheckedChange={(enabled) => maintenance.mutate(enabled)}
           />
         </CardContent>
       </Card>
@@ -62,30 +77,7 @@ export function Backup({ session }: { session: Session }) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form
-            className="space-y-4"
-            onSubmit={async (e) => {
-              e.preventDefault();
-              setBusy(true);
-              try {
-                const blob = await downloadBackup(
-                  passphraseSchema.parse({ passphrase }),
-                );
-                const url = URL.createObjectURL(blob);
-                const anchor = document.createElement("a");
-                anchor.href = url;
-                anchor.download = `shipyard-${new Date().toISOString().slice(0, 10)}.sybackup`;
-                anchor.click();
-                setTimeout(() => URL.revokeObjectURL(url), 10000);
-                setPassphrase("");
-                toast.success("Encrypted backup downloaded");
-              } catch (err) {
-                toast.error(errorMessage(err));
-              } finally {
-                setBusy(false);
-              }
-            }}
-          >
+          <form className="space-y-4" onSubmit={exportBackup}>
             <Label htmlFor="passphrase">Backup passphrase</Label>
             <Input
               id="passphrase"

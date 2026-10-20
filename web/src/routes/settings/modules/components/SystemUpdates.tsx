@@ -20,12 +20,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import { errorMessage } from "@/lib/api";
+import { describeError } from "@/lib/api/translate-error";
 
 import type { Plan } from "../generics";
 
-import { useSystemUpdates } from "../hooks";
-import { downloadUpdateBackup, checkForUpdates, planUpdate } from "../services";
+import {
+  useSystemUpdates,
+  useDownloadUpdateBackup,
+  useCheckForUpdates,
+  usePlanUpdate,
+  useApplyUpdate,
+} from "../hooks";
 import { VersionChangeOperation } from "./VersionChangeOperation";
 import { VersionChangeReview } from "./VersionChangeReview";
 
@@ -37,9 +42,15 @@ export function SystemUpdates() {
     [plan, setPlan] = useState<Plan | null>(null),
     [pass, setPass] = useState(""),
     [confirm, setConfirm] = useState(""),
-    [approve, setApprove] = useState(false),
-    [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
+    [approve, setApprove] = useState(false);
+  const check = useCheckForUpdates();
+  const planChange = usePlanUpdate();
+  const apply = useApplyUpdate();
+  const backup = useDownloadUpdateBackup();
+  const operations = [check, planChange, apply, backup];
+  const busy = operations.some((operation) => operation.isPending);
+  const failure = operations.find((operation) => operation.error)?.error;
+  const error = failure ? describeError(failure) : "";
   if (!q.data) {
     if (q.error) return <ErrorState error={q.error} />;
     return <Loading />;
@@ -52,29 +63,41 @@ export function SystemUpdates() {
     available = s.releases.filter(
       (r) => r.previous === current?.version || current?.previous === r.version,
     );
-  async function action(fn: () => Promise<unknown>) {
-    setBusy(true);
-    setError("");
-    try {
-      await fn();
-      await q.refetch();
-    } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setBusy(false);
-    }
+  function resetErrors() {
+    for (const operation of operations) operation.reset();
   }
-  async function download() {
-    if (!operation) return;
-    await action(async () => {
-      const blob = await downloadUpdateBackup(operation.id);
-      const url = URL.createObjectURL(blob),
-        link = document.createElement("a");
-      link.href = url;
-      link.download = `shipyard-${operation.id}.sybackup`;
-      link.click();
-      URL.revokeObjectURL(url);
+  function checkUpdates() {
+    if (busy || blocked) return;
+    resetErrors();
+    check.mutate();
+  }
+  function download() {
+    if (!operation || busy) return;
+    resetErrors();
+    backup.mutate(operation.id, {
+      onSuccess: (blob) => {
+        const url = URL.createObjectURL(blob),
+          link = document.createElement("a");
+        link.href = url;
+        link.download = `shipyard-${operation.id}.sybackup`;
+        link.click();
+        URL.revokeObjectURL(url);
+      },
     });
+  }
+  function previewVersion() {
+    if (busy || blocked || !target) return;
+    resetErrors();
+    planChange.mutate(
+      { target },
+      {
+        onSuccess: (value) => {
+          setPlan(value);
+          setApprove(false);
+          setConfirm("");
+        },
+      },
+    );
   }
   return (
     <Card className="w-full">
@@ -98,7 +121,7 @@ export function SystemUpdates() {
           <Button
             variant="outline"
             disabled={!s.enabled || busy || blocked}
-            onClick={() => void action(() => checkForUpdates())}
+            onClick={checkUpdates}
           >
             {busy ? <Spinner className="size-4" /> : <RefreshCw />}
             Check for updates
@@ -152,17 +175,7 @@ export function SystemUpdates() {
               <Button
                 variant="outline"
                 disabled={!target || busy || blocked}
-                onClick={() =>
-                  void action(async () => {
-                    setPlan(
-                      await planUpdate({
-                        target,
-                      }),
-                    );
-                    setApprove(false);
-                    setConfirm("");
-                  })
-                }
+                onClick={previewVersion}
               >
                 Preview version change
               </Button>
@@ -178,7 +191,8 @@ export function SystemUpdates() {
                 setApprove={setApprove}
                 busy={busy}
                 blocked={blocked}
-                action={action}
+                apply={apply}
+                resetErrors={resetErrors}
                 setPlan={setPlan}
               />
             )}

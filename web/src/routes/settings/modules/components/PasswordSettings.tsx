@@ -1,6 +1,6 @@
-import { useQueryClient } from "@tanstack/react-query";
+import type { FormEvent } from "react";
+
 import { useState } from "react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -12,19 +12,33 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { errorMessage, setCSRF } from "@/lib/api";
-import { sessionKeys } from "@/lib/query-keys";
+import { toastValidationError } from "@/lib/api/toaster";
 
 import { passwordFormSchema } from "../generics";
 import { useChangePassword } from "../hooks";
 
 export function PasswordSettings() {
-  const client = useQueryClient();
   const change = useChangePassword();
   const [current, setCurrent] = useState(""),
     [password, setPassword] = useState(""),
-    [code, setCode] = useState(""),
-    [busy, setBusy] = useState(false);
+    [code, setCode] = useState("");
+  const busy = change.isPending;
+  function submitPassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (busy) return;
+    const parsed = passwordFormSchema.safeParse({ current, password, code });
+    if (!parsed.success) {
+      toastValidationError(parsed.error);
+      return;
+    }
+    change.mutate(parsed.data, {
+      onSuccess: () => {
+        setCurrent("");
+        setPassword("");
+        setCode("");
+      },
+    });
+  }
   return (
     <Card className="mt-5 max-w-2xl shadow-none">
       <CardHeader>
@@ -32,32 +46,7 @@ export function PasswordSettings() {
         <CardDescription>Other sessions will be signed out.</CardDescription>
       </CardHeader>
       <CardContent>
-        <form
-          className="space-y-4"
-          onSubmit={async (e) => {
-            e.preventDefault();
-            setBusy(true);
-            try {
-              const s = await change.mutateAsync(
-                passwordFormSchema.parse({
-                  current,
-                  password,
-                  code,
-                }),
-              );
-              setCSRF(s.csrf);
-              client.setQueryData(sessionKeys.all, s);
-              setCurrent("");
-              setPassword("");
-              setCode("");
-              toast.success("Password changed");
-            } catch (err) {
-              toast.error(errorMessage(err));
-            } finally {
-              setBusy(false);
-            }
-          }}
-        >
+        <form className="space-y-4" onSubmit={submitPassword}>
           <div className="space-y-2">
             <Label htmlFor="password-current">Current password</Label>
             <Input

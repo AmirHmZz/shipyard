@@ -13,11 +13,15 @@ async function setup(
     domain: "panel.example.com",
     candidateOrigin: "https://panel.example.com",
     activeDomain: "panel.example.com",
+    routeId: "dashboard-route",
+    activeRouteId: "dashboard-route",
+    acmeEmail: "",
     status: {
       dns: "manual",
       propagation: "ready",
       certificate: "ready",
       routing: "ready",
+      error: "",
     },
     error: "",
   };

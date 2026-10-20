@@ -16,14 +16,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
-import { errorMessage } from "@/lib/api";
+import { toastValidationError } from "@/lib/api/toaster";
+import { describeError } from "@/lib/api/translate-error";
 import { useConfigurationChanges } from "@/lib/configuration-state";
 
-import type { State } from "../generics";
+import type { State, DashboardAccessValues } from "../generics";
 
 import { dashboardHostnameSchema } from "../generics";
-import { useDashboardAccess } from "../hooks";
-import { saveDashboardAccess } from "../services";
+import { useDashboardAccess, useSaveDashboardAccess } from "../hooks";
 export function DashboardAccess() {
   return (
     <ConfigurationGuard className="max-w-none">
@@ -36,44 +36,43 @@ function DashboardAccessForm() {
   const q = useDashboardAccess();
   const [draft, setDraft] = useState<string | null>(null),
     [email, setEmail] = useState(""),
-    [accept, setAccept] = useState(false),
-    [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
+    [accept, setAccept] = useState(false);
+  const saveAccess = useSaveDashboardAccess();
+  const busy = saveAccess.isPending;
+  const error = saveAccess.error ? describeError(saveAccess.error) : "";
   if (!q.data) {
     if (q.error) return <ErrorState error={q.error} />;
     return <Loading />;
   }
   const state = q.data;
-  async function save(retry = false) {
-    setBusy(true);
-    setError("");
-    try {
-      await saveDashboardAccess(
-        retry,
-        retry
-          ? { version: state.version }
-          : (() => {
-              const values = dashboardHostnameSchema(
-                state.acmeConfigured,
-              ).parse({
-                version: state.version,
-                domain: draft ?? state.domain,
-                acmeEmail: email,
-                acceptTos: accept,
-              });
-              return state.acmeConfigured
-                ? { version: values.version, domain: values.domain }
-                : values;
-            })(),
-      );
-      setDraft(null);
-      changes.saved();
-      await q.refetch();
-    } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setBusy(false);
+  function save(retry = false) {
+    if (busy) return;
+    saveAccess.reset();
+    let payload: DashboardAccessValues["payload"] = { version: state.version };
+    if (!retry) {
+      const parsed = dashboardHostnameSchema(state.acmeConfigured).safeParse({
+        version: state.version,
+        domain: draft ?? state.domain,
+        acmeEmail: email,
+        acceptTos: accept,
+      });
+      if (!parsed.success) {
+        toastValidationError(parsed.error);
+        return;
+      }
+      payload = state.acmeConfigured
+        ? { version: parsed.data.version, domain: parsed.data.domain }
+        : parsed.data;
     }
+    saveAccess.mutate(
+      { retry, payload },
+      {
+        onSuccess: () => {
+          setDraft(null);
+          changes.saved();
+        },
+      },
+    );
   }
   return (
     <>
@@ -189,7 +188,7 @@ function DashboardHostnameForm({
   accept: boolean;
   setAccept: (value: boolean) => void;
   busy: boolean;
-  save: () => Promise<void>;
+  save: () => void;
 }) {
   return (
     <form

@@ -37,3 +37,15 @@ export {
   regenerateRecoveryCodesResponseSchema,
   downloadUpdateBackupResponseSchema,
 } from "./schema";
+export type {
+  PasswordValues,
+  PassphraseValues,
+  TOTPCodeValues,
+  TOTPPasswordValues,
+  TOTPDisableValues,
+  AlertPolicyValues,
+  UpdateValues,
+  UserAccessVariables,
+  DashboardAccessValues,
+} from "./types";
+export { maintenanceResponseSchema } from "./schema";

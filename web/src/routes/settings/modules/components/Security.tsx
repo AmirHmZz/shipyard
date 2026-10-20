@@ -1,7 +1,5 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { KeyRound, ShieldCheck } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import type { Session } from "@/lib/api";
 
@@ -17,27 +15,60 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { errorMessage } from "@/lib/api";
-import { sessionKeys } from "@/lib/query-keys";
+import { toastValidationError } from "@/lib/api/toaster";
 
 import {
   totpCodeSchema,
   totpDisableSchema,
   totpPasswordSchema,
 } from "../generics";
-import { useDisableTOTP, useRegenerateRecoveryCodes } from "../hooks";
-import { enableTOTP } from "../services";
+import { useDisableTOTP, useStartTOTP, useEnableTOTP } from "../hooks";
 
 export function Security({ session }: { session: Session }) {
-  const client = useQueryClient();
   const disable = useDisableTOTP();
-  const regenerate = useRegenerateRecoveryCodes();
+  const start = useStartTOTP();
+  const enable = useEnableTOTP();
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
-  const [setup, setSetup] = useState<{ secret: string; url: string } | null>(
-    null,
-  );
-  const [recovery, setRecovery] = useState<string[]>([]);
+  const setup = start.data;
+  const recovery = enable.data?.recoveryCodes ?? [];
+  function confirmAuthenticator() {
+    if (enable.isPending) return;
+    const parsed = totpCodeSchema.safeParse({ code });
+    if (!parsed.success) {
+      toastValidationError(parsed.error);
+      return;
+    }
+    enable.mutate(parsed.data, {
+      onSuccess: () => {
+        start.reset();
+        setPassword("");
+      },
+    });
+  }
+  function disableAuthenticator() {
+    if (disable.isPending) return;
+    const parsed = totpDisableSchema.safeParse({ password, code });
+    if (!parsed.success) {
+      toastValidationError(parsed.error);
+      return;
+    }
+    disable.mutate(parsed.data, {
+      onSuccess: () => {
+        setPassword("");
+        setCode("");
+      },
+    });
+  }
+  function startAuthenticator() {
+    if (start.isPending) return;
+    const parsed = totpPasswordSchema.safeParse({ password });
+    if (!parsed.success) {
+      toastValidationError(parsed.error);
+      return;
+    }
+    start.mutate(parsed.data);
+  }
   return (
     <Card className="max-w-2xl shadow-none">
       <CardHeader>
@@ -79,20 +110,7 @@ export function Security({ session }: { session: Session }) {
                 onChange={(e) => setCode(e.target.value)}
               />
             </div>
-            <Button
-              onClick={async () => {
-                try {
-                  const v = await enableTOTP(totpCodeSchema.parse({ code }));
-                  setRecovery(v.recoveryCodes);
-                  setSetup(null);
-                  setPassword("");
-                  await client.invalidateQueries({ queryKey: sessionKeys.all });
-                  toast.success("Authenticator enabled");
-                } catch (e) {
-                  toast.error(errorMessage(e));
-                }
-              }}
-            >
+            <Button disabled={enable.isPending} onClick={confirmAuthenticator}>
               Confirm authenticator
             </Button>
           </>
@@ -105,39 +123,13 @@ export function Security({ session }: { session: Session }) {
             <Button
               variant="destructive"
               disabled={disable.isPending}
-              onClick={async () => {
-                if (disable.isPending) return;
-                try {
-                  await disable.mutateAsync(
-                    totpDisableSchema.parse({ password, code }),
-                  );
-                  setPassword("");
-                  setCode("");
-                  toast.success("Authenticator disabled");
-                } catch (e) {
-                  toast.error(errorMessage(e));
-                }
-              }}
+              onClick={disableAuthenticator}
             >
               Disable authenticator
             </Button>
           </>
         ) : (
-          <Button
-            disabled={regenerate.isPending}
-            onClick={async () => {
-              if (regenerate.isPending) return;
-              try {
-                setSetup(
-                  await regenerate.mutateAsync(
-                    totpPasswordSchema.parse({ password }),
-                  ),
-                );
-              } catch (e) {
-                toast.error(errorMessage(e));
-              }
-            }}
-          >
+          <Button disabled={start.isPending} onClick={startAuthenticator}>
             <ShieldCheck />
             Set up authenticator
           </Button>

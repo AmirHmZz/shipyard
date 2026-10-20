@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { toast } from "sonner";
 
 import type { Session } from "@/lib/api";
 
@@ -101,12 +100,16 @@ export function UserSettings({ session }: { session: Session }) {
         onOpenChange={(v) => !v && setChange(null)}
         title="Change user access?"
         description={`${change?.name} will be ${change?.disabled ? "disabled" : change?.admin ? "a platform administrator" : "a regular user"}. Existing sessions will end.`}
-        onConfirm={async () => {
-          await update.mutateAsync({
-            id: change?.id,
-            access: { admin: change?.admin, disabled: change?.disabled },
-          });
-          toast.success("User access updated");
+        pending={update.isPending}
+        onConfirm={() => {
+          if (!change) return;
+          update.mutate(
+            {
+              id: change?.id,
+              access: { admin: change?.admin, disabled: change?.disabled },
+            },
+            { onSuccess: () => setChange(null) },
+          );
         }}
       />
     </>

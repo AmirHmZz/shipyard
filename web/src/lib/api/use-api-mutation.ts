@@ -15,7 +15,7 @@ export type ApiMutationOptions<
   UseMutationOptions<z.output<S>, ApiException, TVariables, TContext>,
   "mutationFn"
 > & {
-  method: string;
+  method: string | ((variables: TVariables) => string);
   path: string | ((variables: TVariables) => string);
   body?: (variables: TVariables) => unknown;
   schema: S;
@@ -39,17 +39,19 @@ export function useApiMutation<
   return useMutation<z.output<S>, ApiException, TVariables, TContext>({
     ...options,
     mutationFn: async (variables) => {
+      const requestMethod =
+        typeof method === "function" ? method(variables) : method;
       const requestPath = typeof path === "function" ? path(variables) : path;
       const requestBody = body?.(variables);
       const result =
         responseType === "blob"
           ? await callApiBlob(requestPath, {
-              method,
+              method: requestMethod,
               body: requestBody,
               schema,
             })
           : await callApi({
-              method,
+              method: requestMethod,
               path: requestPath,
               body: requestBody,
               schema,

@@ -1,13 +1,13 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-
+import { useApiMutation } from "@/lib/api/use-api-mutation";
 import { sessionKeys } from "@/lib/query-keys";
 
-import { setMaintenanceMode } from "../services";
-
+import { maintenanceResponseSchema } from "../generics";
 export function useSetMaintenanceMode() {
-  const client = useQueryClient();
-  return useMutation({
-    mutationFn: setMaintenanceMode,
-    onSuccess: () => client.invalidateQueries({ queryKey: sessionKeys.all }),
+  return useApiMutation({
+    method: "POST",
+    path: "/settings/maintenance",
+    body: (enabled: boolean) => ({ enabled }),
+    schema: maintenanceResponseSchema,
+    invalidate: [sessionKeys.all],
   });
 }

@@ -1,11 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
+import { useApiQuery } from "@/lib/api/use-api-query";
 
-import { settingsKeys } from "../generics";
-import { getAlertPolicy } from "../services";
-
+import { settingsKeys, alertPolicyResponseSchema } from "../generics";
 export function useAlertPolicy() {
-  return useQuery({
+  return useApiQuery({
     queryKey: settingsKeys.alertPolicy,
-    queryFn: () => getAlertPolicy(),
+    path: "/settings/alerts",
+    schema: alertPolicyResponseSchema,
   });
 }

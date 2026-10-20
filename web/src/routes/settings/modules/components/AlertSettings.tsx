@@ -1,5 +1,6 @@
+import type { FormEvent } from "react";
+
 import { useState } from "react";
-import { toast } from "sonner";
 
 import { ErrorState, Loading } from "@/components/shared";
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
-import { errorMessage } from "@/lib/api";
+import { toastValidationError } from "@/lib/api/toaster";
 import { inputNumberSchema } from "@/lib/schemas/coercion";
 
 import type { AlertPolicy } from "../generics";
@@ -25,10 +26,21 @@ export function AlertSettings() {
   const query = useAlertPolicy();
   const save = useSaveAlertPolicy();
   const [draft, setDraft] = useState<AlertPolicy | null>(null);
-  const [busy, setBusy] = useState(false);
+  const busy = save.isPending;
   if (query.isPending) return <Loading />;
   if (query.error) return <ErrorState error={query.error} />;
-  const value = draft || query.data!;
+  if (!query.data) return <Loading />;
+  const value = draft || query.data;
+  function submitPolicy(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (busy) return;
+    const parsed = alertPolicySchema.safeParse(value);
+    if (!parsed.success) {
+      toastValidationError(parsed.error);
+      return;
+    }
+    save.mutate(parsed.data, { onSuccess: () => setDraft(null) });
+  }
   const fields = [
     { key: "cpu", label: "CPU threshold (%)", max: 100 },
     { key: "memory", label: "Memory threshold (%)", max: 100 },
@@ -51,22 +63,7 @@ export function AlertSettings() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form
-          className="space-y-5"
-          onSubmit={async (e) => {
-            e.preventDefault();
-            setBusy(true);
-            try {
-              await save.mutateAsync(alertPolicySchema.parse(value));
-              setDraft(null);
-              toast.success("Alert policy saved");
-            } catch (err) {
-              toast.error(errorMessage(err));
-            } finally {
-              setBusy(false);
-            }
-          }}
-        >
+        <form className="space-y-5" onSubmit={submitPolicy}>
           {fields.map((f) => (
             <div className="space-y-2" key={f.key}>
               <Label htmlFor={`alert-${f.key}`}>{f.label}</Label>

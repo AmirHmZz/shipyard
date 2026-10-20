@@ -20,7 +20,7 @@ export function VersionChangeOperation({
   busy: boolean;
   reconnecting: boolean;
   version: string;
-  download: () => Promise<void>;
+  download: () => void;
 }) {
   return (
     <section className="space-y-3 border-t pt-5">

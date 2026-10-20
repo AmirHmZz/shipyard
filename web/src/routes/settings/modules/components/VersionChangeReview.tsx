@@ -1,3 +1,5 @@
+import type { FormEvent } from "react";
+
 import { StateBadge } from "@/components/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -13,11 +15,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { toastValidationError } from "@/lib/api/toaster";
 
 import type { Plan } from "../generics";
+import type { useApplyUpdate } from "../hooks";
 
 import { updateFormSchema } from "../generics";
-import { applyUpdate } from "../services";
 import { ReleaseNotes } from "./ReleaseNotes";
 
 export function VersionChangeReview({
@@ -30,7 +33,8 @@ export function VersionChangeReview({
   setApprove,
   busy,
   blocked,
-  action,
+  apply,
+  resetErrors,
   setPlan,
 }: {
   plan: Plan;
@@ -42,9 +46,34 @@ export function VersionChangeReview({
   setApprove: (value: boolean) => void;
   busy: boolean;
   blocked: boolean;
-  action: (fn: () => Promise<unknown>) => Promise<void>;
+  apply: ReturnType<typeof useApplyUpdate>;
+  resetErrors: () => void;
   setPlan: (value: Plan | null) => void;
 }) {
+  function submitUpdate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (busy || blocked) return;
+    resetErrors();
+    const parsed = updateFormSchema(
+      plan.target.version,
+      plan.destructive,
+    ).safeParse({
+      planId: plan.id,
+      passphrase: pass,
+      confirmation: confirm,
+      approveDataLoss: approve,
+    });
+    if (!parsed.success) {
+      toastValidationError(parsed.error);
+      return;
+    }
+    apply.mutate(parsed.data, {
+      onSuccess: () => {
+        setPass("");
+        setPlan(null);
+      },
+    });
+  }
   return (
     <section className="space-y-4 rounded-lg border p-4">
       <h3 className="font-medium">
@@ -90,24 +119,7 @@ export function VersionChangeReview({
           </AlertDescription>
         </Alert>
       )}
-      <form
-        className="space-y-4"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void action(async () => {
-            await applyUpdate(
-              updateFormSchema(plan.target.version, plan.destructive).parse({
-                planId: plan.id,
-                passphrase: pass,
-                confirmation: confirm,
-                approveDataLoss: approve,
-              }),
-            );
-            setPass("");
-            setPlan(null);
-          });
-        }}
-      >
+      <form className="space-y-4" onSubmit={submitUpdate}>
         <div className="space-y-2">
           <Label htmlFor="upgrade-passphrase">Backup passphrase</Label>
           <Input

@@ -1,18 +1,17 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useApiMutation } from "@/lib/api/use-api-mutation";
+import { apiPath } from "@/lib/paths";
+import { okResponseSchema } from "@/lib/schemas/acknowledgements";
+
+import type { UserAccessVariables } from "../generics";
 
 import { settingsKeys } from "../generics";
-import { updateUser } from "../services";
-
 export function useUpdateUser() {
-  const client = useQueryClient();
-  return useMutation({
-    mutationFn: ({
-      id,
-      access,
-    }: {
-      id: string | undefined;
-      access: { admin: boolean | undefined; disabled: boolean | undefined };
-    }) => updateUser(id, access),
-    onSuccess: () => client.invalidateQueries({ queryKey: settingsKeys.users }),
+  return useApiMutation({
+    method: "PUT",
+    path: ({ id }: UserAccessVariables) => apiPath`/users/${String(id)}`,
+    body: ({ access }) => access,
+    schema: okResponseSchema,
+    invalidate: [settingsKeys.users],
+    meta: { successMessage: "User access updated" },
   });
 }
