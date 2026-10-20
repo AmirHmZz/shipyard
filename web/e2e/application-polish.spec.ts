@@ -1,4 +1,6 @@
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+
+import { expect, test } from "@playwright/test";
 
 async function setup(page: Page, { admin = true, writable = true } = {}) {
   const resource = (id: string, kind: string, parentId = "", data = {}) => ({

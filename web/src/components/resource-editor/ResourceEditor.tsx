@@ -1,4 +1,4 @@
-import { type ResourceFormProps } from "@/components/resource-forms/controller";
+import type { ResourceFormProps } from "@/components/resource-forms/controller";
 
 import { ResourceForm } from "./ResourceForm";
 

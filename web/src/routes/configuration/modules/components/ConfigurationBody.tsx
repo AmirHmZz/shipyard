@@ -6,6 +6,8 @@ import {
   useSearchParams,
 } from "react-router";
 
+import type { Resource } from "@/lib/api";
+
 import { Grants } from "@/components/grants";
 import { ResourceForm } from "@/components/resource-editor";
 import { ErrorState, Loading, PageHeader } from "@/components/shared";
@@ -19,7 +21,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Variables } from "@/components/variables";
-import { useResources, type Resource } from "@/lib/api";
+import { useResources } from "@/lib/api";
 import { useConfigurationChanges } from "@/lib/configuration-state";
 
 import { GitConnection } from "./GitConnection";

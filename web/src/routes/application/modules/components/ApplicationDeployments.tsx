@@ -1,7 +1,9 @@
+import type { useSearchParams } from "react-router";
+
 import { RotateCcw } from "lucide-react";
-import { useSearchParams } from "react-router";
 
 import type { Deployment } from "@/lib/api";
+import type { Resource } from "@/lib/api";
 
 import { DeploymentTable } from "@/components/deployment-table";
 import { Empty } from "@/components/shared";
@@ -9,7 +11,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TabsContent } from "@/components/ui/tabs";
-import { type Resource } from "@/lib/api";
 
 import type { Runtime } from "../generics";
 

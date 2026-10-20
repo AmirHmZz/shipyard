@@ -1,18 +1,16 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
+import type { Resource } from "@/lib/api";
+import type { DraftRow } from "@/lib/draft-rows";
+
 import { ErrorState, Loading } from "@/components/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  errorMessage,
-  useAccount,
-  useResources,
-  type Resource,
-} from "@/lib/api";
+import { errorMessage, useAccount, useResources } from "@/lib/api";
 import { useConfigurationChanges } from "@/lib/configuration-state";
-import { draftRow, withoutRowId, type DraftRow } from "@/lib/draft-rows";
+import { draftRow, withoutRowId } from "@/lib/draft-rows";
 import { resourceKeys } from "@/lib/query-keys";
 import {
   networkingPayloadSchema,

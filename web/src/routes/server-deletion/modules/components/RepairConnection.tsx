@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+import type { Resource } from "@/lib/api";
+
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +16,7 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
-import { errorMessage, text, type Resource } from "@/lib/api";
+import { errorMessage, text } from "@/lib/api";
 import { serverConnectionSchema } from "@/lib/validation";
 
 import { useRepairServerConnection } from "../hooks";

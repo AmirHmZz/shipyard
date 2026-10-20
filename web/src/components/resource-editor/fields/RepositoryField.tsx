@@ -1,4 +1,6 @@
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
+
+import { useState } from "react";
 
 import { RepositoryName } from "@/components/repository-name";
 import { useResourceForm } from "@/components/resource-forms/controller";

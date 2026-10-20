@@ -1,4 +1,6 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
+
+import { expect, test } from "@playwright/test";
 import { createHash } from "node:crypto";
 
 async function fillCompose(editor: Locator, yaml: string) {
@@ -22,7 +24,7 @@ const composeLines = (page: Page) =>
 
 const initialYAML = "services:\n  web:\n    image: nginx:alpine\n";
 async function setup(page: Page, existing = false, canWrite = true) {
-  const writes: { path: string; body: any }[] = [];
+  const writes: { path: string; body: Record<string, unknown> }[] = [];
   let document = { yaml: initialYAML, version: 1 };
   let conflict = false;
   let reads = 0;

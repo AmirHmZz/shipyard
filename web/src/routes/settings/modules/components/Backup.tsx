@@ -2,6 +2,8 @@ import { Download } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import type { Session } from "@/lib/api";
+
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
-import { errorMessage, type Session } from "@/lib/api";
+import { errorMessage } from "@/lib/api";
 import { passphraseSchema } from "@/lib/validation";
 
 import { useSetMaintenanceMode } from "../hooks";

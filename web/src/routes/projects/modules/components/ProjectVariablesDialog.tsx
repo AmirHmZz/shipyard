@@ -1,3 +1,5 @@
+import type { Resource } from "@/lib/api";
+
 import {
   Dialog,
   DialogContent,
@@ -6,7 +8,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Variables } from "@/components/variables";
-import { type Resource } from "@/lib/api";
 
 export function ProjectVariablesDialog({
   variables,

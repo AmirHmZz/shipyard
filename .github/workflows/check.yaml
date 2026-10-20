@@ -29,6 +29,8 @@ jobs:
       - run: bun run lint
         working-directory: web
       - run: bun install --frozen-lockfile
+        env:
+          HUSKY: "0"
       - run: bun run format:check
       - run: node scripts/openapi.mjs
       - run: node --test scripts/release-manifest.test.mjs
@@ -208,7 +210,15 @@ jobs:
         run: docker rm -fv shipyard-browser || true
 
   check:
-    needs: [frontend, go, deployment-integration, native-host, server-deletion, browser]
+    needs:
+      [
+        frontend,
+        go,
+        deployment-integration,
+        native-host,
+        server-deletion,
+        browser,
+      ]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 90

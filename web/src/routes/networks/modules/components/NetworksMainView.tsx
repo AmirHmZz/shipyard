@@ -2,6 +2,8 @@ import { Plus, Trash2, Users } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 
+import type { Resource } from "@/lib/api";
+
 import {
   Confirm,
   Empty,
@@ -20,13 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  errorMessage,
-  text,
-  useAccount,
-  useResources,
-  type Resource,
-} from "@/lib/api";
+import { errorMessage, text, useAccount, useResources } from "@/lib/api";
 import { useConfigurationChanges } from "@/lib/configuration-state";
 import { indexResources } from "@/lib/resource-index";
 

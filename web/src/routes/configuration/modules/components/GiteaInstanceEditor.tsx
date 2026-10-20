@@ -1,6 +1,5 @@
+import type { useQueryClient } from "@tanstack/react-query";
 import type { Dispatch, SetStateAction } from "react";
-
-import { useQueryClient } from "@tanstack/react-query";
 
 import { CopyButton } from "@/components/shared";
 import { Button } from "@/components/ui/button";

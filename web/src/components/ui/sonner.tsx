@@ -1,10 +1,12 @@
+import type { ToasterProps } from "sonner";
+
 import {
   CircleCheckIcon,
   InfoIcon,
   OctagonXIcon,
   TriangleAlertIcon,
 } from "lucide-react";
-import { Toaster as Sonner, type ToasterProps } from "sonner";
+import { Toaster as Sonner } from "sonner";
 
 import { Spinner } from "@/components/ui/spinner";
 

@@ -1,5 +1,5 @@
-import { useQueryClient } from "@tanstack/react-query";
-import { useSearchParams } from "react-router";
+import type { useQueryClient } from "@tanstack/react-query";
+import type { useSearchParams } from "react-router";
 
 import { Confirm } from "@/components/shared";
 import { resourceKeys } from "@/lib/query-keys";

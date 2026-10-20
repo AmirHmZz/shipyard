@@ -1,3 +1,5 @@
+import type { Resource } from "@/lib/api";
+
 import {
   Dialog,
   DialogContent,
@@ -10,7 +12,6 @@ import { ErrorState, Loading } from "@/components/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { type Resource } from "@/lib/api";
 
 import { settingsDraft } from "../hooks";
 import { useHAProxyController } from "../hooks";

@@ -1,5 +1,7 @@
 import { Plus, Trash2 } from "lucide-react";
 
+import type { Resource } from "@/lib/api";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,7 +13,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { type Resource } from "@/lib/api";
 import { draftRow } from "@/lib/draft-rows";
 
 import type { Service } from "../generics";

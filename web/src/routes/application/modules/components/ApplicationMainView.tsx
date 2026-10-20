@@ -4,6 +4,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router";
 import { toast } from "sonner";
 
 import type { Deployment } from "@/lib/api";
+import type { Resource } from "@/lib/api";
 
 import { ConfigurationGuard } from "@/components/configuration-surface";
 import { DeleteResource, DeletionStatus } from "@/components/delete-resource";
@@ -16,7 +17,6 @@ import {
   text,
   useDeployments,
   useResources,
-  type Resource,
 } from "@/lib/api";
 import { deploymentKeys } from "@/lib/query-keys";
 import { indexResources } from "@/lib/resource-index";

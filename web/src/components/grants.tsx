@@ -2,10 +2,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { toast } from "sonner";
 
+import type { Resource } from "@/lib/api";
+
 import { ErrorState } from "@/components/shared";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { errorMessage, type Resource } from "@/lib/api";
+import { errorMessage } from "@/lib/api";
 import { useConfigurationChanges } from "@/lib/configuration-state";
 import { useGrants } from "@/lib/hooks";
 import { grantKeys } from "@/lib/query-keys";

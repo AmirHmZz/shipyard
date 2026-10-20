@@ -1,4 +1,6 @@
-import { test, expect, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+
+import { test, expect } from "@playwright/test";
 async function setup(
   page: Page,
   {
@@ -15,13 +17,16 @@ async function setup(
     schema: 3,
   };
   const current = { version: "0.2.0", previous: target.version, schema: 4 };
-  const state: any = {
+  const state: {
+    operation?: { state: string; backup?: string; [key: string]: unknown };
+    [key: string]: unknown;
+  } = {
     enabled,
     version: { version: "0.2.0", commit: "abc123", architecture: "amd64" },
     installation: { release: current },
     releases: [target],
   };
-  const writes: any[] = [];
+  const writes: { path: string; body: Record<string, unknown> }[] = [];
   let disconnected = false;
   await page.route("**/api/v1/**", async (route) => {
     const req = route.request(),
@@ -122,7 +127,7 @@ for (const theme of ["light", "dark"]) {
         .click();
       await page.getByLabel("Type 0.1.0 to confirm").fill("0.1.0");
       await apply.click();
-      expect(data.writes.at(-1).body).toEqual({
+      expect(data.writes.at(-1)?.body).toEqual({
         planId: "plan",
         passphrase: "fresh-backup-passphrase",
         confirmation: "0.1.0",
@@ -136,6 +141,8 @@ for (const theme of ["light", "dark"]) {
         timeout: 20000,
       });
       data.disconnect(false);
+      if (!data.state.operation)
+        throw new Error("Expected a pending update operation");
       data.state.operation.state = "succeeded";
       data.state.operation.backup = "backup.sybackup";
       await expect(

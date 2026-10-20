@@ -8,6 +8,8 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
+import type { Resource } from "@/lib/api";
+
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
@@ -29,7 +31,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
-import { errorMessage, type Resource } from "@/lib/api";
+import { errorMessage } from "@/lib/api";
 
 export function ApplicationDeployActions({
   app,

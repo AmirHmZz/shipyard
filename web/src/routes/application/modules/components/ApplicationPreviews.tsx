@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { Link } from "react-router";
 
+import type { Resource } from "@/lib/api";
+import type { PreviewRouting } from "@/lib/application-settings";
+
 import { PreviewRoutingFields } from "@/components/preview-routing-fields";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -15,11 +18,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { errorMessage, type Resource, text, useResources } from "@/lib/api";
-import {
-  normalizeApplicationSettings,
-  type PreviewRouting,
-} from "@/lib/application-settings";
+import { errorMessage, text, useResources } from "@/lib/api";
+import { normalizeApplicationSettings } from "@/lib/application-settings";
 import { useConfigurationChanges } from "@/lib/configuration-state";
 import { previewRoutingSchema } from "@/lib/validation";
 import { previewFormSchema } from "@/lib/validation";

@@ -1,10 +1,8 @@
 import * as z from "zod";
 
-import {
-  fields,
-  parents,
-  type ResourceKind,
-} from "../components/resource-forms/definitions";
+import type { ResourceKind } from "../components/resource-forms/definitions";
+
+import { fields, parents } from "../components/resource-forms/definitions";
 
 export const requiredText = (label: string) =>
   z.string().trim().min(1, `${label} is required.`);

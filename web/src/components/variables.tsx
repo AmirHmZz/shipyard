@@ -3,9 +3,11 @@ import { ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import type { Resource } from "@/lib/api";
+
 import { Confirm } from "@/components/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { errorMessage, type Resource } from "@/lib/api";
+import { errorMessage } from "@/lib/api";
 import { useConfigurationChanges } from "@/lib/configuration-state";
 import { resourceKeys } from "@/lib/query-keys";
 import { saveVariable } from "@/lib/services";

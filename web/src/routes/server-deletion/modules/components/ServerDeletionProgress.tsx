@@ -1,14 +1,16 @@
+import type { useQueryClient } from "@tanstack/react-query";
 import type { Dispatch, SetStateAction } from "react";
 
-import { useQueryClient } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
+
+import type { Resource } from "@/lib/api";
 
 import { StateBadge } from "@/components/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import { errorMessage, type Resource } from "@/lib/api";
+import { errorMessage } from "@/lib/api";
 import { resourceKeys } from "@/lib/query-keys";
 
 import type { Status } from "../generics";

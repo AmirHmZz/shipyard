@@ -1,9 +1,7 @@
+import type { ResourceFormProps } from "@/components/resource-forms/controller";
 import type { Options } from "@/components/resource-forms/options";
 
-import {
-  useResourceForm,
-  type ResourceFormProps,
-} from "@/components/resource-forms/controller";
+import { useResourceForm } from "@/components/resource-forms/controller";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {

@@ -23,7 +23,9 @@ Use only the needed subfolders under `modules/`: `components/` (PascalCase `.tsx
 17. Services import only `@/lib/api/client` and `@/lib/api/types` (never the `@/lib/api` facade, React, or hooks).
 18. Session comes from `useCurrentSession()`/`useAccount()`/`useAdmin()` (dashboard outlet context). Never peek at the query cache.
 19. Every page route module exports `meta` (static title) and `ErrorBoundary` (re-export of `ContentErrorBoundary`); `handle.pageLabel` is for the header label of routes not in the sidebar.
-20. `bun run lint` must pass; the import-boundary rules in `eslint.config.js` enforce rules 3-4, 11, 17.
+20. `bun run lint` must pass; the import-boundary rules in `../.oxlintrc.json` enforce rules 3-4, 11, 17.
 21. Files in route folders stay under ~300 lines where there is a natural seam; large shared components live in folders with an `index.ts`.
 
 CI runs `bun run lint` (web) and `bun run format:check` (root).
+
+Tooling: Oxlint checks src, e2e, configs and scripts. Oxfmt formats web/src and scripts with sorted imports. Husky runs lint-staged and conventional commit validation. Use `bun run lint:fix` (web) and `bun run format` (root) before committing.

@@ -2,6 +2,8 @@ import { ShieldCheck } from "lucide-react";
 import { useMemo } from "react";
 import { Link } from "react-router";
 
+import type { Resource } from "@/lib/api";
+
 import { Empty, ErrorState, Loading, StateBadge } from "@/components/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +14,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { type Resource } from "@/lib/api";
 import { indexResources } from "@/lib/resource-index";
 
 import { useZoneCertificates } from "../hooks";
@@ -56,11 +57,11 @@ export function ZoneCertificates({
         const expires = cert.expiresAt
           ? new Date(cert.expiresAt).getTime()
           : null;
-        const expired = expires !== null && expires <= Date.now();
+        const expired = expires !== null && expires <= q.dataUpdatedAt;
         const days =
           expires === null
             ? null
-            : Math.ceil((expires - Date.now()) / 86400000);
+            : Math.ceil((expires - q.dataUpdatedAt) / 86400000);
         return (
           <Card key={cert.routeId} className="shadow-none">
             <CardHeader>

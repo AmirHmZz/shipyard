@@ -1,8 +1,10 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus, RefreshCw, Trash2 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
+
+import type { DNSRecord, Resource } from "@/lib/api";
 
 import {
   Dialog,
@@ -24,7 +26,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { errorMessage, text, type DNSRecord, type Resource } from "@/lib/api";
+import { errorMessage, text } from "@/lib/api";
 import { useConfigurationChanges } from "@/lib/configuration-state";
 import { dnsRecordFormSchema, jsonText } from "@/lib/validation";
 
@@ -36,31 +38,49 @@ import { DNSRecordForm } from "./DNSRecordForm";
 export function DNSRecords({ zone }: { zone: Resource }) {
   const changes = useConfigurationChanges();
   const { record: recordId } = useParams();
-  const initializedRecord = useRef("");
   const navigate = useNavigate();
   const client = useQueryClient();
   const q = useDNSRecords(zone);
   const removeRecord = useRemoveDNSRecord(zone.id);
-  const [edit, setEdit] = useState<DNSRecord | null>(null);
-  const [extra, setExtra] = useState("");
-  useEffect(() => {
-    if (!recordId || initializedRecord.current === recordId) return;
-    const record =
-      recordId === "new"
-        ? {
-            type: "A",
-            name: String(zone.data.domain),
-            content: "",
-            ttl: 120,
-            proxied: false,
-          }
-        : q.data?.find((r) => r.id === recordId);
-    if (record) {
-      initializedRecord.current = recordId;
-      setEdit(record);
-      setExtra(record.data ? JSON.stringify(record.data, null, 2) : "");
-    }
-  }, [recordId, q.data, zone.data.domain]);
+  const [draft, setDraft] = useState<{
+    recordId: string | undefined;
+    edit: DNSRecord | null;
+    extra: string | undefined;
+  }>({ recordId, edit: null, extra: undefined });
+  const current =
+    draft.recordId === recordId
+      ? draft
+      : { recordId, edit: null, extra: undefined };
+  const edit =
+    current.edit ??
+    (recordId === "new"
+      ? {
+          type: "A",
+          name: String(zone.data.domain),
+          content: "",
+          ttl: 120,
+          proxied: false,
+        }
+      : recordId
+        ? q.data?.find((r) => r.id === recordId)
+        : null) ??
+    null;
+  const extra =
+    current.extra ?? (edit?.data ? JSON.stringify(edit.data, null, 2) : "");
+  function setEdit(edit: DNSRecord | null) {
+    setDraft((previous) => ({
+      ...(previous.recordId === recordId
+        ? previous
+        : { recordId, extra: undefined }),
+      edit,
+    }));
+  }
+  function setExtra(extra: string) {
+    setDraft((previous) => ({
+      ...(previous.recordId === recordId ? previous : { recordId, edit: null }),
+      extra,
+    }));
+  }
   const [busy, setBusy] = useState(false);
   const [deleteId, setDeleteId] = useState("");
   async function save() {

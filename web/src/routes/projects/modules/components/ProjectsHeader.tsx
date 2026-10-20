@@ -1,8 +1,9 @@
 import { Plus } from "lucide-react";
 
+import type { Resource } from "@/lib/api";
+
 import { PageHeader } from "@/components/shared";
 import { Button } from "@/components/ui/button";
-import { type Resource } from "@/lib/api";
 
 import type { EditorRequest } from "../generics";
 

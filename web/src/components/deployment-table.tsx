@@ -2,6 +2,9 @@ import { ArrowUpRight, Box, GitBranch, Trash2 } from "lucide-react";
 import { useMemo } from "react";
 import { Link } from "react-router";
 
+import type { useDeployments } from "@/lib/api";
+import type { Deployment, Resource } from "@/lib/api";
+
 import { StateBadge } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -13,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ago, type Deployment, type Resource, useDeployments } from "@/lib/api";
+import { ago } from "@/lib/api";
 import { indexResources } from "@/lib/resource-index";
 
 export function DeploymentTable({

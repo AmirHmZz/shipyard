@@ -2,6 +2,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Settings2 } from "lucide-react";
 import { useState } from "react";
 
+import type { Resource } from "@/lib/api";
+
 import {
   Dialog,
   DialogContent,
@@ -22,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { errorMessage, text, type Resource } from "@/lib/api";
+import { errorMessage, text } from "@/lib/api";
 import { useConfigurationChanges } from "@/lib/configuration-state";
 import { gitSetupSchema } from "@/lib/validation";
 

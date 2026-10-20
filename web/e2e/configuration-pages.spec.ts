@@ -1,4 +1,8 @@
-import { test, expect, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+
+import { test, expect } from "@playwright/test";
+
+import { jsonObject } from "./json";
 async function mock(page: Page, admin = true) {
   const resource = (id: string, kind: string, parentId = "", data = {}) => ({
     id,
@@ -43,7 +47,7 @@ async function mock(page: Page, admin = true) {
       subnet: "172.25.0.0/24",
     }),
   ];
-  const writes: any[] = [];
+  const writes: { path: string; body: Record<string, unknown> }[] = [];
   let zoneFailure = false;
   await page.route("**/api/v1/**", async (route) => {
     const req = route.request(),
@@ -312,7 +316,7 @@ test("application networking saves per-service settings and hides admin port con
     .getByRole("button", { name: "Save networking", exact: true })
     .click();
   await expect.poll(() => state.writes.length).toBe(1);
-  expect(state.writes[0].body.services.web).toEqual({
+  expect(jsonObject(state.writes[0].body.services).web).toEqual({
     hostname: "api-internal",
     connections: [{ networkId: "shared", ipv4: "172.25.0.10" }],
   });
@@ -375,7 +379,9 @@ test("application preview settings have deep links and retain wildcard settings 
     .getByLabel("Preview wildcard domain", { exact: true })
     .fill("*.preview.example.com");
   await page.getByRole("button", { name: "Save preview settings" }).click();
-  await expect.poll(() => state.writes.at(-1)?.body.data.previews).toBe(true);
+  await expect
+    .poll(() => jsonObject(state.writes.at(-1)?.body.data).previews)
+    .toBe(true);
   expect(state.writes.at(-1)?.body.data).toMatchObject({
     previewDomain: "*.preview.example.com",
     previewZoneId: "zone",
@@ -384,8 +390,10 @@ test("application preview settings have deep links and retain wildcard settings 
     .getByRole("switch", { name: "Enable PR previews", exact: true })
     .click();
   await page.getByRole("button", { name: "Save preview settings" }).click();
-  await expect.poll(() => state.writes.at(-1)?.body.data.previews).toBe(false);
-  expect(state.writes.at(-1)?.body.data.previewDomain).toBe(
+  await expect
+    .poll(() => jsonObject(state.writes.at(-1)?.body.data).previews)
+    .toBe(false);
+  expect(jsonObject(state.writes.at(-1)?.body.data).previewDomain).toBe(
     "*.preview.example.com",
   );
   await page.getByRole("tab", { name: "networking", exact: true }).click();
@@ -396,7 +404,7 @@ test("new DNS providers require a successful test of the current credentials", a
   page,
 }) => {
   const state = await mock(page);
-  const probes: any[] = [];
+  const probes: Record<string, unknown>[] = [];
   await page.route("**/api/v1/dns/test", async (route) => {
     const body = route.request().postDataJSON();
     probes.push(body);
@@ -437,7 +445,7 @@ test("new DNS providers require a successful test of the current credentials", a
   await save.click();
   await expect.poll(() => state.writes.length).toBe(1);
   expect(probes.at(-1)).toEqual({ provider: "arvancloud", token: "changed" });
-  expect(state.writes[0].body.secrets.token).toBe("changed");
+  expect(jsonObject(state.writes[0].body.secrets).token).toBe("changed");
 });
 
 test("Git integration cards hide webhook URLs and copy buttons", async ({

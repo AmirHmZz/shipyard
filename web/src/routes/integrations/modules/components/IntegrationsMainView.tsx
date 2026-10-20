@@ -9,6 +9,8 @@ import {
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
+import type { Resource } from "@/lib/api";
+
 import {
   Dialog,
   DialogContent,
@@ -28,7 +30,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { text, useAccount, useResources, type Resource } from "@/lib/api";
+import { text, useAccount, useResources } from "@/lib/api";
 import { providerName } from "@/lib/providers";
 
 export function IntegrationsMainView() {

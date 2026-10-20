@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import {
   AlertCircle,
   ArrowUpRight,
@@ -8,7 +10,7 @@ import {
   Plus,
   Search,
 } from "lucide-react";
-import { Fragment, useState, type ReactNode } from "react";
+import { Fragment, useState } from "react";
 import { Link } from "react-router";
 import { toast } from "sonner";
 

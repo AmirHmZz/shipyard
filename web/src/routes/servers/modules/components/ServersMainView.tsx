@@ -3,6 +3,8 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 
+import type { Resource } from "@/lib/api";
+
 import {
   Dialog,
   DialogContent,
@@ -20,7 +22,7 @@ import {
   PageHeader,
 } from "@/components/shared";
 import { Button } from "@/components/ui/button";
-import { useAccount, useResources, type Resource } from "@/lib/api";
+import { useAccount, useResources } from "@/lib/api";
 
 import { useProvisionServer } from "../hooks";
 import { ServerCard } from "./ServerCard";

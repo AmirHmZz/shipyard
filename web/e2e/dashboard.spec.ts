@@ -1,4 +1,6 @@
-import { expect, test, type APIRequestContext } from "@playwright/test";
+import type { APIRequestContext } from "@playwright/test";
+
+import { expect, test } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
 import type { components } from "../src/lib/schema";

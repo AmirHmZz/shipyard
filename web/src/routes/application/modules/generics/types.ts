@@ -1,6 +1,5 @@
+import type { DraftRow } from "@/lib/draft-rows";
 import type { components } from "@/lib/schema";
-
-import { type DraftRow } from "@/lib/draft-rows";
 
 export type Runtime = {
   status: string;

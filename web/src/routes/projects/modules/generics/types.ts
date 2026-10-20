@@ -1,4 +1,4 @@
-import { type Resource } from "@/lib/api";
+import type { Resource } from "@/lib/api";
 
 export type EditorRequest = {
   kind: string;

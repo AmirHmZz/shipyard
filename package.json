@@ -1,8 +1,24 @@
 {
   "name": "shipyard-tooling",
   "private": true,
-  "scripts": {"format": "prettier --write web/src scripts", "format:check": "prettier --check web/src scripts", "api:generate": "node scripts/openapi.mjs && bun run --cwd web api:generate"},
+  "scripts": {
+    "format": "oxfmt web/src scripts",
+    "format:check": "oxfmt --check web/src scripts",
+    "api:generate": "node scripts/openapi.mjs && bun run --cwd web api:generate",
+    "prepare": "husky"
+  },
   "devDependencies": {
-    "prettier": "^3.9.10"
+    "@commitlint/cli": "^21.2.4",
+    "@commitlint/config-conventional": "^21.2.4",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.0",
+    "oxfmt": "^0.74.0"
+  },
+  "lint-staged": {
+    "web/**/*.{ts,tsx}": [
+      "bun run --cwd web lint:staged",
+      "oxfmt"
+    ],
+    "*.{json,md,yaml,yml,css,js,mjs}": "oxfmt"
   }
 }

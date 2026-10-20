@@ -1,4 +1,6 @@
-import { test, expect, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+
+import { test, expect } from "@playwright/test";
 async function setup(
   page: Page,
   { admin = true, enabled = true, acmeConfigured = true } = {},
@@ -19,7 +21,7 @@ async function setup(
     },
     error: "",
   };
-  const writes: any[] = [];
+  const writes: { path: string; body: Record<string, unknown> }[] = [];
   let fail = false;
   await page.route("**/api/v1/**", async (route) => {
     const req = route.request(),

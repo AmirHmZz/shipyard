@@ -21,4 +21,16 @@ describe("plain log text", () => {
   it("supports C1 controls and leaves ordinary brackets alone", () => {
     expect(logText("\x9b31merror\x9b0m [failed]")).toBe("error [failed]");
   });
+  it("strips C0 and C1 control bytes while preserving tab and line feed", () => {
+    for (const code of [
+      ...Array.from({ length: 32 }, (_, index) => index),
+      ...Array.from({ length: 33 }, (_, index) => 127 + index),
+    ]) {
+      const character = String.fromCharCode(code);
+      expect(logText(character + "✓")).toBe(
+        code === 9 || code === 10 ? character + "✓" : "✓",
+      );
+    }
+    expect(logText("\x1b]title\x07visible\x9dtitle\x9c\x1bM")).toBe("visible");
+  });
 });

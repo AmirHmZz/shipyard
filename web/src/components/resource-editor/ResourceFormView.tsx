@@ -1,6 +1,9 @@
 import { lazy, Suspense } from "react";
 import { Link } from "react-router";
 
+import type { ResourceFormProps } from "@/components/resource-forms/controller";
+import type { ResourceKind } from "@/components/resource-forms/definitions";
+
 import {
   Dialog,
   DialogContent,
@@ -9,11 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/configuration-surface";
-import {
-  useResourceForm,
-  type ResourceFormProps,
-} from "@/components/resource-forms/controller";
-import { type ResourceKind } from "@/components/resource-forms/definitions";
+import { useResourceForm } from "@/components/resource-forms/controller";
 import { ResourceOptions } from "@/components/resource-forms/options";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";

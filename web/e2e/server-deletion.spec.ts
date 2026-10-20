@@ -1,4 +1,6 @@
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+
+import { expect, test } from "@playwright/test";
 
 async function setup(
   page: Page,
@@ -60,7 +62,7 @@ async function setup(
     ],
     blockers: [],
   };
-  const writes: { path: string; body: any }[] = [];
+  const writes: { path: string; body: Record<string, unknown> }[] = [];
   let conflict = false;
   await page.route("**/api/v1/**", async (route) => {
     const req = route.request(),

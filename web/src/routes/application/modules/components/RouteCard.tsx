@@ -3,6 +3,8 @@ import { Pencil, RefreshCw, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import type { Resource } from "@/lib/api";
+
 import { Confirm, StateBadge } from "@/components/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +16,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { errorMessage, number, text, type Resource } from "@/lib/api";
+import { errorMessage, number, text } from "@/lib/api";
 
 import { applicationKeys } from "../generics";
 import { useDomainStatus } from "../hooks";

@@ -1,9 +1,10 @@
 import { Plus } from "lucide-react";
 
+import type { Resource } from "@/lib/api";
+
 import { Empty } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { TabsContent } from "@/components/ui/tabs";
-import { type Resource } from "@/lib/api";
 
 import { RouteCard } from "./RouteCard";
 

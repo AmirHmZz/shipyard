@@ -1,4 +1,8 @@
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+
+import { expect, test } from "@playwright/test";
+
+import { jsonObject } from "./json";
 
 async function fixture(page: Page, writable = true, provider = "gitea") {
   const resource = (
@@ -55,7 +59,7 @@ async function fixture(page: Page, writable = true, provider = "gitea") {
   app.variables = { "env:ORIGIN": "https://readable.example.com" };
   app.secretKeys = ["env:TOKEN"];
   const state = {
-    writes: [] as Record<string, any>[],
+    writes: [] as Record<string, unknown>[],
     branchRequests: [] as string[],
     branchFailure: false,
     repoFailure: false,
@@ -260,7 +264,7 @@ for (const theme of ["light", "dark"]) {
         .getByRole("button", { name: "Save route", exact: true })
         .click();
       await expect.poll(() => state.writes.length).toBe(1);
-      expect(state.writes[0].data.domain).toBe("example.org");
+      expect(jsonObject(state.writes[0].data).domain).toBe("example.org");
       await page.goto("/configure/route/route");
       await expect(page.getByLabel("Subdomain", { exact: true })).toHaveValue(
         "api.dev",
@@ -269,7 +273,9 @@ for (const theme of ["light", "dark"]) {
         .getByRole("button", { name: "Save route", exact: true })
         .click();
       await expect.poll(() => state.writes.length).toBe(2);
-      expect(state.writes[1].data.domain).toBe("api.dev.example.com");
+      expect(jsonObject(state.writes[1].data).domain).toBe(
+        "api.dev.example.com",
+      );
     });
 
     test("ordinary values and secrets can be edited, converted, and removed", async ({

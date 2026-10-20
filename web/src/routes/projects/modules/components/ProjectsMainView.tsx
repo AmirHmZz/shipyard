@@ -2,6 +2,8 @@ import { Layers3, MoreHorizontal, Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 
+import type { Resource } from "@/lib/api";
+
 import { DeleteResource, DeletionStatus } from "@/components/delete-resource";
 import { ResourceEditor } from "@/components/resource-editor";
 import { Empty, ErrorState, Loading } from "@/components/shared";
@@ -15,7 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useResources, type Resource } from "@/lib/api";
+import { useResources } from "@/lib/api";
 import { indexResources } from "@/lib/resource-index";
 
 import { ApplicationCards } from "./ApplicationCards";

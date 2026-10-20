@@ -2,6 +2,9 @@ import { Copy, Eraser } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import type { Deployment } from "@/lib/api";
+import type { LogLine } from "@/lib/log-buffer";
+
 import { StateBadge } from "@/components/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -13,8 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { type Deployment } from "@/lib/api";
-import { LogBuffer, type LogLine } from "@/lib/log-buffer";
+import { LogBuffer } from "@/lib/log-buffer";
 import { logText } from "@/lib/log-text";
 export function LogStream({
   deploymentId,
@@ -25,9 +27,6 @@ export function LogStream({
   applicationId?: string;
   containers?: string[];
 }) {
-  const [lines, setLines] = useState<LogLine[]>([]);
-  const [state, setState] = useState("connecting");
-  const [error, setError] = useState("");
   const [selected, setSelected] = useState("");
   const scroll = useRef<HTMLPreElement>(null);
   const buffer = useRef<LogBuffer | null>(null);
@@ -37,11 +36,26 @@ export function LogStream({
   const endpoint = deploymentId
     ? `/deployments/${deploymentId}/events`
     : `/applications/${applicationId}/logs?container=${encodeURIComponent(effectiveContainer)}`;
+  const [output, setOutput] = useState({
+    endpoint,
+    lines: new Array<LogLine>(),
+    state: "connecting",
+    error: "",
+  });
+  const { lines, state, error } =
+    output.endpoint === endpoint
+      ? output
+      : { lines: [], state: "connecting", error: "" };
   useEffect(() => {
-    setLines([]);
-    setState("connecting");
-    setError("");
-    const current = new LogBuffer(setLines);
+    function updateOutput(values: Partial<typeof output>) {
+      setOutput((previous) => ({
+        ...(previous.endpoint === endpoint
+          ? previous
+          : { endpoint, lines: [], state: "connecting", error: "" }),
+        ...values,
+      }));
+    }
+    const current = new LogBuffer((lines) => updateOutput({ lines }));
     buffer.current = current;
     const source = new EventSource("/api/v1" + endpoint);
     let lastEventID = 0;
@@ -58,18 +72,18 @@ export function LogStream({
         message: string;
       };
       current.push(logText(data.message));
-      setState("connected");
+      updateOutput({ state: "connected" });
     });
     source.addEventListener("status", (event) => {
       const d = JSON.parse((event as MessageEvent).data) as Deployment;
-      setState(d.state);
-      setError(d.error || "");
+      updateOutput({ state: d.state, error: d.error || "" });
       if (["healthy", "failed", "recovery_failed"].includes(d.state))
         source.close();
     });
     source.onerror = () => {
-      if (source.readyState === EventSource.CLOSED) setState("ended");
-      else setState("reconnecting");
+      if (source.readyState === EventSource.CLOSED)
+        updateOutput({ state: "ended" });
+      else updateOutput({ state: "reconnecting" });
     };
     return () => {
       source.close();

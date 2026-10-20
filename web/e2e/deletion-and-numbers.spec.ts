@@ -1,4 +1,8 @@
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+
+import { expect, test } from "@playwright/test";
+
+import { jsonObject } from "./json";
 
 async function setup(page: Page, writable = true) {
   const resource = (id: string, kind: string, parentId = "", data = {}) => ({
@@ -25,7 +29,7 @@ async function setup(page: Page, writable = true) {
     }),
   ];
   const deletes: string[] = [];
-  const writes: any[] = [];
+  const writes: Record<string, unknown>[] = [];
   let fail = false;
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -213,7 +217,7 @@ test("container ports use themed steppers and preserve typing, keyboard steps an
   await dialog.getByRole("button", { name: "Save route" }).click();
   await expect(page).toHaveURL(/applications\/app(?:\?tab=domains)?$/);
   await page.getByRole("tab", { name: "domains", exact: true }).click();
-  expect(state.writes[0].data.targetPort).toBe(8081);
+  expect(jsonObject(state.writes[0].data).targetPort).toBe(8081);
   await page.getByRole("button", { name: "Use dark theme" }).click();
   await page.getByRole("button", { name: "Add route", exact: true }).click();
   await page

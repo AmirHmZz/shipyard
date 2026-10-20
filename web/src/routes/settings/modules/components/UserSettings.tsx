@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { toast } from "sonner";
 
+import type { Session } from "@/lib/api";
+
 import { Confirm, ErrorState, Loading, StateBadge } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,7 +20,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { type Session } from "@/lib/api";
 
 import type { User } from "../generics";
 

@@ -2,6 +2,8 @@ import { Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import type { Deployment } from "@/lib/api";
+
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,7 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
-import { errorMessage, type Deployment } from "@/lib/api";
+import { errorMessage } from "@/lib/api";
 
 import { useRemoveDeployment } from "../hooks";
 

@@ -17,6 +17,8 @@ import {
   useMatches,
 } from "react-router";
 
+import type { Session } from "@/lib/api";
+
 import { Loading } from "@/components/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -44,7 +46,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { setCSRF, useResources, type Session } from "@/lib/api";
+import { setCSRF, useResources } from "@/lib/api";
 import { sessionKeys } from "@/lib/query-keys";
 import { resolvePageLabel } from "@/lib/route-handle";
 import { readTheme, writeTheme } from "@/lib/theme";

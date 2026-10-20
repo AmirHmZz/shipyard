@@ -1,4 +1,6 @@
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+
+import { expect, test } from "@playwright/test";
 
 import type { components } from "../src/lib/schema";
 
@@ -19,6 +21,7 @@ function resource(
     kind,
     name,
     data,
+    variables: {},
     parentId,
     teamId: "",
     canWrite: true,
@@ -54,6 +57,7 @@ const initial = [
 ];
 function certificate(overrides: Partial<Certificate>): Certificate {
   return {
+    ownerType: "application",
     routeId: "route",
     applicationId: "app",
     domain: "app.example.com",
@@ -107,7 +111,12 @@ async function mock(page: Page) {
       if (request.method() === "GET") return route.fulfill({ json: resources });
       const input: Input = request.postDataJSON();
       writes.push(input);
-      const saved = resource("server", input.kind, input.name, input.data);
+      const saved = resource(
+        "server",
+        input.kind,
+        input.name || "",
+        input.data,
+      );
       saved.secretKeys = Object.keys(input.secrets || {});
       resources.push(saved);
       return route.fulfill({ status: 201, json: saved });
@@ -115,8 +124,9 @@ async function mock(page: Page) {
     if (path === "/api/v1/resources/server") {
       const input: Input = request.postDataJSON();
       writes.push(input);
-      const saved = resources.find((r) => r.id === "server")!;
-      saved.name = input.name;
+      const saved = resources.find((r) => r.id === "server");
+      if (!saved) throw new Error("Expected the saved server fixture");
+      saved.name = input.name || "";
       return route.fulfill({ json: saved });
     }
     if (path.endsWith("/records"))

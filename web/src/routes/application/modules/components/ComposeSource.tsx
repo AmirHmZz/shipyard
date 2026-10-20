@@ -2,6 +2,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Play, Save } from "lucide-react";
 import { lazy, Suspense, useState } from "react";
 
+import type { Resource } from "@/lib/api";
+
 import { ErrorState, Loading } from "@/components/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -13,7 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import { errorMessage, type Resource } from "@/lib/api";
+import { errorMessage } from "@/lib/api";
 import { useConfigurationChanges } from "@/lib/configuration-state";
 import { loadComposeEditor } from "@/lib/feature-loaders";
 import { resourceKeys } from "@/lib/query-keys";

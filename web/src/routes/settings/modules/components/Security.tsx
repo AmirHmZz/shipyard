@@ -3,6 +3,8 @@ import { KeyRound, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import type { Session } from "@/lib/api";
+
 import { CopyButton, StateBadge } from "@/components/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -15,7 +17,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { errorMessage, type Session } from "@/lib/api";
+import { errorMessage } from "@/lib/api";
 import { sessionKeys } from "@/lib/query-keys";
 import {
   totpCodeSchema,

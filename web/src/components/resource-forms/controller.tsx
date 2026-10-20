@@ -1,10 +1,14 @@
+import type { ReactNode } from "react";
+
 import { useQueryClient } from "@tanstack/react-query";
-import { createContext, use, useId, useState, type ReactNode } from "react";
+import { createContext, use, useId, useState } from "react";
 import { toast } from "sonner";
 import * as z from "zod";
 
+import type { Resource } from "@/lib/api";
+
 import { ProviderLogo } from "@/components/provider-name";
-import { errorMessage, type Resource } from "@/lib/api";
+import { errorMessage } from "@/lib/api";
 import { normalizeApplicationSettings } from "@/lib/application-settings";
 import { useConfigurationChanges } from "@/lib/configuration-state";
 import { resourceKeys } from "@/lib/query-keys";
@@ -16,7 +20,9 @@ import {
 } from "@/lib/services";
 import { dnsCredentialSchema, parseResourceForm } from "@/lib/validation";
 
-import { defaults, parents, type ResourceKind } from "./definitions";
+import type { ResourceKind } from "./definitions";
+
+import { defaults, parents } from "./definitions";
 export type ResourceFormProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;

@@ -1,10 +1,11 @@
 import { useParams } from "react-router";
 
+import type { Resource } from "@/lib/api";
+
 import {
   ConfigurationGuard,
   ConfigurationPage,
 } from "@/components/configuration-surface";
-import { type Resource } from "@/lib/api";
 
 import { DNSRecords } from "./DNSRecords";
 

@@ -1,9 +1,11 @@
+import type { useSearchParams } from "react-router";
+
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowUpRight } from "lucide-react";
-import { useSearchParams } from "react-router";
 import { toast } from "sonner";
 
 import type { Deployment } from "@/lib/api";
+import type { Metric, Resource } from "@/lib/api";
 
 import { RepositoryName } from "@/components/repository-name";
 import { Empty, StateBadge } from "@/components/shared";
@@ -19,7 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { TabsContent } from "@/components/ui/tabs";
-import { errorMessage, text, type Metric, type Resource } from "@/lib/api";
+import { errorMessage, text } from "@/lib/api";
 import { previewCommitSchema } from "@/lib/validation";
 
 import { updateApplicationVersion } from "../services";

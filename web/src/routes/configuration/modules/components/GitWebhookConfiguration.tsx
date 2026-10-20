@@ -1,8 +1,9 @@
-import { useQueryClient } from "@tanstack/react-query";
+import type { useQueryClient } from "@tanstack/react-query";
+
+import type { Resource } from "@/lib/api";
 
 import { CopyButton } from "@/components/shared";
 import { Button } from "@/components/ui/button";
-import { type Resource } from "@/lib/api";
 import { resourceKeys } from "@/lib/query-keys";
 
 import type { Status } from "../generics";

@@ -1,4 +1,5 @@
-import { useQueryClient } from "@tanstack/react-query";
+import type { useQueryClient } from "@tanstack/react-query";
+
 import { Trash2 } from "lucide-react";
 import { Link } from "react-router";
 

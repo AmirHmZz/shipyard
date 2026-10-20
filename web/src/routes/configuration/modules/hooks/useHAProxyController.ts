@@ -1,8 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
-import { errorMessage, type Resource } from "@/lib/api";
+import type { Resource } from "@/lib/api";
+import type { DraftRow } from "@/lib/draft-rows";
+
+import { errorMessage } from "@/lib/api";
 import { useConfigurationChanges } from "@/lib/configuration-state";
-import { draftRow, type DraftRow } from "@/lib/draft-rows";
+import { draftRow } from "@/lib/draft-rows";
 import { haproxySettingsSchema } from "@/lib/validation";
 
 import type { Settings, Draft } from "../generics";
@@ -29,8 +32,7 @@ export function useHAProxyController(server: Resource) {
   const [editedDraft, setDraft] = useState<Draft | null>(null);
   const [job, setJob] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
+  const [localError, setError] = useState("");
   const q = useHAProxySettings(server);
   const bindings = q.data?.bindings;
   const version = q.data?.version;
@@ -41,48 +43,29 @@ export function useHAProxyController(server: Resource) {
         : null,
     [bindings, version],
   );
-  const draft = editedDraft ?? savedDraft;
   const applyId = q.data?.apply?.id;
   const applyState = q.data?.apply?.state;
   const applyError = q.data?.apply?.error;
   const lastJobId = q.data?.lastJobId;
   const queryVersion = q.data?.version;
   const queryBindings = q.data?.bindings;
-  useEffect(() => {
-    if (
-      !job ||
-      applyId !== job ||
-      !["done", "failed"].includes(applyState || "")
-    )
-      return;
-    setJob(null);
-    if (
-      applyState === "done" &&
-      lastJobId === job &&
-      queryVersion !== undefined &&
-      queryBindings
-    ) {
-      setDraft({
-        version: queryVersion,
-        bindings: settingsDraft({
-          version: queryVersion,
-          bindings: queryBindings,
-        }).bindings,
-      });
-      setSuccess(true);
-    } else setError(applyError || "HAProxy settings could not be applied.");
-  }, [
-    job,
-    applyId,
-    applyState,
-    applyError,
-    lastJobId,
-    queryVersion,
-    queryBindings,
-  ]);
+  const jobDone =
+    !!job && applyId === job && ["done", "failed"].includes(applyState || "");
+  const success = !!(
+    jobDone &&
+    applyState === "done" &&
+    lastJobId === job &&
+    queryVersion !== undefined &&
+    queryBindings
+  );
+  const draft = success ? savedDraft : (editedDraft ?? savedDraft);
+  const error =
+    jobDone && !success
+      ? applyError || "HAProxy settings could not be applied."
+      : localError;
   const pending =
     busy ||
-    !!job ||
+    (!!job && !jobDone) ||
     (!!q.data?.apply && ["queued", "running"].includes(q.data.apply.state));
   const stale =
     !!draft &&
@@ -91,8 +74,9 @@ export function useHAProxyController(server: Resource) {
       Object.keys(draft.bindings).some(
         (id) => !q.data.frontends.some((frontend) => frontend.id === id),
       ));
-  const update = (id: string, values: DraftRow<{ value: string }>[] | null) => {
+  function update(id: string, values: DraftRow<{ value: string }>[] | null) {
     setDraft((current) => {
+      if (success) current = savedDraft;
       current ??= draft;
       if (!current) return current;
       const bindings = { ...current.bindings };
@@ -100,13 +84,17 @@ export function useHAProxyController(server: Resource) {
       else bindings[id] = values;
       return { ...current, bindings };
     });
-    setSuccess(false);
-  };
+    if (jobDone) {
+      if (!success) setError(error);
+      setJob(null);
+    }
+  }
   async function save() {
     if (!draft) return;
+    setDraft(draft);
+    setJob(null);
     setBusy(true);
     setError("");
-    setSuccess(false);
     try {
       const result = await saveHAProxySettings(
         server.id,

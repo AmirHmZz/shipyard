@@ -1,7 +1,9 @@
-import type { editor } from "monaco-editor";
+import type { OnMount } from "@monaco-editor/react";
 
 import "@/lib/monaco";
-import Editor, { type OnMount } from "@monaco-editor/react";
+import type { editor } from "monaco-editor";
+
+import Editor from "@monaco-editor/react";
 import { FileCode2, WandSparkles, WrapText } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 import { toast } from "sonner";

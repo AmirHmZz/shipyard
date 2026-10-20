@@ -1,17 +1,23 @@
+import type { JSONSchema } from "monaco-yaml";
+
 import { loader } from "@monaco-editor/react";
-import * as monaco from "monaco-editor/esm/vs/editor/editor.api.js";
 import "monaco-editor/esm/vs/editor/editor.all.js";
 import "monaco-editor/esm/vs/basic-languages/yaml/yaml.contribution.js";
-import EditorWorker from "monaco-editor/esm/vs/editor/editor.worker.js?worker";
-import { configureMonacoYaml, type JSONSchema } from "monaco-yaml";
-import YAMLWorker from "monaco-yaml/yaml.worker?worker";
+import * as monaco from "monaco-editor/esm/vs/editor/editor.api.js";
+import { configureMonacoYaml } from "monaco-yaml";
 
 import composeSchema from "./schemas/compose-spec.json";
 
 // All language services run in bundled same-origin workers, including schemas.
 self.MonacoEnvironment = {
   getWorker(_moduleId, label) {
-    return label === "yaml" ? new YAMLWorker() : new EditorWorker();
+    if (label === "yaml")
+      return new Worker(new URL("./workers/yaml.ts", import.meta.url), {
+        type: "module",
+      });
+    return new Worker(new URL("./workers/editor.ts", import.meta.url), {
+      type: "module",
+    });
   },
 };
 loader.config({ monaco });

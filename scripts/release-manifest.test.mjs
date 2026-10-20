@@ -9,6 +9,11 @@ import { test } from "node:test";
 test("release artifacts pin images, preserve migration checksums and refuse invalid versions", () => {
   const root = resolve("."),
     temp = mkdtempSync(join(tmpdir(), "shipyard-release-"));
+  if (
+    !resolve(temp).startsWith(resolve(tmpdir()) + sep) ||
+    !basename(temp).startsWith("shipyard-release-")
+  )
+    throw Error("Unsafe temporary cleanup path");
   try {
     mkdirSync(join(temp, "internal/db"), { recursive: true });
     cpSync(
@@ -68,11 +73,6 @@ test("release artifacts pin images, preserve migration checksums and refuse inva
     assert.throws(() => run({ SOURCE_COMMIT: "unknown" }));
     assert.throws(() => run({ PREVIOUS_VERSION: "0.1.0-preview" }));
   } finally {
-    if (
-      !resolve(temp).startsWith(resolve(tmpdir()) + sep) ||
-      !basename(temp).startsWith("shipyard-release-")
-    )
-      throw Error("Unsafe temporary cleanup path");
     rmSync(temp, { recursive: true, force: true });
   }
 });
