@@ -1,6 +1,7 @@
+import type { FormEvent } from "react";
+
 import { Plus, Users } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import { ResourceEditor } from "@/components/resource-editor";
 import {
@@ -37,7 +38,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { errorMessage, useAccount, useResources } from "@/lib/api";
+import { useResources } from "@/lib/api";
+import { toastValidationError } from "@/lib/api/toaster";
+import { PROJECT_ROLES } from "@/lib/enums";
+import { useAccount } from "@/lib/session";
 
 import { invitationFormSchema } from "../generics";
 import {
@@ -66,6 +70,25 @@ export function TeamsMainView() {
   const assignmentMutation = useAssignTeamMember();
   const [assign, setAssign] = useState("");
   const [remove, setRemove] = useState("");
+  function submitInvitation(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (invitationMutation.isPending) return;
+    const parsed = invitationFormSchema.safeParse({
+      email,
+      role,
+      projectId: project,
+    });
+    if (!parsed.success) {
+      toastValidationError(parsed.error);
+      return;
+    }
+    invitationMutation.mutate(parsed.data, {
+      onSuccess: (value) => setInvitation(value.url),
+    });
+  }
+  function confirmRemoval() {
+    removeMutation.mutate(remove, { onSuccess: () => setRemove("") });
+  }
   if (q.isPending) return <Loading />;
   if (q.error) return <ErrorState error={q.error} />;
   return (
@@ -158,26 +181,7 @@ export function TeamsMainView() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <form
-                  className="space-y-4"
-                  onSubmit={async (e) => {
-                    e.preventDefault();
-                    if (invitationMutation.isPending) return;
-                    try {
-                      const v = await invitationMutation.mutateAsync(
-                        invitationFormSchema.parse({
-                          email,
-                          role,
-                          projectId: project,
-                        }),
-                      );
-                      setInvitation(v.url);
-                      toast.success("Invitation created");
-                    } catch (err) {
-                      toast.error(errorMessage(err));
-                    }
-                  }}
-                >
+                <form className="space-y-4" onSubmit={submitInvitation}>
                   <div className="space-y-2">
                     <Label>Email</Label>
                     <Input
@@ -220,14 +224,13 @@ export function TeamsMainView() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {(project
-                          ? ["owner", "operator", "viewer"]
-                          : ["member", "owner"]
-                        ).map((v) => (
-                          <SelectItem key={v} value={v}>
-                            {v}
-                          </SelectItem>
-                        ))}
+                        {(project ? PROJECT_ROLES : ["member", "owner"]).map(
+                          (v) => (
+                            <SelectItem key={v} value={v}>
+                              {v}
+                            </SelectItem>
+                          ),
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
@@ -286,10 +289,8 @@ export function TeamsMainView() {
         title="Remove team member?"
         description="Their membership and all project grants in this team will be removed."
         destructive
-        onConfirm={async () => {
-          await removeMutation.mutateAsync(remove);
-          toast.success("Member removed");
-        }}
+        pending={removeMutation.isPending}
+        onConfirm={confirmRemoval}
       />
     </>
   );

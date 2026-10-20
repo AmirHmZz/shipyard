@@ -4,6 +4,7 @@ import type * as z from "zod/mini";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { callApi, callApiBlob } from "./call";
+import { captureSession } from "./csrf";
 import { ApiException } from "./errors";
 
 export type ApiMutationOptions<
@@ -54,6 +55,7 @@ export function useApiMutation<
               schema,
             });
       if (!result.ok) throw new ApiException(result.error);
+      captureSession(requestPath, result.data);
       return result.data;
     },
     onSettled:

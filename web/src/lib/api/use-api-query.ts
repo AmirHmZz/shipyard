@@ -4,6 +4,7 @@ import type * as z from "zod/mini";
 import { useQuery } from "@tanstack/react-query";
 
 import { callApi } from "./call";
+import { captureSession } from "./csrf";
 import { ApiException } from "./errors";
 
 export type ApiQueryOptions<
@@ -25,6 +26,7 @@ export function useApiQuery<S extends z.ZodMiniType, TData = z.output<S>>({
     queryFn: async ({ signal }) => {
       const result = await callApi({ path, schema, signal });
       if (!result.ok) throw new ApiException(result.error);
+      captureSession(path, result.data);
       return result.data;
     },
   });

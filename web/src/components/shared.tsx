@@ -251,13 +251,15 @@ export function Confirm({
   title,
   description,
   onConfirm,
+  pending,
   destructive = false,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   title: string;
   description: string;
-  onConfirm: () => Promise<unknown>;
+  onConfirm: () => void | Promise<unknown>;
+  pending?: boolean;
   destructive?: boolean;
 }) {
   const [busy, setBusy] = useState(false);
@@ -274,8 +276,12 @@ export function Confirm({
           </Button>
           <Button
             variant={destructive ? "destructive" : "default"}
-            disabled={busy}
+            disabled={pending ?? busy}
             onClick={async () => {
+              if (pending !== undefined) {
+                onConfirm();
+                return;
+              }
               setBusy(true);
               try {
                 await onConfirm();
@@ -289,7 +295,7 @@ export function Confirm({
               }
             }}
           >
-            {busy && <Spinner className="size-4 " />}Confirm
+            {(pending ?? busy) && <Spinner className="size-4 " />}Confirm
           </Button>
         </DialogFooter>
       </DialogContent>

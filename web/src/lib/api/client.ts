@@ -1,4 +1,5 @@
-let csrf = "";
+import { getCSRF } from "./csrf";
+export { getCSRF, setCSRF } from "./csrf";
 export class APIError extends Error {
   constructor(
     public status: number,
@@ -8,12 +9,6 @@ export class APIError extends Error {
     this.name = "APIError";
   }
 }
-export function setCSRF(value: string) {
-  csrf = value;
-}
-export function getCSRF() {
-  return csrf;
-}
 export async function api<T>(
   path: string,
   options: RequestInit = {},
@@ -22,7 +17,7 @@ export async function api<T>(
     ...options,
     headers: {
       "Content-Type": "application/json",
-      "X-CSRF-Token": csrf,
+      "X-CSRF-Token": getCSRF(),
       ...options.headers,
     },
     credentials: "same-origin",

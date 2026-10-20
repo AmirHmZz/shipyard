@@ -1,5 +1,3 @@
-import { toast } from "sonner";
-
 import type { Resource } from "@/lib/api";
 
 import {
@@ -17,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { errorMessage } from "@/lib/api";
+import { toastValidationError } from "@/lib/api/toaster";
 import { ASSIGNMENT_ROLES } from "@/lib/enums";
 
 import type { useAssignTeamMember } from "../hooks";
@@ -36,6 +34,17 @@ export function ProjectAccessDialog({
   team: Resource;
   assignmentMutation: ReturnType<typeof useAssignTeamMember>;
 }) {
+  function assignProject(projectId: string, role: string) {
+    const assignment = projectAssignmentSchema.safeParse({
+      userId: assign,
+      role,
+    });
+    if (!assignment.success) {
+      toastValidationError(assignment.error);
+      return;
+    }
+    assignmentMutation.mutate({ projectId, assignment: assignment.data });
+  }
   return (
     <Dialog open={!!assign} onOpenChange={(v) => !v && setAssign("")}>
       <DialogContent>
@@ -59,20 +68,7 @@ export function ProjectAccessDialog({
                   assignmentMutation.isPending &&
                   assignmentMutation.variables?.projectId === p.id
                 }
-                onValueChange={async (value) => {
-                  try {
-                    await assignmentMutation.mutateAsync({
-                      projectId: p.id,
-                      assignment: projectAssignmentSchema.parse({
-                        userId: assign,
-                        role: value,
-                      }),
-                    });
-                    toast.success("Project access updated");
-                  } catch (e) {
-                    toast.error(errorMessage(e));
-                  }
-                }}
+                onValueChange={(value) => assignProject(p.id, value)}
               >
                 <SelectTrigger className="w-36">
                   <SelectValue placeholder="Assign role" />
