@@ -1,4 +1,3 @@
-import { useHistory } from "../hooks";
 import { ErrorState, Loading, StateBadge } from "@/components/shared";
 import { Card } from "@/components/ui/card";
 import {
@@ -9,6 +8,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+
+import { useHistory } from "../hooks";
 
 export function History({ type }: { type: "audit" | "jobs" }) {
   const q = useHistory(type);

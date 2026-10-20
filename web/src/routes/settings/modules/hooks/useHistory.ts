@@ -1,5 +1,6 @@
-import { settingsKeys } from "../generics";
 import { useQuery } from "@tanstack/react-query";
+
+import { settingsKeys } from "../generics";
 import { getHistory } from "../services";
 
 export function useHistory(type: "audit" | "jobs") {

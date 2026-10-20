@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { resolvePageLabel, type RouteHandle } from "./route-handle";
 
 const configuration: RouteHandle = {

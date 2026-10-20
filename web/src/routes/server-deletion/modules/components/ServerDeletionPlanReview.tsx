@@ -1,6 +1,7 @@
-import { serverDeletionKeys } from "../generics";
-import { resourceKeys } from "@/lib/query-keys";
-import { confirmServerDeletion } from "../services";
+import { useQueryClient } from "@tanstack/react-query";
+import { Trash2 } from "lucide-react";
+import { Link } from "react-router";
+
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,11 +10,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { APIError, errorMessage } from "@/lib/api";
+import { resourceKeys } from "@/lib/query-keys";
 import { serverDeletionSchema } from "@/lib/validation";
-import { useQueryClient } from "@tanstack/react-query";
-import { Trash2 } from "lucide-react";
-import { Link } from "react-router";
+
 import type { Plan } from "../generics";
+
+import { serverDeletionKeys } from "../generics";
+import { confirmServerDeletion } from "../services";
 import { Inventory } from "./Inventory";
 
 export function ServerDeletionPlanReview({

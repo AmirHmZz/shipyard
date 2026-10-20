@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { api, post } from "@/lib/api/client";
+
 import type { Resource } from "@/lib/api/types";
+
+import { api, post } from "@/lib/api/client";
+
 import * as services from "./index";
 
 vi.mock("@/lib/api/client", () => {

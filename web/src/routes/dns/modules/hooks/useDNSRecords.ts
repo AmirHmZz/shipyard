@@ -1,7 +1,9 @@
-import { dnsKeys } from "../generics";
 import { useQuery } from "@tanstack/react-query";
-import { getDNSRecords } from "../services";
+
 import type { Resource } from "@/lib/api";
+
+import { dnsKeys } from "../generics";
+import { getDNSRecords } from "../services";
 
 export function useDNSRecords(zone: Resource) {
   return useQuery({

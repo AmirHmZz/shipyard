@@ -1,7 +1,8 @@
+import type { Options } from "@/components/resource-forms/options";
+
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { errorMessage } from "@/lib/api";
-import type { Options } from "@/components/resource-forms/options";
 
 export function RepositoryStatus({
   repos,

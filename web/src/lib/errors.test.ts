@@ -1,5 +1,6 @@
 import { expect, it } from "vitest";
 import { z } from "zod";
+
 import { errorMessage } from "./errors";
 it("preserves actionable errors, joins Zod issues, and handles non-errors", () => {
   expect(errorMessage(new Error("offline"))).toBe("offline");

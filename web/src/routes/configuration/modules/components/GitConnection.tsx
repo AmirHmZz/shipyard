@@ -1,10 +1,7 @@
-import { followGitSetup } from "../utils";
-import { reconnectGit, startGitSetup } from "../services";
-import {
-  useGiteaInstances,
-  useGitSetupConfig,
-  useGitSetupStatus,
-} from "../hooks";
+import { useQueryClient } from "@tanstack/react-query";
+import { Plus, Settings2 } from "lucide-react";
+import { useState } from "react";
+
 import {
   Dialog,
   DialogContent,
@@ -28,12 +25,17 @@ import {
 import { errorMessage, text, type Resource } from "@/lib/api";
 import { useConfigurationChanges } from "@/lib/configuration-state";
 import { gitSetupSchema } from "@/lib/validation";
-import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Settings2 } from "lucide-react";
-import { useState } from "react";
+
+import {
+  useGiteaInstances,
+  useGitSetupConfig,
+  useGitSetupStatus,
+} from "../hooks";
+import { reconnectGit, startGitSetup } from "../services";
+import { followGitSetup } from "../utils";
+import { GitConnectionActions } from "./GitConnectionActions";
 import { GiteaInstanceEditor } from "./GiteaInstanceEditor";
 import { GitWebhookConfiguration } from "./GitWebhookConfiguration";
-import { GitConnectionActions } from "./GitConnectionActions";
 
 export function GitConnection({
   existing,

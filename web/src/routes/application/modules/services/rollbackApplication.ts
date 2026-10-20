@@ -1,6 +1,7 @@
 import { post } from "@/lib/api/client";
-import type { DeploymentCreationResult } from "../generics";
 import { apiPath } from "@/lib/paths";
+
+import type { DeploymentCreationResult } from "../generics";
 
 export function rollbackApplication(
   id: string,

@@ -1,21 +1,15 @@
-import { ApplicationVolumes } from "./ApplicationVolumes";
-import { ApplicationTabList } from "./ApplicationTabList";
-import { deploymentKeys } from "@/lib/query-keys";
-import { createDeployment } from "../services";
-import {
-  useApplicationRuntime,
-  useApplicationMetrics,
-  useApplicationReleases,
-  useSelectedDeployment,
-  useRunApplicationAction,
-} from "../hooks";
-import { DeleteDeployment } from "./DeleteDeployment";
-import { ApplicationNetworking } from "./ApplicationNetworking";
-import { ApplicationPreviews } from "./ApplicationPreviews";
-import { ComposeSource } from "./ComposeSource";
-import { ConfigurationGuard } from "@/components/configuration-surface";
-import { Variables } from "@/components/variables";
+import { useQueryClient } from "@tanstack/react-query";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router";
+import { toast } from "sonner";
+
 import type { Deployment } from "@/lib/api";
+
+import { ConfigurationGuard } from "@/components/configuration-surface";
+import { DeleteResource, DeletionStatus } from "@/components/delete-resource";
+import { Empty, ErrorState, Loading } from "@/components/shared";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { Variables } from "@/components/variables";
 import {
   APIError,
   errorMessage,
@@ -24,22 +18,31 @@ import {
   useResources,
   type Resource,
 } from "@/lib/api";
+import { deploymentKeys } from "@/lib/query-keys";
 import { indexResources } from "@/lib/resource-index";
 import { freshDeploySchema } from "@/lib/validation";
-import { useQueryClient } from "@tanstack/react-query";
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router";
-import { toast } from "sonner";
-import { DeleteResource, DeletionStatus } from "@/components/delete-resource";
-import { Empty, ErrorState, Loading } from "@/components/shared";
-import { LogStream } from "./Streams";
-import { Tabs, TabsContent } from "@/components/ui/tabs";
-import { ApplicationOverview } from "./ApplicationOverview";
+
+import {
+  useApplicationRuntime,
+  useApplicationMetrics,
+  useApplicationReleases,
+  useSelectedDeployment,
+  useRunApplicationAction,
+} from "../hooks";
+import { createDeployment } from "../services";
+import { ApplicationActionConfirmation } from "./ApplicationActionConfirmation";
 import { ApplicationDeployments } from "./ApplicationDeployments";
 import { ApplicationDomains } from "./ApplicationDomains";
 import { ApplicationHeader } from "./ApplicationHeader";
+import { ApplicationNetworking } from "./ApplicationNetworking";
+import { ApplicationOverview } from "./ApplicationOverview";
+import { ApplicationPreviews } from "./ApplicationPreviews";
 import { ApplicationStatus } from "./ApplicationStatus";
-import { ApplicationActionConfirmation } from "./ApplicationActionConfirmation";
+import { ApplicationTabList } from "./ApplicationTabList";
+import { ApplicationVolumes } from "./ApplicationVolumes";
+import { ComposeSource } from "./ComposeSource";
+import { DeleteDeployment } from "./DeleteDeployment";
+import { LogStream } from "./Streams";
 
 const ContainerTerminal = lazy(() => import("./ContainerTerminal"));
 

@@ -1,16 +1,18 @@
-import { VariableTable } from "./VariableTable";
-import { VariableEditor } from "./VariableEditor";
-import { resourceKeys } from "@/lib/query-keys";
-import { Confirm } from "@/components/shared";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { errorMessage, type Resource } from "@/lib/api";
-import { saveVariable } from "@/lib/services";
-import { useConfigurationChanges } from "@/lib/configuration-state";
-import { variableFormSchema } from "@/lib/validation";
 import { useQueryClient } from "@tanstack/react-query";
 import { ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+
+import { Confirm } from "@/components/shared";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { errorMessage, type Resource } from "@/lib/api";
+import { useConfigurationChanges } from "@/lib/configuration-state";
+import { resourceKeys } from "@/lib/query-keys";
+import { saveVariable } from "@/lib/services";
+import { variableFormSchema } from "@/lib/validation";
+
+import { VariableEditor } from "./VariableEditor";
+import { VariableTable } from "./VariableTable";
 function useVariableController(resource: Resource) {
   const changes = useConfigurationChanges();
   const client = useQueryClient();

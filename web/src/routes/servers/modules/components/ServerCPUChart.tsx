@@ -1,10 +1,12 @@
+import { Area, AreaChart } from "recharts";
+
+import type { Metric } from "@/lib/api";
+
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import type { Metric } from "@/lib/api";
-import { Area, AreaChart } from "recharts";
 const CONFIG = { cpu: { label: "CPU", color: "var(--primary)" } };
 export default function ServerCPUChart({ data }: { data: Metric[] }) {
   return (

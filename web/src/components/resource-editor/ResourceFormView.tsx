@@ -1,3 +1,6 @@
+import { lazy, Suspense } from "react";
+import { Link } from "react-router";
+
 import {
   Dialog,
   DialogContent,
@@ -6,6 +9,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/configuration-surface";
+import {
+  useResourceForm,
+  type ResourceFormProps,
+} from "@/components/resource-forms/controller";
+import { type ResourceKind } from "@/components/resource-forms/definitions";
+import { ResourceOptions } from "@/components/resource-forms/options";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,18 +22,11 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { loadComposeEditor } from "@/lib/feature-loaders";
-import { lazy, Suspense } from "react";
-import { Link } from "react-router";
-import {
-  useResourceForm,
-  type ResourceFormProps,
-} from "@/components/resource-forms/controller";
-import { type ResourceKind } from "@/components/resource-forms/definitions";
-import { ResourceOptions } from "@/components/resource-forms/options";
-import { choose } from "./utils";
+
 import { ResourceSchemaFields } from "./fields/ResourceSchemaFields";
-import { ZoneFields } from "./fields/ZoneFields";
 import { RouteFields } from "./fields/RouteFields";
+import { ZoneFields } from "./fields/ZoneFields";
+import { choose } from "./utils";
 
 const ComposeEditor = lazy(loadComposeEditor);
 

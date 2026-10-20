@@ -1,4 +1,8 @@
-import { resourceKeys } from "@/lib/query-keys";
+import { useQueryClient } from "@tanstack/react-query";
+import { Trash2 } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,12 +17,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { errorMessage, text, type Resource } from "@/lib/api";
+import { resourceKeys } from "@/lib/query-keys";
 import { deleteResource } from "@/lib/services";
 import { resourceDeletionSchema } from "@/lib/validation";
-import { useQueryClient } from "@tanstack/react-query";
-import { Trash2 } from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
 
 export function DeleteResource({
   resource,

@@ -1,4 +1,5 @@
 import type { RouteHandle } from "@/lib/route-handle";
+
 import { ConfigurationMainView } from "./modules/components";
 
 export default function ConfigurationRoute() {

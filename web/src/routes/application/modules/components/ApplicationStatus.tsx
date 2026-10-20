@@ -1,7 +1,9 @@
-import { text, type Resource } from "@/lib/api";
 import { FileCode2, GitBranch, Server } from "lucide-react";
+
 import { StateBadge } from "@/components/shared";
 import { Badge } from "@/components/ui/badge";
+import { text, type Resource } from "@/lib/api";
+
 import type { Runtime } from "../generics";
 
 export function ApplicationStatus({

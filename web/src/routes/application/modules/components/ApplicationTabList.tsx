@@ -1,5 +1,3 @@
-import { type Resource } from "@/lib/api";
-import { loadComposeEditor } from "@/lib/feature-loaders";
 import {
   FileCode2,
   HardDrive,
@@ -12,7 +10,10 @@ import {
   ScrollText,
   Terminal,
 } from "lucide-react";
+
 import { TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { type Resource } from "@/lib/api";
+import { loadComposeEditor } from "@/lib/feature-loaders";
 
 export function ApplicationTabList({
   app,

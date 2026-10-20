@@ -1,7 +1,9 @@
-import { api } from "@/lib/api/client";
-import type { HAProxyUpdateResult } from "../generics";
 import type { haproxySettingsSchema } from "@/lib/validation";
+
+import { api } from "@/lib/api/client";
 import { apiPath } from "@/lib/paths";
+
+import type { HAProxyUpdateResult } from "../generics";
 
 export function saveHAProxySettings(
   serverId: string,

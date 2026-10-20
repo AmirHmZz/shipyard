@@ -1,5 +1,6 @@
-import { post } from "@/lib/api/client";
 import type { previewCommitSchema } from "@/lib/validation";
+
+import { post } from "@/lib/api/client";
 import { apiPath } from "@/lib/paths";
 
 export function updateApplicationVersion(

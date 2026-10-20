@@ -1,9 +1,14 @@
-import { GitConnection } from "./GitConnection";
+import {
+  Link,
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router";
+
 import { Grants } from "@/components/grants";
-import { HAProxySettings } from "./HAProxySettings";
 import { ResourceForm } from "@/components/resource-editor";
 import { ErrorState, Loading, PageHeader } from "@/components/shared";
-import { Button } from "@/components/ui/button";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -12,17 +17,14 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { Button } from "@/components/ui/button";
 import { Variables } from "@/components/variables";
 import { useResources, type Resource } from "@/lib/api";
 import { useConfigurationChanges } from "@/lib/configuration-state";
+
+import { GitConnection } from "./GitConnection";
+import { HAProxySettings } from "./HAProxySettings";
 import { NetworkForm } from "./NetworkForm";
-import {
-  Link,
-  useLocation,
-  useNavigate,
-  useParams,
-  useSearchParams,
-} from "react-router";
 
 export function ConfigurationBody() {
   const changes = useConfigurationChanges();

@@ -1,7 +1,9 @@
-import { DNSRecordForm } from "./DNSRecordForm";
-import { dnsKeys } from "../generics";
-import { saveDNSRecord } from "../services";
-import { useDNSRecords, useRemoveDNSRecord } from "../hooks";
+import { useQueryClient } from "@tanstack/react-query";
+import { Plus, RefreshCw, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router";
+import { toast } from "sonner";
+
 import {
   Dialog,
   DialogContent,
@@ -24,12 +26,12 @@ import {
 } from "@/components/ui/table";
 import { errorMessage, text, type DNSRecord, type Resource } from "@/lib/api";
 import { useConfigurationChanges } from "@/lib/configuration-state";
-import { useQueryClient } from "@tanstack/react-query";
-import { Plus, RefreshCw, Trash2 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router";
-import { toast } from "sonner";
 import { dnsRecordFormSchema, jsonText } from "@/lib/validation";
+
+import { dnsKeys } from "../generics";
+import { useDNSRecords, useRemoveDNSRecord } from "../hooks";
+import { saveDNSRecord } from "../services";
+import { DNSRecordForm } from "./DNSRecordForm";
 
 export function DNSRecords({ zone }: { zone: Resource }) {
   const changes = useConfigurationChanges();

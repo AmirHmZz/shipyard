@@ -1,10 +1,12 @@
-import { Button } from "@/components/ui/button";
+import type { editor } from "monaco-editor";
+
 import "@/lib/monaco";
 import Editor, { type OnMount } from "@monaco-editor/react";
 import { FileCode2, WandSparkles, WrapText } from "lucide-react";
-import type { editor } from "monaco-editor";
 import { useEffect, useId, useState } from "react";
 import { toast } from "sonner";
+
+import { Button } from "@/components/ui/button";
 
 let tabNavigationInitialized = false;
 

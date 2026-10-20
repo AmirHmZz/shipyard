@@ -1,6 +1,8 @@
 import { ProviderLogo, ProviderName } from "@/components/provider-name";
 import { useResourceForm } from "@/components/resource-forms/controller";
+
 import type { ResourceFieldProps } from "../types";
+
 import { choose } from "../utils";
 
 export function ResourceFieldSelect(props: ResourceFieldProps) {

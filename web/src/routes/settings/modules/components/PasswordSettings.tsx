@@ -1,5 +1,7 @@
-import { sessionKeys } from "@/lib/query-keys";
-import { useChangePassword } from "../hooks";
+import { useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { toast } from "sonner";
+
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -11,10 +13,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { errorMessage, setCSRF } from "@/lib/api";
+import { sessionKeys } from "@/lib/query-keys";
 import { passwordFormSchema } from "@/lib/validation";
-import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import { toast } from "sonner";
+
+import { useChangePassword } from "../hooks";
 
 export function PasswordSettings() {
   const client = useQueryClient();

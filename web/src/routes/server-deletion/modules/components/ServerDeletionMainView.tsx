@@ -1,17 +1,20 @@
-import { useReviewServerDeletion, useServerDeletionStatus } from "../hooks";
+import { useQueryClient } from "@tanstack/react-query";
+import { RefreshCw } from "lucide-react";
+import { useState } from "react";
+import { useParams } from "react-router";
+
 import { ErrorState, Loading } from "@/components/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { errorMessage, useAccount, useResources } from "@/lib/api";
-import { useQueryClient } from "@tanstack/react-query";
-import { RefreshCw } from "lucide-react";
-import { useState } from "react";
-import { useParams } from "react-router";
+
 import type { Plan } from "../generics";
-import { ServerDeletionProgress } from "./ServerDeletionProgress";
-import { ServerDeletionPlanReview } from "./ServerDeletionPlanReview";
+
+import { useReviewServerDeletion, useServerDeletionStatus } from "../hooks";
 import { ServerDeletionHeader } from "./ServerDeletionHeader";
+import { ServerDeletionPlanReview } from "./ServerDeletionPlanReview";
+import { ServerDeletionProgress } from "./ServerDeletionProgress";
 
 export function ServerDeletionMainView() {
   const { id = "" } = useParams();

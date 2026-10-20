@@ -1,7 +1,9 @@
+import { Fingerprint, RefreshCw } from "lucide-react";
+
+import { useResourceForm } from "@/components/resource-forms/controller";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { Fingerprint, RefreshCw } from "lucide-react";
-import { useResourceForm } from "@/components/resource-forms/controller";
+
 import type { ResourceFieldProps } from "../types";
 
 export function ResourceFieldActions({

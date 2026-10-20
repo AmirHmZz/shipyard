@@ -1,10 +1,13 @@
-import { resourceKeys } from "@/lib/query-keys";
-import { createGitWebhook } from "../services";
-import type { Status } from "../generics";
+import { useQueryClient } from "@tanstack/react-query";
+
 import { CopyButton } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { type Resource } from "@/lib/api";
-import { useQueryClient } from "@tanstack/react-query";
+import { resourceKeys } from "@/lib/query-keys";
+
+import type { Status } from "../generics";
+
+import { createGitWebhook } from "../services";
 
 export function GitWebhookConfiguration({
   existing,

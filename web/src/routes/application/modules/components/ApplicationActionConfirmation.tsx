@@ -1,8 +1,10 @@
-import { resourceKeys } from "@/lib/query-keys";
-import { rollbackApplication, deleteActionResource } from "../services";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router";
+
 import { Confirm } from "@/components/shared";
+import { resourceKeys } from "@/lib/query-keys";
+
+import { rollbackApplication, deleteActionResource } from "../services";
 
 export function ApplicationActionConfirmation({
   confirmAction,

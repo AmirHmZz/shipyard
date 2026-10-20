@@ -1,7 +1,9 @@
+import type * as React from "react";
+
+import { useResourceForm } from "@/components/resource-forms/controller";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import type * as React from "react";
-import { useResourceForm } from "@/components/resource-forms/controller";
+
 import type { ResourceFieldProps } from "../types";
 
 export function SecretResourceField({ f, existing }: ResourceFieldProps) {

@@ -1,5 +1,6 @@
-import { apiPath } from "@/lib/paths";
 import { api } from "@/lib/api/client";
+import { apiPath } from "@/lib/paths";
+
 import type { Runtime } from "../generics";
 
 export async function getApplicationRuntime(id: string) {

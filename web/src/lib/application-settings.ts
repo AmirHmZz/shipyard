@@ -1,5 +1,5 @@
-import type { components } from "@/lib/schema";
 import type { Resource } from "@/lib/api/types";
+import type { components } from "@/lib/schema";
 
 export type HTTPReadinessCheck = components["schemas"]["HTTPReadinessCheck"];
 export type PreviewRouting = components["schemas"]["PreviewRouting"];

@@ -1,5 +1,7 @@
-import { reportError } from "@/lib/telemetry";
 import { Component, type ErrorInfo, type ReactNode } from "react";
+
+import { reportError } from "@/lib/telemetry";
+
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 

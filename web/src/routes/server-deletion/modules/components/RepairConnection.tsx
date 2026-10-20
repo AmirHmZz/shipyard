@@ -1,4 +1,5 @@
-import { useRepairServerConnection } from "../hooks";
+import { useState } from "react";
+
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,7 +16,8 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { errorMessage, text, type Resource } from "@/lib/api";
 import { serverConnectionSchema } from "@/lib/validation";
-import { useState } from "react";
+
+import { useRepairServerConnection } from "../hooks";
 
 export function RepairConnection({
   server,

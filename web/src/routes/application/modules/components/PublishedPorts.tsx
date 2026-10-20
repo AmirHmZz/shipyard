@@ -1,4 +1,5 @@
-import type { Port } from "../generics";
+import { Plus, Trash2 } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,7 +12,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { draftRow, type DraftRow } from "@/lib/draft-rows";
-import { Plus, Trash2 } from "lucide-react";
+
+import type { Port } from "../generics";
 
 export function PublishedPorts({
   services,

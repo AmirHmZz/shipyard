@@ -1,5 +1,7 @@
-import { sessionKeys } from "@/lib/query-keys";
 import { useQuery } from "@tanstack/react-query";
+
+import { sessionKeys } from "@/lib/query-keys";
+
 import { getSession } from "../services";
 
 export function useSession() {

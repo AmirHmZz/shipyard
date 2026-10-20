@@ -1,5 +1,6 @@
-import { applicationKeys } from "../generics";
 import { useQuery } from "@tanstack/react-query";
+
+import { applicationKeys } from "../generics";
 import { getApplicationRuntime } from "../services";
 
 export function useApplicationRuntime(id: string) {

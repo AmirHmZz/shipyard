@@ -1,3 +1,5 @@
+import { useMemo, useState } from "react";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -8,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useMemo, useState } from "react";
+
 import type { Item } from "../generics";
 
 export function Inventory({ title, items }: { title: string; items: Item[] }) {

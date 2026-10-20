@@ -1,9 +1,11 @@
 import { useResourceForm } from "@/components/resource-forms/controller";
+
 import type { ResourceFieldProps } from "../types";
-import { choose } from "../utils";
+
 import { ResourceFieldSelect } from "../fields/ResourceFieldSelect";
-import { SecretResourceField } from "../fields/SecretResourceField";
 import { ScalarResourceField } from "../fields/ScalarResourceField";
+import { SecretResourceField } from "../fields/SecretResourceField";
+import { choose } from "../utils";
 
 export function StandardResourceFieldControl(props: ResourceFieldProps) {
   const { kind, services, f } = props;

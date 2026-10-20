@@ -1,4 +1,7 @@
-import type { useDockerNetworks } from "../hooks";
+import { RefreshCw, Server } from "lucide-react";
+
+import type { useAccount, Resource } from "@/lib/api";
+
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -9,8 +12,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import type { useAccount, Resource } from "@/lib/api";
-import { RefreshCw, Server } from "lucide-react";
+
+import type { useDockerNetworks } from "../hooks";
 
 export function NetworkServerFilter({
   filter,

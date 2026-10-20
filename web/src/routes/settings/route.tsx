@@ -1,5 +1,6 @@
-import { SettingsMainView } from "./modules/components";
 import { useCurrentSession } from "@/lib/session";
+
+import { SettingsMainView } from "./modules/components";
 
 export default function SettingsRoute() {
   const session = useCurrentSession();

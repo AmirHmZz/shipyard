@@ -1,9 +1,11 @@
+import { useResourceForm } from "@/components/resource-forms/controller";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { useResourceForm } from "@/components/resource-forms/controller";
+
 import type { ResourceFieldProps } from "../types";
-import { ResourceFieldControl } from "../fields/ResourceFieldControl";
+
 import { ResourceFieldActions } from "../fields/ResourceFieldActions";
+import { ResourceFieldControl } from "../fields/ResourceFieldControl";
 
 const sections: Record<string, string> = {
   source: "Source",

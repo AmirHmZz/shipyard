@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { teamKeys } from "./constants";
 
 describe("team query keys", () => {

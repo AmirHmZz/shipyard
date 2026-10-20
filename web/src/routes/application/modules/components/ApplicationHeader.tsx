@@ -1,10 +1,13 @@
-import { ApplicationDeployActions } from "./ApplicationDeployActions";
-import { Button } from "@/components/ui/button";
-import { RepositoryName } from "@/components/repository-name";
-import { text, type Resource } from "@/lib/api";
 import { Settings2 } from "lucide-react";
+
+import { RepositoryName } from "@/components/repository-name";
 import { PageHeader } from "@/components/shared";
+import { Button } from "@/components/ui/button";
+import { text, type Resource } from "@/lib/api";
+
 import type { Runtime } from "../generics";
+
+import { ApplicationDeployActions } from "./ApplicationDeployActions";
 
 export function ApplicationHeader({
   app,

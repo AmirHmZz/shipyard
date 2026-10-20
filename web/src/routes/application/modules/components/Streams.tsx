@@ -1,3 +1,7 @@
+import { Copy, Eraser } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+
 import { StateBadge } from "@/components/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -12,9 +16,6 @@ import {
 import { type Deployment } from "@/lib/api";
 import { LogBuffer, type LogLine } from "@/lib/log-buffer";
 import { logText } from "@/lib/log-text";
-import { Copy, Eraser } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
 export function LogStream({
   deploymentId,
   applicationId,

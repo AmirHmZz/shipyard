@@ -1,6 +1,8 @@
-import { sessionKeys } from "@/lib/query-keys";
-import { enableTOTP } from "../services";
-import { useDisableTOTP, useRegenerateRecoveryCodes } from "../hooks";
+import { useQueryClient } from "@tanstack/react-query";
+import { KeyRound, ShieldCheck } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+
 import { CopyButton, StateBadge } from "@/components/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -14,15 +16,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { errorMessage, type Session } from "@/lib/api";
+import { sessionKeys } from "@/lib/query-keys";
 import {
   totpCodeSchema,
   totpDisableSchema,
   totpPasswordSchema,
 } from "@/lib/validation";
-import { useQueryClient } from "@tanstack/react-query";
-import { KeyRound, ShieldCheck } from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
+
+import { useDisableTOTP, useRegenerateRecoveryCodes } from "../hooks";
+import { enableTOTP } from "../services";
 
 export function Security({ session }: { session: Session }) {
   const client = useQueryClient();

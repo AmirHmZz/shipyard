@@ -1,6 +1,6 @@
-import { downloadUpdateBackup, checkForUpdates, planUpdate } from "../services";
-import { useSystemUpdates } from "../hooks";
-import type { Plan } from "../generics";
+import { RefreshCw } from "lucide-react";
+import { useState } from "react";
+
 import { ErrorState, Loading } from "@/components/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -21,10 +21,13 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { errorMessage } from "@/lib/api";
-import { RefreshCw } from "lucide-react";
-import { useState } from "react";
-import { VersionChangeReview } from "./VersionChangeReview";
+
+import type { Plan } from "../generics";
+
+import { useSystemUpdates } from "../hooks";
+import { downloadUpdateBackup, checkForUpdates, planUpdate } from "../services";
 import { VersionChangeOperation } from "./VersionChangeOperation";
+import { VersionChangeReview } from "./VersionChangeReview";
 
 const terminal = ["succeeded", "rolled_back", "failed", "recovery_required"];
 

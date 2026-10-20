@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { relativeHostname, routeHostname } from "./route-hostname";
 
 describe("relative route hostnames", () => {

@@ -1,14 +1,17 @@
-import { ReadinessFields } from "@/components/readiness-fields";
-import { PreviewRoutingFields } from "@/components/preview-routing-fields";
-import { useResourceForm } from "@/components/resource-forms/controller";
 import type {
   HTTPReadinessCheck,
   PreviewRouting,
 } from "@/lib/application-settings";
+
+import { PreviewRoutingFields } from "@/components/preview-routing-fields";
+import { ReadinessFields } from "@/components/readiness-fields";
+import { useResourceForm } from "@/components/resource-forms/controller";
+
 import type { ResourceFieldProps } from "../types";
-import { StandardResourceFieldControl } from "../fields/StandardResourceFieldControl";
-import { RepositoryField } from "../fields/RepositoryField";
+
 import { BranchField } from "../fields/BranchField";
+import { RepositoryField } from "../fields/RepositoryField";
+import { StandardResourceFieldControl } from "../fields/StandardResourceFieldControl";
 
 export function ResourceFieldControl(props: ResourceFieldProps) {
   const { kind, f } = props;

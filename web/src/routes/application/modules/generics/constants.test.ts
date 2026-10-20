@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { applicationKeys } from "./constants";
 
 describe("application query keys", () => {

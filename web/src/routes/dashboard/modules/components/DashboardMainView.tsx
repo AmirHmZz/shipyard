@@ -1,7 +1,8 @@
-import { useSession } from "../hooks";
 import { Loading } from "@/components/shared";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+
+import { useSession } from "../hooks";
 import { Auth } from "./Auth";
 import { Shell } from "./Shell";
 

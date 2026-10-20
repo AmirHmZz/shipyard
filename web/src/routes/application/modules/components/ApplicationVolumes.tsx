@@ -1,8 +1,9 @@
 import { RefreshCw } from "lucide-react";
-import { useApplicationVolumes } from "../hooks";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+
+import { Empty, ErrorState, Loading } from "@/components/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -11,7 +12,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Empty, ErrorState, Loading } from "@/components/shared";
+
+import { useApplicationVolumes } from "../hooks";
 
 function usedSpace(bytes: number | null) {
   if (bytes === null) return "Unavailable";

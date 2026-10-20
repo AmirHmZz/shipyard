@@ -1,5 +1,5 @@
-import { readFile, writeFile, mkdir, readdir } from "node:fs/promises";
 import { createHash } from "node:crypto";
+import { readFile, writeFile, mkdir, readdir } from "node:fs/promises";
 const hash = (b) => createHash("sha256").update(b).digest("hex");
 const version = (await readFile("VERSION", "utf8")).trim();
 if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(version))

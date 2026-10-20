@@ -1,5 +1,3 @@
-import { Spinner } from "@/components/ui/spinner";
-
 import {
   CircleCheckIcon,
   InfoIcon,
@@ -7,6 +5,8 @@ import {
   TriangleAlertIcon,
 } from "lucide-react";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
+
+import { Spinner } from "@/components/ui/spinner";
 
 const Toaster = ({ ...props }: ToasterProps) => {
   const theme = "system";

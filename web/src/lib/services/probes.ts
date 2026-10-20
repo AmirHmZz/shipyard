@@ -1,5 +1,6 @@
-import { post } from "@/lib/api/client";
 import type { dnsCredentialSchema } from "@/lib/validation";
+
+import { post } from "@/lib/api/client";
 
 // TODO(openapi): add the option response shapes to the generated schema.
 

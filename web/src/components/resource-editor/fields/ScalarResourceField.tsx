@@ -1,3 +1,4 @@
+import { useResourceForm } from "@/components/resource-forms/controller";
 import { Input } from "@/components/ui/input";
 import {
   InputGroup,
@@ -6,7 +7,7 @@ import {
   InputGroupText,
 } from "@/components/ui/input-group";
 import { Textarea } from "@/components/ui/textarea";
-import { useResourceForm } from "@/components/resource-forms/controller";
+
 import type { ResourceFieldProps } from "../types";
 
 export function ScalarResourceField({ f, kind }: ResourceFieldProps) {

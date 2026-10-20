@@ -1,3 +1,6 @@
+import { Box, FileCode2, GitBranch, Plus } from "lucide-react";
+import { Link } from "react-router";
+
 import { RepositoryName } from "@/components/repository-name";
 import { Empty } from "@/components/shared";
 import { Badge } from "@/components/ui/badge";
@@ -5,8 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { text, type Resource } from "@/lib/api";
 import { indexResources } from "@/lib/resource-index";
-import { Box, FileCode2, GitBranch, Plus } from "lucide-react";
-import { Link } from "react-router";
+
 import type { EditorRequest } from "../generics";
 
 export function ApplicationCards({

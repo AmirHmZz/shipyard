@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
+
+import type { Resource } from "@/lib/api/types";
+
 import { normalizeApplicationSettings } from "./application-settings";
 import { httpReadinessChecksSchema, previewRoutingSchema } from "./validation";
-import type { Resource } from "@/lib/api/types";
 
 const route = (service: string, port: number) =>
   ({

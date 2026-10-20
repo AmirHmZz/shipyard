@@ -1,11 +1,14 @@
-import { saveHAProxySettings } from "../services";
-import { useHAProxySettings } from "./useHAProxySettings";
-import type { Settings, Draft } from "../generics";
+import { useEffect, useMemo, useState } from "react";
+
 import { errorMessage, type Resource } from "@/lib/api";
 import { useConfigurationChanges } from "@/lib/configuration-state";
 import { draftRow, type DraftRow } from "@/lib/draft-rows";
 import { haproxySettingsSchema } from "@/lib/validation";
-import { useEffect, useMemo, useState } from "react";
+
+import type { Settings, Draft } from "../generics";
+
+import { saveHAProxySettings } from "../services";
+import { useHAProxySettings } from "./useHAProxySettings";
 
 export function settingsDraft(
   settings: Pick<Settings, "version" | "bindings">,

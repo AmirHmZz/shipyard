@@ -1,5 +1,5 @@
-import { cn } from "@/lib/utils";
 import { providerName, providerNames } from "@/lib/providers";
+import { cn } from "@/lib/utils";
 
 export function ProviderLogo({
   provider,

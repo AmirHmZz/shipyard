@@ -1,9 +1,11 @@
+import { useResourceForm } from "@/components/resource-forms/controller";
+import { Loading } from "@/components/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { errorMessage } from "@/lib/api";
-import { useResourceForm } from "@/components/resource-forms/controller";
-import { Loading } from "@/components/shared";
+
 import type { ResourceFieldProps } from "../types";
+
 import { choose } from "../utils";
 
 export function BranchField({ branches, existing }: ResourceFieldProps) {

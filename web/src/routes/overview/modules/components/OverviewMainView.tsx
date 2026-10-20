@@ -1,11 +1,3 @@
-import { OverviewGettingStarted } from "./OverviewGettingStarted";
-import { ResourceEditor } from "@/components/resource-editor";
-import { Empty, ErrorState, Loading, PageHeader } from "@/components/shared";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ago, useDeployments, useResources } from "@/lib/api";
-import { indexResources } from "@/lib/resource-index";
 import {
   ArrowRight,
   Box,
@@ -18,7 +10,17 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router";
+
 import { DeploymentTable } from "@/components/deployment-table";
+import { ResourceEditor } from "@/components/resource-editor";
+import { Empty, ErrorState, Loading, PageHeader } from "@/components/shared";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ago, useDeployments, useResources } from "@/lib/api";
+import { indexResources } from "@/lib/resource-index";
+
+import { OverviewGettingStarted } from "./OverviewGettingStarted";
 
 export function OverviewMainView() {
   const resources = useResources();

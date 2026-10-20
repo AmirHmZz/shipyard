@@ -1,5 +1,7 @@
-import { dockerNetworkKeys } from "@/lib/query-keys";
 import { useQuery } from "@tanstack/react-query";
+
+import { dockerNetworkKeys } from "@/lib/query-keys";
+
 import { getNetworkInventory } from "../services";
 
 export function useNetworkInventory(server: string, admin: boolean) {

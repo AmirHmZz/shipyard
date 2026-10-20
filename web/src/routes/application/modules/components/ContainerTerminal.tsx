@@ -1,5 +1,12 @@
+import { FitAddon } from "@xterm/addon-fit";
+import { Terminal } from "@xterm/xterm";
+import { Plug, Unplug } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import "@xterm/xterm/css/xterm.css";
+
 import {
   Select,
   SelectContent,
@@ -8,11 +15,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { getCSRF } from "@/lib/api";
-import { FitAddon } from "@xterm/addon-fit";
-import { Terminal } from "@xterm/xterm";
-import "@xterm/xterm/css/xterm.css";
-import { Plug, Unplug } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
 export default function ContainerTerminal({
   applicationId,
   containers,

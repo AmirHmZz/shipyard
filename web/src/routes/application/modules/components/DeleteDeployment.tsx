@@ -1,4 +1,7 @@
-import { useRemoveDeployment } from "../hooks";
+import { Trash2 } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,9 +14,8 @@ import {
 } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
 import { errorMessage, type Deployment } from "@/lib/api";
-import { Trash2 } from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
+
+import { useRemoveDeployment } from "../hooks";
 
 export function DeleteDeployment({
   deployment,

@@ -1,7 +1,8 @@
-import { api } from "@/lib/api/client";
 import type { Resource } from "@/lib/api/types";
-import { apiPath } from "@/lib/paths";
 import type { parseResourceForm } from "@/lib/validation";
+
+import { api } from "@/lib/api/client";
+import { apiPath } from "@/lib/paths";
 
 export function saveResource(
   existingId: string | undefined,

@@ -1,8 +1,10 @@
-import type { InstanceDraft } from "../generics";
+import { ExternalLink } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { text, type Resource } from "@/lib/api";
-import { ExternalLink } from "lucide-react";
+
+import type { InstanceDraft } from "../generics";
 
 export function GitConnectionActions({
   onManual,

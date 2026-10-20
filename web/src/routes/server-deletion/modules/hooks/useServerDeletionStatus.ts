@@ -1,5 +1,6 @@
-import { serverDeletionKeys } from "../generics";
 import { useQuery } from "@tanstack/react-query";
+
+import { serverDeletionKeys } from "../generics";
 import { getServerDeletionStatus } from "../services";
 
 export function useServerDeletionStatus(id: string, enabled: boolean) {

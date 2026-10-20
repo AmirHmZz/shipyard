@@ -1,8 +1,5 @@
-import {
-  AppErrorBoundary,
-  AppErrorFallback,
-} from "@/components/app-error-boundary";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useEffect, type ReactNode } from "react";
 import {
   Links,
   Meta,
@@ -11,8 +8,13 @@ import {
   ScrollRestoration,
   useRouteError,
 } from "react-router";
-import { useEffect, type ReactNode } from "react";
+
+import {
+  AppErrorBoundary,
+  AppErrorFallback,
+} from "@/components/app-error-boundary";
 import { reportError } from "@/lib/telemetry";
+
 import "./index.css";
 
 const client = new QueryClient({

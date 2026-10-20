@@ -1,7 +1,9 @@
+import { Plus } from "lucide-react";
+
 import { PageHeader } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { type Resource } from "@/lib/api";
-import { Plus } from "lucide-react";
+
 import type { EditorRequest } from "../generics";
 
 export function ProjectsHeader({

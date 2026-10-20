@@ -1,5 +1,6 @@
-import { ProviderLogo } from "@/components/provider-name";
 import { GitFork } from "lucide-react";
+
+import { ProviderLogo } from "@/components/provider-name";
 
 export function RepositoryName({
   repository,

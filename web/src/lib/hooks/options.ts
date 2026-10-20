@@ -1,6 +1,7 @@
+import { useQuery } from "@tanstack/react-query";
+
 import { applicationServiceKeys } from "@/lib/query-keys";
 import { providerZoneKeys } from "@/lib/query-keys";
-import { useQuery } from "@tanstack/react-query";
 import { getProviderZones, getServiceOptions } from "@/lib/services";
 
 export function useProviderZones(parent: string, open: boolean) {

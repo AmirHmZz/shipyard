@@ -11,9 +11,10 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { type Resource } from "@/lib/api";
+
 import { settingsDraft } from "../hooks";
-import { HAProxyFrontend } from "./HAProxyFrontend";
 import { useHAProxyController } from "../hooks";
+import { HAProxyFrontend } from "./HAProxyFrontend";
 
 export function HAProxySettings({
   server,

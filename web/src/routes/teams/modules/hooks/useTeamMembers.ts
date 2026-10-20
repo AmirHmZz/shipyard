@@ -1,7 +1,9 @@
-import { teamKeys } from "../generics";
 import { useQuery } from "@tanstack/react-query";
-import { getTeamMembers } from "../services";
+
 import type { Resource } from "@/lib/api";
+
+import { teamKeys } from "../generics";
+import { getTeamMembers } from "../services";
 
 export function useTeamMembers(team: Resource | undefined) {
   return useQuery({

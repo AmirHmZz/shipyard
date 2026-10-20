@@ -1,7 +1,4 @@
-import { applyUpdate } from "../services";
-import type { Plan } from "../generics";
 import { StateBadge } from "@/components/shared";
-import { ReleaseNotes } from "./ReleaseNotes";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +14,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { updateFormSchema } from "@/lib/validation";
+
+import type { Plan } from "../generics";
+
+import { applyUpdate } from "../services";
+import { ReleaseNotes } from "./ReleaseNotes";
 
 export function VersionChangeReview({
   plan,

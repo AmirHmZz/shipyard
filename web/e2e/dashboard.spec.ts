@@ -1,5 +1,6 @@
 import { expect, test, type APIRequestContext } from "@playwright/test";
 import { readFileSync } from "node:fs";
+
 import type { components } from "../src/lib/schema";
 type Resource = components["schemas"]["Resource"];
 
@@ -197,15 +198,13 @@ test("installation, project configuration, invitations and viewer boundaries", a
       projectId: project.id,
     },
   );
-  const viewerContext = await context
-    .browser()!
-    .newContext({
-      baseURL:
-        (testInfo.project.use.baseURL as string) ||
-        process.env.SHIPYARD_E2E_URL ||
-        "http://127.0.0.1:8788",
-      viewport: { width: 390, height: 844 },
-    });
+  const viewerContext = await context.browser()!.newContext({
+    baseURL:
+      (testInfo.project.use.baseURL as string) ||
+      process.env.SHIPYARD_E2E_URL ||
+      "http://127.0.0.1:8788",
+    viewport: { width: 390, height: 844 },
+  });
   try {
     const viewer = await viewerContext.newPage();
     await viewer.goto(invitation.url);

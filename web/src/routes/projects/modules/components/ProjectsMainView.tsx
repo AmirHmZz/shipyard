@@ -1,4 +1,7 @@
-import { ProjectVariablesDialog } from "./ProjectVariablesDialog";
+import { Layers3, MoreHorizontal, Plus, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router";
+
 import { DeleteResource, DeletionStatus } from "@/components/delete-resource";
 import { ResourceEditor } from "@/components/resource-editor";
 import { Empty, ErrorState, Loading } from "@/components/shared";
@@ -14,12 +17,11 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useResources, type Resource } from "@/lib/api";
 import { indexResources } from "@/lib/resource-index";
-import { Layers3, MoreHorizontal, Plus, Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router";
+
 import { ApplicationCards } from "./ApplicationCards";
 import { ProjectsHeader } from "./ProjectsHeader";
 import { ProjectToolbar } from "./ProjectToolbar";
+import { ProjectVariablesDialog } from "./ProjectVariablesDialog";
 
 export function ProjectsMainView({ previews = false }: { previews?: boolean }) {
   const q = useResources();

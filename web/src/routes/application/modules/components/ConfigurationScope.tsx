@@ -1,5 +1,6 @@
-import { ScopeContext } from "@/lib/configuration-state";
 import type { ReactNode } from "react";
+
+import { ScopeContext } from "@/lib/configuration-state";
 
 export function ConfigurationScope({
   name,

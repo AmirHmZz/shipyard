@@ -1,14 +1,15 @@
-import { grantKeys } from "@/lib/query-keys";
+import { useQueryClient } from "@tanstack/react-query";
+import { useMemo } from "react";
+import { toast } from "sonner";
+
 import { ErrorState } from "@/components/shared";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { errorMessage, type Resource } from "@/lib/api";
-import { useGrants } from "@/lib/hooks";
-import { setGrant } from "@/lib/services";
 import { useConfigurationChanges } from "@/lib/configuration-state";
-import { useQueryClient } from "@tanstack/react-query";
-import { useMemo } from "react";
-import { toast } from "sonner";
+import { useGrants } from "@/lib/hooks";
+import { grantKeys } from "@/lib/query-keys";
+import { setGrant } from "@/lib/services";
 export function Grants({
   resource,
   resources,

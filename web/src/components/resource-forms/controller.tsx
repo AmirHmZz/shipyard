@@ -1,20 +1,22 @@
-import { normalizeApplicationSettings } from "@/lib/application-settings";
-import { resourceKeys } from "@/lib/query-keys";
+import { useQueryClient } from "@tanstack/react-query";
+import { createContext, use, useId, useState, type ReactNode } from "react";
+import { toast } from "sonner";
+import * as z from "zod";
+
 import { ProviderLogo } from "@/components/provider-name";
 import { errorMessage, type Resource } from "@/lib/api";
+import { normalizeApplicationSettings } from "@/lib/application-settings";
+import { useConfigurationChanges } from "@/lib/configuration-state";
+import { resourceKeys } from "@/lib/query-keys";
+import { relativeHostname, routeHostname } from "@/lib/route-hostname";
 import {
   probeServerFingerprint,
   saveResource,
   testDNSCredentials,
 } from "@/lib/services";
-import { useConfigurationChanges } from "@/lib/configuration-state";
-import { useQueryClient } from "@tanstack/react-query";
-import { createContext, use, useId, useState, type ReactNode } from "react";
-import { toast } from "sonner";
-import { defaults, parents, type ResourceKind } from "./definitions";
-import { relativeHostname, routeHostname } from "@/lib/route-hostname";
 import { dnsCredentialSchema, parseResourceForm } from "@/lib/validation";
-import * as z from "zod";
+
+import { defaults, parents, type ResourceKind } from "./definitions";
 export type ResourceFormProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;

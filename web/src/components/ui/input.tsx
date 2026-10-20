@@ -1,7 +1,9 @@
-import { useConfigurationChanges } from "@/lib/configuration-state";
-import { cn } from "@/lib/utils";
 import { Minus, Plus } from "lucide-react";
 import * as React from "react";
+
+import { useConfigurationChanges } from "@/lib/configuration-state";
+import { cn } from "@/lib/utils";
+
 import { Button } from "./button";
 
 function Input({

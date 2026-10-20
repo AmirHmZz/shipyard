@@ -1,6 +1,8 @@
 import { useResourceForm } from "@/components/resource-forms/controller";
 import { fields } from "@/components/resource-forms/definitions";
+
 import type { ResourceFieldProps } from "../types";
+
 import { COMPOSE_HIDDEN_FIELDS } from "../constants";
 import { ResourceField } from "../fields/ResourceField";
 

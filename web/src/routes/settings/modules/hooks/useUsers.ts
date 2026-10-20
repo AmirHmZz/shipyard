@@ -1,5 +1,6 @@
-import { settingsKeys } from "../generics";
 import { useQuery } from "@tanstack/react-query";
+
+import { settingsKeys } from "../generics";
 import { getUsers } from "../services";
 
 export function useUsers() {

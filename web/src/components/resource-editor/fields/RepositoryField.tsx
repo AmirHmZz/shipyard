@@ -1,12 +1,15 @@
-import { RepositoryName } from "@/components/repository-name";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useState, type ReactNode } from "react";
+
+import { RepositoryName } from "@/components/repository-name";
 import { useResourceForm } from "@/components/resource-forms/controller";
 import { Loading } from "@/components/shared";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+
 import type { ResourceFieldProps } from "../types";
-import { choose } from "../utils";
+
 import { RepositoryStatus } from "../fields/RepositoryStatus";
+import { choose } from "../utils";
 
 export function RepositoryField({ repos, resources }: ResourceFieldProps) {
   const {

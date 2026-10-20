@@ -1,7 +1,9 @@
-import { applicationKeys } from "../generics";
 import { useQuery } from "@tanstack/react-query";
-import { getDomainStatus } from "../services";
+
 import type { Resource } from "@/lib/api";
+
+import { applicationKeys } from "../generics";
+import { getDomainStatus } from "../services";
 
 export function useDomainStatus(route: Resource) {
   return useQuery({

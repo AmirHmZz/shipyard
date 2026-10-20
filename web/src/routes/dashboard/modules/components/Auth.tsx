@@ -1,7 +1,15 @@
-import { resourceKeys } from "@/lib/query-keys";
-import { sessionKeys } from "@/lib/query-keys";
-import { submitAuth } from "../services";
-import { useSetupStatus } from "../hooks";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  Anchor,
+  ArrowRight,
+  GitBranch,
+  LockKeyhole,
+  Server,
+  ShieldCheck,
+} from "lucide-react";
+import { useState } from "react";
+import { useNavigate } from "react-router";
+
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,18 +24,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { errorMessage, setCSRF } from "@/lib/api";
+import { resourceKeys } from "@/lib/query-keys";
+import { sessionKeys } from "@/lib/query-keys";
 import { authFormSchema } from "@/lib/validation";
-import { useQueryClient } from "@tanstack/react-query";
-import {
-  Anchor,
-  ArrowRight,
-  GitBranch,
-  LockKeyhole,
-  Server,
-  ShieldCheck,
-} from "lucide-react";
-import { useState } from "react";
-import { useNavigate } from "react-router";
+
+import { useSetupStatus } from "../hooks";
+import { submitAuth } from "../services";
 export function Auth() {
   const navigate = useNavigate();
   const client = useQueryClient();

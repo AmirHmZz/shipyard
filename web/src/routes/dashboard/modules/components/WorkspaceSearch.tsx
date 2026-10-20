@@ -1,3 +1,6 @@
+import { useDeferredValue, useMemo, useState } from "react";
+import { useNavigate } from "react-router";
+
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -8,8 +11,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useResources } from "@/lib/api";
-import { useDeferredValue, useMemo, useState } from "react";
-import { useNavigate } from "react-router";
 
 export function WorkspaceSearch({
   open,

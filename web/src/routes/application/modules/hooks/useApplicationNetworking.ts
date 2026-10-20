@@ -1,7 +1,9 @@
-import { applicationKeys } from "../generics";
 import { useQuery } from "@tanstack/react-query";
-import { getApplicationNetworking } from "../services";
+
 import type { Resource } from "@/lib/api";
+
+import { applicationKeys } from "../generics";
+import { getApplicationNetworking } from "../services";
 
 export function useApplicationNetworking(app: Resource) {
   return useQuery({

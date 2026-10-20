@@ -1,7 +1,9 @@
+import { Settings2, Trash2 } from "lucide-react";
+
 import { Filter } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { type Resource } from "@/lib/api";
-import { Settings2, Trash2 } from "lucide-react";
+
 import type { EditorRequest } from "../generics";
 
 export function ProjectToolbar({

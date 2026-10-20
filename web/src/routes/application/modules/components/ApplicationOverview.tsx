@@ -1,16 +1,15 @@
-import { updateApplicationVersion } from "../services";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import type { Deployment } from "@/lib/api";
-import { RepositoryName } from "@/components/repository-name";
-import { errorMessage, text, type Metric, type Resource } from "@/lib/api";
-import { previewCommitSchema } from "@/lib/validation";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowUpRight } from "lucide-react";
 import { useSearchParams } from "react-router";
 import { toast } from "sonner";
+
+import type { Deployment } from "@/lib/api";
+
+import { RepositoryName } from "@/components/repository-name";
 import { Empty, StateBadge } from "@/components/shared";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -20,6 +19,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { TabsContent } from "@/components/ui/tabs";
+import { errorMessage, text, type Metric, type Resource } from "@/lib/api";
+import { previewCommitSchema } from "@/lib/validation";
+
+import { updateApplicationVersion } from "../services";
 
 export function ApplicationOverview({
   app,

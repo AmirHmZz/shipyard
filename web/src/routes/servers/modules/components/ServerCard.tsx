@@ -1,6 +1,8 @@
-import { metricsKeys } from "@/lib/query-keys";
-import { checkDockerVersion } from "../services";
-import { useServerMetrics } from "../hooks";
+import { useQueryClient } from "@tanstack/react-query";
+import { Check, Server, Settings2, Trash2, Users } from "lucide-react";
+import { lazy, Suspense } from "react";
+import { toast } from "sonner";
+
 import { StateBadge } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,10 +13,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { errorMessage, text, useAdmin, type Resource } from "@/lib/api";
-import { useQueryClient } from "@tanstack/react-query";
-import { Check, Server, Settings2, Trash2, Users } from "lucide-react";
-import { lazy, Suspense } from "react";
-import { toast } from "sonner";
+import { metricsKeys } from "@/lib/query-keys";
+
+import { useServerMetrics } from "../hooks";
+import { checkDockerVersion } from "../services";
 
 const ServerCPUChart = lazy(() => import("./ServerCPUChart"));
 

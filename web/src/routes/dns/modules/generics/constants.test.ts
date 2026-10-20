@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { dnsKeys } from "./constants";
 
 describe("DNS query keys", () => {

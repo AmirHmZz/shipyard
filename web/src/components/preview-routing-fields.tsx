@@ -1,3 +1,7 @@
+import { useId } from "react";
+
+import type { PreviewRouting } from "@/lib/application-settings";
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -7,8 +11,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { PreviewRouting } from "@/lib/application-settings";
-import { useId } from "react";
 
 export function PreviewRoutingFields({
   value,

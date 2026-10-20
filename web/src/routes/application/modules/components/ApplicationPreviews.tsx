@@ -1,13 +1,7 @@
+import { useState } from "react";
+import { Link } from "react-router";
+
 import { PreviewRoutingFields } from "@/components/preview-routing-fields";
-import {
-  normalizeApplicationSettings,
-  type PreviewRouting,
-} from "@/lib/application-settings";
-import { previewRoutingSchema } from "@/lib/validation";
-import {
-  useSaveApplicationPreview,
-  useCreateApplicationPreview,
-} from "../hooks";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,10 +16,18 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { errorMessage, type Resource, text, useResources } from "@/lib/api";
+import {
+  normalizeApplicationSettings,
+  type PreviewRouting,
+} from "@/lib/application-settings";
 import { useConfigurationChanges } from "@/lib/configuration-state";
+import { previewRoutingSchema } from "@/lib/validation";
 import { previewFormSchema } from "@/lib/validation";
-import { useState } from "react";
-import { Link } from "react-router";
+
+import {
+  useSaveApplicationPreview,
+  useCreateApplicationPreview,
+} from "../hooks";
 export function ApplicationPreviews({ app }: { app: Resource }) {
   const changes = useConfigurationChanges();
   const q = useResources();

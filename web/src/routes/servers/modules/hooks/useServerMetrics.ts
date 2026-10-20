@@ -1,7 +1,10 @@
-import { metricsKeys } from "@/lib/query-keys";
 import { useQuery } from "@tanstack/react-query";
-import { getServerMetrics } from "../services";
+
 import type { Resource } from "@/lib/api";
+
+import { metricsKeys } from "@/lib/query-keys";
+
+import { getServerMetrics } from "../services";
 
 export function useServerMetrics(server: Resource) {
   return useQuery({

@@ -1,22 +1,24 @@
-import { applicationKeys } from "../generics";
-import { syncRoute } from "../services";
-import { useDomainStatus } from "../hooks";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Spinner } from "@/components/ui/spinner";
-import { errorMessage, number, text, type Resource } from "@/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { Pencil, RefreshCw, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+
 import { Confirm, StateBadge } from "@/components/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { errorMessage, number, text, type Resource } from "@/lib/api";
+
+import { applicationKeys } from "../generics";
+import { useDomainStatus } from "../hooks";
+import { syncRoute } from "../services";
 
 export function RouteCard({
   route,

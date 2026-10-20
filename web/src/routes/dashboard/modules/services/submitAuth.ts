@@ -1,6 +1,7 @@
-import { post } from "@/lib/api/client";
 import type { Session } from "@/lib/api/types";
 import type { authFormSchema } from "@/lib/validation";
+
+import { post } from "@/lib/api/client";
 
 export function submitAuth(
   mode: "accept" | "login" | "setup",

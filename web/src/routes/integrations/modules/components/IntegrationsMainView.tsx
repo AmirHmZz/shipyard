@@ -1,4 +1,15 @@
 import {
+  Activity,
+  Cloud,
+  GitBranch,
+  Plus,
+  ShieldCheck,
+  Users,
+} from "lucide-react";
+import { useState } from "react";
+import { useNavigate, useSearchParams } from "react-router";
+
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -19,16 +30,6 @@ import {
 } from "@/components/ui/card";
 import { text, useAccount, useResources, type Resource } from "@/lib/api";
 import { providerName } from "@/lib/providers";
-import {
-  Activity,
-  Cloud,
-  GitBranch,
-  Plus,
-  ShieldCheck,
-  Users,
-} from "lucide-react";
-import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
 
 export function IntegrationsMainView() {
   const navigate = useNavigate();

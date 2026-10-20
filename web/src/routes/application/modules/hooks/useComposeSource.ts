@@ -1,7 +1,9 @@
-import { applicationKeys } from "../generics";
 import { useQuery } from "@tanstack/react-query";
-import { getComposeSource } from "../services";
+
 import type { Resource } from "@/lib/api";
+
+import { applicationKeys } from "../generics";
+import { getComposeSource } from "../services";
 
 export function useComposeSource(app: Resource) {
   return useQuery({

@@ -1,6 +1,8 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { followGitSetup } from "./followGitSetup";
+
 import type { Start } from "../generics";
+
+import { followGitSetup } from "./followGitSetup";
 
 afterEach(() => vi.unstubAllGlobals());
 

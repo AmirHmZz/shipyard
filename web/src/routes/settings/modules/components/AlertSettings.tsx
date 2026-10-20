@@ -1,4 +1,6 @@
-import { useAlertPolicy, useSaveAlertPolicy } from "../hooks";
+import { useState } from "react";
+import { toast } from "sonner";
+
 import { ErrorState, Loading } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,9 +15,10 @@ import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { errorMessage } from "@/lib/api";
 import { alertPolicySchema } from "@/lib/validation";
-import { useState } from "react";
-import { toast } from "sonner";
+
 import type { AlertPolicy } from "../generics";
+
+import { useAlertPolicy, useSaveAlertPolicy } from "../hooks";
 
 export function AlertSettings() {
   const query = useAlertPolicy();

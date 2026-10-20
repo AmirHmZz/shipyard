@@ -1,4 +1,6 @@
-import { useUpdateUser, useUsers } from "../hooks";
+import { useState } from "react";
+import { toast } from "sonner";
+
 import { Confirm, ErrorState, Loading, StateBadge } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,9 +19,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { type Session } from "@/lib/api";
-import { useState } from "react";
-import { toast } from "sonner";
+
 import type { User } from "../generics";
+
+import { useUpdateUser, useUsers } from "../hooks";
 
 export function UserSettings({ session }: { session: Session }) {
   const q = useUsers();

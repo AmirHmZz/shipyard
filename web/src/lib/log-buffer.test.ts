@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+
 import { LogBuffer } from "./log-buffer";
 afterEach(() => vi.useRealTimers());
 describe("log publication boundary", () => {

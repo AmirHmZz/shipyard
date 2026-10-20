@@ -1,6 +1,6 @@
-import { saveDashboardAccess } from "../services";
-import { useDashboardAccess } from "../hooks";
-import type { State } from "../generics";
+import { ExternalLink, RefreshCw } from "lucide-react";
+import { useState } from "react";
+
 import { ConfigurationGuard } from "@/components/configuration-surface";
 import { ErrorState, Loading, StateBadge } from "@/components/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -19,8 +19,11 @@ import { Switch } from "@/components/ui/switch";
 import { errorMessage } from "@/lib/api";
 import { useConfigurationChanges } from "@/lib/configuration-state";
 import { dashboardHostnameSchema } from "@/lib/validation";
-import { ExternalLink, RefreshCw } from "lucide-react";
-import { useState } from "react";
+
+import type { State } from "../generics";
+
+import { useDashboardAccess } from "../hooks";
+import { saveDashboardAccess } from "../services";
 export function DashboardAccess() {
   return (
     <ConfigurationGuard className="max-w-none">

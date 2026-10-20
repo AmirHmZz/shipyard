@@ -1,5 +1,7 @@
-import { dockerNetworkKeys } from "@/lib/query-keys";
-import { resourceKeys } from "@/lib/query-keys";
+import { useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { useNavigate, useSearchParams } from "react-router";
+
 import { PageHeader } from "@/components/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -15,13 +17,13 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { errorMessage, useAccount, useResources } from "@/lib/api";
-import { createNetwork } from "../services";
-import { useNetworkInventory } from "../hooks";
 import { useConfigurationChanges } from "@/lib/configuration-state";
+import { dockerNetworkKeys } from "@/lib/query-keys";
+import { resourceKeys } from "@/lib/query-keys";
 import { networkFormSchema } from "@/lib/validation";
-import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+
+import { useNetworkInventory } from "../hooks";
+import { createNetwork } from "../services";
 
 export function NetworkForm() {
   const changes = useConfigurationChanges();

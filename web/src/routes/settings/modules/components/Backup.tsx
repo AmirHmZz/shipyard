@@ -1,5 +1,7 @@
-import { downloadBackup } from "../services";
-import { useSetMaintenanceMode } from "../hooks";
+import { Download } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,9 +17,9 @@ import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { errorMessage, type Session } from "@/lib/api";
 import { passphraseSchema } from "@/lib/validation";
-import { Download } from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
+
+import { useSetMaintenanceMode } from "../hooks";
+import { downloadBackup } from "../services";
 
 export function Backup({ session }: { session: Session }) {
   const maintenance = useSetMaintenanceMode();

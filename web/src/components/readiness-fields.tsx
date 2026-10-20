@@ -1,10 +1,12 @@
-import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
+
+import type { HTTPReadinessCheck } from "@/lib/application-settings";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { draftRow, withoutRowId } from "@/lib/draft-rows";
-import type { HTTPReadinessCheck } from "@/lib/application-settings";
 
 export function ReadinessFields({
   value,

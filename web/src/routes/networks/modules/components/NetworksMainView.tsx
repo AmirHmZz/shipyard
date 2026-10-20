@@ -1,5 +1,7 @@
-import { NetworkServerFilter } from "./NetworkServerFilter";
-import { useDockerNetworks, useRemoveNetwork } from "../hooks";
+import { Plus, Trash2, Users } from "lucide-react";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router";
+
 import {
   Confirm,
   Empty,
@@ -27,11 +29,12 @@ import {
 } from "@/lib/api";
 import { useConfigurationChanges } from "@/lib/configuration-state";
 import { indexResources } from "@/lib/resource-index";
-import { Plus, Trash2, Users } from "lucide-react";
-import { useState } from "react";
-import { Link, useNavigate } from "react-router";
+
 import type { DockerNetwork } from "../generics";
+
+import { useDockerNetworks, useRemoveNetwork } from "../hooks";
 import { subnets } from "../utils";
+import { NetworkServerFilter } from "./NetworkServerFilter";
 
 export function NetworksMainView() {
   const changes = useConfigurationChanges();

@@ -1,8 +1,3 @@
-import { DashboardAccess } from "./DashboardAccess";
-import { PageHeader } from "@/components/shared";
-import { SystemUpdates } from "./SystemUpdates";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { type Session } from "@/lib/api";
 import {
   Bell,
   Download,
@@ -14,12 +9,19 @@ import {
   Users,
 } from "lucide-react";
 import { useSearchParams } from "react-router";
+
+import { PageHeader } from "@/components/shared";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { type Session } from "@/lib/api";
+
 import { AlertSettings } from "./AlertSettings";
-import { UserSettings } from "./UserSettings";
+import { Backup } from "./Backup";
+import { DashboardAccess } from "./DashboardAccess";
+import { History } from "./History";
 import { PasswordSettings } from "./PasswordSettings";
 import { Security } from "./Security";
-import { Backup } from "./Backup";
-import { History } from "./History";
+import { SystemUpdates } from "./SystemUpdates";
+import { UserSettings } from "./UserSettings";
 
 export function SettingsMainView({ session }: { session: Session }) {
   const [params, setParams] = useSearchParams();

@@ -1,3 +1,13 @@
+import {
+  ChevronDown,
+  Play,
+  RotateCcw,
+  RotateCw,
+  Square,
+  Trash2,
+} from "lucide-react";
+import { useState } from "react";
+
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
@@ -20,15 +30,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { errorMessage, type Resource } from "@/lib/api";
-import {
-  ChevronDown,
-  Play,
-  RotateCcw,
-  RotateCw,
-  Square,
-  Trash2,
-} from "lucide-react";
-import { useState } from "react";
 
 export function ApplicationDeployActions({
   app,

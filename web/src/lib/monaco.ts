@@ -3,8 +3,9 @@ import * as monaco from "monaco-editor/esm/vs/editor/editor.api.js";
 import "monaco-editor/esm/vs/editor/editor.all.js";
 import "monaco-editor/esm/vs/basic-languages/yaml/yaml.contribution.js";
 import EditorWorker from "monaco-editor/esm/vs/editor/editor.worker.js?worker";
-import YAMLWorker from "monaco-yaml/yaml.worker?worker";
 import { configureMonacoYaml, type JSONSchema } from "monaco-yaml";
+import YAMLWorker from "monaco-yaml/yaml.worker?worker";
+
 import composeSchema from "./schemas/compose-spec.json";
 
 // All language services run in bundled same-origin workers, including schemas.

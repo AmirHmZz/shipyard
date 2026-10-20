@@ -1,3 +1,5 @@
+import { type ReactNode } from "react";
+
 import {
   Select,
   SelectContent,
@@ -5,7 +7,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { type ReactNode } from "react";
 
 export const choose = (
   value: string,

@@ -1,9 +1,11 @@
+import { useParams } from "react-router";
+
 import {
   ConfigurationGuard,
   ConfigurationPage,
 } from "@/components/configuration-surface";
 import { type Resource } from "@/lib/api";
-import { useParams } from "react-router";
+
 import { DNSRecords } from "./DNSRecords";
 
 export function DNSRecordSurface({ zone }: { zone: Resource }) {

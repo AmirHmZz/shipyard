@@ -1,3 +1,5 @@
+import { useNavigate } from "react-router";
+
 import { DialogFooter } from "@/components/configuration-surface";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +14,6 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { type DNSRecord, type Resource } from "@/lib/api";
-import { useNavigate } from "react-router";
 
 export function DNSRecordForm({
   edit,

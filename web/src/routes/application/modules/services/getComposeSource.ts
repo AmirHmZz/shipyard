@@ -1,6 +1,8 @@
-import { apiPath } from "@/lib/paths";
-import { api } from "@/lib/api/client";
 import type { Resource } from "@/lib/api/types";
+
+import { api } from "@/lib/api/client";
+import { apiPath } from "@/lib/paths";
+
 import type { Source } from "../generics";
 
 export async function getComposeSource(app: Resource) {

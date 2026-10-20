@@ -1,10 +1,10 @@
-import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { cpSync, mkdtempSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join, resolve, sep } from "node:path";
+import { test } from "node:test";
 
 test("release artifacts pin images, preserve migration checksums and refuse invalid versions", () => {
   const root = resolve("."),

@@ -1,8 +1,3 @@
-import { Confirm } from "@/components/shared";
-import * as Modal from "@/components/ui/dialog";
-import { ConfigurationContext } from "@/lib/configuration-state";
-import { createDirtyScopes } from "@/lib/dirty-scopes";
-import { cn } from "@/lib/utils";
 import {
   createContext,
   use,
@@ -14,6 +9,12 @@ import {
   type ReactNode,
 } from "react";
 import { useBeforeUnload, useBlocker } from "react-router";
+
+import { Confirm } from "@/components/shared";
+import * as Modal from "@/components/ui/dialog";
+import { ConfigurationContext } from "@/lib/configuration-state";
+import { createDirtyScopes } from "@/lib/dirty-scopes";
+import { cn } from "@/lib/utils";
 const PageContext = createContext(false);
 export function ConfigurationPage({ children }: { children: ReactNode }) {
   return <PageContext value={true}>{children}</PageContext>;

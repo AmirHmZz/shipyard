@@ -1,5 +1,6 @@
-import { api } from "@/lib/api/client";
 import type { Resource } from "@/lib/api/types";
+
+import { api } from "@/lib/api/client";
 import { apiPath } from "@/lib/paths";
 
 export function saveVariable(

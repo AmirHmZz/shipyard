@@ -1,8 +1,10 @@
+import { Anchor, ChevronDown } from "lucide-react";
+import { Link, NavLink } from "react-router";
+
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useResources } from "@/lib/api";
-import { Anchor, ChevronDown } from "lucide-react";
-import { Link, NavLink } from "react-router";
+
 import { navigation } from "../generics";
 
 export function Sidebar({ close }: { close?: () => void }) {

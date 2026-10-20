@@ -1,7 +1,7 @@
+import { DeploymentTable } from "@/components/deployment-table";
 import { Empty, ErrorState, Loading, PageHeader } from "@/components/shared";
 import { Card } from "@/components/ui/card";
 import { useDeployments, useResources } from "@/lib/api";
-import { DeploymentTable } from "@/components/deployment-table";
 
 export function DeploymentsMainView() {
   const q = useDeployments();

@@ -1,6 +1,8 @@
 import type { ComponentProps } from "react";
-import { Input } from "./input";
+
 import { cn } from "@/lib/utils";
+
+import { Input } from "./input";
 
 export function InputGroup({ className, ...props }: ComponentProps<"div">) {
   return (

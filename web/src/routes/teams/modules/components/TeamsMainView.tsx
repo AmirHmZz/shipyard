@@ -1,10 +1,7 @@
-import { ProjectAccessDialog } from "./ProjectAccessDialog";
-import {
-  useAssignTeamMember,
-  useCreateInvitation,
-  useRemoveTeamMember,
-  useTeamMembers,
-} from "../hooks";
+import { Plus, Users } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+
 import { ResourceEditor } from "@/components/resource-editor";
 import {
   Confirm,
@@ -42,9 +39,14 @@ import {
 } from "@/components/ui/table";
 import { errorMessage, useAccount, useResources } from "@/lib/api";
 import { invitationFormSchema } from "@/lib/validation";
-import { Plus, Users } from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
+
+import {
+  useAssignTeamMember,
+  useCreateInvitation,
+  useRemoveTeamMember,
+  useTeamMembers,
+} from "../hooks";
+import { ProjectAccessDialog } from "./ProjectAccessDialog";
 
 export function TeamsMainView() {
   const account = useAccount();

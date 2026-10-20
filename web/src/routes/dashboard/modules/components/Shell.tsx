@@ -1,5 +1,22 @@
-import { sessionKeys } from "@/lib/query-keys";
-import { logout } from "../services";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  ChevronDown,
+  LogOut,
+  Menu,
+  Moon,
+  Search,
+  Settings2,
+  Sun,
+} from "lucide-react";
+import { Suspense, useEffect, useState } from "react";
+import {
+  Link,
+  Outlet,
+  useLocation,
+  useNavigate,
+  useMatches,
+} from "react-router";
+
 import { Loading } from "@/components/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -28,28 +45,13 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { setCSRF, useResources, type Session } from "@/lib/api";
-import { readTheme, writeTheme } from "@/lib/theme";
-import { useQueryClient } from "@tanstack/react-query";
-import {
-  ChevronDown,
-  LogOut,
-  Menu,
-  Moon,
-  Search,
-  Settings2,
-  Sun,
-} from "lucide-react";
-import { Suspense, useEffect, useState } from "react";
-import {
-  Link,
-  Outlet,
-  useLocation,
-  useNavigate,
-  useMatches,
-} from "react-router";
-import { navigation } from "../generics";
-import { Sidebar } from "./Sidebar";
+import { sessionKeys } from "@/lib/query-keys";
 import { resolvePageLabel } from "@/lib/route-handle";
+import { readTheme, writeTheme } from "@/lib/theme";
+
+import { navigation } from "../generics";
+import { logout } from "../services";
+import { Sidebar } from "./Sidebar";
 import { WorkspaceSearch } from "./WorkspaceSearch";
 
 export function Shell({ session }: { session: Session }) {

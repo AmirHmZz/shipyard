@@ -1,7 +1,7 @@
-import { resourceKeys } from "@/lib/query-keys";
-import { saveComposeSource, deployComposeSource } from "../services";
-import { useComposeSource } from "../hooks";
-import type { Source } from "../generics";
+import { useQueryClient } from "@tanstack/react-query";
+import { Play, Save } from "lucide-react";
+import { lazy, Suspense, useState } from "react";
+
 import { ErrorState, Loading } from "@/components/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -16,10 +16,13 @@ import { Spinner } from "@/components/ui/spinner";
 import { errorMessage, type Resource } from "@/lib/api";
 import { useConfigurationChanges } from "@/lib/configuration-state";
 import { loadComposeEditor } from "@/lib/feature-loaders";
+import { resourceKeys } from "@/lib/query-keys";
 import { composeSourceSchema } from "@/lib/validation";
-import { useQueryClient } from "@tanstack/react-query";
-import { Play, Save } from "lucide-react";
-import { lazy, Suspense, useState } from "react";
+
+import type { Source } from "../generics";
+
+import { useComposeSource } from "../hooks";
+import { saveComposeSource, deployComposeSource } from "../services";
 
 const Editor = lazy(loadComposeEditor);
 

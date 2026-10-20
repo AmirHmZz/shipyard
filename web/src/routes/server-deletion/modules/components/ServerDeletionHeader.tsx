@@ -1,7 +1,9 @@
+import { Link } from "react-router";
+
 import { PageHeader } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { type Resource } from "@/lib/api";
-import { Link } from "react-router";
+
 import type { Status } from "../generics";
 
 export function ServerDeletionHeader({

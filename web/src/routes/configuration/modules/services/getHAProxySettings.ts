@@ -1,6 +1,8 @@
-import { apiPath } from "@/lib/paths";
-import { api } from "@/lib/api/client";
 import type { Resource } from "@/lib/api/types";
+
+import { api } from "@/lib/api/client";
+import { apiPath } from "@/lib/paths";
+
 import type { Settings } from "../generics";
 
 export async function getHAProxySettings(server: Resource) {

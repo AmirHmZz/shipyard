@@ -1,5 +1,7 @@
 import { expect, it } from "vitest";
+
 import type { components } from "@/lib/schema";
+
 import { subnets } from "./subnets";
 it("handles absent IPAM and returns only string subnets in order", () => {
   expect(subnets()).toEqual([]);

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+
 import type { components } from "../src/lib/schema";
 
 type Resource = components["schemas"]["Resource"];

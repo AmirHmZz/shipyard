@@ -1,7 +1,8 @@
-import { expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createMemoryRouter, Outlet, RouterProvider } from "react-router";
+import { expect, it } from "vitest";
+
 import { ContentErrorBoundary } from "./content-error-boundary";
 
 it("keeps the shell and renders the compact fallback for a page error", () => {

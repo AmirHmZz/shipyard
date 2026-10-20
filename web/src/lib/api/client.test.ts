@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+
 import { api, post, setCSRF } from "./client";
 
 afterEach(() => vi.unstubAllGlobals());

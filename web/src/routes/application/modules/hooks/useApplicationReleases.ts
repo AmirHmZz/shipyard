@@ -1,5 +1,6 @@
-import { applicationKeys } from "../generics";
 import { useQuery } from "@tanstack/react-query";
+
+import { applicationKeys } from "../generics";
 import { getApplicationReleases } from "../services";
 
 export function useApplicationReleases(id: string, enabled: boolean) {

@@ -1,7 +1,9 @@
-import { configurationKeys } from "../generics";
 import { useQuery } from "@tanstack/react-query";
-import { getHAProxySettings } from "../services";
+
 import type { Resource } from "@/lib/api";
+
+import { configurationKeys } from "../generics";
+import { getHAProxySettings } from "../services";
 
 export function useHAProxySettings(server: Resource) {
   return useQuery({

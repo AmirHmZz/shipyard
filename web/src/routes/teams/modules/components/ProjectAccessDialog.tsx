@@ -1,4 +1,8 @@
-import type { useAssignTeamMember } from "../hooks";
+import { toast } from "sonner";
+import * as z from "zod";
+
+import type { Resource } from "@/lib/api";
+
 import {
   Dialog,
   DialogContent,
@@ -15,9 +19,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { errorMessage } from "@/lib/api";
-import * as z from "zod";
-import { toast } from "sonner";
-import type { Resource } from "@/lib/api";
+
+import type { useAssignTeamMember } from "../hooks";
 
 export function ProjectAccessDialog({
   assign,

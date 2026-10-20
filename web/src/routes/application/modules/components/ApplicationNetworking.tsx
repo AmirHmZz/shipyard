@@ -1,9 +1,6 @@
-import { applicationKeys } from "../generics";
-import { resourceKeys } from "@/lib/query-keys";
-import { saveApplicationNetworking } from "../services";
-import { useApplicationNetworking, useApplicationServices } from "../hooks";
-import type { Service, Port } from "../generics";
-import { ConfigurationScope } from "./ConfigurationScope";
+import { useQueryClient } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+
 import { ErrorState, Loading } from "@/components/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -16,12 +13,18 @@ import {
 } from "@/lib/api";
 import { useConfigurationChanges } from "@/lib/configuration-state";
 import { draftRow, withoutRowId, type DraftRow } from "@/lib/draft-rows";
+import { resourceKeys } from "@/lib/query-keys";
 import {
   networkingPayloadSchema,
   publishedPortsPayloadSchema,
 } from "@/lib/validation";
-import { useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+
+import type { Service, Port } from "../generics";
+
+import { applicationKeys } from "../generics";
+import { useApplicationNetworking, useApplicationServices } from "../hooks";
+import { saveApplicationNetworking } from "../services";
+import { ConfigurationScope } from "./ConfigurationScope";
 import { NetworkServiceCard } from "./NetworkServiceCard";
 import { PublishedPorts } from "./PublishedPorts";
 

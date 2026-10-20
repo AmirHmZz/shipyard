@@ -1,9 +1,11 @@
-import { afterEach, expect, it, vi } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter, Outlet, Route, Routes } from "react-router";
-import { useAccount, useAdmin, useCurrentSession } from "./session";
+import { afterEach, expect, it, vi } from "vitest";
+
 import type { Session } from "./api/types";
+
+import { useAccount, useAdmin, useCurrentSession } from "./session";
 
 afterEach(() => vi.unstubAllGlobals());
 

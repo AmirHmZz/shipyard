@@ -1,13 +1,17 @@
-import { configurationKeys } from "../generics";
-import { saveGiteaInstance } from "../services";
-import type { InstanceDraft } from "../generics";
+import type { Dispatch, SetStateAction } from "react";
+
+import { useQueryClient } from "@tanstack/react-query";
+
 import { CopyButton } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { giteaInstanceSchema } from "@/lib/validation";
-import { useQueryClient } from "@tanstack/react-query";
-import type { Dispatch, SetStateAction } from "react";
+
+import type { InstanceDraft } from "../generics";
+
+import { configurationKeys } from "../generics";
+import { saveGiteaInstance } from "../services";
 
 export function GiteaInstanceEditor({
   instanceForm,

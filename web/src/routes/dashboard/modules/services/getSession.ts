@@ -1,5 +1,6 @@
-import { api, APIError, setCSRF } from "@/lib/api/client";
 import type { Session } from "@/lib/api/types";
+
+import { api, APIError, setCSRF } from "@/lib/api/client";
 
 export async function getSession() {
   try {

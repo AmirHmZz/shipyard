@@ -1,9 +1,11 @@
-import type { Status } from "../generics";
+import { Download } from "lucide-react";
+
 import { StateBadge } from "@/components/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { Download } from "lucide-react";
+
+import type { Status } from "../generics";
 
 export function VersionChangeOperation({
   operation,

@@ -1,3 +1,5 @@
+import { Pencil, Trash2 } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -8,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Pencil, Trash2 } from "lucide-react";
+
 import type { VariableController } from "./variables";
 export function VariableTable({
   controller,

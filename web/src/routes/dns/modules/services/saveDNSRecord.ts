@@ -1,6 +1,7 @@
+import type { dnsRecordFormSchema } from "@/lib/validation";
+
 import { api } from "@/lib/api/client";
 import { apiPath } from "@/lib/paths";
-import type { dnsRecordFormSchema } from "@/lib/validation";
 
 export function saveDNSRecord(
   zoneId: string,

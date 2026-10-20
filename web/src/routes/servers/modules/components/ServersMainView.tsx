@@ -1,4 +1,8 @@
-import { useProvisionServer } from "../hooks";
+import { Plus, Server, Wrench } from "lucide-react";
+import { useState } from "react";
+import { useNavigate } from "react-router";
+import { toast } from "sonner";
+
 import {
   Dialog,
   DialogContent,
@@ -17,10 +21,8 @@ import {
 } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { useAccount, useResources, type Resource } from "@/lib/api";
-import { Plus, Server, Wrench } from "lucide-react";
-import { useState } from "react";
-import { useNavigate } from "react-router";
-import { toast } from "sonner";
+
+import { useProvisionServer } from "../hooks";
 import { ServerCard } from "./ServerCard";
 
 export function ServersMainView() {

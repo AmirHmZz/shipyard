@@ -1,3 +1,7 @@
+import { ArrowRight, Globe2, Plus, ShieldCheck, Users } from "lucide-react";
+import { useState } from "react";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router";
+
 import {
   Dialog,
   DialogContent,
@@ -25,12 +29,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ZoneCertificates } from "./ZoneCertificates";
 import { text, useAccount, useResources } from "@/lib/api";
-import { ArrowRight, Globe2, Plus, ShieldCheck, Users } from "lucide-react";
-import { useState } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router";
+
 import { DNSRecordSurface } from "./DNSRecordSurface";
+import { ZoneCertificates } from "./ZoneCertificates";
 
 export function DNSMainView() {
   const account = useAccount();

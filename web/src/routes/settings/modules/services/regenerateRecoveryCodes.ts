@@ -1,5 +1,6 @@
-import { post } from "@/lib/api/client";
 import type { totpPasswordSchema } from "@/lib/validation";
+
+import { post } from "@/lib/api/client";
 
 export function regenerateRecoveryCodes(
   payload: typeof totpPasswordSchema._output,
