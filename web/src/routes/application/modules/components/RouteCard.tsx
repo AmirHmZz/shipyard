@@ -1,7 +1,5 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { Pencil, RefreshCw, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import type { Resource } from "@/lib/api";
 
@@ -16,11 +14,9 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { errorMessage, number, text } from "@/lib/api";
+import { number, text } from "@/lib/api";
 
-import { applicationKeys } from "../generics";
-import { useDomainStatus } from "../hooks";
-import { syncRoute } from "../services";
+import { useDomainStatus, useSyncRoute } from "../hooks";
 
 export function RouteCard({
   route,
@@ -32,23 +28,13 @@ export function RouteCard({
   onDelete: () => void;
 }) {
   const q = useDomainStatus(route);
-  const client = useQueryClient();
   const [replace, setReplace] = useState(false);
-  const [syncing, setSyncing] = useState(false);
-  const sync = async (mode: string) => {
-    setSyncing(true);
-    try {
-      await syncRoute(route.id, { mode });
-      toast.success("Domain reconciliation queued");
-      void client.invalidateQueries({
-        queryKey: applicationKeys.domain(route.id),
-      });
-    } catch (e) {
-      toast.error(errorMessage(e));
-    } finally {
-      setSyncing(false);
-    }
-  };
+  const synchronize = useSyncRoute(route.id);
+  const syncing = synchronize.isPending;
+  function sync(mode: string) {
+    if (syncing) return;
+    synchronize.mutate({ mode }, { onSuccess: () => setReplace(false) });
+  }
   return (
     <Card className="py-0 shadow-none">
       <CardContent className="p-5">
@@ -156,6 +142,7 @@ export function RouteCard({
         title="Replace conflicting DNS records?"
         description="Existing A, AAAA and CNAME records for this hostname will be replaced with records pointing at the deployment server."
         destructive
+        pending={syncing}
         onConfirm={() => sync("replace")}
       />
     </Card>

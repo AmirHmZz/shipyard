@@ -94,12 +94,16 @@ async function fixture(page: Page) {
         });
       state.writes.push(path);
       state.payloads.push(request.postDataJSON());
-      return route.fulfill({ json: {} });
+      return route.fulfill({
+        json: resources.find((resource) => resource.id === "app"),
+      });
     }
     if (path.endsWith("/published-ports")) {
       state.writes.push(path);
       state.payloads.push(request.postDataJSON());
-      return route.fulfill({ json: {} });
+      return route.fulfill({
+        json: resources.find((resource) => resource.id === "app"),
+      });
     }
     if (path.endsWith("/services"))
       return route.fulfill({

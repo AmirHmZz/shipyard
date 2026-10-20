@@ -1,4 +1,3 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { Play, Save } from "lucide-react";
 import { lazy, Suspense, useState } from "react";
 
@@ -15,16 +14,19 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import { errorMessage } from "@/lib/api";
+import { toastValidationError } from "@/lib/api/toaster";
+import { describeError } from "@/lib/api/translate-error";
 import { useConfigurationChanges } from "@/lib/configuration-state";
 import { loadComposeEditor } from "@/lib/feature-loaders";
-import { resourceKeys } from "@/lib/query-keys";
 
 import type { Source } from "../generics";
 
 import { composeSourceSchema } from "../generics";
-import { useComposeSource } from "../hooks";
-import { saveComposeSource, deployComposeSource } from "../services";
+import {
+  useComposeSource,
+  useSaveComposeSource,
+  useDeployComposeSource,
+} from "../hooks";
 
 const Editor = lazy(loadComposeEditor);
 
@@ -59,56 +61,53 @@ export function ComposeSource({
   onDeploy: (id: string) => void;
 }) {
   const changes = useConfigurationChanges();
-  const client = useQueryClient();
   const q = useComposeSource(app);
+  const saveSource = useSaveComposeSource(app.id);
+  const deploySource = useDeployComposeSource(app.id);
   const [editedDraft, setDraft] = useState<Source | null>(null);
   const draft = editedDraft ?? q.data ?? null;
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const busy = saveSource.isPending || deploySource.isPending;
+  const failure = saveSource.error ?? deploySource.error ?? q.error;
+  const error = failure ? describeError(failure) : "";
   const [saved, setSaved] = useState(false);
   async function reload() {
-    try {
-      const result = await q.refetch();
-      if (result.error) throw result.error;
-      if (result.data) {
-        changes.saved();
-        setDraft(result.data);
-        setError("");
-        setSaved(false);
-      }
-    } catch (e) {
-      setError(errorMessage(e));
+    const result = await q.refetch();
+    if (!result.error && result.data) {
+      changes.saved();
+      setDraft(result.data);
+      saveSource.reset();
+      deploySource.reset();
+      setSaved(false);
     }
   }
-  async function save(deploy: boolean) {
-    if (!draft) return;
-    setBusy(true);
-    setError("");
-    setSaved(false);
-    try {
-      const result = await saveComposeSource(
-        app.id,
-        composeSourceSchema.parse(draft),
-      );
-      changes.saved();
-      setDraft(result);
-      setSaved(true);
-      const refresh = client.invalidateQueries({ queryKey: resourceKeys.all });
-      if (deploy) {
-        const [d] = await Promise.all([
-          deployComposeSource(app.id, {
-            version: result.version,
-          }),
-          refresh,
-        ]);
-        changes.saved();
-        onDeploy(d.id);
-      } else await refresh;
-    } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setBusy(false);
+  function save(deploy: boolean) {
+    if (!draft || busy) return;
+    const parsed = composeSourceSchema.safeParse(draft);
+    if (!parsed.success) {
+      toastValidationError(parsed.error);
+      return;
     }
+    saveSource.reset();
+    deploySource.reset();
+    setSaved(false);
+    saveSource.mutate(parsed.data, {
+      onSuccess: (result) => {
+        changes.saved();
+        setDraft(result);
+        setSaved(true);
+        if (deploy) {
+          deploySource.mutate(
+            { version: result.version },
+            {
+              onSuccess: (deployment) => {
+                changes.saved();
+                onDeploy(deployment.id);
+              },
+            },
+          );
+        }
+      },
+    });
   }
   if (!app.canWrite) return null;
   return (

@@ -1,3 +1,5 @@
+import type { FormEvent } from "react";
+
 import { useState } from "react";
 import { Link } from "react-router";
 
@@ -18,16 +20,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { errorMessage, text, useResources } from "@/lib/api";
+import { text, useResources } from "@/lib/api";
+import { toastValidationError } from "@/lib/api/toaster";
+import { describeError } from "@/lib/api/translate-error";
 import { normalizeApplicationSettings } from "@/lib/application-settings";
 import { useConfigurationChanges } from "@/lib/configuration-state";
 import { previewRoutingSchema } from "@/lib/schemas/application";
 
-import { previewFormSchema } from "../generics";
 import {
-  useSaveApplicationPreview,
-  useCreateApplicationPreview,
-} from "../hooks";
+  previewFormSchema,
+  previewApplicationRoutingSchema,
+  previewCommitSchema,
+} from "../generics";
+import { useSaveApplicationPreview, useApprovePreview } from "../hooks";
 export function ApplicationPreviews({ app }: { app: Resource }) {
   const changes = useConfigurationChanges();
   const q = useResources();
@@ -35,22 +40,82 @@ export function ApplicationPreviews({ app }: { app: Resource }) {
     (r) => r.kind === "route" && r.parentId === app.id,
   );
   const [routingDraft, setRouting] = useState<PreviewRouting | null>(null);
-  const routing =
+  const savedRouting = previewRoutingSchema.safeParse(
+    normalizeApplicationSettings(app.data, routes).previewRouting,
+  );
+  const routing: PreviewRouting =
     routingDraft ??
-    (normalizeApplicationSettings(app.data, routes)
-      .previewRouting as PreviewRouting);
+    (savedRouting.success ? savedRouting.data : { mode: "inherit" });
   const savePreview = useSaveApplicationPreview();
-  const createPreview = useCreateApplicationPreview();
+  const createPreview = useApprovePreview();
   const [enabled, setEnabled] = useState(!!app.data.previews);
   const [domain, setDomain] = useState(() => text(app.data, "previewDomain"));
   const [zone, setZone] = useState(() => text(app.data, "previewZoneId"));
-  const [error, setError] = useState("");
+  const failure = savePreview.error ?? createPreview.error;
+  const error = failure ? describeError(failure) : "";
   const [saved, setSaved] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const busy = savePreview.isPending;
   const previews =
     q.data?.filter(
       (r) => r.kind === "application" && r.data.previewOf === app.id,
     ) || [];
+  function saveSettings(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (busy) return;
+    savePreview.reset();
+    createPreview.reset();
+    const preview = previewFormSchema.safeParse({
+      enabled: enabled && routing.mode !== "private",
+      domain,
+      zone,
+    });
+    if (!preview.success) {
+      toastValidationError(preview.error);
+      return;
+    }
+    const nextRouting = previewApplicationRoutingSchema(
+      routes.some((route) => route.data.protocol !== "tcp"),
+    ).safeParse({ enabled, routing });
+    if (!nextRouting.success) {
+      toastValidationError(nextRouting.error);
+      return;
+    }
+    savePreview.mutate(
+      {
+        id: app.id,
+        payload: {
+          kind: app.kind,
+          name: app.name,
+          version: app.version,
+          data: {
+            ...normalizeApplicationSettings(app.data, routes),
+            previewRouting: nextRouting.data.routing,
+            previews: enabled,
+            previewDomain: preview.data.domain,
+            previewZoneId: preview.data.zone,
+          },
+        },
+      },
+      {
+        onSuccess: () => {
+          changes.saved();
+          setSaved(true);
+        },
+      },
+    );
+  }
+  function approvePreview(preview: Resource) {
+    if (createPreview.isPending && createPreview.variables?.id === preview.id)
+      return;
+    const parsed = previewCommitSchema.safeParse({
+      sha: preview.data.previewSha,
+    });
+    if (!parsed.success) {
+      toastValidationError(parsed.error);
+      return;
+    }
+    createPreview.mutate({ id: preview.id, sha: parsed.data.sha });
+  }
   return (
     <div className="space-y-5">
       <Card>
@@ -58,51 +123,7 @@ export function ApplicationPreviews({ app }: { app: Resource }) {
           <CardTitle>Pull request previews</CardTitle>
         </CardHeader>
         <CardContent>
-          <form
-            className="space-y-5"
-            onSubmit={async (e) => {
-              e.preventDefault();
-              setBusy(true);
-              setError("");
-              try {
-                const preview = previewFormSchema.parse({
-                  enabled: enabled && routing.mode !== "private",
-                  domain,
-                  zone,
-                });
-                const nextRouting = previewRoutingSchema.parse(routing);
-                if (
-                  enabled &&
-                  nextRouting.mode === "inherit" &&
-                  !routes.some((r) => r.data.protocol !== "tcp")
-                )
-                  throw new Error(
-                    "Configure an explicit preview target or private previews when there are no HTTP/gRPC routes.",
-                  );
-                await savePreview.mutateAsync({
-                  id: app.id,
-                  payload: {
-                    kind: app.kind,
-                    name: app.name,
-                    version: app.version,
-                    data: {
-                      ...normalizeApplicationSettings(app.data, routes),
-                      previewRouting: nextRouting,
-                      previews: enabled,
-                      previewDomain: preview.domain,
-                      previewZoneId: preview.zone,
-                    },
-                  },
-                });
-                changes.saved();
-                setSaved(true);
-              } catch (e) {
-                setError(errorMessage(e));
-              } finally {
-                setBusy(false);
-              }
-            }}
-          >
+          <form className="space-y-5" onSubmit={saveSettings}>
             <div className="flex items-center justify-between">
               <Label htmlFor="previews-enabled">Enable PR previews</Label>
               <Switch
@@ -211,17 +232,7 @@ export function ApplicationPreviews({ app }: { app: Resource }) {
                 preview.data.approvedSha !== preview.data.previewSha && (
                   <Button
                     disabled={approving}
-                    onClick={async () => {
-                      if (approving) return;
-                      try {
-                        await createPreview.mutateAsync({
-                          id: preview.id,
-                          sha: preview.data.previewSha,
-                        });
-                      } catch (e) {
-                        setError(errorMessage(e));
-                      }
-                    }}
+                    onClick={() => approvePreview(preview)}
                   >
                     Approve this commit
                   </Button>

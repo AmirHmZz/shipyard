@@ -1,13 +1,16 @@
-import { useQuery } from "@tanstack/react-query";
+import type { Resource } from "@/lib/api/types";
 
-import type { Resource } from "@/lib/api";
+import { useApiQuery } from "@/lib/api/use-api-query";
+import { apiPath } from "@/lib/paths";
 
-import { applicationKeys } from "../generics";
-import { getApplicationNetworking } from "../services";
-
+import {
+  applicationKeys,
+  applicationNetworkingResponseSchema,
+} from "../generics";
 export function useApplicationNetworking(app: Resource) {
-  return useQuery({
+  return useApiQuery({
     queryKey: applicationKeys.networking(app.id, app.version),
-    queryFn: () => getApplicationNetworking(app),
+    path: apiPath`/applications/${app.id}/networking`,
+    schema: applicationNetworkingResponseSchema,
   });
 }

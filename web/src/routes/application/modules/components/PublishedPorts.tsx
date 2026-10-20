@@ -31,7 +31,7 @@ export function PublishedPorts({
   editPorts: (next: Record<string, DraftRow<Port>[]>) => void;
   busy: boolean;
   ports: Record<string, DraftRow<Port>[]> | null;
-  save: (published: boolean) => Promise<void>;
+  save: (published: boolean) => void;
 }) {
   return (
     <Card>

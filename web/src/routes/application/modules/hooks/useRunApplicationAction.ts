@@ -1,13 +1,14 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useApiMutation } from "@/lib/api/use-api-mutation";
+import { apiPath } from "@/lib/paths";
+import { okResponseSchema } from "@/lib/schemas/acknowledgements";
 
 import { applicationKeys } from "../generics";
-import { runApplicationAction } from "../services";
-
 export function useRunApplicationAction(id: string) {
-  const client = useQueryClient();
-  return useMutation({
-    mutationFn: (action: string) => runApplicationAction(id, { action }),
-    onSuccess: () =>
-      client.invalidateQueries({ queryKey: applicationKeys.runtime(id) }),
+  return useApiMutation({
+    method: "POST",
+    path: apiPath`/applications/${id}/action`,
+    body: (action: string) => ({ action }),
+    schema: okResponseSchema,
+    invalidate: [applicationKeys.runtime(id)],
   });
 }

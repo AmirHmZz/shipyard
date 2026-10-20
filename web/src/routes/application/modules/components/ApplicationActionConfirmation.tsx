@@ -1,26 +1,55 @@
-import type { useQueryClient } from "@tanstack/react-query";
 import type { useSearchParams } from "react-router";
 
-import { Confirm } from "@/components/shared";
-import { resourceKeys } from "@/lib/query-keys";
+import { toast } from "sonner";
 
-import { rollbackApplication, deleteActionResource } from "../services";
+import { Confirm } from "@/components/shared";
+
+import {
+  useRollbackApplication,
+  useDeleteActionResource,
+  useRunApplicationAction,
+} from "../hooks";
 
 export function ApplicationActionConfirmation({
   confirmAction,
   setConfirmAction,
   id,
-  client,
-  act,
   setParams,
 }: {
   confirmAction: string;
   setConfirmAction: (action: string) => void;
   id: string;
-  client: ReturnType<typeof useQueryClient>;
-  act: (action: string) => Promise<void>;
   setParams: ReturnType<typeof useSearchParams>[1];
 }) {
+  const rollback = useRollbackApplication(id);
+  const remove = useDeleteActionResource();
+  const action = useRunApplicationAction(id);
+  const pending = rollback.isPending || remove.isPending || action.isPending;
+  function close() {
+    setConfirmAction("");
+  }
+  function confirm() {
+    if (pending) return;
+    if (confirmAction.startsWith("rollback:")) {
+      rollback.mutate(
+        { releaseId: confirmAction.split(":")[1] },
+        {
+          onSuccess: (deployment) => {
+            setParams({ deployment: deployment.id, tab: "deployments" });
+            close();
+          },
+        },
+      );
+    } else if (confirmAction.startsWith("delete:"))
+      remove.mutate(confirmAction, { onSuccess: close });
+    else
+      action.mutate(confirmAction, {
+        onSuccess: () => {
+          toast.success(`Application ${confirmAction} requested`);
+          close();
+        },
+      });
+  }
   return (
     <Confirm
       open={!!confirmAction}
@@ -42,17 +71,8 @@ export function ApplicationActionConfirmation({
       destructive={
         confirmAction === "stop" || confirmAction.startsWith("delete:")
       }
-      onConfirm={async () => {
-        if (confirmAction.startsWith("rollback:")) {
-          const d = await rollbackApplication(id, {
-            releaseId: confirmAction.split(":")[1],
-          });
-          setParams({ deployment: d.id, tab: "deployments" });
-        } else if (confirmAction.startsWith("delete:")) {
-          await deleteActionResource(confirmAction);
-          await client.invalidateQueries({ queryKey: resourceKeys.all });
-        } else await act(confirmAction);
-      }}
+      pending={pending}
+      onConfirm={confirm}
     />
   );
 }

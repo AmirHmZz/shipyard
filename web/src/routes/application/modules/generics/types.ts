@@ -58,3 +58,26 @@ export type DeploymentCreationResult = z.infer<
 export type ApplicationVolumesResponse = z.infer<
   typeof applicationVolumesResponseSchema
 >;
+
+import type { Resource } from "@/lib/api/types";
+
+import type {
+  freshDeploySchema,
+  previewCommitSchema,
+  composeSourceSchema,
+  networkingPayloadSchema,
+  publishedPortsPayloadSchema,
+} from "./schema";
+export type FreshDeployValues = z.output<ReturnType<typeof freshDeploySchema>>;
+export type PreviewCommitValues = z.output<typeof previewCommitSchema>;
+export type ComposeSourceValues = z.output<typeof composeSourceSchema>;
+export type PreviewSaveValues = {
+  id: string;
+  payload: Pick<Resource, "kind" | "name" | "version" | "data">;
+};
+export type NetworkingSaveValues = {
+  published: boolean;
+  payload:
+    | z.output<typeof networkingPayloadSchema>
+    | z.output<typeof publishedPortsPayloadSchema>;
+};

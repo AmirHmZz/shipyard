@@ -1,4 +1,3 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import { toast } from "sonner";
@@ -11,14 +10,10 @@ import { DeleteResource, DeletionStatus } from "@/components/delete-resource";
 import { Empty, ErrorState, Loading } from "@/components/shared";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Variables } from "@/components/variables";
-import {
-  APIError,
-  errorMessage,
-  text,
-  useDeployments,
-  useResources,
-} from "@/lib/api";
-import { deploymentKeys } from "@/lib/query-keys";
+import { text, useDeployments, useResources } from "@/lib/api";
+import { ApiException } from "@/lib/api/errors";
+import { toastValidationError } from "@/lib/api/toaster";
+import { describeError } from "@/lib/api/translate-error";
 import { indexResources } from "@/lib/resource-index";
 
 import { freshDeploySchema } from "../generics";
@@ -27,9 +22,8 @@ import {
   useApplicationMetrics,
   useApplicationReleases,
   useSelectedDeployment,
-  useRunApplicationAction,
+  useCreateDeployment,
 } from "../hooks";
-import { createDeployment } from "../services";
 import { ApplicationActionConfirmation } from "./ApplicationActionConfirmation";
 import { ApplicationDeployments } from "./ApplicationDeployments";
 import { ApplicationDomains } from "./ApplicationDomains";
@@ -50,7 +44,7 @@ export function ApplicationMainView() {
   const navigate = useNavigate();
   const [deleting, setDeleting] = useState(false);
   const { id = "" } = useParams();
-  const actionMutation = useRunApplicationAction(id);
+  const deployment = useCreateDeployment(id);
   const [params, setParams] = useSearchParams();
   const resources = useResources();
   const index = useMemo(
@@ -76,8 +70,7 @@ export function ApplicationMainView() {
       `/configure/${resource === "new" ? "route/new?parent=" + id : resource.kind + "/" + resource.id + "?parent="}&return=${encodeURIComponent(location.pathname + location.search)}`,
     );
   const [confirmAction, setConfirmAction] = useState("");
-  const [busy, setBusy] = useState(false);
-  const client = useQueryClient();
+  const busy = deployment.isPending;
   const [deleteDeployment, setDeleteDeployment] = useState<Deployment | null>(
     null,
   );
@@ -91,8 +84,9 @@ export function ApplicationMainView() {
   useEffect(() => {
     if (
       selected &&
-      selectedDeployment.error instanceof APIError &&
-      selectedDeployment.error.status === 404
+      selectedDeployment.error instanceof ApiException &&
+      selectedDeployment.error.error.kind === "http" &&
+      selectedDeployment.error.error.status === 404
     ) {
       setParams(
         (previous) => {
@@ -126,32 +120,25 @@ export function ApplicationMainView() {
   const containers = runtime.data?.containers || [];
   const latest = deployments.data?.[0];
   const directCompose = app.data.source === "compose";
-  async function deploy(fresh = false, confirmName = "") {
-    setBusy(true);
-    try {
-      const d = await createDeployment(
-        id,
-        fresh
-          ? freshDeploySchema(app!.name).parse({
-              fresh,
-              confirmName,
-              version: app!.version,
-            })
-          : {},
-      );
-      setParams({ deployment: d.id, tab: "deployments" });
-      await client.invalidateQueries({ queryKey: deploymentKeys.all });
+  function deploy(fresh = false, confirmName = "", onSuccess?: () => void) {
+    if (busy || !app) return;
+    if (fresh) {
+      const parsed = freshDeploySchema(app.name).safeParse({
+        fresh,
+        confirmName,
+        version: app.version,
+      });
+      if (!parsed.success) {
+        toastValidationError(parsed.error);
+        return;
+      }
+      deployment.mutate(parsed.data, { onSuccess: completeDeployment });
+    } else deployment.mutate({}, { onSuccess: completeDeployment });
+    function completeDeployment(result: { id: string }) {
+      setParams({ deployment: result.id, tab: "deployments" });
       toast.success(fresh ? "Fresh deployment queued" : "Deployment queued");
-    } catch (e) {
-      if (fresh) throw e;
-      toast.error(errorMessage(e));
-    } finally {
-      setBusy(false);
+      onSuccess?.();
     }
-  }
-  async function act(action: string) {
-    await actionMutation.mutateAsync(action);
-    toast.success(`Application ${action} requested`);
   }
   return (
     <>
@@ -166,6 +153,8 @@ export function ApplicationMainView() {
         runtime={runtime}
         busy={busy}
         deploy={deploy}
+        deployError={deployment.error ? describeError(deployment.error) : ""}
+        resetDeploy={deployment.reset}
         openEditor={openEditor}
         setConfirmAction={setConfirmAction}
         setDeleting={setDeleting}
@@ -177,7 +166,10 @@ export function ApplicationMainView() {
         />
       )}
       <ApplicationStatus app={app} runtime={runtime} server={server} />
-      <DeletionStatus resource={foundApp!} onRetry={() => setDeleting(true)} />
+      <DeletionStatus
+        resource={foundApp ?? app}
+        onRetry={() => setDeleting(true)}
+      />
       <Tabs value={tab} onValueChange={setTab}>
         <ApplicationTabList app={app} directCompose={directCompose} />
         {directCompose && app.canWrite && (
@@ -188,9 +180,6 @@ export function ApplicationMainView() {
                 app={app}
                 onDeploy={(deployment) => {
                   setParams({ deployment, tab: "deployments" });
-                  void client.invalidateQueries({
-                    queryKey: deploymentKeys.all,
-                  });
                 }}
               />
             </ConfigurationGuard>
@@ -271,13 +260,11 @@ export function ApplicationMainView() {
         confirmAction={confirmAction}
         setConfirmAction={setConfirmAction}
         id={id}
-        client={client}
-        act={act}
         setParams={setParams}
       />
       {deleting && (
         <DeleteResource
-          resource={foundApp!}
+          resource={foundApp ?? app}
           onClose={() => setDeleting(false)}
           onDeleted={() =>
             navigate(project ? `/projects/${project.id}` : "/projects")

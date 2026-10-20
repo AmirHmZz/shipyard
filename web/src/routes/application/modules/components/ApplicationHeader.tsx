@@ -19,6 +19,8 @@ export function ApplicationHeader({
   runtime,
   busy,
   deploy,
+  deployError,
+  resetDeploy,
   openEditor,
   setConfirmAction,
   setDeleting,
@@ -29,7 +31,13 @@ export function ApplicationHeader({
   environment?: Resource;
   runtime: { data?: Runtime };
   busy: boolean;
-  deploy: (fresh?: boolean, confirmName?: string) => Promise<void>;
+  deploy: (
+    fresh?: boolean,
+    confirmName?: string,
+    onSuccess?: () => void,
+  ) => void;
+  deployError: string;
+  resetDeploy: () => void;
   openEditor: (resource: Resource | "new") => void;
   setConfirmAction: (action: string) => void;
   setDeleting: (value: boolean) => void;
@@ -77,6 +85,8 @@ export function ApplicationHeader({
         runtime={runtime.data}
         busy={busy}
         deploy={deploy}
+        deployError={deployError}
+        resetDeploy={resetDeploy}
         onAction={setConfirmAction}
         onDelete={() => setDeleting(true)}
       />

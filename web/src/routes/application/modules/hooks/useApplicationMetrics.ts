@@ -1,15 +1,17 @@
-import { useQuery } from "@tanstack/react-query";
-
+import { useApiQuery } from "@/lib/api/use-api-query";
 import { POLL_INTERVALS } from "@/lib/constants";
+import { apiPath } from "@/lib/paths";
 
-import { applicationKeys } from "../generics";
-import { getApplicationMetrics } from "../services";
-
+import {
+  applicationKeys,
+  getApplicationMetricsResponseSchema,
+} from "../generics";
 export function useApplicationMetrics(id: string, enabled: boolean) {
-  return useQuery({
+  return useApiQuery({
     queryKey: applicationKeys.metrics(id),
-    enabled: enabled,
-    queryFn: () => getApplicationMetrics(id),
+    path: apiPath`/applications/${id}/metrics`,
+    schema: getApplicationMetricsResponseSchema,
+    enabled,
     refetchInterval: POLL_INTERVALS.metrics,
   });
 }

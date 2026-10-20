@@ -1,16 +1,17 @@
-import { useQuery } from "@tanstack/react-query";
+import { useApiQuery } from "@/lib/api/use-api-query";
+import { apiPath } from "@/lib/paths";
+import { deploymentResponseSchema } from "@/lib/schemas/deployments";
 
 import { applicationKeys } from "../generics";
-import { getSelectedDeployment } from "../services";
-
 export function useSelectedDeployment(
   selected: string | null,
   enabled: boolean,
 ) {
-  return useQuery({
+  return useApiQuery({
     queryKey: applicationKeys.deployment(selected),
-    enabled: enabled,
-    queryFn: () => getSelectedDeployment(selected),
+    path: apiPath`/deployments/${selected}`,
+    schema: deploymentResponseSchema,
+    enabled,
     retry: false,
   });
 }

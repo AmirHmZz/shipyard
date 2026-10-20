@@ -1,6 +1,4 @@
 import { Trash2 } from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
 
 import type { Deployment } from "@/lib/api";
 
@@ -15,7 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
-import { errorMessage } from "@/lib/api";
+import { describeError } from "@/lib/api/translate-error";
 
 import { useRemoveDeployment } from "../hooks";
 
@@ -26,21 +24,12 @@ export function DeleteDeployment({
   deployment: Deployment;
   onClose: () => void;
 }) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
   const removeMutation = useRemoveDeployment(deployment.applicationId);
-  async function remove() {
-    setBusy(true);
-    setError("");
-    try {
-      await removeMutation.mutateAsync(deployment.id);
-      toast.success("Deployment cleanup queued");
-      onClose();
-    } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setBusy(false);
-    }
+  const busy = removeMutation.isPending;
+  const error = removeMutation.error ? describeError(removeMutation.error) : "";
+  function remove() {
+    if (busy) return;
+    removeMutation.mutate(deployment.id, { onSuccess: onClose });
   }
   return (
     <Dialog

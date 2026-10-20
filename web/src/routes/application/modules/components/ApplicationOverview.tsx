@@ -1,8 +1,7 @@
+import type { FormEvent } from "react";
 import type { useSearchParams } from "react-router";
 
-import { useQueryClient } from "@tanstack/react-query";
 import { ArrowUpRight } from "lucide-react";
-import { toast } from "sonner";
 
 import type { Deployment } from "@/lib/api";
 import type { Metric, Resource } from "@/lib/api";
@@ -21,10 +20,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { TabsContent } from "@/components/ui/tabs";
-import { errorMessage, text } from "@/lib/api";
+import { text } from "@/lib/api";
+import { toastValidationError } from "@/lib/api/toaster";
 
 import { previewCommitSchema } from "../generics";
-import { updateApplicationVersion } from "../services";
+import { useApprovePreview } from "../hooks";
 
 export function ApplicationOverview({
   app,
@@ -42,8 +42,21 @@ export function ApplicationOverview({
   setParams: ReturnType<typeof useSearchParams>[1];
 }) {
   const directCompose = app.data.source === "compose";
-  const id = app.id;
-  const client = useQueryClient();
+  const containers = metrics.data?.at(-1)?.containers ?? [];
+  const updateVersion = useApprovePreview({
+    refreshAll: true,
+    successMessage: "Preview approved and queued",
+  });
+  function approveCommit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const parsed = previewCommitSchema.safeParse({ sha: form.get("sha") });
+    if (!parsed.success) {
+      toastValidationError(parsed.error);
+      return;
+    }
+    updateVersion.mutate({ id: app.id, ...parsed.data });
+  }
   return (
     <TabsContent value="overview">
       <div className="grid gap-5 lg:grid-cols-[1fr_1fr]">
@@ -139,7 +152,7 @@ export function ApplicationOverview({
           </p>
         </CardHeader>
         <CardContent className="p-0">
-          {metrics.data?.at(-1)?.containers.length ? (
+          {containers.length ? (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -149,7 +162,7 @@ export function ApplicationOverview({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {metrics.data.at(-1)!.containers.map((c) => (
+                {containers.map((c) => (
                   <TableRow key={c.id}>
                     <TableCell className="max-w-60 truncate font-mono text-xs">
                       {c.name}
@@ -174,25 +187,7 @@ export function ApplicationOverview({
             <p className="mb-3 text-sm">
               This fork preview needs approval for an exact commit.
             </p>
-            <form
-              className="flex gap-2"
-              onSubmit={async (e) => {
-                e.preventDefault();
-                const form = new FormData(e.currentTarget);
-                try {
-                  await updateApplicationVersion(
-                    id,
-                    previewCommitSchema.parse({
-                      sha: form.get("sha"),
-                    }),
-                  );
-                  toast.success("Preview approved and queued");
-                  void client.invalidateQueries();
-                } catch (err) {
-                  toast.error(errorMessage(err));
-                }
-              }}
-            >
+            <form className="flex gap-2" onSubmit={approveCommit}>
               <Input name="sha" placeholder="Full commit SHA" required />
               <Button disabled={!app.canWrite}>Approve commit</Button>
             </form>

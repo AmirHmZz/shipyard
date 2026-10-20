@@ -1,21 +1,15 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-
-import type { Resource } from "@/lib/api";
-
+import { useApiMutation } from "@/lib/api/use-api-mutation";
+import { apiPath } from "@/lib/paths";
 import { resourceKeys } from "@/lib/query-keys";
+import { resourceResponseSchema } from "@/lib/schemas/resources";
 
-import { saveApplicationPreview } from "../services";
-
+import type { PreviewSaveValues } from "../generics";
 export function useSaveApplicationPreview() {
-  const client = useQueryClient();
-  return useMutation({
-    mutationFn: ({
-      id,
-      payload,
-    }: {
-      id: string;
-      payload: Pick<Resource, "kind" | "name" | "version" | "data">;
-    }) => saveApplicationPreview(id, payload),
-    onSuccess: () => client.invalidateQueries({ queryKey: resourceKeys.all }),
+  return useApiMutation({
+    method: "PUT",
+    path: ({ id }: PreviewSaveValues) => apiPath`/resources/${id}`,
+    body: ({ payload }) => payload,
+    schema: resourceResponseSchema,
+    invalidate: [resourceKeys.all],
   });
 }

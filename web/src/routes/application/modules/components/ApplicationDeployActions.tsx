@@ -31,26 +31,32 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
-import { errorMessage } from "@/lib/api";
 
 export function ApplicationDeployActions({
   app,
   runtime,
   busy,
   deploy,
+  deployError,
+  resetDeploy,
   onAction,
   onDelete,
 }: {
   app: Resource;
   runtime?: { releaseId?: string; status: string };
   busy: boolean;
-  deploy: (fresh?: boolean, confirmName?: string) => Promise<void>;
+  deploy: (
+    fresh?: boolean,
+    confirmName?: string,
+    onSuccess?: () => void,
+  ) => void;
+  deployError: string;
+  resetDeploy: () => void;
   onAction: (action: string) => void;
   onDelete: () => void;
 }) {
   const [freshOpen, setFreshOpen] = useState(false);
   const [name, setName] = useState("");
-  const [error, setError] = useState("");
   const canDeploy =
     app.canWrite &&
     !app.data.previewClosed &&
@@ -59,14 +65,8 @@ export function ApplicationDeployActions({
     app.canWrite && !!runtime?.releaseId && !app.data.previewClosed;
   const stopped = runtime?.status === "stopped";
 
-  async function freshDeploy() {
-    setError("");
-    try {
-      await deploy(true, name);
-      setFreshOpen(false);
-    } catch (e) {
-      setError(errorMessage(e));
-    }
+  function freshDeploy() {
+    deploy(true, name, () => setFreshOpen(false));
   }
 
   return (
@@ -91,7 +91,7 @@ export function ApplicationDeployActions({
               disabled={!canDeploy}
               onSelect={() => {
                 setName("");
-                setError("");
+                resetDeploy();
                 setFreshOpen(true);
               }}
             >
@@ -149,9 +149,9 @@ export function ApplicationDeployActions({
               disabled={busy}
             />
           </div>
-          {error && (
+          {deployError && (
             <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription>{deployError}</AlertDescription>
             </Alert>
           )}
           <DialogFooter>

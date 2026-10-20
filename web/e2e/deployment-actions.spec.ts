@@ -81,7 +81,12 @@ async function setup(page: Page, { writable = true, stopped = false } = {}) {
       return route.fulfill({
         json: deployments
           .filter((d) => d.state === "healthy" && !d.deleting)
-          .map((d) => ({ id: d.id, commit: d.commit, createdAt: d.createdAt })),
+          .map((d) => ({
+            id: d.id,
+            commit: d.commit,
+            createdAt: d.createdAt,
+            images: {},
+          })),
       });
     if (path.endsWith("/metrics")) return route.fulfill({ json: [] });
     if (path.endsWith("/events"))
@@ -115,15 +120,23 @@ async function setup(page: Page, { writable = true, stopped = false } = {}) {
         deployments = [deployment("new", "queued"), ...deployments];
         return route.fulfill({ status: 202, json: { id: "new" } });
       }
-      if (path.endsWith("/action"))
+      if (path.endsWith("/action")) {
         runtimeStatus = body.action === "stop" ? "stopped" : "running";
+        return route.fulfill({ json: { ok: true } });
+      }
       if (path.startsWith("/deployments/"))
         deployments = deployments.map((d) =>
           d.id === path.split("/").at(-1) ? { ...d, deleting: true } : d,
         );
       if (path === "/resources/app")
         resources = resources.filter((r) => r.id !== "app");
-      return route.fulfill({ status: 202, json: { jobId: "job" } });
+      return route.fulfill({
+        status: 202,
+        json:
+          path === "/resources/app"
+            ? { ok: true, jobId: "job" }
+            : { jobId: "job" },
+      });
     }
     throw new Error(`Unexpected ${request.method()} ${path}`);
   });

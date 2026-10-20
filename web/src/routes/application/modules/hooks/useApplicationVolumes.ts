@@ -1,12 +1,12 @@
-import { useQuery } from "@tanstack/react-query";
+import { useApiQuery } from "@/lib/api/use-api-query";
+import { apiPath } from "@/lib/paths";
 
-import { applicationKeys } from "../generics";
-import { getApplicationVolumes } from "../services";
-
+import { applicationKeys, applicationVolumesResponseSchema } from "../generics";
 export function useApplicationVolumes(id: string, enabled: boolean) {
-  return useQuery({
+  return useApiQuery({
     queryKey: applicationKeys.volumes(id),
-    queryFn: () => getApplicationVolumes(id),
+    path: apiPath`/applications/${id}/volumes`,
+    schema: applicationVolumesResponseSchema,
     enabled,
     staleTime: 30_000,
     retry: false,

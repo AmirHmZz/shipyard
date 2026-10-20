@@ -254,10 +254,16 @@ test("edit, recover from stale saves and deploy the saved revision", async ({
   state.conflict(true);
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(
-    page.getByText("Application changed; reload before saving", {
-      exact: true,
-    }),
+    page
+      .getByRole("tabpanel", { name: /^compose$/i })
+      .getByText("Application changed; reload before saving", {
+        exact: true,
+      }),
   ).toBeVisible();
+  await expect(page.locator("[data-sonner-toast]")).toHaveCount(1);
+  await expect(page.locator("[data-sonner-toast]")).toContainText(
+    "Application changed; reload before saving",
+  );
   await expect(composeLines(page)).toContainText("nginx:stable-alpine");
   await page.getByRole("button", { name: "Reload saved document" }).click();
   await expect(composeLines(page)).not.toContainText("nginx:stable-alpine");

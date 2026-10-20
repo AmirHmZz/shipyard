@@ -1,4 +1,3 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
 import type { Resource } from "@/lib/api";
@@ -8,10 +7,11 @@ import { ErrorState, Loading } from "@/components/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { errorMessage, useAccount, useResources } from "@/lib/api";
+import { useAccount, useResources } from "@/lib/api";
+import { toastValidationError } from "@/lib/api/toaster";
+import { describeError } from "@/lib/api/translate-error";
 import { useConfigurationChanges } from "@/lib/configuration-state";
 import { draftRow, withoutRowId } from "@/lib/draft-rows";
-import { resourceKeys } from "@/lib/query-keys";
 
 import type { Service, Port } from "../generics";
 
@@ -19,9 +19,11 @@ import {
   networkingPayloadSchema,
   publishedPortsPayloadSchema,
 } from "../generics";
-import { applicationKeys } from "../generics";
-import { useApplicationNetworking, useApplicationServices } from "../hooks";
-import { saveApplicationNetworking } from "../services";
+import {
+  useApplicationNetworking,
+  useApplicationServices,
+  useSaveApplicationNetworking,
+} from "../hooks";
 import { ConfigurationScope } from "./ConfigurationScope";
 import { NetworkServiceCard } from "./NetworkServiceCard";
 import { PublishedPorts } from "./PublishedPorts";
@@ -33,13 +35,13 @@ export function ApplicationNetworking({ app }: { app: Resource }) {
   const services = useApplicationServices(app);
   const networks = useResources();
   const account = useAccount();
-  const client = useQueryClient();
+  const saveNetworking = useSaveApplicationNetworking(app.id);
   const [draft, setDraft] = useState<Record<string, Service> | null>(null);
   const [ports, setPorts] = useState<Record<string, DraftRow<Port>[]> | null>(
     null,
   );
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
+  const busy = saveNetworking.isPending;
+  const error = saveNetworking.error ? describeError(saveNetworking.error) : "";
   const [saved, setSaved] = useState(false);
   const savedServices = useMemo(
     () =>
@@ -51,15 +53,17 @@ export function ApplicationNetworking({ app }: { app: Resource }) {
       ),
     [q.data?.services],
   );
-  const savedPorts = useMemo(
-    () =>
-      Object.fromEntries(
-        Object.entries(
-          (app.data.publishedPorts as Record<string, Port[]>) || {},
-        ).map(([name, ports]) => [name, ports.map(draftRow)]),
-      ),
-    [app.data.publishedPorts],
-  );
+  const savedPorts = useMemo(() => {
+    const parsed = publishedPortsPayloadSchema.shape.services.safeParse(
+      app.data.publishedPorts,
+    );
+    return Object.fromEntries(
+      Object.entries(parsed.success ? parsed.data : {}).map(([name, ports]) => [
+        name,
+        ports.map(draftRow),
+      ]),
+    );
+  }, [app.data.publishedPorts]);
   if (q.isPending) return <Loading />;
   if (q.error) return <ErrorState error={q.error} />;
   const value = draft || savedServices;
@@ -78,51 +82,45 @@ export function ApplicationNetworking({ app }: { app: Resource }) {
     portChanges.change();
     setPorts(next);
   }
-  async function save(published = false) {
-    setBusy(true);
-    setError("");
-    try {
-      await saveApplicationNetworking(
-        app.id,
-        published,
-        (published
-          ? publishedPortsPayloadSchema
-          : networkingPayloadSchema
-        ).parse({
-          version: app.version,
-          services: published
-            ? Object.fromEntries(
-                Object.entries(publicPorts).map(([name, ports]) => [
-                  name,
-                  ports.map(withoutRowId),
-                ]),
-              )
-            : Object.fromEntries(
-                Object.entries(value).map(([name, service]) => [
-                  name,
-                  {
-                    ...service,
-                    connections: service.connections.map(withoutRowId),
-                  },
-                ]),
-              ),
-        }),
-      );
-      (published ? portChanges : networkingChanges).saved();
-      setSaved(true);
-      if (published) setPorts(null);
-      else setDraft(null);
-      await Promise.all([
-        client.invalidateQueries({ queryKey: resourceKeys.all }),
-        client.invalidateQueries({
-          queryKey: applicationKeys.networkingPrefix(app.id),
-        }),
-      ]);
-    } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setBusy(false);
+  function save(published = false) {
+    if (busy) return;
+    saveNetworking.reset();
+    const parsed = (
+      published ? publishedPortsPayloadSchema : networkingPayloadSchema
+    ).safeParse({
+      version: app.version,
+      services: published
+        ? Object.fromEntries(
+            Object.entries(publicPorts).map(([name, ports]) => [
+              name,
+              ports.map(withoutRowId),
+            ]),
+          )
+        : Object.fromEntries(
+            Object.entries(value).map(([name, service]) => [
+              name,
+              {
+                ...service,
+                connections: service.connections.map(withoutRowId),
+              },
+            ]),
+          ),
+    });
+    if (!parsed.success) {
+      toastValidationError(parsed.error);
+      return;
     }
+    saveNetworking.mutate(
+      { published, payload: parsed.data },
+      {
+        onSuccess: () => {
+          (published ? portChanges : networkingChanges).saved();
+          setSaved(true);
+          if (published) setPorts(null);
+          else setDraft(null);
+        },
+      },
+    );
   }
   return (
     <ConfigurationScope name="networking">

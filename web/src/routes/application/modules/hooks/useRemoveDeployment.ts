@@ -1,20 +1,15 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-
+import { useApiMutation } from "@/lib/api/use-api-mutation";
+import { apiPath } from "@/lib/paths";
 import { deploymentKeys } from "@/lib/query-keys";
+import { jobResponseSchema } from "@/lib/schemas/acknowledgements";
 
 import { applicationKeys } from "../generics";
-import { removeDeployment } from "../services";
-
 export function useRemoveDeployment(applicationId: string) {
-  const client = useQueryClient();
-  return useMutation({
-    mutationFn: removeDeployment,
-    onSuccess: () =>
-      Promise.all([
-        client.invalidateQueries({ queryKey: deploymentKeys.all }),
-        client.invalidateQueries({
-          queryKey: applicationKeys.releases(applicationId),
-        }),
-      ]),
+  return useApiMutation({
+    method: "DELETE",
+    path: (deploymentId: string) => apiPath`/deployments/${deploymentId}`,
+    schema: jobResponseSchema,
+    invalidate: [deploymentKeys.all, applicationKeys.releases(applicationId)],
+    meta: { successMessage: "Deployment cleanup queued" },
   });
 }

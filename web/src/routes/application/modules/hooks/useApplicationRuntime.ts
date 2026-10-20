@@ -1,14 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
-
+import { useApiQuery } from "@/lib/api/use-api-query";
 import { POLL_INTERVALS } from "@/lib/constants";
+import { apiPath } from "@/lib/paths";
 
-import { applicationKeys } from "../generics";
-import { getApplicationRuntime } from "../services";
-
+import { applicationKeys, runtimeResponseSchema } from "../generics";
 export function useApplicationRuntime(id: string) {
-  return useQuery({
+  return useApiQuery({
     queryKey: applicationKeys.runtime(id),
-    queryFn: () => getApplicationRuntime(id),
+    path: apiPath`/applications/${id}/runtime`,
+    schema: runtimeResponseSchema,
     refetchInterval: POLL_INTERVALS.deployment,
   });
 }

@@ -104,7 +104,7 @@ async function setup(page: Page, { admin = true, writable = true } = {}) {
       });
     if (path.endsWith("/sync")) {
       writes.push(path);
-      return route.fulfill({ json: { ok: true } });
+      return route.fulfill({ json: { queued: true } });
     }
     if (path.endsWith("/events") || path.endsWith("/logs"))
       return route.fulfill({

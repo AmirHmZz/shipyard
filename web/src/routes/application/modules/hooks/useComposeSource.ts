@@ -1,14 +1,14 @@
-import { useQuery } from "@tanstack/react-query";
+import type { Resource } from "@/lib/api/types";
 
-import type { Resource } from "@/lib/api";
+import { useApiQuery } from "@/lib/api/use-api-query";
+import { apiPath } from "@/lib/paths";
 
-import { applicationKeys } from "../generics";
-import { getComposeSource } from "../services";
-
+import { applicationKeys, composeSourceResponseSchema } from "../generics";
 export function useComposeSource(app: Resource) {
-  return useQuery({
+  return useApiQuery({
     queryKey: applicationKeys.composeSource(app.id, app.version),
-    queryFn: () => getComposeSource(app),
+    path: apiPath`/applications/${app.id}/compose`,
+    schema: composeSourceResponseSchema,
     enabled: app.canWrite,
   });
 }
