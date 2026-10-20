@@ -1,4 +1,4 @@
-import { Link } from "react-router";
+import type * as React from "react";
 
 import type { Resource } from "@/lib/api/types";
 
@@ -19,21 +19,26 @@ import { Switch } from "@/components/ui/switch";
 import { text } from "@/lib/resource-fields";
 
 import { useApplicationPreviewsForm } from "../hooks";
-export function ApplicationPreviews({ app }: { app: Resource }) {
+import { PreviewCard } from "./PreviewCard";
+export type ApplicationPreviewsProps = { app: Resource };
+export function ApplicationPreviews({ app }: ApplicationPreviewsProps) {
+  function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    return setDomain(e.target.value);
+  }
+
   const { state, derived, handlers } = useApplicationPreviewsForm(app);
   const { enabled, domain, zone } = state;
-  const { q, routes, routing, error, saved, busy, previews, createPreview } =
-    derived;
+  const { q, routes, routing, error, saved, busy, previewRows } = derived;
   const {
     setRouting,
     setEnabled,
     setDomain,
     setZone,
     saveSettings,
-    approvePreview,
+    handleApproval,
   } = handlers;
   return (
-    <div className="space-y-5">
+    <div className="space-y-5" onClick={handleApproval}>
       <Card>
         <CardHeader>
           <CardTitle>Pull request previews</CardTitle>
@@ -91,7 +96,7 @@ export function ApplicationPreviews({ app }: { app: Resource }) {
                       <Input
                         id="preview-wildcard"
                         value={domain}
-                        onChange={(e) => setDomain(e.target.value)}
+                        onChange={handleInputChange}
                         placeholder="*.preview.example.com"
                         disabled={!app.canWrite}
                       />
@@ -119,44 +124,14 @@ export function ApplicationPreviews({ app }: { app: Resource }) {
           </form>
         </CardContent>
       </Card>
-      {previews.map((preview) => {
-        const approving =
-          createPreview.isPending && createPreview.variables?.id === preview.id;
-        return (
-          <Card key={preview.id}>
-            <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
-              <div>
-                <Link
-                  className="font-medium hover:underline"
-                  to={`/applications/${preview.id}`}
-                >
-                  {preview.name}
-                </Link>
-                <p className="text-xs text-muted-foreground">
-                  {preview.data.previewClosed
-                    ? "Closed"
-                    : preview.data.approvedSha === preview.data.previewSha
-                      ? "Commit approved"
-                      : "Awaiting exact-commit approval"}
-                </p>
-                <code className="text-xs">
-                  {text(preview.data, "previewSha").slice(0, 12)}
-                </code>
-              </div>
-              {app.canWrite &&
-                !preview.data.previewClosed &&
-                preview.data.approvedSha !== preview.data.previewSha && (
-                  <Button
-                    disabled={approving}
-                    onClick={() => approvePreview(preview)}
-                  >
-                    Approve this commit
-                  </Button>
-                )}
-            </CardContent>
-          </Card>
-        );
-      })}
+      {previewRows.map(({ preview, approving }) => (
+        <PreviewCard
+          key={preview.id}
+          preview={preview}
+          approving={approving}
+          canWrite={app.canWrite}
+        />
+      ))}
     </div>
   );
 }

@@ -2,7 +2,8 @@ import { Loader2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
-export function Spinner({ className }: { className?: string }) {
+export type SpinnerProps = { className?: string };
+export function Spinner({ className }: SpinnerProps) {
   return (
     <span
       data-slot="spinner"

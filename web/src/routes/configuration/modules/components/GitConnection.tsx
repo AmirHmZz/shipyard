@@ -1,3 +1,5 @@
+import type * as React from "react";
+
 import { Plus, Settings2 } from "lucide-react";
 
 import type { Resource } from "@/lib/api/types";
@@ -8,12 +10,12 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/configuration-surface";
-import { ProviderName } from "@/components/provider-name";
+} from "@/components/ConfigurationSurface";
+import { InputField } from "@/components/InputField";
+import { ProviderName } from "@/components/ProviderName";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -31,15 +33,38 @@ import { GitConnectionActions } from "./GitConnectionActions";
 import { GiteaInstanceEditor } from "./GiteaInstanceEditor";
 import { GitWebhookConfiguration } from "./GitWebhookConfiguration";
 
+export type GitConnectionProps = {
+  existing?: Resource;
+  onClose: () => void;
+  onManual: () => void;
+};
 export function GitConnection({
   existing,
   onClose,
   onManual,
-}: {
-  existing?: Resource;
-  onClose: () => void;
-  onManual: () => void;
-}) {
+}: GitConnectionProps) {
+  function handleDialogOpenChange(open: boolean) {
+    return !open && onClose();
+  }
+  function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    return setName(e.target.value);
+  }
+  function handleInputChange2(e: React.ChangeEvent<HTMLInputElement>) {
+    return setOwner(e.target.value);
+  }
+  function handleButtonClick() {
+    return setInstanceForm({
+      id: "",
+      name: "",
+      url: "",
+      clientId: "",
+      clientSecret: "",
+    });
+  }
+  function handleButtonClick2() {
+    if (selected) setInstanceForm({ ...selected, clientSecret: "" });
+  }
+
   const { state, derived, handlers } = useGitConnectionForm(existing);
   const { provider, name, owner, instanceId, instanceForm } = state;
   const {
@@ -64,7 +89,7 @@ export function GitConnection({
     connect,
   } = handlers;
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
+    <Dialog open onOpenChange={handleDialogOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>
@@ -77,14 +102,15 @@ export function GitConnection({
         </DialogHeader>
         {!existing && (
           <>
-            <div className="space-y-2">
-              <Label htmlFor="git-name">Connection name</Label>
-              <Input
-                id="git-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
+            <InputField
+              label={<>Connection name</>}
+              labelProps={{ htmlFor: "git-name" }}
+              inputProps={{
+                id: "git-name",
+                value: name,
+                onChange: handleInputChange,
+              }}
+            />
             <div className="space-y-2">
               <Label htmlFor="git-provider">Provider</Label>
               <Select value={provider} onValueChange={setProvider}>
@@ -122,15 +148,16 @@ export function GitConnection({
               requests read access, plus push and pull_request events. Approve
               the App, then choose its repositories on GitHub.
             </p>
-            <div className="space-y-2">
-              <Label htmlFor="git-owner">Organization (optional)</Label>
-              <Input
-                id="git-owner"
-                placeholder="Leave empty for your personal account"
-                value={owner}
-                onChange={(e) => setOwner(e.target.value)}
-              />
-            </div>
+            <InputField
+              label={<>Organization (optional)</>}
+              labelProps={{ htmlFor: "git-owner" }}
+              inputProps={{
+                id: "git-owner",
+                placeholder: "Leave empty for your personal account",
+                value: owner,
+                onChange: handleInputChange2,
+              }}
+            />
           </>
         )}
         {provider === "gitea" && (
@@ -163,19 +190,7 @@ export function GitConnection({
               </Alert>
             )}
             <div className="flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  setInstanceForm({
-                    id: "",
-                    name: "",
-                    url: "",
-                    clientId: "",
-                    clientSecret: "",
-                  })
-                }
-              >
+              <Button variant="outline" size="sm" onClick={handleButtonClick}>
                 <Plus />
                 Add instance
               </Button>
@@ -183,9 +198,7 @@ export function GitConnection({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() =>
-                    setInstanceForm({ ...selected, clientSecret: "" })
-                  }
+                  onClick={handleButtonClick2}
                 >
                   <Settings2 />
                   Edit instance

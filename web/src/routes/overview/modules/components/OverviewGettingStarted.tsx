@@ -1,18 +1,20 @@
-import { CheckCircle2 } from "lucide-react";
+import type { MouseEvent } from "react";
 
 import type { Resource } from "@/lib/api/types";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
+import { OverviewGettingStartedStep } from "./OverviewGettingStartedStep";
+
+export type OverviewGettingStartedProps = {
+  rows: Resource[];
+  openEditor: (kind: string) => void;
+};
 export function OverviewGettingStarted({
   rows,
   openEditor,
-}: {
-  rows: Resource[];
-  openEditor: (kind: string) => void;
-}) {
+}: OverviewGettingStartedProps) {
   const steps = [
     {
       kind: "team",
@@ -35,6 +37,20 @@ export function OverviewGettingStarted({
       detail: "Organize apps and environments.",
     },
   ];
+  const progress = steps.map((step, index) => ({
+    ...step,
+    done: rows.some((resource) => resource.kind === step.kind),
+    number: index + 1,
+  }));
+  function handleStepClick(event: MouseEvent<HTMLDivElement>) {
+    if (!(event.target instanceof Element)) return;
+    const button = event.target.closest<HTMLButtonElement>(
+      "button[data-overview-kind]",
+    );
+    if (!button || button.disabled || !event.currentTarget.contains(button))
+      return;
+    if (button.dataset.overviewKind) openEditor(button.dataset.overviewKind);
+  }
   return (
     <Card className="mb-8 overflow-hidden border-primary/15 bg-gradient-to-br from-primary/8 via-card to-card py-0 shadow-none">
       <CardContent className="grid gap-8 p-7 md:grid-cols-[1fr_1.3fr]">
@@ -59,32 +75,10 @@ export function OverviewGettingStarted({
             No clusters to manage.
           </div>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {steps.map((s, i) => {
-            const done = rows.some((r) => r.kind === s.kind);
-            return (
-              <Button
-                key={s.kind}
-                variant="outline"
-                className="h-auto justify-start gap-3 whitespace-normal bg-card/80 p-4 text-left"
-                onClick={() => openEditor(s.kind)}
-              >
-                {done ? (
-                  <CheckCircle2 className="size-5 shrink-0 text-primary" />
-                ) : (
-                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full border font-mono text-xs text-muted-foreground">
-                    {i + 1}
-                  </span>
-                )}
-                <span>
-                  <span className="block text-xs font-medium">{s.label}</span>
-                  <span className="mt-1 block text-[11px] leading-5 font-normal text-muted-foreground">
-                    {s.detail}
-                  </span>
-                </span>
-              </Button>
-            );
-          })}
+        <div className="grid gap-3 sm:grid-cols-2" onClick={handleStepClick}>
+          {progress.map((step) => (
+            <OverviewGettingStartedStep key={step.kind} step={step} />
+          ))}
         </div>
       </CardContent>
     </Card>

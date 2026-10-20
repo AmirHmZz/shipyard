@@ -1,3 +1,5 @@
+import type { ChangeEvent, FormEvent, MouseEvent } from "react";
+
 import { useReducer } from "react";
 import { toast } from "sonner";
 
@@ -72,27 +74,58 @@ export function useVariableController(resource: Resource) {
       },
     });
   }
+  function submitEditor(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    save(scope + key, value, isSecret);
+  }
+  function changeKey(event: ChangeEvent<HTMLInputElement>) {
+    setKey(event.currentTarget.value);
+  }
+  function changeValue(event: ChangeEvent<HTMLTextAreaElement>) {
+    setValue(event.currentTarget.value);
+  }
+  function cancelEditor() {
+    reset();
+    changes.saved();
+  }
+  function handleVariableAction(event: MouseEvent<HTMLTableSectionElement>) {
+    if (!(event.target instanceof Element)) return;
+    const button = event.target.closest<HTMLButtonElement>(
+      "button[data-variable-name]",
+    );
+    if (!button || button.disabled || !event.currentTarget.contains(button))
+      return;
+    const name = button.dataset.variableName;
+    if (!name) return;
+    if (button.dataset.variableAction === "edit") edit(name);
+    if (button.dataset.variableAction === "remove") setRemove(name);
+  }
   return {
-    resource,
-    changes,
-    key,
-    setKey,
-    value,
-    setValue,
-    scope,
-    setScope,
-    secretKeys,
-    isSecret,
-    setSecret,
-    buildScope,
-    editing,
-    busy,
-    ordinary,
-    keys,
-    remove,
-    setRemove,
-    reset,
-    edit,
-    save,
+    state: { key, value, scope, editing, remove },
+    derived: {
+      resource,
+      changes,
+      secretKeys,
+      isSecret,
+      buildScope,
+      busy,
+      ordinary,
+      keys,
+    },
+    handlers: {
+      setKey,
+      setValue,
+      setScope,
+      setSecret,
+      setRemove,
+      reset,
+      edit,
+      save,
+      submitEditor,
+      changeKey,
+      changeValue,
+      cancelEditor,
+      handleVariableAction,
+    },
   };
 }

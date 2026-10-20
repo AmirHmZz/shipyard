@@ -10,7 +10,7 @@ import { Toaster as Sonner } from "sonner";
 
 import { Spinner } from "@/components/ui/spinner";
 
-const Toaster = ({ ...props }: ToasterProps) => {
+function Toaster({ ...props }: ToasterProps) {
   const theme = "system";
 
   return (
@@ -35,6 +35,6 @@ const Toaster = ({ ...props }: ToasterProps) => {
       {...props}
     />
   );
-};
+}
 
 export { Toaster };

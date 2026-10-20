@@ -54,18 +54,18 @@ test("installation, project configuration, invitations and viewer boundaries", a
   const session = await page.request
     .get("/api/v1/auth/me")
     .then((r) => r.json());
-  const mutate = async (
+  async function mutate(
     client: APIRequestContext,
     path: string,
     data: unknown,
-  ) => {
+  ) {
     const response = await client.post("/api/v1" + path, {
       data,
       headers: { "X-CSRF-Token": session.csrf },
     });
     expect(response.ok(), await response.text()).toBeTruthy();
     return response.json();
-  };
+  }
   const unique = Date.now() + "-" + testInfo.project.name;
   const teamName = "Browser team " + unique;
   await page.goto("/teams");

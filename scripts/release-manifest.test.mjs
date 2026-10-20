@@ -32,12 +32,13 @@ test("release artifacts pin images, preserve migration checksums and refuse inva
       BUILD_DATE: "2026-10-17T00:00:00Z",
       PREVIOUS_VERSION: "",
     };
-    const run = (extra = {}) =>
-      execFileSync(
+    function run(extra = {}) {
+      return execFileSync(
         process.execPath,
         [join(root, "scripts/release-manifest.mjs")],
         { cwd: temp, env: { ...env, ...extra }, stdio: "pipe" },
       );
+    }
     run();
     const dir = join(temp, ".local/release"),
       m = JSON.parse(readFileSync(join(dir, "release.json"), "utf8"));

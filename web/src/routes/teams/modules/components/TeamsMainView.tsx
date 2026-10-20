@@ -7,12 +7,19 @@ import {
   ErrorState,
   Loading,
   PageHeader,
-} from "@/components/shared";
+} from "@/components/Shared";
 import { Button } from "@/components/ui/button";
 
 import { useTeamsPage } from "../hooks";
 import { TeamWorkspace } from "./TeamWorkspace";
 export function TeamsMainView() {
+  function handleButtonClick() {
+    return setEditor(true);
+  }
+  function handleButtonClick2() {
+    return setEditor(true);
+  }
+
   const controller = useTeamsPage();
   const { editor, remove } = controller.state;
   const { account, q, resources, team, removeMutation } = controller.derived;
@@ -27,7 +34,7 @@ export function TeamsMainView() {
         title="Teams & access"
         description="Give trusted people the access they need, with project-level roles."
       >
-        <Button disabled={!account?.admin} onClick={() => setEditor(true)}>
+        <Button disabled={!account?.admin} onClick={handleButtonClick}>
           <Plus />
           New team
         </Button>
@@ -40,7 +47,7 @@ export function TeamsMainView() {
           description="Team owners manage members and access to shared infrastructure."
           icon={<Users />}
           action={
-            <Button disabled={!account?.admin} onClick={() => setEditor(true)}>
+            <Button disabled={!account?.admin} onClick={handleButtonClick2}>
               <Plus />
               Create team
             </Button>

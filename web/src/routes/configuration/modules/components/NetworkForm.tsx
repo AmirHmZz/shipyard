@@ -1,4 +1,7 @@
-import { PageHeader } from "@/components/shared";
+import type * as React from "react";
+
+import { InputField } from "@/components/InputField";
+import { PageHeader } from "@/components/Shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,6 +21,22 @@ import { describeError } from "@/lib/api/translate-error";
 import { useNetworkForm } from "../hooks";
 
 export function NetworkForm() {
+  function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    return setName(e.target.value);
+  }
+  function handleButtonClick() {
+    return void inventory.refetch();
+  }
+  function handleInputChange2(e: React.ChangeEvent<HTMLInputElement>) {
+    return setSubnet(e.target.value);
+  }
+  function handleInputChange3(e: React.ChangeEvent<HTMLInputElement>) {
+    return setRange(e.target.value);
+  }
+  function handleInputChange4(e: React.ChangeEvent<HTMLInputElement>) {
+    return setSubnet6(e.target.value);
+  }
+
   const { state, derived, handlers } = useNetworkForm();
   const { server, mode, name, selected, subnet, range, v6, subnet6 } = state;
   const { q, account, inventory, busy, error, pendingNetwork } = derived;
@@ -43,15 +62,16 @@ export function NetworkForm() {
       <Card>
         <CardContent>
           <form className="space-y-5" onSubmit={submitNetwork}>
-            <div className="space-y-2">
-              <Label htmlFor="network-name">Name</Label>
-              <Input
-                id="network-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
-            </div>
+            <InputField
+              label={<>Name</>}
+              labelProps={{ htmlFor: "network-name" }}
+              inputProps={{
+                id: "network-name",
+                value: name,
+                onChange: handleInputChange,
+                required: true,
+              }}
+            />
             <div className="space-y-2">
               <Label>Server</Label>
               <Select value={server} onValueChange={setServer}>
@@ -116,10 +136,7 @@ export function NetworkForm() {
                   <Alert variant="destructive">
                     <AlertDescription>
                       {describeError(inventory.error)}
-                      <Button
-                        type="button"
-                        onClick={() => void inventory.refetch()}
-                      >
+                      <Button type="button" onClick={handleButtonClick}>
                         Retry
                       </Button>
                     </AlertDescription>
@@ -128,15 +145,16 @@ export function NetworkForm() {
               </div>
             ) : (
               <>
-                <div className="space-y-2">
-                  <Label htmlFor="network-subnet">IPv4 subnet (optional)</Label>
-                  <Input
-                    id="network-subnet"
-                    value={subnet}
-                    onChange={(e) => setSubnet(e.target.value)}
-                    placeholder="Automatic non-overlapping /24"
-                  />
-                </div>
+                <InputField
+                  label={<>IPv4 subnet (optional)</>}
+                  labelProps={{ htmlFor: "network-subnet" }}
+                  inputProps={{
+                    id: "network-subnet",
+                    value: subnet,
+                    onChange: handleInputChange2,
+                    placeholder: "Automatic non-overlapping /24",
+                  }}
+                />
                 <div className="space-y-2">
                   <Label htmlFor="network-range">
                     Dynamic IP range (optional)
@@ -144,7 +162,7 @@ export function NetworkForm() {
                   <Input
                     id="network-range"
                     value={range}
-                    onChange={(e) => setRange(e.target.value)}
+                    onChange={handleInputChange3}
                     placeholder="Upper half of the subnet by default"
                   />
                   <p className="text-xs text-muted-foreground">
@@ -160,17 +178,16 @@ export function NetworkForm() {
                   />
                 </div>
                 {v6 && (
-                  <div className="space-y-2">
-                    <Label htmlFor="network-subnet6">
-                      IPv6 subnet (optional)
-                    </Label>
-                    <Input
-                      id="network-subnet6"
-                      value={subnet6}
-                      onChange={(e) => setSubnet6(e.target.value)}
-                      placeholder="Automatic private /64"
-                    />
-                  </div>
+                  <InputField
+                    label={<>IPv6 subnet (optional)</>}
+                    labelProps={{ htmlFor: "network-subnet6" }}
+                    inputProps={{
+                      id: "network-subnet6",
+                      value: subnet6,
+                      onChange: handleInputChange4,
+                      placeholder: "Automatic private /64",
+                    }}
+                  />
                 )}
               </>
             )}

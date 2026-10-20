@@ -1,3 +1,5 @@
+import type { MouseEvent } from "react";
+
 import { useReducer } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 
@@ -55,6 +57,58 @@ export function useProjectsPage(previews: boolean) {
       `/configure/${request.kind}/${request.existing?.id || "new"}?parent=${request.parentId || ""}&return=${encodeURIComponent(location.pathname + location.search)}`,
     );
   }
+  function selectEnvironment(value: string) {
+    setParams((current) => {
+      const next = new URLSearchParams(current);
+      next.set("environment", value);
+      return next;
+    });
+  }
+  function handleProjectAction(event: MouseEvent<HTMLElement>) {
+    if (!(event.target instanceof Element)) return;
+    // Menu items render in a portal; React still bubbles their clicks here.
+    const target = event.target.closest<HTMLElement>(
+      "[data-project-action][data-project-id]",
+    );
+    if (
+      !target ||
+      target.hasAttribute("data-disabled") ||
+      target.getAttribute("aria-disabled") === "true"
+    )
+      return;
+    if (target instanceof HTMLButtonElement && target.disabled) return;
+    const resource = index.byId.get(target.dataset.projectId || "");
+    if (!resource) return;
+    if (target.dataset.projectAction === "edit")
+      openEditor({ kind: resource.kind, existing: resource });
+    if (target.dataset.projectAction === "delete") setDeleting(resource);
+    if (target.dataset.projectAction === "variables")
+      navigate(
+        `/configure/variables/${resource.id}?return=${encodeURIComponent(location.pathname + location.search)}`,
+      );
+  }
+  function createEnvironment() {
+    openEditor({ kind: "environment", parentId: id });
+  }
+  function getStarted() {
+    openEditor({
+      kind: resources.some((resource) => resource.kind === "team")
+        ? "project"
+        : "team",
+    });
+  }
+  function retryProjectDeletion() {
+    if (project) setDeleting(project);
+  }
+  function handleEditorOpenChange(open: boolean) {
+    if (!open) setEditor(null);
+  }
+  function closeDeletion() {
+    setDeleting(null);
+  }
+  function resourceDeleted() {
+    if (state.deleting && id === state.deleting.id) navigate("/projects");
+  }
   return {
     state,
     derived: {
@@ -75,6 +129,14 @@ export function useProjectsPage(previews: boolean) {
       setFilter,
       setEditor,
       openEditor,
+      selectEnvironment,
+      handleProjectAction,
+      createEnvironment,
+      getStarted,
+      retryProjectDeletion,
+      handleEditorOpenChange,
+      closeDeletion,
+      resourceDeleted,
     },
   };
 }

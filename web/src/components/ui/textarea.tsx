@@ -3,7 +3,13 @@ import * as React from "react";
 import { useConfigurationChanges } from "@/lib/configuration-state";
 import { cn } from "@/lib/utils";
 
-function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
+export type TextareaProps = React.ComponentProps<"textarea">;
+function Textarea({ className, ...props }: TextareaProps) {
+  function handletextareaChange(event: React.ChangeEvent<HTMLTextAreaElement>) {
+    changes.change();
+    props.onChange?.(event);
+  }
+
   const changes = useConfigurationChanges();
   return (
     <textarea
@@ -13,10 +19,7 @@ function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
         className,
       )}
       {...props}
-      onChange={(event) => {
-        changes.change();
-        props.onChange?.(event);
-      }}
+      onChange={handletextareaChange}
     />
   );
 }

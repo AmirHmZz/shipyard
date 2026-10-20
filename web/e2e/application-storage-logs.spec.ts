@@ -43,20 +43,22 @@ async function setup(
     }
     Object.defineProperty(window, "EventSource", { value: FakeEventSource });
   });
-  const resource = (id: string, kind: string, parentId = "", data = {}) => ({
-    createdAt: "2026-10-19T00:00:00Z",
-    updatedAt: "2026-10-19T00:00:00Z",
-    id,
-    kind,
-    parentId,
-    data,
-    name: id,
-    teamId: "team",
-    version: 1,
-    canWrite: writable,
-    secretKeys: [],
-    variables: {},
-  });
+  function resource(id: string, kind: string, parentId = "", data = {}) {
+    return {
+      createdAt: "2026-10-19T00:00:00Z",
+      updatedAt: "2026-10-19T00:00:00Z",
+      id,
+      kind,
+      parentId,
+      data,
+      name: id,
+      teamId: "team",
+      version: 1,
+      canWrite: writable,
+      secretKeys: [],
+      variables: {},
+    };
+  }
   const app = resource("app", "application", "environment", {
     source,
     engine: source === "compose" ? "compose" : "dockerfile",

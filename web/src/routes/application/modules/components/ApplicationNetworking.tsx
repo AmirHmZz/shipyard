@@ -1,127 +1,33 @@
-import { useMemo, useState } from "react";
-
 import type { Resource } from "@/lib/api/types";
-import type { DraftRow } from "@/lib/draft-rows";
 
-import { ErrorState, Loading } from "@/components/shared";
+import { ErrorState, Loading } from "@/components/Shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { toastValidationError } from "@/lib/api/toaster";
-import { describeError } from "@/lib/api/translate-error";
-import { useConfigurationChanges } from "@/lib/configuration-state";
-import { draftRow, withoutRowId } from "@/lib/draft-rows";
-import { useResources } from "@/lib/hooks/useResources";
-import { useAccount } from "@/lib/session";
 
-import type { Service, Port } from "../generics";
-
-import {
-  networkingPayloadSchema,
-  publishedPortsPayloadSchema,
-} from "../generics";
-import {
-  useApplicationNetworking,
-  useApplicationServices,
-  useSaveApplicationNetworking,
-} from "../hooks";
+import { useApplicationNetworkingPage } from "../hooks";
 import { ConfigurationScope } from "./ConfigurationScope";
 import { NetworkServiceCard } from "./NetworkServiceCard";
 import { PublishedPorts } from "./PublishedPorts";
-
-export function ApplicationNetworking({ app }: { app: Resource }) {
-  const networkingChanges = useConfigurationChanges("networking");
-  const portChanges = useConfigurationChanges("published-ports");
-  const q = useApplicationNetworking(app);
-  const services = useApplicationServices(app);
-  const networks = useResources();
-  const account = useAccount();
-  const saveNetworking = useSaveApplicationNetworking(app.id);
-  const [draft, setDraft] = useState<Record<string, Service> | null>(null);
-  const [ports, setPorts] = useState<Record<string, DraftRow<Port>[]> | null>(
-    null,
-  );
-  const busy = saveNetworking.isPending;
-  const error = saveNetworking.error ? describeError(saveNetworking.error) : "";
-  const saved = saveNetworking.isSuccess;
-  const savedServices = useMemo(
-    () =>
-      Object.fromEntries(
-        Object.entries(q.data?.services || {}).map(([name, service]) => [
-          name,
-          { ...service, connections: service.connections.map(draftRow) },
-        ]),
-      ),
-    [q.data?.services],
-  );
-  const savedPorts = useMemo(() => {
-    const parsed = publishedPortsPayloadSchema.shape.services.safeParse(
-      app.data.publishedPorts,
-    );
-    return Object.fromEntries(
-      Object.entries(parsed.success ? parsed.data : {}).map(([name, ports]) => [
-        name,
-        ports.map(draftRow),
-      ]),
-    );
-  }, [app.data.publishedPorts]);
+export type ApplicationNetworkingProps = { app: Resource };
+export function ApplicationNetworking({ app }: ApplicationNetworkingProps) {
+  const { state, derived, handlers } = useApplicationNetworkingPage(app);
+  const { draft, ports } = state;
+  const {
+    q,
+    services,
+    networks,
+    account,
+    busy,
+    error,
+    saved,
+    publicPorts,
+    serviceRows,
+    ignoredServices,
+  } = derived;
+  const { update, editPorts, save, saveNetworks, refreshServices } = handlers;
   if (q.isPending) return <Loading />;
   if (q.error) return <ErrorState error={q.error} />;
-  const value = draft || savedServices;
-  const publicPorts = ports || savedPorts;
-  const update = (service: string, next: Partial<Service>) => {
-    networkingChanges.change();
-    setDraft((current) => {
-      const base = current ?? savedServices;
-      return {
-        ...base,
-        [service]: { ...(base[service] || { connections: [] }), ...next },
-      };
-    });
-  };
-  function editPorts(next: Record<string, DraftRow<Port>[]>) {
-    portChanges.change();
-    setPorts(next);
-  }
-  function save(published = false) {
-    if (busy) return;
-    saveNetworking.reset();
-    const parsed = (
-      published ? publishedPortsPayloadSchema : networkingPayloadSchema
-    ).safeParse({
-      version: app.version,
-      services: published
-        ? Object.fromEntries(
-            Object.entries(publicPorts).map(([name, ports]) => [
-              name,
-              ports.map(withoutRowId),
-            ]),
-          )
-        : Object.fromEntries(
-            Object.entries(value).map(([name, service]) => [
-              name,
-              {
-                ...service,
-                connections: service.connections.map(withoutRowId),
-              },
-            ]),
-          ),
-    });
-    if (!parsed.success) {
-      toastValidationError(parsed.error);
-      return;
-    }
-    saveNetworking.mutate(
-      { published, payload: parsed.data },
-      {
-        onSuccess: () => {
-          (published ? portChanges : networkingChanges).saved();
-          if (published) setPorts(null);
-          else setDraft(null);
-        },
-      },
-    );
-  }
   return (
     <ConfigurationScope name="networking">
       <div className="space-y-5">
@@ -168,38 +74,31 @@ export function ApplicationNetworking({ app }: { app: Resource }) {
         <Button
           variant="outline"
           disabled={services.isFetching || !app.canWrite}
-          onClick={() => void services.refetch()}
+          onClick={refreshServices}
         >
           Refresh Compose services
         </Button>
-        {services.data?.some((s) => s.ignoredPorts) && (
+        {!!ignoredServices && (
           <Alert>
             <AlertDescription>
-              Compose port publishing is ignored for:{" "}
-              {services.data
-                .filter((s) => s.ignoredPorts)
-                .map((s) => s.name)
-                .join(", ")}
-              . Only platform-administrator port exceptions are applied.
+              Compose port publishing is ignored for: {ignoredServices}. Only
+              platform-administrator port exceptions are applied.
             </AlertDescription>
           </Alert>
         )}
-        {services.data?.map((service) => {
-          const state = value[service.name] || { connections: [] };
-          return (
-            <NetworkServiceCard
-              key={service.name}
-              app={app}
-              service={service}
-              state={state}
-              update={update}
-              networks={networks}
-            />
-          );
-        })}
+        {serviceRows.map(({ service, state }) => (
+          <NetworkServiceCard
+            key={service.name}
+            app={app}
+            service={service}
+            state={state}
+            update={update}
+            networks={networks}
+          />
+        ))}
         <Button
           disabled={busy || !app.canWrite || !draft}
-          onClick={() => void save()}
+          onClick={saveNetworks}
         >
           Save networking
         </Button>

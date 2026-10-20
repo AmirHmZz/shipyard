@@ -5,25 +5,27 @@ import { expect, test } from "@playwright/test";
 import { jsonObject } from "./json";
 
 async function fixture(page: Page, writable = true, provider = "gitea") {
-  const resource = (
+  function resource(
     id: string,
     kind: string,
     parentId = "",
     data: Record<string, unknown> = {},
-  ) => ({
-    createdAt: "2026-10-19T00:00:00Z",
-    updatedAt: "2026-10-19T00:00:00Z",
-    id,
-    kind,
-    parentId,
-    data,
-    name: id,
-    teamId: "team",
-    version: 1,
-    canWrite: writable,
-    secretKeys: [] as string[],
-    variables: {} as Record<string, string>,
-  });
+  ) {
+    return {
+      createdAt: "2026-10-19T00:00:00Z",
+      updatedAt: "2026-10-19T00:00:00Z",
+      id,
+      kind,
+      parentId,
+      data,
+      name: id,
+      teamId: "team",
+      version: 1,
+      canWrite: writable,
+      secretKeys: [] as string[],
+      variables: {} as Record<string, string>,
+    };
+  }
   const resources = [
     resource("team", "team"),
     resource("project", "project", "team"),

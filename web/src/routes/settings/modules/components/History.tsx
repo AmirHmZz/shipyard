@@ -1,4 +1,4 @@
-import { ErrorState, Loading, StateBadge } from "@/components/shared";
+import { ErrorState, Loading, StateBadge } from "@/components/Shared";
 import { Card } from "@/components/ui/card";
 import {
   Table,
@@ -11,7 +11,8 @@ import {
 
 import { useHistory } from "../hooks";
 
-export function History({ type }: { type: "audit" | "jobs" }) {
+export type HistoryProps = { type: "audit" | "jobs" };
+export function History({ type }: HistoryProps) {
   const q = useHistory(type);
   if (q.isPending) return <Loading />;
   if (q.error) return <ErrorState error={q.error} />;

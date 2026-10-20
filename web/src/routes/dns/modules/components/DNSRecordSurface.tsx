@@ -5,11 +5,12 @@ import type { Resource } from "@/lib/api/types";
 import {
   ConfigurationGuard,
   ConfigurationPage,
-} from "@/components/configuration-surface";
+} from "@/components/ConfigurationSurface";
 
 import { DNSRecords } from "./DNSRecords";
 
-export function DNSRecordSurface({ zone }: { zone: Resource }) {
+export type DNSRecordSurfaceProps = { zone: Resource };
+export function DNSRecordSurface({ zone }: DNSRecordSurfaceProps) {
   const { record } = useParams();
   return record ? (
     <ConfigurationPage>

@@ -1,6 +1,8 @@
+import type * as React from "react";
 import type { FormEvent } from "react";
 
-import { StateBadge } from "@/components/shared";
+import { StateBadge } from "@/components/Shared";
+import { TableHeadings } from "@/components/TableHeadings";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +13,6 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
@@ -23,6 +24,20 @@ import type { useApplyUpdate } from "../hooks";
 import { updateFormSchema } from "../generics";
 import { ReleaseNotes } from "./ReleaseNotes";
 
+export type VersionChangeReviewProps = {
+  plan: Plan;
+  pass: string;
+  setPass: (value: string) => void;
+  confirm: string;
+  setConfirm: (value: string) => void;
+  approve: boolean;
+  setApprove: (value: boolean) => void;
+  busy: boolean;
+  blocked: boolean;
+  apply: ReturnType<typeof useApplyUpdate>;
+  resetErrors: () => void;
+  onApplied: () => void;
+};
 export function VersionChangeReview({
   plan,
   pass,
@@ -36,20 +51,14 @@ export function VersionChangeReview({
   apply,
   resetErrors,
   onApplied,
-}: {
-  plan: Plan;
-  pass: string;
-  setPass: (value: string) => void;
-  confirm: string;
-  setConfirm: (value: string) => void;
-  approve: boolean;
-  setApprove: (value: boolean) => void;
-  busy: boolean;
-  blocked: boolean;
-  apply: ReturnType<typeof useApplyUpdate>;
-  resetErrors: () => void;
-  onApplied: () => void;
-}) {
+}: VersionChangeReviewProps) {
+  function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    return setPass(e.target.value);
+  }
+  function handleInputChange2(e: React.ChangeEvent<HTMLInputElement>) {
+    return setConfirm(e.target.value);
+  }
+
   function submitUpdate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy || blocked) return;
@@ -85,10 +94,13 @@ export function VersionChangeReview({
       {plan.migrations.steps.length ? (
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Migration</TableHead>
-              <TableHead>Effect</TableHead>
-            </TableRow>
+            <TableHeadings
+              columns={[
+                { id: "migration", label: <>Migration</> },
+                { id: "effect", label: <>Effect</> },
+              ]}
+              rowProps={{}}
+            />
           </TableHeader>
           <TableBody>
             {plan.migrations.steps.map((m) => (
@@ -128,7 +140,7 @@ export function VersionChangeReview({
             minLength={12}
             required
             value={pass}
-            onChange={(e) => setPass(e.target.value)}
+            onChange={handleInputChange}
           />
           <p className="text-sm text-muted-foreground">
             Keep this passphrase. You need it to restore the encrypted
@@ -153,7 +165,7 @@ export function VersionChangeReview({
             <Input
               id="upgrade-confirm"
               value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
+              onChange={handleInputChange2}
             />
           </>
         )}

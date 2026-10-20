@@ -12,7 +12,7 @@ import { useSearchParams } from "react-router";
 
 import type { Session } from "@/lib/api/types";
 
-import { PageHeader } from "@/components/shared";
+import { PageHeader } from "@/components/Shared";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { AlertSettings } from "./AlertSettings";
@@ -24,7 +24,12 @@ import { Security } from "./Security";
 import { SystemUpdates } from "./SystemUpdates";
 import { UserSettings } from "./UserSettings";
 
-export function SettingsMainView({ session }: { session: Session }) {
+export type SettingsMainViewProps = { session: Session };
+export function SettingsMainView({ session }: SettingsMainViewProps) {
+  function handleTabsValueChange(tab: string) {
+    return setParams({ tab });
+  }
+
   const [params, setParams] = useSearchParams();
   return (
     <>
@@ -35,7 +40,7 @@ export function SettingsMainView({ session }: { session: Session }) {
       />
       <Tabs
         value={params.get("tab") || "security"}
-        onValueChange={(tab) => setParams({ tab })}
+        onValueChange={handleTabsValueChange}
       >
         <div className="overflow-x-auto overflow-y-hidden p-1 -m-1">
           <TabsList>

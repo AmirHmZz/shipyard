@@ -1,24 +1,20 @@
-import type { Options } from "@/components/resource-forms/options";
+import type { Options } from "@/components/resource-forms/Options";
 
 import { useResourceForm } from "@/components/resource-forms/controller";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { describeError } from "@/lib/api/translate-error";
 
-import { choose } from "../utils";
-
+import { ProviderDomainPicker } from "./ProviderDomainPicker";
+export type ZoneFieldsProps = {
+  availableZones: Options["availableZones"];
+  selectableZones: { id: string; name: string }[];
+};
 export function ZoneFields({
   availableZones,
   selectableZones,
-}: {
-  availableZones: Options["availableZones"];
-  selectableZones: { id: string; name: string }[];
-}) {
+}: ZoneFieldsProps) {
   const {
-    state: { data, parent },
-    actions: { setData },
-    meta: { parentOptions },
+    state: { parent },
+    derived: { parentOptions },
   } = useResourceForm();
   return (
     <section className="space-y-3">
@@ -29,40 +25,10 @@ export function ZoneFields({
           first.
         </p>
       )}
-      {availableZones.isFetching ? (
-        <p className="text-muted-foreground">Loading provider domains…</p>
-      ) : availableZones.error ? (
-        <Alert variant="destructive">
-          <AlertDescription>
-            {describeError(availableZones.error)}
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => void availableZones.refetch()}
-            >
-              Retry
-            </Button>
-          </AlertDescription>
-        </Alert>
-      ) : (
-        choose(
-          String(data.providerZoneId || ""),
-          (id) => {
-            const zone = availableZones.data?.find((z) => z.id === id);
-            if (zone)
-              setData({
-                domain: zone.name,
-                providerZoneId: zone.id,
-              });
-          },
-          selectableZones.map((z) => ({
-            value: z.id,
-            label: z.name,
-          })),
-          "Select available domain",
-          !parent || !selectableZones.length,
-        )
-      )}
+      <ProviderDomainPicker
+        availableZones={availableZones}
+        selectableZones={selectableZones}
+      />
       {!!parent &&
         !availableZones.isFetching &&
         !availableZones.error &&

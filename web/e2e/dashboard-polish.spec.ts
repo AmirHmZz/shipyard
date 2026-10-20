@@ -99,10 +99,11 @@ test("provider names and logos render while saved provider IDs stay unchanged", 
 }) => {
   const writes = await dashboard(page);
   await page.goto("/integrations");
-  const card = (name: string) =>
-    page
+  function card(name: string) {
+    return page
       .locator('[data-slot="card"]')
       .filter({ has: page.getByText(name, { exact: true }) });
+  }
   await card("Source control")
     .getByRole("button", { name: "Add connection" })
     .click();

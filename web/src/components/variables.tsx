@@ -2,7 +2,7 @@ import { ShieldCheck } from "lucide-react";
 
 import type { Resource } from "@/lib/api/types";
 
-import { Confirm } from "@/components/shared";
+import { Confirm } from "@/components/Shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useVariableController } from "@/lib/hooks/useVariableController";
 
@@ -10,9 +10,19 @@ import { VariableEditor } from "./VariableEditor";
 import { VariableTable } from "./VariableTable";
 export type VariableController = ReturnType<typeof useVariableController>;
 
-export function Variables({ resource }: { resource: Resource }) {
+export type VariablesProps = { resource: Resource };
+export function Variables({ resource }: VariablesProps) {
+  function handleConfirmOpenChange(v: boolean) {
+    return !v && setRemove("");
+  }
+  function handleConfirmConfirm() {
+    return save(remove, null, secretKeys.has(remove));
+  }
+
   const controller = useVariableController(resource);
-  const { remove, setRemove, save, secretKeys } = controller;
+  const { remove } = controller.state;
+  const { secretKeys } = controller.derived;
+  const { setRemove, save } = controller.handlers;
   return (
     <div className="space-y-5">
       <Alert>
@@ -27,12 +37,12 @@ export function Variables({ resource }: { resource: Resource }) {
       <VariableTable controller={controller} />
       <Confirm
         open={!!remove}
-        onOpenChange={(v) => !v && setRemove("")}
+        onOpenChange={handleConfirmOpenChange}
         title="Remove variable?"
         description={`${remove} will be removed from this scope. Redeploy applications to apply the change.`}
         destructive
-        pending={controller.busy}
-        onConfirm={() => save(remove, null, secretKeys.has(remove))}
+        pending={controller.derived.busy}
+        onConfirm={handleConfirmConfirm}
       />
     </div>
   );

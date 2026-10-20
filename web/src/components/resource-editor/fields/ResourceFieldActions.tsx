@@ -6,13 +6,27 @@ import { Spinner } from "@/components/ui/spinner";
 
 import type { ResourceFieldProps } from "../types";
 
-export function ResourceFieldActions({
-  kind,
-  f,
-}: Pick<ResourceFieldProps, "kind" | "f" | "repos" | "branches">) {
+export type ResourceFieldActionsProps = Pick<
+  ResourceFieldProps,
+  "kind" | "f" | "repos" | "branches"
+>;
+export function ResourceFieldActions({ kind, f }: ResourceFieldActionsProps) {
+  function handleButtonClick() {
+    return void probeFingerprint();
+  }
+  function handleButtonClick2() {
+    change();
+    setSecret(
+      "webhook_secret",
+      Array.from(crypto.getRandomValues(new Uint8Array(32)), (n) =>
+        n.toString(16).padStart(2, "0"),
+      ).join(""),
+    );
+  }
+
   const {
     state: { data, probe },
-    actions: { setSecret, probeFingerprint, change },
+    handlers: { setSecret, probeFingerprint, change },
   } = useResourceForm();
   return (
     <>
@@ -22,7 +36,7 @@ export function ResourceFieldActions({
           variant="outline"
           size="sm"
           disabled={probe || !data.host}
-          onClick={() => void probeFingerprint()}
+          onClick={handleButtonClick}
         >
           {probe ? <Spinner className="size-4 " /> : <Fingerprint />}
           Probe fingerprint
@@ -33,15 +47,7 @@ export function ResourceFieldActions({
           type="button"
           variant="outline"
           size="sm"
-          onClick={() => {
-            change();
-            setSecret(
-              "webhook_secret",
-              Array.from(crypto.getRandomValues(new Uint8Array(32)), (n) =>
-                n.toString(16).padStart(2, "0"),
-              ).join(""),
-            );
-          }}
+          onClick={handleButtonClick2}
         >
           <RefreshCw />
           Generate signing secret

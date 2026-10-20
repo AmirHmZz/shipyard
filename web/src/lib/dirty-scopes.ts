@@ -2,7 +2,9 @@
 export function createDirtyScopes() {
   const scopes = new Set<string>();
   const listeners = new Set<() => void>();
-  const notify = () => listeners.forEach((listener) => listener());
+  function notify() {
+    return listeners.forEach((listener) => listener());
+  }
   return {
     isDirty: () => scopes.size > 0,
     subscribe(listener: () => void) {

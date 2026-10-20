@@ -5,20 +5,22 @@ import { expect, test } from "@playwright/test";
 import { jsonObject } from "./json";
 
 async function setup(page: Page, writable = true) {
-  const resource = (id: string, kind: string, parentId = "", data = {}) => ({
-    secretKeys: [],
-    variables: {},
-    createdAt: "2026-10-19T00:00:00Z",
-    updatedAt: "2026-10-19T00:00:00Z",
-    id,
-    kind,
-    name: id,
-    parentId,
-    teamId: "team",
-    data,
-    version: 1,
-    canWrite: writable,
-  });
+  function resource(id: string, kind: string, parentId = "", data = {}) {
+    return {
+      secretKeys: [],
+      variables: {},
+      createdAt: "2026-10-19T00:00:00Z",
+      updatedAt: "2026-10-19T00:00:00Z",
+      id,
+      kind,
+      name: id,
+      parentId,
+      teamId: "team",
+      data,
+      version: 1,
+      canWrite: writable,
+    };
+  }
   const resources = [
     resource("team", "team"),
     resource("project", "project", "team"),

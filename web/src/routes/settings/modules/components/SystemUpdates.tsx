@@ -1,6 +1,6 @@
 import { RefreshCw } from "lucide-react";
 
-import { ErrorState, Loading } from "@/components/shared";
+import { ErrorState, Loading } from "@/components/Shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {

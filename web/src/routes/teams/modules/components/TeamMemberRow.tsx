@@ -1,4 +1,4 @@
-import { StateBadge } from "@/components/shared";
+import { StateBadge } from "@/components/Shared";
 import { Button } from "@/components/ui/button";
 import { TableCell, TableRow } from "@/components/ui/table";
 

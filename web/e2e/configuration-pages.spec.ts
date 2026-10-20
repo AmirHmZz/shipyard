@@ -4,20 +4,22 @@ import { test, expect } from "@playwright/test";
 
 import { jsonObject } from "./json";
 async function mock(page: Page, admin = true) {
-  const resource = (id: string, kind: string, parentId = "", data = {}) => ({
-    variables: {},
-    id,
-    kind,
-    parentId,
-    data,
-    name: id,
-    teamId: "team",
-    version: 1,
-    canWrite: true,
-    secretKeys: [],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  });
+  function resource(id: string, kind: string, parentId = "", data = {}) {
+    return {
+      variables: {},
+      id,
+      kind,
+      parentId,
+      data,
+      name: id,
+      teamId: "team",
+      version: 1,
+      canWrite: true,
+      secretKeys: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+  }
   const resources = [
     resource("team", "team"),
     resource("project", "project", "team"),

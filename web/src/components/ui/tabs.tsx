@@ -6,11 +6,8 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-function Tabs({
-  className,
-  orientation = "horizontal",
-  ...props
-}: React.ComponentProps<typeof TabsPrimitive.Root>) {
+export type TabsProps = React.ComponentProps<typeof TabsPrimitive.Root>;
+function Tabs({ className, orientation = "horizontal", ...props }: TabsProps) {
   return (
     <TabsPrimitive.Root
       data-slot="tabs"
@@ -40,12 +37,9 @@ const tabsListVariants = cva(
   },
 );
 
-function TabsList({
-  className,
-  variant = "default",
-  ...props
-}: React.ComponentProps<typeof TabsPrimitive.List> &
-  VariantProps<typeof tabsListVariants>) {
+export type TabsListProps = React.ComponentProps<typeof TabsPrimitive.List> &
+  VariantProps<typeof tabsListVariants>;
+function TabsList({ className, variant = "default", ...props }: TabsListProps) {
   return (
     <TabsPrimitive.List
       data-slot="tabs-list"
@@ -56,10 +50,10 @@ function TabsList({
   );
 }
 
-function TabsTrigger({
-  className,
-  ...props
-}: React.ComponentProps<typeof TabsPrimitive.Trigger>) {
+export type TabsTriggerProps = React.ComponentProps<
+  typeof TabsPrimitive.Trigger
+>;
+function TabsTrigger({ className, ...props }: TabsTriggerProps) {
   return (
     <TabsPrimitive.Trigger
       data-slot="tabs-trigger"
@@ -75,10 +69,10 @@ function TabsTrigger({
   );
 }
 
-function TabsContent({
-  className,
-  ...props
-}: React.ComponentProps<typeof TabsPrimitive.Content>) {
+export type TabsContentProps = React.ComponentProps<
+  typeof TabsPrimitive.Content
+>;
+function TabsContent({ className, ...props }: TabsContentProps) {
   return (
     <TabsPrimitive.Content
       data-slot="tabs-content"

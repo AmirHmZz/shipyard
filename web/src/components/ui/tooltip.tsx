@@ -5,10 +5,13 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+export type TooltipProviderProps = React.ComponentProps<
+  typeof TooltipPrimitive.Provider
+>;
 function TooltipProvider({
   delayDuration = 0,
   ...props
-}: React.ComponentProps<typeof TooltipPrimitive.Provider>) {
+}: TooltipProviderProps) {
   return (
     <TooltipPrimitive.Provider
       data-slot="tooltip-provider"
@@ -18,24 +21,27 @@ function TooltipProvider({
   );
 }
 
-function Tooltip({
-  ...props
-}: React.ComponentProps<typeof TooltipPrimitive.Root>) {
+export type TooltipProps = React.ComponentProps<typeof TooltipPrimitive.Root>;
+function Tooltip({ ...props }: TooltipProps) {
   return <TooltipPrimitive.Root data-slot="tooltip" {...props} />;
 }
 
-function TooltipTrigger({
-  ...props
-}: React.ComponentProps<typeof TooltipPrimitive.Trigger>) {
+export type TooltipTriggerProps = React.ComponentProps<
+  typeof TooltipPrimitive.Trigger
+>;
+function TooltipTrigger({ ...props }: TooltipTriggerProps) {
   return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />;
 }
 
+export type TooltipContentProps = React.ComponentProps<
+  typeof TooltipPrimitive.Content
+>;
 function TooltipContent({
   className,
   sideOffset = 0,
   children,
   ...props
-}: React.ComponentProps<typeof TooltipPrimitive.Content>) {
+}: TooltipContentProps) {
   return (
     <TooltipPrimitive.Portal>
       <TooltipPrimitive.Content

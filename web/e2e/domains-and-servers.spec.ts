@@ -8,7 +8,9 @@ type Resource = components["schemas"]["Resource"];
 type Input = components["schemas"]["ResourceInput"];
 type Certificate = components["schemas"]["CertificateSummary"];
 const now = Date.now();
-const at = (days: number) => new Date(now + days * 86400000).toISOString();
+function at(days: number) {
+  return new Date(now + days * 86400000).toISOString();
+}
 function resource(
   id: string,
   kind: string,

@@ -5,10 +5,13 @@ import * as React from "react";
 import { useConfigurationChanges } from "@/lib/configuration-state";
 import { cn } from "@/lib/utils";
 
-function Checkbox({
-  className,
-  ...props
-}: React.ComponentProps<typeof CheckboxPrimitive.Root>) {
+export type CheckboxProps = React.ComponentProps<typeof CheckboxPrimitive.Root>;
+function Checkbox({ className, ...props }: CheckboxProps) {
+  function handleCheckboxPrimitiveRootCheckedChange(checked: boolean) {
+    if (checked !== props.checked) changes.change();
+    props.onCheckedChange?.(checked);
+  }
+
   const changes = useConfigurationChanges();
   return (
     <CheckboxPrimitive.Root
@@ -18,10 +21,7 @@ function Checkbox({
         className,
       )}
       {...props}
-      onCheckedChange={(checked) => {
-        if (checked !== props.checked) changes.change();
-        props.onCheckedChange?.(checked);
-      }}
+      onCheckedChange={handleCheckboxPrimitiveRootCheckedChange}
     >
       <CheckboxPrimitive.Indicator
         data-slot="checkbox-indicator"

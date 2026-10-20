@@ -1,55 +1,33 @@
-import {
-  ArrowRight,
-  Box,
-  ChevronRight,
-  GitBranch,
-  Layers3,
-  Plus,
-  Server,
-  TerminalSquare,
-} from "lucide-react";
-import { useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { ArrowRight, Plus, TerminalSquare } from "lucide-react";
+import { Link } from "react-router";
 
-import { DeploymentTable } from "@/components/deployment-table";
 import { ResourceEditor } from "@/components/resource-editor";
-import { Empty, ErrorState, Loading, PageHeader } from "@/components/shared";
+import { Empty, ErrorState, Loading, PageHeader } from "@/components/Shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ago } from "@/lib/format";
-import { useDeployments } from "@/lib/hooks/useDeployments";
-import { useResources } from "@/lib/hooks/useResources";
-import { indexResources } from "@/lib/resource-index";
 
+import { useOverviewPage } from "../hooks";
 import { OverviewGettingStarted } from "./OverviewGettingStarted";
-
+import { OverviewProjectCard } from "./OverviewProjectCard";
+import { OverviewSummary } from "./OverviewSummary";
+import { RecentDeploymentContent } from "./RecentDeploymentContent";
 export function OverviewMainView() {
-  const resources = useResources();
-  const deployments = useDeployments();
-  const index = useMemo(
-    () => indexResources(resources.data || []),
-    [resources.data],
-  );
-  const [editor, setEditor] = useState("");
-  const navigate = useNavigate();
-  const openEditor = (kind: string) =>
-    ["team", "project", "environment"].includes(kind)
-      ? setEditor(kind)
-      : navigate(`/configure/${kind}/new?return=/`);
+  const { state, derived, handlers } = useOverviewPage();
+  const { editor } = state;
+  const {
+    resources,
+    deployments,
+    index,
+    rows,
+    projects,
+    apps,
+    servers,
+    previews,
+  } = derived;
+  const { openEditor, createProject, handleEditorOpenChange } = handlers;
   if (resources.isPending) return <Loading />;
   if (resources.error) return <ErrorState error={resources.error} />;
-  const rows = resources.data || [];
-  const projects = index.byKind.get("project") || [];
-  const apps = (index.byKind.get("application") || []).filter(
-    (r) => !r.data.previewOf,
-  );
-  const servers = index.byKind.get("server") || [];
-  const previews = (index.byKind.get("application") || []).filter(
-    (r) =>
-      r.kind === "application" && r.data.previewOf && !r.data.previewClosed,
-  );
-  const latest = deployments.data || [];
   return (
     <>
       <PageHeader
@@ -65,63 +43,18 @@ export function OverviewMainView() {
         </Button>
         <Button
           disabled={!rows.some((r) => r.kind === "team" && r.canWrite)}
-          onClick={() => openEditor("project")}
+          onClick={createProject}
         >
           <Plus />
           New project
         </Button>
       </PageHeader>
-      <div className="mb-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {[
-          {
-            title: "Projects",
-            count: projects.length,
-            icon: Layers3,
-            detail: "Organized, from the start",
-            path: "/projects",
-          },
-          {
-            title: "Applications",
-            count: apps.length,
-            icon: Box,
-            detail: "Dockerfile & Compose",
-            path: "/projects",
-          },
-          {
-            title: "Connected servers",
-            count: servers.length,
-            icon: Server,
-            detail: "Independent Docker hosts",
-            path: "/servers",
-          },
-          {
-            title: "Preview environments",
-            count: previews.length,
-            icon: GitBranch,
-            detail: "A space for every pull request",
-            path: "/previews",
-          },
-        ].map((s) => (
-          <Link key={s.title} to={s.path}>
-            <Card className="gap-0 shadow-none transition-colors hover:border-primary/40">
-              <CardHeader className="flex flex-row items-center justify-between pb-3">
-                <CardTitle className="text-xs font-medium text-muted-foreground">
-                  {s.title}
-                </CardTitle>
-                <s.icon className="size-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-semibold tracking-tight">
-                  {s.count.toString().padStart(2, "0")}
-                </div>
-                <div className="mt-3 text-[11px] text-muted-foreground">
-                  {s.detail}
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
-      </div>
+      <OverviewSummary
+        projects={projects.length}
+        apps={apps.length}
+        servers={servers.length}
+        previews={previews.length}
+      />
       {!apps.length && (
         <OverviewGettingStarted rows={rows} openEditor={openEditor} />
       )}
@@ -142,41 +75,7 @@ export function OverviewMainView() {
       {projects.length ? (
         <div className="mb-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {projects.slice(0, 6).map((p) => (
-            <Link key={p.id} to={`/projects/${p.id}`}>
-              <Card className="gap-0 py-0 shadow-none hover:border-primary/40">
-                <CardContent className="p-5">
-                  <div className="mb-5 flex items-center justify-between">
-                    <div className="flex size-10 items-center justify-center rounded-xl border bg-muted/50 text-primary">
-                      <Layers3 className="size-5" />
-                    </div>
-                    <ChevronRight className="size-4 text-muted-foreground" />
-                  </div>
-                  <h3 className="text-sm font-medium">{p.name}</h3>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    {
-                      (index.byParent.get(p.id) || []).filter(
-                        (r) => r.kind === "environment",
-                      ).length
-                    }{" "}
-                    environments <span className="mx-2">·</span>
-                    {
-                      (index.byKind.get("application") || []).filter(
-                        (r) =>
-                          r.teamId === p.teamId &&
-                          index.byId.get(r.parentId || "")?.parentId === p.id,
-                      ).length
-                    }{" "}
-                    applications
-                  </p>
-                  <div className="mt-5 flex items-center justify-between border-t pt-4 text-[11px] text-muted-foreground">
-                    <span>
-                      {index.byId.get(p.teamId || "")?.name || "Team workspace"}
-                    </span>
-                    <span>{ago(p.updatedAt)}</span>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
+            <OverviewProjectCard key={p.id} project={p} index={index} />
           ))}
         </div>
       ) : (
@@ -185,11 +84,7 @@ export function OverviewMainView() {
             title="Room for your next idea"
             description="Projects keep your applications, environments, and team access together."
             action={
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => openEditor("project")}
-              >
+              <Button variant="outline" size="sm" onClick={createProject}>
                 <Plus />
                 Create project
               </Button>
@@ -205,19 +100,7 @@ export function OverviewMainView() {
           </Badge>
         </CardHeader>
         <CardContent className="p-0">
-          {deployments.error ? (
-            <ErrorState error={deployments.error} />
-          ) : latest.length ? (
-            <DeploymentTable
-              deployments={latest.slice(0, 7)}
-              resources={rows}
-            />
-          ) : (
-            <div className="flex min-h-40 items-center justify-center gap-3 p-6 text-sm text-muted-foreground">
-              <GitBranch className="size-5" />
-              Your first deployment will appear here.
-            </div>
-          )}
+          <RecentDeploymentContent deployments={deployments} rows={rows} />
         </CardContent>
       </Card>
       <div className="mt-7 flex items-center gap-2 text-[11px] text-muted-foreground">
@@ -227,7 +110,7 @@ export function OverviewMainView() {
       </div>
       <ResourceEditor
         open={!!editor}
-        onOpenChange={(v) => !v && setEditor("")}
+        onOpenChange={handleEditorOpenChange}
         kind={editor}
         resources={rows}
       />

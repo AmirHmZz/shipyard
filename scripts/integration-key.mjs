@@ -18,11 +18,11 @@ try {
   );
 }
 const jwk = createPublicKey(privateKey).export({ format: "jwk" });
-const part = (buffer) => {
+function part(buffer) {
   const size = Buffer.alloc(4);
   size.writeUInt32BE(buffer.length);
   return Buffer.concat([size, buffer]);
-};
+}
 const exponent = Buffer.from(jwk.e, "base64url");
 let modulus = Buffer.from(jwk.n, "base64url");
 if (modulus[0] & 128) modulus = Buffer.concat([Buffer.from([0]), modulus]);

@@ -1,9 +1,8 @@
 import { Pencil, RefreshCw, Trash2 } from "lucide-react";
-import { useState } from "react";
 
 import type { Resource } from "@/lib/api/types";
 
-import { Confirm, StateBadge } from "@/components/shared";
+import { Confirm, StateBadge } from "@/components/Shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,36 +15,27 @@ import {
 } from "@/components/ui/tooltip";
 import { number, text } from "@/lib/resource-fields";
 
-import { useDomainStatus, useSyncRoute } from "../hooks";
+import { useRouteCard } from "../hooks";
 
-export function RouteCard({
-  route,
-  onEdit,
-  onDelete,
-}: {
-  route: Resource;
-  onEdit: () => void;
-  onDelete: () => void;
-}) {
-  const q = useDomainStatus(route);
-  const [replace, setReplace] = useState(false);
-  const synchronize = useSyncRoute(route.id);
-  const syncing = synchronize.isPending;
-  function sync(mode: string) {
-    if (syncing) return;
-    synchronize.mutate({ mode }, { onSuccess: () => setReplace(false) });
-  }
+export type RouteCardProps = { route: Resource };
+export function RouteCard({ route }: RouteCardProps) {
+  const { state, derived, handlers } = useRouteCard(route);
+  const { replace } = state;
+  const { q, syncing, protocol } = derived;
+  const {
+    retrySync,
+    adoptRecords,
+    replaceRecords,
+    confirmReplacement,
+    setReplace,
+  } = handlers;
   return (
     <Card className="py-0 shadow-none">
       <CardContent className="p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
             <Badge variant="secondary" className="font-mono text-[10px]">
-              {text(route.data, "protocol") === "grpc"
-                ? "gRPC"
-                : text(route.data, "protocol") === "tcp"
-                  ? "TCP"
-                  : "HTTPS"}
+              {protocol}
             </Badge>
             <span className="break-all font-medium">
               {text(route.data, "domain") ||
@@ -64,7 +54,7 @@ export function RouteCard({
                   variant="ghost"
                   size="icon"
                   aria-label="Retry sync"
-                  onClick={() => void sync("")}
+                  onClick={retrySync}
                 >
                   {syncing ? (
                     <Spinner className="size-4" />
@@ -82,7 +72,8 @@ export function RouteCard({
                   variant="ghost"
                   size="icon"
                   aria-label="Edit route"
-                  onClick={onEdit}
+                  data-route-id={route.id}
+                  data-route-action="edit"
                 >
                   <Pencil className="size-4" />
                 </Button>
@@ -94,7 +85,8 @@ export function RouteCard({
               size="icon"
               aria-label="Delete route"
               disabled={!route.canWrite}
-              onClick={onDelete}
+              data-route-id={route.id}
+              data-route-action="delete"
             >
               <Trash2 className="size-4" />
             </Button>
@@ -121,7 +113,7 @@ export function RouteCard({
               disabled={syncing}
               variant="outline"
               size="sm"
-              onClick={() => void sync("adopt")}
+              onClick={adoptRecords}
             >
               Adopt matching records
             </Button>
@@ -129,7 +121,7 @@ export function RouteCard({
               disabled={syncing}
               variant="destructive"
               size="sm"
-              onClick={() => setReplace(true)}
+              onClick={replaceRecords}
             >
               Replace conflicting records
             </Button>
@@ -143,7 +135,7 @@ export function RouteCard({
         description="Existing A, AAAA and CNAME records for this hostname will be replaced with records pointing at the deployment server."
         destructive
         pending={syncing}
-        onConfirm={() => sync("replace")}
+        onConfirm={confirmReplacement}
       />
     </Card>
   );

@@ -32,9 +32,12 @@ test("network removal is immediate, rolls back on failure, and preserves externa
   }
   let removed = false;
   let reject = true;
-  let release = () => {};
+  let releaseCallback: (() => void) | undefined;
+  function release() {
+    releaseCallback?.();
+  }
   const gate = new Promise<void>((resolve) => {
-    release = resolve;
+    releaseCallback = resolve;
   });
   const writes: { path: string; method: string; body: string | null }[] = [];
   await page.route("**/api/v1/**", async (route) => {

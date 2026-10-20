@@ -2,21 +2,22 @@ import { FileCode2, GitBranch, Server } from "lucide-react";
 
 import type { Resource } from "@/lib/api/types";
 
-import { StateBadge } from "@/components/shared";
+import { StateBadge } from "@/components/Shared";
 import { Badge } from "@/components/ui/badge";
 import { text } from "@/lib/resource-fields";
 
 import type { Runtime } from "../generics";
 
+export type ApplicationStatusProps = {
+  app: Resource;
+  runtime: { data?: Runtime };
+  server?: Resource;
+};
 export function ApplicationStatus({
   app,
   runtime,
   server,
-}: {
-  app: Resource;
-  runtime: { data?: Runtime };
-  server?: Resource;
-}) {
+}: ApplicationStatusProps) {
   const directCompose = app.data.source === "compose";
   return (
     <div className="mb-6 flex flex-wrap items-center gap-5 rounded-xl border bg-card px-5 py-4 text-xs">

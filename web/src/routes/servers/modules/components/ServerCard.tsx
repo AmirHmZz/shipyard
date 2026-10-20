@@ -1,10 +1,9 @@
 import { Check, Server, Settings2, Trash2, Users } from "lucide-react";
 import { lazy, Suspense } from "react";
-import { toast } from "sonner";
 
 import type { Resource } from "@/lib/api/types";
 
-import { StateBadge } from "@/components/shared";
+import { StateBadge } from "@/components/Shared";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -14,35 +13,20 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { text } from "@/lib/resource-fields";
-import { useAdmin } from "@/lib/session";
 
-import { useServerMetrics, useCheckDockerVersion } from "../hooks";
+import { useServerCard } from "../hooks";
 
-const ServerCPUChart = lazy(() => import("./ServerCPUChart"));
+const ServerCPUChart = lazy(() =>
+  import("./ServerCPUChart").then((module) => ({
+    default: module.ServerCPUChart,
+  })),
+);
 
-export function ServerCard({
-  server,
-  onEdit,
-  onGrants,
-  onHAProxy,
-  onDelete,
-}: {
-  server: Resource;
-  onEdit: () => void;
-  onGrants: () => void;
-  onHAProxy: () => void;
-  onDelete: () => void;
-}) {
-  const admin = useAdmin();
-  const q = useServerMetrics(server);
-  const latest = q.data?.at(-1);
-  const checkVersion = useCheckDockerVersion(server.id);
-  function testConnection() {
-    checkVersion.mutate(undefined, {
-      onSuccess: (value) =>
-        toast.success(`Connected · Docker ${value.dockerVersion}`),
-    });
-  }
+export type ServerCardProps = { server: Resource };
+export function ServerCard({ server }: ServerCardProps) {
+  const { derived, handlers } = useServerCard(server);
+  const { admin, q, latest, status } = derived;
+  const { testConnection } = handlers;
   return (
     <Card className="shadow-none">
       <CardHeader className="flex flex-row items-start justify-between">
@@ -57,9 +41,7 @@ export function ServerCard({
               : `${text(server.data, "user")}@${text(server.data, "host")} · SSH`}
           </CardDescription>
         </div>
-        <StateBadge
-          state={latest ? (latest.online ? "online" : "offline") : "pending"}
-        />
+        <StateBadge state={status} />
       </CardHeader>
       <CardContent>
         {server.data.deleting ? (
@@ -70,7 +52,12 @@ export function ServerCard({
                 : "Server cleanup in progress."}
             </p>
             {admin && (
-              <Button variant="outline" size="sm" onClick={onDelete}>
+              <Button
+                variant="outline"
+                size="sm"
+                data-server-id={server.id}
+                data-action="delete"
+              >
                 {server.data.deletionError
                   ? "Retry cleanup"
                   : "Cleanup details"}
@@ -115,7 +102,8 @@ export function ServerCard({
                 disabled={!server.canWrite}
                 variant="outline"
                 size="sm"
-                onClick={onEdit}
+                data-server-id={server.id}
+                data-action="edit"
               >
                 Configure
               </Button>
@@ -123,13 +111,19 @@ export function ServerCard({
                 disabled={!server.canWrite}
                 variant="outline"
                 size="sm"
-                onClick={onGrants}
+                data-server-id={server.id}
+                data-action="grants"
               >
                 <Users />
                 Team access
               </Button>
               {server.canWrite && (
-                <Button variant="outline" size="sm" onClick={onHAProxy}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  data-server-id={server.id}
+                  data-action="haproxy"
+                >
                   <Settings2 className="size-4" /> HAProxy settings
                 </Button>
               )}
@@ -147,7 +141,8 @@ export function ServerCard({
                   variant="ghost"
                   size="sm"
                   className="text-destructive hover:text-destructive"
-                  onClick={onDelete}
+                  data-server-id={server.id}
+                  data-action="delete"
                 >
                   <Trash2 />
                   Delete server

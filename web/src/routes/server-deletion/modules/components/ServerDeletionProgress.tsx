@@ -2,7 +2,7 @@ import { RefreshCw } from "lucide-react";
 
 import type { Resource } from "@/lib/api/types";
 
-import { StateBadge } from "@/components/shared";
+import { StateBadge } from "@/components/Shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,6 +12,14 @@ import type { Status } from "../generics";
 
 import { RepairConnection } from "./RepairConnection";
 
+export type ServerDeletionProgressProps = {
+  operation: Status;
+  busy: boolean;
+  retryCleanup: () => void;
+  server?: Resource;
+  repair: boolean;
+  setRepair: (value: boolean) => void;
+};
 export function ServerDeletionProgress({
   operation,
   busy,
@@ -19,25 +27,24 @@ export function ServerDeletionProgress({
   server,
   repair,
   setRepair,
-}: {
-  operation: Status;
-  busy: boolean;
-  retryCleanup: () => void;
-  server?: Resource;
-  repair: boolean;
-  setRepair: (value: boolean) => void;
-}) {
+}: ServerDeletionProgressProps) {
+  function handleButtonClick() {
+    return setRepair(!repair);
+  }
+  function handleRepairConnectionSaved() {
+    return setRepair(false);
+  }
+
+  let stage = "queued";
+  if (operation.error) stage = "failed";
+  if (operation.done) stage = "done";
   return (
     <>
       <Card className="shadow-none">
         <CardContent className="space-y-4 pt-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="font-medium capitalize">{operation.stage}</p>
-            <StateBadge
-              state={
-                operation.done ? "done" : operation.error ? "failed" : "queued"
-              }
-            />
+            <StateBadge state={stage} />
           </div>
           <p className="text-sm text-muted-foreground">
             {operation.done
@@ -55,7 +62,7 @@ export function ServerDeletionProgress({
                   Retry cleanup
                 </Button>
                 {server && (
-                  <Button variant="outline" onClick={() => setRepair(!repair)}>
+                  <Button variant="outline" onClick={handleButtonClick}>
                     Repair connection
                   </Button>
                 )}
@@ -65,7 +72,10 @@ export function ServerDeletionProgress({
         </CardContent>
       </Card>
       {repair && server && (
-        <RepairConnection server={server} onSaved={() => setRepair(false)} />
+        <RepairConnection
+          server={server}
+          onSaved={handleRepairConnectionSaved}
+        />
       )}
     </>
   );

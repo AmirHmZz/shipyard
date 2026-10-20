@@ -17,13 +17,21 @@ import { describeError } from "@/lib/api/translate-error";
 
 import { useRemoveDeployment } from "../hooks";
 
+export type DeleteDeploymentProps = {
+  deployment: Deployment;
+  onClose: () => void;
+};
 export function DeleteDeployment({
   deployment,
   onClose,
-}: {
-  deployment: Deployment;
-  onClose: () => void;
-}) {
+}: DeleteDeploymentProps) {
+  function handleDialogOpenChange(open: boolean) {
+    if (!open && !busy) onClose();
+  }
+  function handleButtonClick() {
+    return void remove();
+  }
+
   const removeMutation = useRemoveDeployment(deployment.applicationId);
   const busy = removeMutation.isPending;
   const error = removeMutation.error ? describeError(removeMutation.error) : "";
@@ -32,12 +40,7 @@ export function DeleteDeployment({
     removeMutation.mutate(deployment.id, { onSuccess: onClose });
   }
   return (
-    <Dialog
-      open
-      onOpenChange={(open) => {
-        if (!open && !busy) onClose();
-      }}
-    >
+    <Dialog open onOpenChange={handleDialogOpenChange}>
       <DialogContent showCloseButton={!busy}>
         <DialogHeader>
           <DialogTitle>Delete deployment?</DialogTitle>
@@ -60,7 +63,7 @@ export function DeleteDeployment({
           <Button
             variant="destructive"
             disabled={busy}
-            onClick={() => void remove()}
+            onClick={handleButtonClick}
           >
             {busy ? <Spinner className="size-4" /> : <Trash2 />}Delete
             deployment

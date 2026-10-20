@@ -1,9 +1,8 @@
 import { useEffect } from "react";
 import { useRouteError } from "react-router";
 
+import { AppErrorFallback } from "@/components/AppErrorBoundary";
 import { reportError } from "@/lib/telemetry";
-
-import { AppErrorFallback } from "./app-error-boundary";
 
 export function ContentErrorBoundary() {
   const error = useRouteError();

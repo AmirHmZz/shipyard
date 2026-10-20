@@ -1,30 +1,37 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
+import { TableHeadings } from "@/components/TableHeadings";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
   TableCell,
-  TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
 
 import type { Item } from "../generics";
 
-export function Inventory({ title, items }: { title: string; items: Item[] }) {
+function inventoryRows(items: Item[]) {
+  const occurrences = new Map<string, number>();
+  return items.map((item) => {
+    // A bind mount may be reported once for each container using it.
+    const identity = JSON.stringify([item.kind, item.id]);
+    const occurrence = occurrences.get(identity) ?? 0;
+    occurrences.set(identity, occurrence + 1);
+    return { item, key: `${identity}:${occurrence}` };
+  });
+}
+export type InventoryProps = { title: string; items: Item[] };
+export function Inventory({ title, items }: InventoryProps) {
+  function handleButtonClick() {
+    return setAll((current) => !current);
+  }
+
   const [all, setAll] = useState(false);
-  const rows = useMemo(() => {
-    const occurrences = new Map<string, number>();
-    return items.map((item) => {
-      // A bind mount may be reported once for each container using it.
-      const identity = JSON.stringify([item.kind, item.id]);
-      const occurrence = occurrences.get(identity) ?? 0;
-      occurrences.set(identity, occurrence + 1);
-      return { item, key: `${identity}:${occurrence}` };
-    });
-  }, [items]);
+  const rows = inventoryRows(items);
+  const visibleRows = all ? rows : rows.slice(0, 15);
   return (
     <Card className="gap-0 overflow-hidden py-0 shadow-none">
       <CardHeader className="py-5">
@@ -37,14 +44,17 @@ export function Inventory({ title, items }: { title: string; items: Item[] }) {
         <>
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>Type</TableHead>
-                <TableHead>Resource</TableHead>
-                <TableHead>Details</TableHead>
-              </TableRow>
+              <TableHeadings
+                columns={[
+                  { id: "type", label: <>Type</> },
+                  { id: "resource", label: <>Resource</> },
+                  { id: "details", label: <>Details</> },
+                ]}
+                rowProps={{}}
+              />
             </TableHeader>
             <TableBody>
-              {(all ? rows : rows.slice(0, 15)).map(({ item, key }) => (
+              {visibleRows.map(({ item, key }) => (
                 <TableRow key={key}>
                   <TableCell className="capitalize">{item.kind}</TableCell>
                   <TableCell className="max-w-xs break-all whitespace-normal font-medium">
@@ -59,10 +69,7 @@ export function Inventory({ title, items }: { title: string; items: Item[] }) {
           </Table>
           {items.length > 15 && (
             <div className="p-4">
-              <Button
-                variant="outline"
-                onClick={() => setAll((current) => !current)}
-              >
+              <Button variant="outline" onClick={handleButtonClick}>
                 {all ? "Show fewer" : `Show all ${items.length}`}
               </Button>
             </div>

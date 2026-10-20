@@ -16,13 +16,14 @@ import type { Resource } from "@/lib/api/types";
 import { TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { loadComposeEditor } from "@/lib/feature-loaders";
 
+export type ApplicationTabListProps = {
+  app: Resource;
+  directCompose: boolean;
+};
 export function ApplicationTabList({
   app,
   directCompose,
-}: {
-  app: Resource;
-  directCompose: boolean;
-}) {
+}: ApplicationTabListProps) {
   return (
     <div className="overflow-x-auto overflow-y-hidden p-1 -m-1">
       <TabsList>

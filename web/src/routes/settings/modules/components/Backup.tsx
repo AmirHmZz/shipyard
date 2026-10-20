@@ -1,3 +1,4 @@
+import type * as React from "react";
 import type { FormEvent } from "react";
 
 import { Download } from "lucide-react";
@@ -23,7 +24,15 @@ import { toastValidationError } from "@/lib/api/toaster";
 import { passphraseSchema } from "../generics";
 import { useSetMaintenanceMode, useDownloadBackup } from "../hooks";
 
-export function Backup({ session }: { session: Session }) {
+export type BackupProps = { session: Session };
+export function Backup({ session }: BackupProps) {
+  function handleSwitchCheckedChange(enabled: boolean) {
+    return maintenance.mutate(enabled);
+  }
+  function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    return setPassphrase(e.target.value);
+  }
+
   const maintenance = useSetMaintenanceMode();
   const [passphrase, setPassphrase] = useState("");
   const backup = useDownloadBackup();
@@ -63,7 +72,7 @@ export function Backup({ session }: { session: Session }) {
           <Switch
             checked={session.maintenance || false}
             disabled={maintenance.isPending}
-            onCheckedChange={(enabled) => maintenance.mutate(enabled)}
+            onCheckedChange={handleSwitchCheckedChange}
           />
         </CardContent>
       </Card>
@@ -84,7 +93,7 @@ export function Backup({ session }: { session: Session }) {
               type="password"
               minLength={12}
               value={passphrase}
-              onChange={(e) => setPassphrase(e.target.value)}
+              onChange={handleInputChange}
               required
             />
             <Button disabled={busy || !session.maintenance}>

@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import * as z from "zod/mini";
 
-import { AppErrorBoundary } from "@/components/app-error-boundary";
+import { AppErrorBoundary } from "@/components/AppErrorBoundary";
 import { Toaster } from "@/components/ui/sonner";
 import { createQueryClient } from "@/lib/api/query-client";
 

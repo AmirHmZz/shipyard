@@ -4,7 +4,7 @@ import { toast } from "sonner";
 
 import type { LogLine } from "@/lib/log-buffer";
 
-import { StateBadge } from "@/components/shared";
+import { StateBadge } from "@/components/Shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,15 +20,32 @@ import { logText } from "@/lib/log-text";
 import { inputNumberSchema } from "@/lib/schemas/coercion";
 
 import { logMessageSchema, logStatusSchema } from "../generics";
+export type LogStreamProps = {
+  deploymentId?: string;
+  applicationId?: string;
+  containers?: string[];
+};
 export function LogStream({
   deploymentId,
   applicationId,
   containers = [],
-}: {
-  deploymentId?: string;
-  applicationId?: string;
-  containers?: string[];
-}) {
+}: LogStreamProps) {
+  function handleButtonClick() {
+    return buffer.current?.clear();
+  }
+  async function handleButtonClick2() {
+    try {
+      await navigator.clipboard.writeText(
+        (buffer.current?.snapshot() ?? lines)
+          .map((line) => line.text)
+          .join("\n"),
+      );
+      toast.success("Logs copied");
+    } catch {
+      toast.error("Clipboard is unavailable");
+    }
+  }
+
   const [selected, setSelected] = useState("");
   const scroll = useRef<HTMLPreElement>(null);
   const buffer = useRef<LogBuffer | null>(null);
@@ -136,7 +153,7 @@ export function LogStream({
               className="size-8"
               variant="ghost"
               aria-label="Clear logs"
-              onClick={() => buffer.current?.clear()}
+              onClick={handleButtonClick}
             >
               <Eraser className="size-3.5" />
             </Button>
@@ -146,18 +163,7 @@ export function LogStream({
             className="size-8"
             variant="ghost"
             aria-label="Copy logs"
-            onClick={async () => {
-              try {
-                await navigator.clipboard.writeText(
-                  (buffer.current?.snapshot() ?? lines)
-                    .map((line) => line.text)
-                    .join("\n"),
-                );
-                toast.success("Logs copied");
-              } catch {
-                toast.error("Clipboard is unavailable");
-              }
-            }}
+            onClick={handleButtonClick2}
           >
             <Copy className="size-3.5" />
           </Button>

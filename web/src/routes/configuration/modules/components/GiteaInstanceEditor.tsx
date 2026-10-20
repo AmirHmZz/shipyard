@@ -1,14 +1,21 @@
-import { CopyButton } from "@/components/shared";
+import { InputField } from "@/components/InputField";
+import { CopyButton } from "@/components/Shared";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { toastValidationError } from "@/lib/api/toaster";
 
 import type { InstanceDraft } from "../generics";
 import type { useSaveGiteaInstance } from "../hooks";
 
-import { giteaInstanceSchema } from "../generics";
+import { useGiteaInstanceEditor } from "../hooks";
 
+export type GiteaInstanceEditorProps = {
+  instanceForm: InstanceDraft;
+  setInstanceForm: (value: InstanceDraft | null) => void;
+  callback: string;
+  busy: boolean;
+  saveInstance: ReturnType<typeof useSaveGiteaInstance>;
+  resetErrors: () => void;
+  setInstanceId: (id: string) => void;
+};
 export function GiteaInstanceEditor({
   instanceForm,
   setInstanceForm,
@@ -17,30 +24,16 @@ export function GiteaInstanceEditor({
   saveInstance,
   resetErrors,
   setInstanceId,
-}: {
-  instanceForm: InstanceDraft;
-  setInstanceForm: (value: InstanceDraft | null) => void;
-  callback: string;
-  busy: boolean;
-  saveInstance: ReturnType<typeof useSaveGiteaInstance>;
-  resetErrors: () => void;
-  setInstanceId: (id: string) => void;
-}) {
-  function save() {
-    if (busy) return;
-    resetErrors();
-    const parsed = giteaInstanceSchema.safeParse(instanceForm);
-    if (!parsed.success) {
-      toastValidationError(parsed.error);
-      return;
-    }
-    saveInstance.mutate(parsed.data, {
-      onSuccess: (value) => {
-        setInstanceId(value.id);
-        setInstanceForm(null);
-      },
-    });
-  }
+}: GiteaInstanceEditorProps) {
+  const { handlers } = useGiteaInstanceEditor({
+    instanceForm,
+    setInstanceForm,
+    busy,
+    saveInstance,
+    resetErrors,
+    setInstanceId,
+  });
+  const { cancel, changeField, save } = handlers;
   return (
     <section
       aria-label="Gitea OAuth application"
@@ -67,29 +60,29 @@ export function GiteaInstanceEditor({
           ["clientSecret", "Client secret"],
         ] as const
       ).map(([key, label]) => (
-        <div className="space-y-2" key={key}>
-          <Label htmlFor={`gitea-${key}`}>{label}</Label>
-          <Input
-            id={`gitea-${key}`}
-            type={key === "clientSecret" ? "password" : "text"}
-            autoComplete="off"
-            value={instanceForm[key]}
-            placeholder={
+        <InputField
+          key={key}
+          label={<>{label}</>}
+          labelProps={{ htmlFor: `gitea-${key}` }}
+          inputProps={{
+            id: `gitea-${key}`,
+            type: key === "clientSecret" ? "password" : "text",
+            autoComplete: "off",
+            value: instanceForm[key],
+            placeholder:
               key === "clientSecret" && instanceForm.id
                 ? "Leave empty to keep saved secret"
-                : undefined
-            }
-            onChange={(e) =>
-              setInstanceForm({ ...instanceForm, [key]: e.target.value })
-            }
-          />
-        </div>
+                : undefined,
+            "data-gitea-field": key,
+            onChange: changeField,
+          }}
+        />
       ))}
       <div className="flex gap-2">
         <Button disabled={busy} onClick={save}>
           Save instance
         </Button>
-        <Button variant="outline" onClick={() => setInstanceForm(null)}>
+        <Button variant="outline" onClick={cancel}>
           Cancel
         </Button>
       </div>

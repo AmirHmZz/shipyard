@@ -3,20 +3,22 @@ import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
 async function setup(page: Page, { admin = true, writable = true } = {}) {
-  const resource = (id: string, kind: string, parentId = "", data = {}) => ({
-    variables: {},
-    createdAt: "2026-10-19T00:00:00Z",
-    updatedAt: "2026-10-19T00:00:00Z",
-    id,
-    kind,
-    parentId,
-    name: id,
-    data,
-    version: 1,
-    secretKeys: [],
-    teamId: "team",
-    canWrite: writable,
-  });
+  function resource(id: string, kind: string, parentId = "", data = {}) {
+    return {
+      variables: {},
+      createdAt: "2026-10-19T00:00:00Z",
+      updatedAt: "2026-10-19T00:00:00Z",
+      id,
+      kind,
+      parentId,
+      name: id,
+      data,
+      version: 1,
+      secretKeys: [],
+      teamId: "team",
+      canWrite: writable,
+    };
+  }
   const resources = [
     resource("team", "team"),
     resource("project", "project", "team"),

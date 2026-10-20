@@ -1,11 +1,10 @@
-import { KeyRound, ShieldCheck } from "lucide-react";
-import { useState } from "react";
+import { KeyRound } from "lucide-react";
 
 import type { Session } from "@/lib/api/types";
 
-import { CopyButton, StateBadge } from "@/components/shared";
+import { InputField } from "@/components/InputField";
+import { CopyButton, StateBadge } from "@/components/Shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -13,62 +12,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { toastValidationError } from "@/lib/api/toaster";
 
-import {
-  totpCodeSchema,
-  totpDisableSchema,
-  totpPasswordSchema,
-} from "../generics";
-import { useDisableTOTP, useStartTOTP, useEnableTOTP } from "../hooks";
-
-export function Security({ session }: { session: Session }) {
-  const disable = useDisableTOTP();
-  const start = useStartTOTP();
-  const enable = useEnableTOTP();
-  const [password, setPassword] = useState("");
-  const [code, setCode] = useState("");
-  const setup = start.data;
-  const recovery = enable.data?.recoveryCodes ?? [];
-  function confirmAuthenticator() {
-    if (enable.isPending) return;
-    const parsed = totpCodeSchema.safeParse({ code });
-    if (!parsed.success) {
-      toastValidationError(parsed.error);
-      return;
-    }
-    enable.mutate(parsed.data, {
-      onSuccess: () => {
-        start.reset();
-        setPassword("");
-      },
-    });
-  }
-  function disableAuthenticator() {
-    if (disable.isPending) return;
-    const parsed = totpDisableSchema.safeParse({ password, code });
-    if (!parsed.success) {
-      toastValidationError(parsed.error);
-      return;
-    }
-    disable.mutate(parsed.data, {
-      onSuccess: () => {
-        setPassword("");
-        setCode("");
-      },
-    });
-  }
-  function startAuthenticator() {
-    if (start.isPending) return;
-    const parsed = totpPasswordSchema.safeParse({ password });
-    if (!parsed.success) {
-      toastValidationError(parsed.error);
-      return;
-    }
-    start.mutate(parsed.data);
-  }
+import { useSecurityForm } from "../hooks";
+import { SecurityControls } from "./SecurityControls";
+export type SecurityProps = { session: Session };
+export function Security({ session }: SecurityProps) {
+  const controller = useSecurityForm();
+  const { password } = controller.state;
+  const { recovery } = controller.derived;
+  const { changePassword } = controller.handlers;
   return (
     <Card className="max-w-2xl shadow-none">
       <CardHeader>
@@ -82,58 +34,16 @@ export function Security({ session }: { session: Session }) {
       </CardHeader>
       <CardContent className="space-y-4">
         <StateBadge state={session.user.totp ? "enabled" : "not configured"} />
-        <div className="space-y-2">
-          <Label>Current password</Label>
-          <Input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </div>
-        {setup ? (
-          <>
-            <Alert>
-              <AlertDescription>
-                <p className="mb-2">
-                  Add this secret to your authenticator, then enter its
-                  six-digit code.
-                </p>
-                <code className="break-all text-xs">{setup.secret}</code>
-              </AlertDescription>
-            </Alert>
-            <CopyButton value={setup.url} label="Copy authenticator URL" />
-            <div className="space-y-2">
-              <Label>Authenticator code</Label>
-              <Input
-                inputMode="numeric"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-              />
-            </div>
-            <Button disabled={enable.isPending} onClick={confirmAuthenticator}>
-              Confirm authenticator
-            </Button>
-          </>
-        ) : session.user.totp ? (
-          <>
-            <div className="space-y-2">
-              <Label>Authenticator / recovery code</Label>
-              <Input value={code} onChange={(e) => setCode(e.target.value)} />
-            </div>
-            <Button
-              variant="destructive"
-              disabled={disable.isPending}
-              onClick={disableAuthenticator}
-            >
-              Disable authenticator
-            </Button>
-          </>
-        ) : (
-          <Button disabled={start.isPending} onClick={startAuthenticator}>
-            <ShieldCheck />
-            Set up authenticator
-          </Button>
-        )}
+        <InputField
+          label={<>Current password</>}
+          labelProps={{}}
+          inputProps={{
+            type: "password",
+            value: password,
+            onChange: changePassword,
+          }}
+        />
+        <SecurityControls controller={controller} enabled={session.user.totp} />
         {!!recovery.length && (
           <Alert>
             <AlertDescription>

@@ -8,7 +8,8 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 const CONFIG = { cpu: { label: "CPU", color: "var(--primary)" } };
-export default function ServerCPUChart({ data }: { data: Metric[] }) {
+export type ServerCPUChartProps = { data: Metric[] };
+export function ServerCPUChart({ data }: ServerCPUChartProps) {
   return (
     <ChartContainer className="h-full w-full" config={CONFIG}>
       <AreaChart data={data.slice(-60)}>

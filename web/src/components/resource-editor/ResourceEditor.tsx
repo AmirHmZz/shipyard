@@ -2,7 +2,8 @@ import type { ResourceFormProps } from "@/components/resource-forms/controller";
 
 import { ResourceForm } from "./ResourceForm";
 
-export function ResourceEditor(props: ResourceFormProps & { kind: string }) {
+export type ResourceEditorProps = ResourceFormProps & { kind: string };
+export function ResourceEditor(props: ResourceEditorProps) {
   if (!props.open) return null;
   return (
     <ResourceForm

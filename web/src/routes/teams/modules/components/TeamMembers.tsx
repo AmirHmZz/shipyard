@@ -1,14 +1,9 @@
 import type { Resource } from "@/lib/api/types";
 
-import { ErrorState } from "@/components/shared";
+import { ErrorState } from "@/components/Shared";
+import { TableHeadings } from "@/components/TableHeadings";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableHeader } from "@/components/ui/table";
 
 import type { useTeamsPage } from "../hooks";
 
@@ -31,11 +26,14 @@ export function TeamMembers({ controller, team }: TeamMembersProps) {
         ) : (
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead />
-              </TableRow>
+              <TableHeadings
+                columns={[
+                  { id: "name", label: <>Name</> },
+                  { id: "role", label: <>Role</> },
+                  { id: "actions", label: <></> },
+                ]}
+                rowProps={{}}
+              />
             </TableHeader>
             <TableBody onClick={handleMemberAction}>
               {members.data?.map((member) => (

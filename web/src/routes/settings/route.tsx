@@ -7,5 +7,7 @@ export default function SettingsRoute() {
   return <SettingsMainView session={session} />;
 }
 
-export const meta = () => [{ title: "Settings — Shipyard" }];
+export function meta() {
+  return [{ title: "Settings — Shipyard" }];
+}
 export { ContentErrorBoundary as ErrorBoundary } from "@/components/content-error-boundary";

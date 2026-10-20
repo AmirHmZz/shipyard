@@ -1,7 +1,7 @@
 import {
   ConfigurationGuard,
   ConfigurationPage,
-} from "@/components/configuration-surface";
+} from "@/components/ConfigurationSurface";
 
 import { ConfigurationBody } from "./ConfigurationBody";
 

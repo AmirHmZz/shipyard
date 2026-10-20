@@ -1,4 +1,4 @@
-import type { FormEvent } from "react";
+import type { FormEvent, MouseEvent } from "react";
 
 import { useReducer } from "react";
 
@@ -114,6 +114,23 @@ export function useApplicationPreviewsForm(app: Resource) {
     }
     createPreview.mutate({ id: preview.id, sha: parsed.data.sha });
   }
+  const previewRows = previews.map((preview) => ({
+    preview,
+    approving:
+      createPreview.isPending && createPreview.variables?.id === preview.id,
+  }));
+  function handleApproval(event: MouseEvent<HTMLDivElement>) {
+    if (!(event.target instanceof Element)) return;
+    const button = event.target.closest<HTMLButtonElement>(
+      "button[data-preview-id]",
+    );
+    if (!button || button.disabled || !event.currentTarget.contains(button))
+      return;
+    const preview = previews.find(
+      (preview) => preview.id === button.dataset.previewId,
+    );
+    if (preview) approvePreview(preview);
+  }
   return {
     state,
     derived: {
@@ -125,6 +142,7 @@ export function useApplicationPreviewsForm(app: Resource) {
       busy,
       previews,
       createPreview,
+      previewRows,
     },
     handlers: {
       setRouting,
@@ -133,6 +151,7 @@ export function useApplicationPreviewsForm(app: Resource) {
       setZone,
       saveSettings,
       approvePreview,
+      handleApproval,
     },
   };
 }

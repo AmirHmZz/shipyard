@@ -1,4 +1,7 @@
 // @vitest-environment jsdom
+// @vitest-environment jsdom
+// @vitest-environment jsdom
+// @vitest-environment jsdom
 import type { QueryClient } from "@tanstack/react-query";
 
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";

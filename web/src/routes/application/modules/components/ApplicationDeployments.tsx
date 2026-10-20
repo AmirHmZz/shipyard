@@ -1,53 +1,24 @@
-import type { useSearchParams } from "react-router";
-
 import { RotateCcw } from "lucide-react";
 
-import type { Deployment } from "@/lib/api/types";
-import type { Resource } from "@/lib/api/types";
-
 import { DeploymentTable } from "@/components/deployment-table";
-import { Empty } from "@/components/shared";
+import { Empty } from "@/components/Shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TabsContent } from "@/components/ui/tabs";
 
-import type { Runtime } from "../generics";
+import type { ApplicationDeploymentsOptions } from "../generics";
 
+import { useDeploymentHistory } from "../hooks";
 import { LogStream } from "./Streams";
 
-export function ApplicationDeployments({
-  app,
-  rows,
-  deployments,
-  releases,
-  runtime,
-  params,
-  setParams,
-  setConfirmAction,
-  onDeleteDeployment,
-}: {
-  app: Resource;
-  rows: Resource[];
-  deployments: { data?: Deployment[] };
-  releases: { data?: { id: string; commit: string; createdAt: string }[] };
-  runtime: { data?: Runtime };
-  params: URLSearchParams;
-  setParams: ReturnType<typeof useSearchParams>[1];
-  setConfirmAction: (action: string) => void;
-  onDeleteDeployment: (deployment: Deployment) => void;
-}) {
-  const directCompose = app.data.source === "compose";
-  const canDelete = (d: Deployment) =>
-    !!app.canWrite &&
-    !!runtime.data &&
-    ["healthy", "failed", "recovery_failed"].includes(d.state) &&
-    runtime.data.releaseId !== (d.releaseId || d.id) &&
-    !deployments.data?.some(
-      (other) =>
-        ["queued", "building", "deploying"].includes(other.state) &&
-        other.rollbackId === (d.releaseId || d.id),
-    );
+export type ApplicationDeploymentsProps = ApplicationDeploymentsOptions;
+export function ApplicationDeployments(props: ApplicationDeploymentsProps) {
+  const { app, rows, deployments, releases, runtime, onDeleteDeployment } =
+    props;
+  const { derived, handlers } = useDeploymentHistory(props);
+  const { directCompose, selectedDeployment } = derived;
+  const { canDelete, selectDeployment, handleRollback } = handlers;
   return (
     <TabsContent value="deployments">
       <Card className="gap-0 overflow-hidden py-0 shadow-none">
@@ -57,9 +28,7 @@ export function ApplicationDeployments({
             deployments={deployments.data}
             onDelete={app.canWrite ? onDeleteDeployment : undefined}
             canDelete={canDelete}
-            onSelect={(deployment) =>
-              setParams({ deployment, tab: "deployments" })
-            }
+            onSelect={selectDeployment}
           />
         ) : (
           <Empty
@@ -72,9 +41,9 @@ export function ApplicationDeployments({
           />
         )}
       </Card>
-      {params.get("deployment") && (
+      {selectedDeployment && (
         <div className="mt-5">
-          <LogStream deploymentId={params.get("deployment")!} />
+          <LogStream deploymentId={selectedDeployment} />
         </div>
       )}
       {!!releases.data?.length && (
@@ -86,7 +55,7 @@ export function ApplicationDeployments({
               database changes stay in place.
             </p>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-3" onClick={handleRollback}>
             {releases.data.map((release) => (
               <div
                 key={release.id}
@@ -107,7 +76,7 @@ export function ApplicationDeployments({
                     variant="outline"
                     size="sm"
                     disabled={!app.canWrite}
-                    onClick={() => setConfirmAction("rollback:" + release.id)}
+                    data-release-id={release.id}
                   >
                     <RotateCcw />
                     Roll back

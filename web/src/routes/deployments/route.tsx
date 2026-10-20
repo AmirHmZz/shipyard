@@ -4,5 +4,7 @@ export default function DeploymentsRoute() {
   return <DeploymentsMainView />;
 }
 
-export const meta = () => [{ title: "Deployments — Shipyard" }];
+export function meta() {
+  return [{ title: "Deployments — Shipyard" }];
+}
 export { ContentErrorBoundary as ErrorBoundary } from "@/components/content-error-boundary";

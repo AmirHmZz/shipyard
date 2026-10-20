@@ -6,15 +6,24 @@ import { Textarea } from "@/components/ui/textarea";
 
 import type { ResourceFieldProps } from "../types";
 
-export function SecretResourceField({ f, existing }: ResourceFieldProps) {
+export type SecretResourceFieldProps = ResourceFieldProps;
+export function SecretResourceField({ f, existing }: SecretResourceFieldProps) {
+  function handleControlChange(
+    event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) {
+    return setSecret(f.key, event.target.value);
+  }
+
   const {
     state: { secrets },
-    actions: { setSecret },
-    meta: { formId },
+    handlers: { setSecret },
+    derived: { formId },
   } = useResourceForm();
   const password = f.type === "password";
   const Control = password ? Input : Textarea;
   const stored = existing?.secretKeys.includes(f.key);
+  let placeholder = password ? "Enter SSH password" : "Paste credential";
+  if (stored) placeholder = "Stored securely. Leave untouched to retain.";
   return (
     <Control
       id={formId + "-" + f.key}
@@ -22,16 +31,8 @@ export function SecretResourceField({ f, existing }: ResourceFieldProps) {
       autoComplete={password ? "new-password" : undefined}
       className={password ? undefined : "min-h-20 font-mono text-xs"}
       value={secrets[f.key] || ""}
-      onChange={(
-        event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-      ) => setSecret(f.key, event.target.value)}
-      placeholder={
-        stored
-          ? "Stored securely. Leave untouched to retain."
-          : password
-            ? "Enter SSH password"
-            : "Paste credential"
-      }
+      onChange={handleControlChange}
+      placeholder={placeholder}
     />
   );
 }

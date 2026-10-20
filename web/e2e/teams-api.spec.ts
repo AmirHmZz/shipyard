@@ -43,9 +43,12 @@ async function setup(page: Page) {
   let rejectRemoval = true;
   let releaseRemoval: (() => void) | undefined;
   let removalGate: Promise<void> | undefined;
-  let finishInvitation = () => {};
+  let finishInvitationCallback: (() => void) | undefined;
+  function finishInvitation() {
+    finishInvitationCallback?.();
+  }
   const invitationGate = new Promise<void>((resolve) => {
-    finishInvitation = resolve;
+    finishInvitationCallback = resolve;
   });
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();

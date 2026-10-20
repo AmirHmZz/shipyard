@@ -2,11 +2,19 @@ import { Settings2, Trash2 } from "lucide-react";
 
 import type { Resource } from "@/lib/api/types";
 
-import { Filter } from "@/components/shared";
+import { Filter } from "@/components/Shared";
 import { Button } from "@/components/ui/button";
 
 import type { EditorRequest } from "../generics";
 
+export type ProjectToolbarProps = {
+  id?: string;
+  project?: Resource;
+  filter: string;
+  setFilter: (value: string) => void;
+  openEditor: (request: EditorRequest) => void;
+  setDeleting: (resource: Resource) => void;
+};
 export function ProjectToolbar({
   id,
   project,
@@ -14,14 +22,14 @@ export function ProjectToolbar({
   setFilter,
   openEditor,
   setDeleting,
-}: {
-  id?: string;
-  project?: Resource;
-  filter: string;
-  setFilter: (value: string) => void;
-  openEditor: (request: EditorRequest) => void;
-  setDeleting: (resource: Resource) => void;
-}) {
+}: ProjectToolbarProps) {
+  function handleButtonClick() {
+    return openEditor({ kind: "project", existing: project });
+  }
+  function handleButtonClick2() {
+    if (project) setDeleting(project);
+  }
+
   return (
     <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
       <Filter value={filter} onChange={setFilter} />
@@ -31,7 +39,7 @@ export function ProjectToolbar({
             disabled={!project.canWrite || !!project.data.deleting}
             variant="ghost"
             size="sm"
-            onClick={() => openEditor({ kind: "project", existing: project })}
+            onClick={handleButtonClick}
           >
             <Settings2 />
             Project settings
@@ -40,7 +48,7 @@ export function ProjectToolbar({
             variant="ghost"
             size="sm"
             disabled={!project.canWrite || !!project.data.deleting}
-            onClick={() => setDeleting(project)}
+            onClick={handleButtonClick2}
           >
             <Trash2 />
             Delete project

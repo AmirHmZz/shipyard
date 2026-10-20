@@ -7,7 +7,8 @@ import type { Deployment } from "@/lib/api/types";
 import type { Metric, Resource } from "@/lib/api/types";
 
 import { RepositoryName } from "@/components/repository-name";
-import { Empty, StateBadge } from "@/components/shared";
+import { Empty, StateBadge } from "@/components/Shared";
+import { TableHeadings } from "@/components/TableHeadings";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,7 +16,6 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
@@ -26,6 +26,14 @@ import { text } from "@/lib/resource-fields";
 import { previewCommitSchema } from "../generics";
 import { useApprovePreview } from "../hooks";
 
+export type ApplicationOverviewProps = {
+  app: Resource;
+  provider: string;
+  server?: Resource;
+  latest?: Deployment;
+  metrics: { data?: Metric[] };
+  setParams: ReturnType<typeof useSearchParams>[1];
+};
 export function ApplicationOverview({
   app,
   provider,
@@ -33,14 +41,15 @@ export function ApplicationOverview({
   latest,
   metrics,
   setParams,
-}: {
-  app: Resource;
-  provider: string;
-  server?: Resource;
-  latest?: Deployment;
-  metrics: { data?: Metric[] };
-  setParams: ReturnType<typeof useSearchParams>[1];
-}) {
+}: ApplicationOverviewProps) {
+  function handleButtonClick() {
+    if (!latest) return;
+    setParams({
+      deployment: latest.id,
+      tab: "deployments",
+    });
+  }
+
   const directCompose = app.data.source === "compose";
   const containers = metrics.data?.at(-1)?.containers ?? [];
   const updateVersion = useApprovePreview({
@@ -124,12 +133,7 @@ export function ApplicationOverview({
                 <Button
                   variant="outline"
                   className="mt-5"
-                  onClick={() => {
-                    setParams({
-                      deployment: latest.id,
-                      tab: "deployments",
-                    });
-                  }}
+                  onClick={handleButtonClick}
                 >
                   View deployment
                   <ArrowUpRight />
@@ -155,11 +159,14 @@ export function ApplicationOverview({
           {containers.length ? (
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Container</TableHead>
-                  <TableHead>CPU</TableHead>
-                  <TableHead>Memory</TableHead>
-                </TableRow>
+                <TableHeadings
+                  columns={[
+                    { id: "container", label: <>Container</> },
+                    { id: "cpu", label: <>CPU</> },
+                    { id: "memory", label: <>Memory</> },
+                  ]}
+                  rowProps={{}}
+                />
               </TableHeader>
               <TableBody>
                 {containers.map((c) => (

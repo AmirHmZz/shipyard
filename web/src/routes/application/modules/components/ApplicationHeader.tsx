@@ -3,7 +3,7 @@ import { Settings2 } from "lucide-react";
 import type { Resource } from "@/lib/api/types";
 
 import { RepositoryName } from "@/components/repository-name";
-import { PageHeader } from "@/components/shared";
+import { PageHeader } from "@/components/Shared";
 import { Button } from "@/components/ui/button";
 import { text } from "@/lib/resource-fields";
 
@@ -11,20 +11,7 @@ import type { Runtime } from "../generics";
 
 import { ApplicationDeployActions } from "./ApplicationDeployActions";
 
-export function ApplicationHeader({
-  app,
-  provider,
-  project,
-  environment,
-  runtime,
-  busy,
-  deploy,
-  deployError,
-  resetDeploy,
-  openEditor,
-  setConfirmAction,
-  setDeleting,
-}: {
+export type ApplicationHeaderProps = {
   app: Resource;
   provider: string;
   project?: Resource;
@@ -41,7 +28,28 @@ export function ApplicationHeader({
   openEditor: (resource: Resource | "new") => void;
   setConfirmAction: (action: string) => void;
   setDeleting: (value: boolean) => void;
-}) {
+};
+export function ApplicationHeader({
+  app,
+  provider,
+  project,
+  environment,
+  runtime,
+  busy,
+  deploy,
+  deployError,
+  resetDeploy,
+  openEditor,
+  setConfirmAction,
+  setDeleting,
+}: ApplicationHeaderProps) {
+  function handleButtonClick() {
+    return openEditor(app);
+  }
+  function handleApplicationDeployActionsDelete() {
+    return setDeleting(true);
+  }
+
   const directCompose = app.data.source === "compose";
   return (
     <PageHeader
@@ -75,7 +83,7 @@ export function ApplicationHeader({
       <Button
         disabled={!app.canWrite}
         variant="outline"
-        onClick={() => openEditor(app)}
+        onClick={handleButtonClick}
       >
         <Settings2 />
         Configure
@@ -88,7 +96,7 @@ export function ApplicationHeader({
         deployError={deployError}
         resetDeploy={resetDeploy}
         onAction={setConfirmAction}
-        onDelete={() => setDeleting(true)}
+        onDelete={handleApplicationDeployActionsDelete}
       />
     </PageHeader>
   );

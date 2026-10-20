@@ -1,4 +1,5 @@
 import type { QueryKey } from "@tanstack/react-query";
+import type { useSearchParams } from "react-router";
 import type * as z from "zod/mini";
 
 import type { Resource } from "@/lib/api/types";
@@ -86,4 +87,38 @@ export type NetworkingSaveValues = {
 export type RemovedDeploymentSnapshot = {
   lists: [QueryKey, Deployment[] | undefined][];
   selected: Deployment | undefined;
+};
+
+export type ApplicationDeploymentsOptions = {
+  app: Resource;
+  rows: Resource[];
+  deployments: { data?: Deployment[] };
+  releases: { data?: { id: string; commit: string; createdAt: string }[] };
+  runtime: { data?: Runtime };
+  params: URLSearchParams;
+  setParams: ReturnType<typeof useSearchParams>[1];
+  setConfirmAction: (action: string) => void;
+  onDeleteDeployment: (deployment: Deployment) => void;
+};
+
+export type ApplicationDeployActionsOptions = {
+  app: Resource;
+  runtime?: { releaseId?: string; status: string };
+  busy: boolean;
+  deploy: (
+    fresh?: boolean,
+    confirmName?: string,
+    onSuccess?: () => void,
+  ) => void;
+  deployError: string;
+  resetDeploy: () => void;
+  onAction: (action: string) => void;
+  onDelete: () => void;
+};
+
+export type ApplicationActionConfirmationOptions = {
+  confirmAction: string;
+  setConfirmAction: (action: string) => void;
+  id: string;
+  setParams: ReturnType<typeof useSearchParams>[1];
 };

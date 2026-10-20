@@ -8,17 +8,11 @@ import {
   Sun,
 } from "lucide-react";
 import { Suspense } from "react";
-import {
-  Link,
-  Outlet,
-  useLocation,
-  useNavigate,
-  useMatches,
-} from "react-router";
+import { Link, Outlet } from "react-router";
 
 import type { Session } from "@/lib/api/types";
 
-import { Loading } from "@/components/shared";
+import { Loading } from "@/components/Shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -45,48 +39,24 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { useResources } from "@/lib/hooks/useResources";
-import { resolvePageLabel } from "@/lib/route-handle";
 
-import { navigation } from "../generics";
-import { useLogout, useShellState } from "../hooks";
+import { useShellPage } from "../hooks";
 import { Sidebar } from "./Sidebar";
 import { WorkspaceSearch } from "./WorkspaceSearch";
-
-export function Shell({ session }: { session: Session }) {
-  const logout = useLogout();
-  const location = useLocation();
-  const navigate = useNavigate();
-  const resources = useResources();
-  const { state, handlers } = useShellState();
+export type ShellProps = { session: Session };
+export function Shell({ session }: ShellProps) {
+  const { state, derived, handlers } = useShellPage(session);
   const { search, mobile, dark } = state;
-  const { setSearch, setMobile, toggleTheme } = handlers;
-  function signOut() {
-    if (logout.isPending) return;
-    logout.mutate(undefined, {
-      onSuccess: () => navigate("/", { replace: true }),
-    });
-  }
-  const section = navigation.find(
-    (n) => n.path !== "/" && location.pathname.startsWith(n.path),
-  );
-  const matches = useMatches();
-  const page = section?.label || resolvePageLabel(matches) || "Overview";
-  const current = resources.data?.find(
-    (r) =>
-      r.id === location.pathname.split("/")[2] &&
-      ["project", "application", "zone"].includes(r.kind),
-  );
-  const environment = resources.data?.find((r) => r.id === current?.parentId);
-  const project = resources.data?.find((r) => r.id === environment?.parentId);
-  const parentLabel =
-    current?.kind === "application" ? project?.name || "Projects" : page;
-  const parentPath =
-    current?.kind === "application"
-      ? project
-        ? `/projects/${project.id}`
-        : "/projects"
-      : section?.path || "/";
+  const { current, parentPath, parentLabel, page, initials } = derived;
+  const {
+    setSearch,
+    setMobile,
+    toggleTheme,
+    signOut,
+    closeMobile,
+    openSearch,
+    openSettings,
+  } = handlers;
   return (
     <div className="min-h-screen">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 border-r bg-sidebar lg:block">
@@ -107,7 +77,7 @@ export function Shell({ session }: { session: Session }) {
             </SheetTrigger>
             <SheetContent side="left" className="w-64 p-0">
               <SheetTitle className="sr-only">Navigation</SheetTitle>
-              <Sidebar close={() => setMobile(false)} />
+              <Sidebar close={closeMobile} />
             </SheetContent>
           </Sheet>
           <Breadcrumb aria-label="Workspace navigation" className="min-w-0">
@@ -145,7 +115,7 @@ export function Shell({ session }: { session: Session }) {
           <Button
             variant="outline"
             className="ml-auto hidden h-8 w-56 justify-start gap-2 bg-card text-xs font-normal text-muted-foreground sm:flex"
-            onClick={() => setSearch(true)}
+            onClick={openSearch}
           >
             <Search className="size-3.5" />
             Search your workspace
@@ -168,12 +138,7 @@ export function Shell({ session }: { session: Session }) {
               <Button variant="ghost" className="h-auto gap-2 p-1.5">
                 <Avatar className="size-7">
                   <AvatarFallback className="bg-primary/10 text-[10px] text-primary">
-                    {session.user.name
-                      .split(" ")
-                      .map((s) => s[0])
-                      .slice(0, 2)
-                      .join("")
-                      .toUpperCase()}
+                    {initials}
                   </AvatarFallback>
                 </Avatar>
                 <span className="hidden text-xs md:block">
@@ -187,7 +152,7 @@ export function Shell({ session }: { session: Session }) {
                 {session.user.email}
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => navigate("/settings")}>
+              <DropdownMenuItem onClick={openSettings}>
                 <Settings2 />
                 Account settings
               </DropdownMenuItem>

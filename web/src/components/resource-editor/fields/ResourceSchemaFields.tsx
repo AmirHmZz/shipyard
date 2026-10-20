@@ -7,6 +7,7 @@ import type { ResourceFieldProps } from "../types";
 import { COMPOSE_HIDDEN_FIELDS } from "../constants";
 import { ResourceField } from "../fields/ResourceField";
 
+export type ResourceSchemaFieldsProps = Omit<ResourceFieldProps, "f">;
 export function ResourceSchemaFields({
   kind,
   resources,
@@ -14,7 +15,7 @@ export function ResourceSchemaFields({
   services,
   repos,
   branches,
-}: Omit<ResourceFieldProps, "f">) {
+}: ResourceSchemaFieldsProps) {
   const {
     state: { data },
   } = useResourceForm();

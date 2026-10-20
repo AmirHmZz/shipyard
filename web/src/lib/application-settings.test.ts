@@ -9,10 +9,11 @@ import {
 
 import { normalizeApplicationSettings } from "./application-settings";
 
-const route = (service: string, port: number) =>
-  ({
+function route(service: string, port: number) {
+  return {
     data: { service, targetPort: port, protocol: "https" },
-  }) as unknown as Resource;
+  } as unknown as Resource;
+}
 describe("application configuration compatibility", () => {
   it("preserves effective legacy checks and removes generic port fields from writes", () => {
     const result = normalizeApplicationSettings(

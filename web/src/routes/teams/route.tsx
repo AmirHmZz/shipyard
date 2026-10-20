@@ -4,5 +4,7 @@ export default function TeamsRoute() {
   return <TeamsMainView />;
 }
 
-export const meta = () => [{ title: "Teams — Shipyard" }];
+export function meta() {
+  return [{ title: "Teams — Shipyard" }];
+}
 export { ContentErrorBoundary as ErrorBoundary } from "@/components/content-error-boundary";

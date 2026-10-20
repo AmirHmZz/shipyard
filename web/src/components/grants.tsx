@@ -1,23 +1,14 @@
-import { useMemo } from "react";
-
 import type { Resource } from "@/lib/api/types";
 
-import { ErrorState } from "@/components/shared";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { useConfigurationChanges } from "@/lib/configuration-state";
-import { useGrants, useSetGrant } from "@/lib/hooks";
-export function Grants({
-  resource,
-  resources,
-}: {
-  resource: Resource;
-  resources: Resource[];
-}) {
-  const changes = useConfigurationChanges();
-  const grant = useSetGrant(resource.id);
-  const q = useGrants(resource);
-  const granted = useMemo(() => new Set(q.data), [q.data]);
+import { ErrorState } from "@/components/Shared";
+import { useResourceGrants } from "@/lib/hooks/useResourceGrants";
+
+import { GrantToggle } from "./GrantToggle";
+export type GrantsProps = { resource: Resource; resources: Resource[] };
+export function Grants({ resource, resources }: GrantsProps) {
+  const { derived, handlers } = useResourceGrants(resource, resources);
+  const { q, teams } = derived;
+  const { grantTeam } = handlers;
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground">
@@ -26,25 +17,14 @@ export function Grants({
       {q.error ? (
         <ErrorState error={q.error} />
       ) : (
-        resources
-          .filter((r) => r.kind === "team")
-          .map((team) => (
-            <div
-              key={team.id}
-              className="flex items-center justify-between rounded-lg border p-3"
-            >
-              <Label>{team.name}</Label>
-              <Switch
-                checked={granted.has(team.id)}
-                onCheckedChange={(granted) =>
-                  grant.mutate(
-                    { teamId: team.id, granted },
-                    { onSuccess: changes.saved },
-                  )
-                }
-              />
-            </div>
-          ))
+        teams.map(({ team, granted }) => (
+          <GrantToggle
+            key={team.id}
+            team={team}
+            granted={granted}
+            grantTeam={grantTeam}
+          />
+        ))
       )}
     </div>
   );

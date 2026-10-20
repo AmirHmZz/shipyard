@@ -1,6 +1,6 @@
+import { InputField } from "@/components/InputField";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -14,38 +14,24 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 
 import type { VariableController } from "./variables";
-export function VariableEditor({
-  controller,
-}: {
+export type VariableEditorProps = {
   controller: VariableController;
-}) {
+};
+export function VariableEditor({ controller }: VariableEditorProps) {
+  const { key, value, scope, editing } = controller.state;
+  const { secretKeys, isSecret, buildScope, busy } = controller.derived;
   const {
-    key,
-    setKey,
-    value,
-    setValue,
-    scope,
     setScope,
-    secretKeys,
-    isSecret,
     setSecret,
-    buildScope,
-    editing,
-    busy,
-    changes,
-    reset,
-    save,
-  } = controller;
+    submitEditor,
+    changeKey,
+    changeValue,
+    cancelEditor,
+  } = controller.handlers;
   return (
     <Card className="py-0 shadow-none">
       <CardContent className="p-5">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            void save(scope + key, value, isSecret);
-          }}
-          className="space-y-4"
-        >
+        <form onSubmit={submitEditor} className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="var-scope">Scope</Label>
@@ -69,19 +55,20 @@ export function VariableEditor({
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="var-key">Variable name</Label>
-              <Input
-                id="var-key"
-                className="font-mono"
-                placeholder="API_KEY"
-                pattern="[A-Za-z_][A-Za-z0-9_]*"
-                value={key}
-                onChange={(e) => setKey(e.target.value)}
-                required
-                disabled={busy || !!editing}
-              />
-            </div>
+            <InputField
+              label={<>Variable name</>}
+              labelProps={{ htmlFor: "var-key" }}
+              inputProps={{
+                id: "var-key",
+                className: "font-mono",
+                placeholder: "API_KEY",
+                pattern: "[A-Za-z_][A-Za-z0-9_]*",
+                value: key,
+                onChange: changeKey,
+                required: true,
+                disabled: busy || !!editing,
+              }}
+            />
           </div>
           <div className="flex items-center gap-3">
             <Switch
@@ -107,7 +94,7 @@ export function VariableEditor({
               id="var-value"
               className="font-mono text-xs"
               value={value}
-              onChange={(e) => setValue(e.target.value)}
+              onChange={changeValue}
               required={isSecret || secretKeys.has(scope + key)}
               disabled={busy}
             />
@@ -122,10 +109,7 @@ export function VariableEditor({
                 type="button"
                 variant="outline"
                 disabled={busy}
-                onClick={() => {
-                  reset();
-                  changes.saved();
-                }}
+                onClick={cancelEditor}
               >
                 Cancel
               </Button>

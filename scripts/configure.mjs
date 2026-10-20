@@ -1,10 +1,10 @@
 import { randomBytes } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 const args = process.argv.slice(2);
-const value = (key, fallback = "") => {
+function value(key, fallback = "") {
   const i = args.indexOf(key);
   return i >= 0 ? args[i + 1] : fallback;
-};
+}
 const origin = value("--origin", "http://localhost:8080");
 const email = value("--acme-email");
 const accept = args.includes("--accept-acme-tos");

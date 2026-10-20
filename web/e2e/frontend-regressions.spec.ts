@@ -3,25 +3,27 @@ import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
 async function fixture(page: Page) {
-  const resource = (
+  function resource(
     id: string,
     kind: string,
     parentId = "",
     data: Record<string, unknown> = {},
-  ) => ({
-    variables: {},
-    id,
-    kind,
-    parentId,
-    data,
-    name: id,
-    teamId: "team",
-    version: 1,
-    canWrite: true,
-    secretKeys: [],
-    createdAt: "2026-10-18T00:00:00Z",
-    updatedAt: "2026-10-18T00:00:00Z",
-  });
+  ) {
+    return {
+      variables: {},
+      id,
+      kind,
+      parentId,
+      data,
+      name: id,
+      teamId: "team",
+      version: 1,
+      canWrite: true,
+      secretKeys: [],
+      createdAt: "2026-10-18T00:00:00Z",
+      updatedAt: "2026-10-18T00:00:00Z",
+    };
+  }
   const resources = [
     resource("team", "team"),
     resource("project", "project", "team"),

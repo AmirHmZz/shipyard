@@ -21,11 +21,18 @@ export function normalizeApplicationSettings(
           }))
         : [];
   }
-  result.previewRouting ??= routes.some((r) => r.data.protocol !== "tcp")
-    ? { mode: "inherit" }
-    : legacyPort(data.port) > 0
-      ? { mode: "target", service: "app", port: legacyPort(data.port) }
-      : { mode: "private" };
+  if (result.previewRouting == null) {
+    result.previewRouting = { mode: "private" };
+    if (routes.some((r) => r.data.protocol !== "tcp")) {
+      result.previewRouting = { mode: "inherit" };
+    } else if (legacyPort(data.port) > 0) {
+      result.previewRouting = {
+        mode: "target",
+        service: "app",
+        port: legacyPort(data.port),
+      };
+    }
+  }
   delete result.port;
   delete result.healthPath;
   return result;

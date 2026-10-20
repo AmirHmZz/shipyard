@@ -1,4 +1,4 @@
-import type { FormEvent } from "react";
+import type { ChangeEvent, FormEvent } from "react";
 
 import { useReducer } from "react";
 
@@ -23,6 +23,29 @@ export function useRepairConnectionForm(server: Resource, onSaved: () => void) {
   );
   const busy = repair.isPending;
   const error = repair.error ? describeError(repair.error) : "";
+  const fields = [
+    { field: "host", label: "SSH host", value: state.host },
+    { field: "port", label: "SSH port", value: state.port },
+    { field: "user", label: "SSH user", value: state.user },
+    {
+      field: "fingerprint",
+      label: "Verified host fingerprint",
+      value: state.fingerprint,
+    },
+  ];
+  function handleFieldChange(event: ChangeEvent<HTMLDivElement>) {
+    if (!(event.target instanceof HTMLInputElement)) return;
+    const { value, dataset } = event.target;
+    const field = dataset.repairField;
+    if (
+      field === "host" ||
+      field === "port" ||
+      field === "user" ||
+      field === "fingerprint"
+    ) {
+      dispatch({ type: "field_changed", field, value });
+    }
+  }
   function setHost(value: string) {
     dispatch({ type: "field_changed", field: "host", value });
   }
@@ -78,7 +101,7 @@ export function useRepairConnectionForm(server: Resource, onSaved: () => void) {
   }
   return {
     state,
-    derived: { busy, error },
+    derived: { busy, error, fields },
     handlers: {
       setHost,
       setPort,
@@ -87,6 +110,7 @@ export function useRepairConnectionForm(server: Resource, onSaved: () => void) {
       setCredential,
       setAuth,
       submitRepair,
+      handleFieldChange,
     },
   };
 }

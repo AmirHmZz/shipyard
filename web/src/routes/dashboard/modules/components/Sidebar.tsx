@@ -7,7 +7,11 @@ import { useResources } from "@/lib/hooks/useResources";
 
 import { navigation } from "../generics";
 
-export function Sidebar({ close }: { close?: () => void }) {
+function navigationLinkClassName({ isActive }: { isActive: boolean }) {
+  return `flex items-center gap-3 rounded-lg px-3 py-2.5 text-[12px] font-medium transition-colors ${isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground"}`;
+}
+export type SidebarProps = { close?: () => void };
+export function Sidebar({ close }: SidebarProps) {
   const projectCount = useResources((resources) =>
     resources.reduce(
       (count, resource) => count + Number(resource.kind === "project"),
@@ -64,9 +68,7 @@ export function Sidebar({ close }: { close?: () => void }) {
               prefetch="intent"
               end={item.path === "/"}
               onClick={close}
-              className={({ isActive }) =>
-                `flex items-center gap-3 rounded-lg px-3 py-2.5 text-[12px] font-medium transition-colors ${isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground"}`
-              }
+              className={navigationLinkClassName}
             >
               <item.icon className="size-4" />
               {item.label}

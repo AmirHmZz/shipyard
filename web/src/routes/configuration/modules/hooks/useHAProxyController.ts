@@ -15,6 +15,7 @@ import {
   initialHAProxyDraftState,
   haproxyDraftReducer,
 } from "../generics";
+import { haProxyOperation, isStaleHAProxyDraft } from "../utils";
 import { useHAProxySettings } from "./useHAProxySettings";
 import { useSaveHAProxySettings } from "./useSaveHAProxySettings";
 
@@ -55,37 +56,23 @@ export function useHAProxyController(server: Resource) {
         : null,
     [bindings, version],
   );
-  const applyId = q.data?.apply?.id;
-  const applyState = q.data?.apply?.state;
-  const applyError = q.data?.apply?.error;
-  const lastJobId = q.data?.lastJobId;
-  const queryVersion = q.data?.version;
-  const queryBindings = q.data?.bindings;
-  const jobDone =
-    !!job && applyId === job && ["done", "failed"].includes(applyState || "");
-  const success = !!(
-    jobDone &&
-    applyState === "done" &&
-    lastJobId === job &&
-    queryVersion !== undefined &&
-    queryBindings
+  const { jobDone, success, error, pending } = haProxyOperation(
+    q.data,
+    job,
+    busy,
+    localError,
   );
   const draft = success ? savedDraft : (editedDraft ?? savedDraft);
-  const error =
-    jobDone && !success
-      ? applyError || "HAProxy settings could not be applied."
-      : localError;
-  const pending =
-    busy ||
-    (!!job && !jobDone) ||
-    (!!q.data?.apply && ["queued", "running"].includes(q.data.apply.state));
-  const stale =
-    !!draft &&
-    !!q.data &&
-    (draft.version !== q.data.version ||
-      Object.keys(draft.bindings).some(
-        (id) => !q.data.frontends.some((frontend) => frontend.id === id),
-      ));
+  const stale = isStaleHAProxyDraft(draft, q.data);
+  const saveDisabled =
+    !draft ||
+    !!q.error ||
+    pending ||
+    stale ||
+    Object.values(draft?.bindings || {}).some(
+      (addresses) =>
+        !addresses.length || addresses.some((address) => !address.value.trim()),
+    );
   function update(id: string, values: DraftRow<{ value: string }>[] | null) {
     const current = success ? savedDraft : (editedDraft ?? draft);
     if (!current) return;
@@ -127,14 +114,8 @@ export function useHAProxyController(server: Resource) {
   }
 
   return {
-    q,
-    draft,
-    reloadSaved,
-    pending,
-    stale,
-    success,
-    error,
-    update,
-    save,
+    state: { draft },
+    derived: { q, pending, stale, success, error, saveDisabled },
+    handlers: { reloadSaved, update, save },
   };
 }

@@ -3,20 +3,22 @@ import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
 async function setup(page: Page, { writable = true, stopped = false } = {}) {
-  const resource = (id: string, kind: string, parentId = "", data = {}) => ({
-    variables: {},
-    createdAt: "2026-10-19T00:00:00Z",
-    updatedAt: "2026-10-19T00:00:00Z",
-    id,
-    kind,
-    parentId,
-    name: id === "app" ? "Example app" : id,
-    teamId: "team",
-    data,
-    version: 7,
-    secretKeys: [],
-    canWrite: writable,
-  });
+  function resource(id: string, kind: string, parentId = "", data = {}) {
+    return {
+      variables: {},
+      createdAt: "2026-10-19T00:00:00Z",
+      updatedAt: "2026-10-19T00:00:00Z",
+      id,
+      kind,
+      parentId,
+      name: id === "app" ? "Example app" : id,
+      teamId: "team",
+      data,
+      version: 7,
+      secretKeys: [],
+      canWrite: writable,
+    };
+  }
   let resources = [
     resource("team", "team"),
     resource("project", "project", "team"),
@@ -28,20 +30,22 @@ async function setup(page: Page, { writable = true, stopped = false } = {}) {
       serverId: "host",
     }),
   ];
-  const deployment = (id: string, state = "healthy") => ({
-    id,
-    applicationId: "app",
-    state,
-    phase: "complete",
-    commit: "compose:abc",
-    error: "",
-    releaseId: state === "healthy" ? id : "",
-    rollbackId: "",
-    createdAt: "2026-10-18T00:00:00Z",
-    updatedAt: "2026-10-18T00:00:00Z",
-    deleting: false,
-    deletionError: "",
-  });
+  function deployment(id: string, state = "healthy") {
+    return {
+      id,
+      applicationId: "app",
+      state,
+      phase: "complete",
+      commit: "compose:abc",
+      error: "",
+      releaseId: state === "healthy" ? id : "",
+      rollbackId: "",
+      createdAt: "2026-10-18T00:00:00Z",
+      updatedAt: "2026-10-18T00:00:00Z",
+      deleting: false,
+      deletionError: "",
+    };
+  }
   let deployments = [
     deployment("active"),
     deployment("old"),
@@ -50,7 +54,10 @@ async function setup(page: Page, { writable = true, stopped = false } = {}) {
   const requests: { path: string; body: Record<string, unknown> }[] = [];
   let fail = false;
   let deletionGate: Promise<void> | undefined;
-  let releaseDeletion = () => {};
+  let releaseDeletionCallback: (() => void) | undefined;
+  function releaseDeletion() {
+    releaseDeletionCallback?.();
+  }
   let runtimeStatus = stopped ? "stopped" : "running";
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -147,7 +154,7 @@ async function setup(page: Page, { writable = true, stopped = false } = {}) {
     requests,
     holdDeletion() {
       deletionGate = new Promise<void>((resolve) => {
-        releaseDeletion = resolve;
+        releaseDeletionCallback = resolve;
       });
     },
     releaseDeletion() {

@@ -1,9 +1,12 @@
+import type * as React from "react";
+
 import { Plus } from "lucide-react";
 
 import type { Resource } from "@/lib/api/types";
 
+import { InputField } from "@/components/InputField";
 import { SelectControl } from "@/components/SelectControl";
-import { CopyButton } from "@/components/shared";
+import { CopyButton } from "@/components/Shared";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -12,7 +15,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 
@@ -25,6 +27,10 @@ export function TeamInvitationForm({
   controller,
   team,
 }: TeamInvitationFormProps) {
+  function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    return setEmail(e.target.value);
+  }
+
   const { email, role, project } = controller.state;
   const { invitationMutation, invitation, scopeOptions, roles } =
     controller.derived;
@@ -39,15 +45,16 @@ export function TeamInvitationForm({
       </CardHeader>
       <CardContent>
         <form className="space-y-4" onSubmit={submitInvitation}>
-          <div className="space-y-2">
-            <Label>Email</Label>
-            <Input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
+          <InputField
+            label={<>Email</>}
+            labelProps={{}}
+            inputProps={{
+              type: "email",
+              value: email,
+              onChange: handleInputChange,
+              required: true,
+            }}
+          />
           <div className="space-y-2">
             <Label>Access scope</Label>
             <SelectControl

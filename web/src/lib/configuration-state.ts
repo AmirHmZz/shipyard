@@ -13,7 +13,7 @@ export const ConfigurationContext = createContext<ConfigurationState | null>(
   null,
 );
 export const ScopeContext = createContext("form");
-const noop = () => {};
+function noop() {}
 
 export function useConfigurationChanges(scope?: string) {
   const context = use(ConfigurationContext);

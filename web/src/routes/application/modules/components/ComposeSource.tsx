@@ -1,9 +1,7 @@
 import { Play, Save } from "lucide-react";
-import { lazy, Suspense, useState } from "react";
 
 import type { Resource } from "@/lib/api/types";
 
-import { ErrorState, Loading } from "@/components/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,98 +12,20 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import { toastValidationError } from "@/lib/api/toaster";
-import { describeError } from "@/lib/api/translate-error";
-import { useConfigurationChanges } from "@/lib/configuration-state";
-import { loadComposeEditor } from "@/lib/feature-loaders";
 
-import type { Source } from "../generics";
+import { useComposeSourceForm } from "../hooks";
+import { SourceEditor } from "./SourceEditor";
 
-import { composeSourceSchema } from "../generics";
-import {
-  useComposeSource,
-  useSaveComposeSource,
-  useDeployComposeSource,
-} from "../hooks";
-
-const Editor = lazy(loadComposeEditor);
-
-function SourceEditor({
-  pending,
-  error,
-  draft,
-  disabled,
-  onChange,
-}: {
-  pending: boolean;
-  error: unknown;
-  draft: Source | null;
-  disabled: boolean;
-  onChange: (yaml: string) => void;
-}) {
-  if (pending) return <Loading />;
-  if (error) return <ErrorState error={error} />;
-  if (!draft) return null;
-  return (
-    <Suspense fallback={<Loading />}>
-      <Editor value={draft.yaml} disabled={disabled} onChange={onChange} />
-    </Suspense>
-  );
-}
-
-export function ComposeSource({
-  app,
-  onDeploy,
-}: {
+export type ComposeSourceProps = {
   app: Resource;
   onDeploy: (id: string) => void;
-}) {
-  const changes = useConfigurationChanges();
-  const q = useComposeSource(app);
-  const saveSource = useSaveComposeSource(app.id);
-  const deploySource = useDeployComposeSource(app.id);
-  const [editedDraft, setDraft] = useState<Source | null>(null);
-  const draft = editedDraft ?? saveSource.data ?? q.data ?? null;
-  const busy = saveSource.isPending || deploySource.isPending;
-  const failure = saveSource.error ?? deploySource.error ?? q.error;
-  const error = failure ? describeError(failure) : "";
-  const saved = saveSource.isSuccess && editedDraft === null;
-  async function reload() {
-    const result = await q.refetch();
-    if (!result.error && result.data) {
-      changes.saved();
-      setDraft(null);
-      saveSource.reset();
-      deploySource.reset();
-    }
-  }
-  function save(deploy: boolean) {
-    if (!draft || busy) return;
-    const parsed = composeSourceSchema.safeParse(draft);
-    if (!parsed.success) {
-      toastValidationError(parsed.error);
-      return;
-    }
-    saveSource.reset();
-    deploySource.reset();
-    saveSource.mutate(parsed.data, {
-      onSuccess: (result) => {
-        changes.saved();
-        setDraft(null);
-        if (deploy) {
-          deploySource.mutate(
-            { version: result.version },
-            {
-              onSuccess: (deployment) => {
-                changes.saved();
-                onDeploy(deployment.id);
-              },
-            },
-          );
-        }
-      },
-    });
-  }
+};
+
+export function ComposeSource({ app, onDeploy }: ComposeSourceProps) {
+  const { state, derived, handlers } = useComposeSourceForm(app, onDeploy);
+  const { draft } = state;
+  const { q, busy, error, saved } = derived;
+  const { changeYaml, reloadSource, saveOnly, saveAndDeploy } = handlers;
   if (!app.canWrite) return null;
   return (
     <Card className="min-w-0 shadow-none">
@@ -123,14 +43,7 @@ export function ComposeSource({
           error={q.error}
           draft={draft}
           disabled={busy}
-          onChange={(yaml) => {
-            if (yaml === draft?.yaml) return;
-            changes.change();
-            setDraft((current) => {
-              const source = current ?? draft;
-              return source ? { ...source, yaml } : source;
-            });
-          }}
+          onChange={changeYaml}
         />
         <p className="text-xs text-muted-foreground">
           Use images or inline Dockerfiles. Referenced host files must have
@@ -158,24 +71,20 @@ export function ComposeSource({
           </p>
         )}
         <div className="flex flex-wrap justify-between gap-2">
-          <Button
-            variant="outline"
-            disabled={busy}
-            onClick={() => void reload()}
-          >
+          <Button variant="outline" disabled={busy} onClick={reloadSource}>
             Reload saved document
           </Button>
           <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
               disabled={busy || !draft?.yaml.trim()}
-              onClick={() => void save(false)}
+              onClick={saveOnly}
             >
               {busy ? <Spinner className="size-4 " /> : <Save />}Save
             </Button>
             <Button
               disabled={busy || !draft?.yaml.trim()}
-              onClick={() => void save(true)}
+              onClick={saveAndDeploy}
             >
               <Play />
               Save &amp; deploy

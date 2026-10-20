@@ -51,3 +51,9 @@ export {
   applicationDialogReducer,
 } from "./dialog-state";
 export { initialTerminalState, terminalReducer } from "./terminal-state";
+
+export type { ApplicationDeploymentsOptions } from "./types";
+
+export type { ApplicationDeployActionsOptions } from "./types";
+
+export type { ApplicationActionConfirmationOptions } from "./types";

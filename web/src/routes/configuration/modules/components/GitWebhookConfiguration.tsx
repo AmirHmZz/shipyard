@@ -1,9 +1,17 @@
-import { CopyButton } from "@/components/shared";
+import { CopyButton } from "@/components/Shared";
 import { Button } from "@/components/ui/button";
 
 import type { Status } from "../generics";
 import type { useCreateGitWebhook } from "../hooks";
 
+export type GitWebhookConfigurationProps = {
+  provider: string;
+  status: { data: Status };
+  busy: boolean;
+  createWebhook: ReturnType<typeof useCreateGitWebhook>;
+  resetErrors: () => void;
+  secret: string;
+};
 export function GitWebhookConfiguration({
   provider,
   status,
@@ -11,14 +19,7 @@ export function GitWebhookConfiguration({
   createWebhook,
   resetErrors,
   secret,
-}: {
-  provider: string;
-  status: { data: Status };
-  busy: boolean;
-  createWebhook: ReturnType<typeof useCreateGitWebhook>;
-  resetErrors: () => void;
-  secret: string;
-}) {
+}: GitWebhookConfigurationProps) {
   function generateSecret() {
     if (busy) return;
     resetErrors();

@@ -19,8 +19,9 @@ async function fillCompose(editor: Locator, yaml: string) {
     );
   }, yaml);
 }
-const composeLines = (page: Page) =>
-  page.getByTestId("compose-code-editor").locator(".view-lines");
+function composeLines(page: Page) {
+  return page.getByTestId("compose-code-editor").locator(".view-lines");
+}
 
 const initialYAML = "services:\n  web:\n    image: nginx:alpine\n";
 async function setup(page: Page, existing = false, canWrite = true) {
@@ -28,20 +29,22 @@ async function setup(page: Page, existing = false, canWrite = true) {
   let document = { yaml: initialYAML, version: 1 };
   let conflict = false;
   let reads = 0;
-  const resource = (id: string, kind: string, parentId = "", data = {}) => ({
-    variables: {},
-    createdAt: "2026-10-19T00:00:00Z",
-    updatedAt: "2026-10-19T00:00:00Z",
-    id,
-    kind,
-    parentId,
-    name: id,
-    data,
-    version: 1,
-    secretKeys: [],
-    canWrite,
-    teamId: "team",
-  });
+  function resource(id: string, kind: string, parentId = "", data = {}) {
+    return {
+      variables: {},
+      createdAt: "2026-10-19T00:00:00Z",
+      updatedAt: "2026-10-19T00:00:00Z",
+      id,
+      kind,
+      parentId,
+      name: id,
+      data,
+      version: 1,
+      secretKeys: [],
+      canWrite,
+      teamId: "team",
+    };
+  }
   const app = resource("app", "application", "environment", {
     source: "compose",
     engine: "compose",

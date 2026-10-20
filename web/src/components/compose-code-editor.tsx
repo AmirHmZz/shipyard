@@ -1,4 +1,5 @@
-import type { OnMount } from "@monaco-editor/react";
+import type { Monaco } from "@monaco-editor/react";
+import type { editor as MonacoEditor } from "monaco-editor";
 
 import "@/lib/monaco";
 
@@ -15,15 +16,26 @@ import {
 
 let tabNavigationInitialized = false;
 
-export default function ComposeCodeEditor({
-  value,
-  onChange,
-  disabled = false,
-}: {
+export type ComposeCodeEditorProps = {
   value: string;
   onChange: (value: string) => void;
   disabled?: boolean;
-}) {
+};
+export function ComposeCodeEditor({
+  value,
+  onChange,
+  disabled = false,
+}: ComposeCodeEditorProps) {
+  function handleButtonClick() {
+    return void format();
+  }
+  function handleButtonClick2() {
+    return dispatch({ type: "wrap_toggled" });
+  }
+  function handleEditorChange(value: string | undefined) {
+    return onChange(value ?? "");
+  }
+
   const id = useId();
   const [{ instance, wrap, dark }, dispatch] = useReducer(
     composeEditorReducer,
@@ -43,7 +55,7 @@ export default function ComposeCodeEditor({
     });
     return () => observer.disconnect();
   }, []);
-  const mounted: OnMount = (editor, monaco) => {
+  function mounted(editor: MonacoEditor.IStandaloneCodeEditor, monaco: Monaco) {
     editor.getModel()?.setEOL(monaco.editor.EndOfLineSequence.LF);
     // Enable the global default once. Remounts after saving must preserve it,
     // including any later preference change made by the user with Ctrl+M.
@@ -53,7 +65,7 @@ export default function ComposeCodeEditor({
     }
     editor.getDomNode()?.setAttribute("data-private", "true");
     dispatch({ type: "mounted", instance: editor });
-  };
+  }
   async function format() {
     try {
       await instance?.getAction("editor.action.formatDocument")?.run();
@@ -81,7 +93,7 @@ export default function ComposeCodeEditor({
             variant="ghost"
             size="xs"
             disabled={disabled || !instance}
-            onClick={() => void format()}
+            onClick={handleButtonClick}
           >
             <WandSparkles />
             Format
@@ -94,7 +106,7 @@ export default function ComposeCodeEditor({
             aria-pressed={wrap}
             title="Word wrap"
             disabled={!instance}
-            onClick={() => dispatch({ type: "wrap_toggled" })}
+            onClick={handleButtonClick2}
           >
             <WrapText />
           </Button>
@@ -105,7 +117,7 @@ export default function ComposeCodeEditor({
         language="yaml"
         path={`file:///shipyard/${encodeURIComponent(id)}/compose.yaml`}
         value={value}
-        onChange={(value) => onChange(value ?? "")}
+        onChange={handleEditorChange}
         onMount={mounted}
         theme={dark ? "shipyard-dark" : "shipyard-light"}
         saveViewState={false}

@@ -1,5 +1,8 @@
+import type * as React from "react";
+
 import type { Resource } from "@/lib/api/types";
 
+import { InputField } from "@/components/InputField";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,35 +20,22 @@ import { Textarea } from "@/components/ui/textarea";
 
 import { useRepairConnectionForm } from "../hooks";
 
-export function RepairConnection({
-  server,
-  onSaved,
-}: {
+export type RepairConnectionProps = {
   server: Resource;
   onSaved: () => void;
-}) {
+};
+export function RepairConnection({ server, onSaved }: RepairConnectionProps) {
+  function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    return setCredential(e.target.value);
+  }
+  function handleTextareaChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    return setCredential(e.target.value);
+  }
+
   const { state, derived, handlers } = useRepairConnectionForm(server, onSaved);
-  const { host, port, user, fingerprint, auth, credential } = state;
-  const { busy, error } = derived;
-  const {
-    setHost,
-    setPort,
-    setUser,
-    setFingerprint,
-    setCredential,
-    setAuth,
-    submitRepair,
-  } = handlers;
-  const fields = [
-    { label: "SSH host", value: host, setValue: setHost },
-    { label: "SSH port", value: port, setValue: setPort },
-    { label: "SSH user", value: user, setValue: setUser },
-    {
-      label: "Verified host fingerprint",
-      value: fingerprint,
-      setValue: setFingerprint,
-    },
-  ];
+  const { auth, credential } = state;
+  const { busy, error, fields } = derived;
+  const { setCredential, setAuth, submitRepair, handleFieldChange } = handlers;
   return (
     <Card className="shadow-none">
       <CardHeader>
@@ -59,17 +49,22 @@ export function RepairConnection({
             The repaired connection must reach the same Docker daemon. Leave the
             credential blank to keep its saved value.
           </p>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {fields.map(({ label, value, setValue }) => (
-              <div key={String(label)} className="space-y-2">
-                <Label htmlFor={String(label)}>{String(label)}</Label>
-                <Input
-                  id={String(label)}
-                  value={String(value)}
-                  onChange={(e) => setValue(e.target.value)}
-                  required
-                />
-              </div>
+          <div
+            className="grid gap-4 sm:grid-cols-2"
+            onChange={handleFieldChange}
+          >
+            {fields.map(({ label, value, field }) => (
+              <InputField
+                key={String(label)}
+                label={<>{String(label)}</>}
+                labelProps={{ htmlFor: String(label) }}
+                inputProps={{
+                  id: String(label),
+                  value: String(value),
+                  "data-repair-field": field,
+                  required: true,
+                }}
+              />
             ))}
           </div>
           <div className="space-y-2">
@@ -96,14 +91,14 @@ export function RepairConnection({
                 type="password"
                 autoComplete="new-password"
                 value={credential}
-                onChange={(e) => setCredential(e.target.value)}
+                onChange={handleInputChange}
               />
             ) : (
               <Textarea
                 id="repair-credential"
                 className="font-mono"
                 value={credential}
-                onChange={(e) => setCredential(e.target.value)}
+                onChange={handleTextareaChange}
               />
             )}
           </div>

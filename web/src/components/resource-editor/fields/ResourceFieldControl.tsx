@@ -1,3 +1,8 @@
+import type {
+  HTTPReadinessCheck,
+  PreviewRouting,
+} from "@/lib/application-settings";
+
 import { PreviewRoutingFields } from "@/components/preview-routing-fields";
 import { ReadinessFields } from "@/components/readiness-fields";
 import { useResourceForm } from "@/components/resource-forms/controller";
@@ -12,11 +17,19 @@ import { BranchField } from "../fields/BranchField";
 import { RepositoryField } from "../fields/RepositoryField";
 import { StandardResourceFieldControl } from "../fields/StandardResourceFieldControl";
 
-export function ResourceFieldControl(props: ResourceFieldProps) {
+export type ResourceFieldControlProps = ResourceFieldProps;
+export function ResourceFieldControl(props: ResourceFieldControlProps) {
+  function handleReadinessFieldsChange(v: HTTPReadinessCheck[]) {
+    return update(f.key, v);
+  }
+  function handlePreviewRoutingFieldsChange(v: PreviewRouting) {
+    return update(f.key, v);
+  }
+
   const { kind, f } = props;
   const {
     state: { data },
-    actions: { update },
+    handlers: { update },
   } = useResourceForm();
   if (kind === "application" && f.key === "readinessChecks") {
     const parsed = readinessChecksDraftSchema.safeParse(
@@ -25,7 +38,7 @@ export function ResourceFieldControl(props: ResourceFieldProps) {
     return (
       <ReadinessFields
         value={parsed.success ? parsed.data : []}
-        onChange={(v) => update(f.key, v)}
+        onChange={handleReadinessFieldsChange}
         dockerfile={data.engine === "dockerfile"}
       />
     );
@@ -37,7 +50,7 @@ export function ResourceFieldControl(props: ResourceFieldProps) {
     return (
       <PreviewRoutingFields
         value={parsed.success ? parsed.data : { mode: "inherit" }}
-        onChange={(v) => update(f.key, v)}
+        onChange={handlePreviewRoutingFieldsChange}
         hasRoutes={props.resources.some(
           (r) =>
             r.kind === "route" &&

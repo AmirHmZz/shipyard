@@ -1,14 +1,18 @@
 import { writeFile, mkdir } from "node:fs/promises";
-const ref = (name) => ({ $ref: `#/components/schemas/${name}` });
+function ref(name) {
+  return { $ref: `#/components/schemas/${name}` };
+}
 const str = { type: "string" },
   bool = { type: "boolean" },
   num = { type: "number" },
   obj = { type: "object", additionalProperties: true };
-const object = (properties, required = Object.keys(properties)) => ({
-  type: "object",
-  properties,
-  required,
-});
+function object(properties, required = Object.keys(properties)) {
+  return {
+    type: "object",
+    properties,
+    required,
+  };
+}
 const schemas = {
   HTTPReadinessCheck: object({
     service: str,
@@ -493,7 +497,7 @@ schemas.HAProxySettings = object({
     type: ["object", "null"],
   },
 });
-const add = (path, method, summary, response = obj, body) => {
+function add(path, method, summary, response = obj, body) {
   const parameters = [...path.matchAll(/\{(\w+)\}/g)].map((m) => ({
     in: "path",
     name: m[1],
@@ -526,7 +530,7 @@ const add = (path, method, summary, response = obj, body) => {
         }
       : {}),
   };
-};
+}
 add("/version", "get", "Product build identity", ref("BuildInfo"));
 add(
   "/settings/updates",
@@ -663,7 +667,9 @@ add(
   ref("Resource"),
   ref("PublishedPorts"),
 );
-const array = (s) => ({ type: "array", items: s });
+function array(s) {
+  return { type: "array", items: s };
+}
 add("/auth/status", "get", "Installation status");
 add(
   "/applications/{id}/compose",

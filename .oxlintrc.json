@@ -12,6 +12,9 @@
     "web/node_modules/**"
   ],
   "rules": {
+    "import/no-default-export": "error",
+    "func-style": ["error", "declaration", { "allowArrowFunctions": false }],
+    "react/no-multi-comp": "error",
     "typescript/consistent-type-imports": [
       "error",
       {
@@ -55,6 +58,24 @@
     ]
   },
   "overrides": [
+    {
+      "files": [
+        "web/src/routes/**/route.tsx",
+        "web/src/routes/dashboard/layout.tsx",
+        "web/src/routes.ts",
+        "web/src/root.tsx",
+        "web/vite.config.ts",
+        "web/vitest.config.ts",
+        "web/playwright.config.ts",
+        "web/react-router.config.ts",
+        "commitlint.config.js"
+      ],
+      "rules": { "import/no-default-export": "off" }
+    },
+    {
+      "files": ["web/src/components/ui/**"],
+      "rules": { "react/no-multi-comp": "off" }
+    },
     {
       "files": ["**/hooks/**"],
       "rules": {

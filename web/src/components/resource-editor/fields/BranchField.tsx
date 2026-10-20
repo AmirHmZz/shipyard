@@ -1,18 +1,26 @@
 import { useResourceForm } from "@/components/resource-forms/controller";
-import { Loading } from "@/components/shared";
+import { SelectControl } from "@/components/SelectControl";
+import { Loading } from "@/components/Shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { describeError } from "@/lib/api/translate-error";
 
 import type { ResourceFieldProps } from "../types";
 
-import { choose } from "../utils";
+export type BranchFieldProps = ResourceFieldProps;
+export function BranchField({ branches, existing }: BranchFieldProps) {
+  function handleSelectControlValueChange(value: string) {
+    return update("branch", value);
+  }
 
-export function BranchField({ branches, existing }: ResourceFieldProps) {
+  function handleButtonClick() {
+    return void branches.refetch();
+  }
+
   const {
     state: { data },
-    actions: { update },
-    meta: { formId },
+    handlers: { update },
+    derived: { formId },
   } = useResourceForm();
   const branch = String(data.branch || "");
   const options = (branches.data || []).map((value) => ({
@@ -31,24 +39,24 @@ export function BranchField({ branches, existing }: ResourceFieldProps) {
       {branches.isFetching ? (
         <Loading label="Loading branches…" id={`${formId}-branch`} />
       ) : (
-        choose(
-          branch,
-          (value) => update("branch", value),
-          options,
-          "Select branch",
-          !data.gitId || !data.repository || options.length === 0,
-          `${formId}-branch`,
-        )
+        <SelectControl
+          value={branch || undefined}
+          onValueChange={handleSelectControlValueChange}
+          options={options}
+          placeholder={"Select branch"}
+          disabled={!data.gitId || !data.repository || options.length === 0}
+          triggerProps={{
+            id: `${formId}-branch`,
+            className: "w-full",
+            "aria-label": "Select branch",
+          }}
+        />
       )}
       {branches.isError && (
         <Alert variant="destructive">
           <AlertDescription>
             {describeError(branches.error)}
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => void branches.refetch()}
-            >
+            <Button type="button" variant="outline" onClick={handleButtonClick}>
               Retry branches
             </Button>
           </AlertDescription>
