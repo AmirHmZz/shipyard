@@ -1,4 +1,4 @@
-import type { useQueryClient } from "@tanstack/react-query";
+import type { FormEvent } from "react";
 
 import { Trash2 } from "lucide-react";
 import { Link } from "react-router";
@@ -10,14 +10,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
-import { APIError, errorMessage } from "@/lib/api";
-import { resourceKeys } from "@/lib/query-keys";
+import { toastValidationError } from "@/lib/api/toaster";
+import { describeError } from "@/lib/api/translate-error";
 
 import type { Plan } from "../generics";
 
 import { serverDeletionSchema } from "../generics";
-import { serverDeletionKeys } from "../generics";
-import { confirmServerDeletion } from "../services";
+import { useConfirmServerDeletion } from "../hooks";
 import { Inventory } from "./Inventory";
 
 export function ServerDeletionPlanReview({
@@ -27,12 +26,9 @@ export function ServerDeletionPlanReview({
   setName,
   ack,
   setAck,
-  busy,
-  setBusy,
+  busy: reviewing,
   setError,
   id,
-  client,
-  review: _review,
 }: {
   plan: Plan | null;
   setPlan: (value: Plan | null) => void;
@@ -41,12 +37,35 @@ export function ServerDeletionPlanReview({
   ack: boolean;
   setAck: (value: boolean) => void;
   busy: boolean;
-  setBusy: (value: boolean) => void;
   setError: (value: string) => void;
   id: string;
-  client: ReturnType<typeof useQueryClient>;
-  review: () => Promise<void>;
 }) {
+  const confirmation = useConfirmServerDeletion(id);
+  const busy = reviewing || confirmation.isPending;
+  function submitConfirmation(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!plan || confirmation.isPending) return;
+    setError("");
+    const parsed = serverDeletionSchema(plan.serverName).safeParse({
+      planId: plan.id,
+      name,
+      deleteVolumes: ack,
+    });
+    if (!parsed.success) {
+      toastValidationError(parsed.error);
+      return;
+    }
+    confirmation.mutate(parsed.data, {
+      onError: (error) => {
+        setError(describeError(error));
+        if (error.error.kind === "http" && error.error.status === 409) {
+          setPlan(null);
+          setName("");
+          setAck(false);
+        }
+      },
+    });
+  }
   return (
     <>
       {plan && (
@@ -74,37 +93,7 @@ export function ServerDeletionPlanReview({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <form
-                className="space-y-5"
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  setBusy(true);
-                  setError("");
-                  try {
-                    const confirmation = serverDeletionSchema(
-                      plan.serverName,
-                    ).parse({ planId: plan.id, name, deleteVolumes: ack });
-                    await confirmServerDeletion(id, confirmation);
-                    await Promise.all([
-                      client.invalidateQueries({
-                        queryKey: resourceKeys.all,
-                      }),
-                      client.invalidateQueries({
-                        queryKey: serverDeletionKeys.status(id),
-                      }),
-                    ]);
-                  } catch (e) {
-                    setError(errorMessage(e));
-                    if (e instanceof APIError && e.status === 409) {
-                      setPlan(null);
-                      setName("");
-                      setAck(false);
-                    }
-                  } finally {
-                    setBusy(false);
-                  }
-                }}
-              >
+              <form className="space-y-5" onSubmit={submitConfirmation}>
                 <div className="space-y-2">
                   <Label htmlFor="delete-server-name">
                     Type {plan.serverName} to confirm

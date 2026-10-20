@@ -1,4 +1,3 @@
-import type { useQueryClient } from "@tanstack/react-query";
 import type { Dispatch, SetStateAction } from "react";
 
 import { RefreshCw } from "lucide-react";
@@ -10,37 +9,38 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import { errorMessage } from "@/lib/api";
-import { resourceKeys } from "@/lib/query-keys";
+import { describeError } from "@/lib/api/translate-error";
 
 import type { Status } from "../generics";
 
-import { retryServerDeletion } from "../services";
+import { useRetryServerDeletion } from "../hooks";
 import { RepairConnection } from "./RepairConnection";
 
 export function ServerDeletionProgress({
   operation,
-  busy,
-  setBusy,
+  busy: reviewing,
   setError,
   id,
-  status,
   server,
   repair,
   setRepair,
-  client,
 }: {
   operation: Status;
   busy: boolean;
-  setBusy: (value: boolean) => void;
   setError: (value: string) => void;
   id: string;
-  status: { refetch: () => Promise<unknown> };
   server?: Resource;
   repair: boolean;
   setRepair: Dispatch<SetStateAction<boolean>>;
-  client: ReturnType<typeof useQueryClient>;
 }) {
+  const retry = useRetryServerDeletion(id);
+  const busy = reviewing || retry.isPending;
+  function retryCleanup() {
+    setError("");
+    retry.mutate(undefined, {
+      onError: (error) => setError(describeError(error)),
+    });
+  }
   return (
     <>
       <Card className="shadow-none">
@@ -64,21 +64,7 @@ export function ServerDeletionProgress({
                 <AlertDescription>{operation.error}</AlertDescription>
               </Alert>
               <div className="flex flex-wrap gap-3">
-                <Button
-                  disabled={busy}
-                  onClick={async () => {
-                    setBusy(true);
-                    setError("");
-                    try {
-                      await retryServerDeletion(id);
-                      await status.refetch();
-                    } catch (e) {
-                      setError(errorMessage(e));
-                    } finally {
-                      setBusy(false);
-                    }
-                  }}
-                >
+                <Button disabled={busy} onClick={retryCleanup}>
                   {busy ? <Spinner className="size-4" /> : <RefreshCw />}
                   Retry cleanup
                 </Button>
@@ -96,15 +82,7 @@ export function ServerDeletionProgress({
         </CardContent>
       </Card>
       {repair && server && (
-        <RepairConnection
-          server={server}
-          onSaved={() => {
-            setRepair(false);
-            void client.invalidateQueries({
-              queryKey: resourceKeys.all,
-            });
-          }}
-        />
+        <RepairConnection server={server} onSaved={() => setRepair(false)} />
       )}
     </>
   );

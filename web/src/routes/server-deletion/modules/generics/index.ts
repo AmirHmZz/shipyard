@@ -7,4 +7,9 @@ export {
   deletionItemResponseSchema,
   serverDeletionPlanResponseSchema,
   serverDeletionStatusResponseSchema,
+  serverDeletionQueuedResponseSchema,
 } from "./schema";
+export type {
+  ServerDeletionConfirmation,
+  ConnectionRepairPayload,
+} from "./types";

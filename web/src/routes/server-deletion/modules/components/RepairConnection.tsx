@@ -1,3 +1,5 @@
+import type { FormEvent } from "react";
+
 import { useState } from "react";
 
 import type { Resource } from "@/lib/api";
@@ -16,7 +18,9 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
-import { errorMessage, text } from "@/lib/api";
+import { text } from "@/lib/api";
+import { toastValidationError } from "@/lib/api/toaster";
+import { describeError } from "@/lib/api/translate-error";
 
 import { serverConnectionSchema } from "../generics";
 import { useRepairServerConnection } from "../hooks";
@@ -39,8 +43,47 @@ export function RepairConnection({
     text(server.data, "authMethod", "private_key"),
   );
   const [credential, setCredential] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const busy = repair.isPending;
+  const error = repair.error ? describeError(repair.error) : "";
+  function submitRepair(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (repair.isPending) return;
+    const parsed = serverConnectionSchema.safeParse({
+      host,
+      port,
+      user,
+      fingerprint,
+      authMethod: auth,
+      credential,
+    });
+    if (!parsed.success) {
+      toastValidationError(parsed.error);
+      return;
+    }
+    const connection = parsed.data;
+    repair.mutate(
+      {
+        host: connection.host,
+        port: connection.port,
+        user: connection.user,
+        fingerprint: connection.fingerprint,
+        authMethod: connection.authMethod,
+        secrets: connection.credential
+          ? {
+              [connection.authMethod === "password"
+                ? "password"
+                : "private_key"]: connection.credential,
+            }
+          : {},
+      },
+      {
+        onSuccess: () => {
+          setCredential("");
+          onSaved();
+        },
+      },
+    );
+  }
   return (
     <Card className="shadow-none">
       <CardHeader>
@@ -49,44 +92,7 @@ export function RepairConnection({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <form
-          className="space-y-4"
-          onSubmit={async (e) => {
-            e.preventDefault();
-            setBusy(true);
-            setError("");
-            try {
-              const connection = serverConnectionSchema.parse({
-                host,
-                port,
-                user,
-                fingerprint,
-                authMethod: auth,
-                credential,
-              });
-              await repair.mutateAsync({
-                host: connection.host,
-                port: connection.port,
-                user: connection.user,
-                fingerprint: connection.fingerprint,
-                authMethod: connection.authMethod,
-                secrets: connection.credential
-                  ? {
-                      [connection.authMethod === "password"
-                        ? "password"
-                        : "private_key"]: connection.credential,
-                    }
-                  : {},
-              });
-              setCredential("");
-              onSaved();
-            } catch (e) {
-              setError(errorMessage(e));
-            } finally {
-              setBusy(false);
-            }
-          }}
-        >
+        <form className="space-y-4" onSubmit={submitRepair}>
           <p className="text-sm text-muted-foreground">
             The repaired connection must reach the same Docker daemon. Leave the
             credential blank to keep its saved value.

@@ -1,4 +1,3 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { useParams } from "react-router";
@@ -7,7 +6,9 @@ import { ErrorState, Loading } from "@/components/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { errorMessage, useAccount, useResources } from "@/lib/api";
+import { useResources } from "@/lib/api";
+import { describeError } from "@/lib/api/translate-error";
+import { useAccount } from "@/lib/session";
 
 import type { Plan } from "../generics";
 
@@ -21,7 +22,6 @@ export function ServerDeletionMainView() {
   const reviewMutation = useReviewServerDeletion();
   const account = useAccount();
   const resources = useResources();
-  const client = useQueryClient();
   const server = resources.data?.find(
     (r) => r.id === id && r.kind === "server",
   );
@@ -29,26 +29,22 @@ export function ServerDeletionMainView() {
   const [plan, setPlan] = useState<Plan | null>(null);
   const [name, setName] = useState("");
   const [ack, setAck] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const busy = reviewMutation.isPending;
   const [error, setError] = useState("");
   const [repair, setRepair] = useState(false);
   const status = useServerDeletionStatus(
     id,
     !!account?.admin && (deleting || (!resources.isPending && !server)),
   );
-  async function review() {
-    setBusy(true);
+  function review() {
     setError("");
     setPlan(null);
     setName("");
     setAck(false);
-    try {
-      setPlan(await reviewMutation.mutateAsync(id));
-    } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setBusy(false);
-    }
+    reviewMutation.mutate(id, {
+      onSuccess: setPlan,
+      onError: (error) => setError(describeError(error)),
+    });
   }
   if (!account?.admin)
     return (
@@ -73,14 +69,11 @@ export function ServerDeletionMainView() {
               <ServerDeletionProgress
                 operation={operation}
                 busy={busy}
-                setBusy={setBusy}
                 setError={setError}
                 id={id}
-                status={status}
                 server={server}
                 repair={repair}
                 setRepair={setRepair}
-                client={client}
               />
             ) : deleting ? (
               <>
@@ -118,11 +111,8 @@ export function ServerDeletionMainView() {
                   ack={ack}
                   setAck={setAck}
                   busy={busy}
-                  setBusy={setBusy}
                   setError={setError}
                   id={id}
-                  client={client}
-                  review={review}
                 />
               </>
             ) : (

@@ -1,12 +1,16 @@
-import { useMutation } from "@tanstack/react-query";
+import { useApiMutation } from "@/lib/api/use-api-mutation";
+import { apiPath } from "@/lib/paths";
+import { resourceKeys } from "@/lib/query-keys";
+import { okResponseSchema } from "@/lib/schemas/acknowledgements";
 
-import { repairServerConnection } from "../services";
-
-type Connection = Parameters<typeof repairServerConnection>[1];
+import type { ConnectionRepairPayload } from "../generics";
 
 export function useRepairServerConnection(serverId: string) {
-  return useMutation({
-    mutationFn: (connection: Connection) =>
-      repairServerConnection(serverId, connection),
+  return useApiMutation({
+    method: "PUT",
+    path: apiPath`/servers/${serverId}/deletion/connection`,
+    body: (connection: ConnectionRepairPayload) => connection,
+    schema: okResponseSchema,
+    invalidate: [resourceKeys.all],
   });
 }

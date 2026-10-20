@@ -49,3 +49,7 @@ export const serverDeletionStatusResponseSchema = z.object({
   jobId: z.string(),
   done: z.boolean(),
 });
+export const serverDeletionQueuedResponseSchema = z.object({
+  ok: z.boolean(),
+  jobId: z.string(),
+});

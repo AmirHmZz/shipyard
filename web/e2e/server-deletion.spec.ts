@@ -92,12 +92,16 @@ async function setup(
           status: 409,
           json: { error: "Inventory changed; review a fresh deletion plan" },
         });
-      if (req.method() === "DELETE")
+      if (req.method() === "DELETE") {
         host.data = {
           ...host.data,
           deleting: true,
           deletionError: "SSH disconnected",
         };
+        return route.fulfill({ status: 202, json: { ok: true, jobId: "job" } });
+      }
+      if (path.endsWith("/connection"))
+        return route.fulfill({ json: { ok: true } });
       return route.fulfill({ status: 202, json: { jobId: "job" } });
     }
     if (path.endsWith("/metrics")) return route.fulfill({ json: [] });
@@ -165,7 +169,9 @@ test("changed inventory requires a fresh review", async ({ page }) => {
     .getByRole("button", { name: "Delete server", exact: true })
     .click();
   await expect(
-    page.getByText("Inventory changed; review a fresh deletion plan"),
+    page
+      .getByRole("alert")
+      .getByText("Inventory changed; review a fresh deletion plan"),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Review cleanup inventory" }),
