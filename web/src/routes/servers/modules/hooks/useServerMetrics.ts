@@ -1,16 +1,17 @@
-import { useQuery } from "@tanstack/react-query";
-
 import type { Resource } from "@/lib/api";
 
+import { useApiQuery } from "@/lib/api/use-api-query";
 import { POLL_INTERVALS } from "@/lib/constants";
+import { apiPath } from "@/lib/paths";
 import { metricsKeys } from "@/lib/query-keys";
 
-import { getServerMetrics } from "../services";
+import { getServerMetricsResponseSchema } from "../generics";
 
 export function useServerMetrics(server: Resource) {
-  return useQuery({
+  return useApiQuery({
     queryKey: metricsKeys.server(server.id),
-    queryFn: () => getServerMetrics(server),
+    path: apiPath`/servers/${server.id}/metrics`,
+    schema: getServerMetricsResponseSchema,
     refetchInterval: POLL_INTERVALS.metrics,
   });
 }

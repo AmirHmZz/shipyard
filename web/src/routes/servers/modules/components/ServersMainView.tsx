@@ -1,7 +1,6 @@
 import { Plus, Server, Wrench } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { toast } from "sonner";
 
 import type { Resource } from "@/lib/api";
 
@@ -22,7 +21,8 @@ import {
   PageHeader,
 } from "@/components/shared";
 import { Button } from "@/components/ui/button";
-import { useAccount, useResources } from "@/lib/api";
+import { useResources } from "@/lib/api";
+import { useAccount } from "@/lib/session";
 
 import { useProvisionServer } from "../hooks";
 import { ServerCard } from "./ServerCard";
@@ -37,6 +37,12 @@ export function ServersMainView() {
   const [grants, setGrants] = useState<Resource | null>(null);
   const [provision, setProvision] = useState<Resource | null>(null);
   const [filter, setFilter] = useState("");
+  function confirmProvisioning() {
+    if (!provision) return;
+    provisionMutation.mutate(provision.id, {
+      onSuccess: () => setProvision(null),
+    });
+  }
   if (q.isPending) return <Loading />;
   if (q.error) return <ErrorState error={q.error} />;
   const resources = q.data || [];
@@ -119,10 +125,8 @@ export function ServersMainView() {
         onOpenChange={(v) => !v && setProvision(null)}
         title="Prepare this server?"
         description="Shipyard will use root SSH access to install missing Docker/Compose prerequisites and create its managed directories on this Debian/Ubuntu server."
-        onConfirm={async () => {
-          await provisionMutation.mutateAsync(provision?.id);
-          toast.success("Provisioning queued. Track it in Settings → Jobs.");
-        }}
+        pending={provisionMutation.isPending}
+        onConfirm={confirmProvisioning}
       />
     </>
   );

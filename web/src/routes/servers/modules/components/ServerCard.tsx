@@ -1,4 +1,3 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { Check, Server, Settings2, Trash2, Users } from "lucide-react";
 import { lazy, Suspense } from "react";
 import { toast } from "sonner";
@@ -14,11 +13,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { errorMessage, text, useAdmin } from "@/lib/api";
-import { metricsKeys } from "@/lib/query-keys";
+import { text } from "@/lib/api";
+import { useAdmin } from "@/lib/session";
 
-import { useServerMetrics } from "../hooks";
-import { checkDockerVersion } from "../services";
+import { useServerMetrics, useCheckDockerVersion } from "../hooks";
 
 const ServerCPUChart = lazy(() => import("./ServerCPUChart"));
 
@@ -38,7 +36,13 @@ export function ServerCard({
   const admin = useAdmin();
   const q = useServerMetrics(server);
   const latest = q.data?.at(-1);
-  const client = useQueryClient();
+  const checkVersion = useCheckDockerVersion(server.id);
+  function testConnection() {
+    checkVersion.mutate(undefined, {
+      onSuccess: (value) =>
+        toast.success(`Connected · Docker ${value.dockerVersion}`),
+    });
+  }
   return (
     <Card className="shadow-none">
       <CardHeader className="flex flex-row items-start justify-between">
@@ -133,17 +137,7 @@ export function ServerCard({
                 disabled={!server.canWrite}
                 variant="ghost"
                 size="sm"
-                onClick={async () => {
-                  try {
-                    const v = await checkDockerVersion(server.id);
-                    toast.success(`Connected · Docker ${v.dockerVersion}`);
-                    void client.invalidateQueries({
-                      queryKey: metricsKeys.all,
-                    });
-                  } catch (e) {
-                    toast.error(errorMessage(e));
-                  }
-                }}
+                onClick={testConnection}
               >
                 <Check />
                 Test
