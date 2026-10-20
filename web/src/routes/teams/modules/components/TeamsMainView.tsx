@@ -3,70 +3,21 @@ import { Plus, Users } from "lucide-react";
 import { ResourceEditor } from "@/components/resource-editor";
 import {
   Confirm,
-  CopyButton,
   Empty,
   ErrorState,
   Loading,
   PageHeader,
-  StateBadge,
 } from "@/components/shared";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Spinner } from "@/components/ui/spinner";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { PROJECT_ROLES } from "@/lib/enums";
 
 import { useTeamsPage } from "../hooks";
-import { ProjectAccessDialog } from "./ProjectAccessDialog";
-
+import { TeamWorkspace } from "./TeamWorkspace";
 export function TeamsMainView() {
-  const { state, derived, handlers } = useTeamsPage();
-  const { editor, email, role, project, assign, remove } = state;
-  const {
-    account,
-    q,
-    resources,
-    teams,
-    team,
-    members,
-    removeMutation,
-    invitationMutation,
-    assignmentMutation,
-    invitation,
-  } = derived;
-  const {
-    setTeamId,
-    setEditor,
-    setEmail,
-    setScope,
-    setRole,
-    setAssign,
-    setRemove,
-    submitInvitation,
-    confirmRemoval,
-  } = handlers;
+  const controller = useTeamsPage();
+  const { editor, remove } = controller.state;
+  const { account, q, resources, team, removeMutation } = controller.derived;
+  const { setEditor, confirmRemoval, handleRemovalOpenChange } =
+    controller.handlers;
   if (q.isPending) return <Loading />;
   if (q.error) return <ErrorState error={q.error} />;
   return (
@@ -82,170 +33,7 @@ export function TeamsMainView() {
         </Button>
       </PageHeader>
       {team ? (
-        <>
-          <Select value={team.id} onValueChange={setTeamId}>
-            <SelectTrigger className="mb-6 w-64 bg-card">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {teams.map((t) => (
-                <SelectItem key={t.id} value={t.id}>
-                  {t.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
-            <Card className="gap-4 overflow-hidden pb-0 shadow-none">
-              <CardHeader>
-                <CardTitle className="text-sm">Members</CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                {members.error ? (
-                  <ErrorState error={members.error} />
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Role</TableHead>
-                        <TableHead />
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {members.data?.map((member) => (
-                        <TableRow key={member.id}>
-                          <TableCell>
-                            <div className="font-medium">{member.name}</div>
-                            <div className="mt-1 text-xs text-muted-foreground">
-                              {member.email}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <StateBadge state={member.role} />
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              disabled={!team.canWrite}
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setAssign(member.id)}
-                            >
-                              Project access
-                            </Button>
-                            <Button
-                              disabled={
-                                !team.canWrite || member.id === account?.id
-                              }
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setRemove(member.id)}
-                            >
-                              Remove member
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
-            <Card className="shadow-none">
-              <CardHeader>
-                <CardTitle className="text-sm">Invite a teammate</CardTitle>
-                <CardDescription>
-                  Create a single-use link, valid for 48 hours.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form className="space-y-4" onSubmit={submitInvitation}>
-                  <div className="space-y-2">
-                    <Label>Email</Label>
-                    <Input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Access scope</Label>
-                    <Select value={project || "team"} onValueChange={setScope}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="team">Team membership</SelectItem>
-                        {resources
-                          .filter(
-                            (r) => r.kind === "project" && r.teamId === team.id,
-                          )
-                          .map((p) => (
-                            <SelectItem key={p.id} value={p.id}>
-                              {p.name}
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Role</Label>
-                    <Select value={role} onValueChange={setRole}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(project ? PROJECT_ROLES : ["member", "owner"]).map(
-                          (v) => (
-                            <SelectItem key={v} value={v}>
-                              {v}
-                            </SelectItem>
-                          ),
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Button
-                    disabled={!team.canWrite || invitationMutation.isPending}
-                    type="submit"
-                  >
-                    {invitationMutation.isPending ? (
-                      <Spinner className="size-4" />
-                    ) : (
-                      <Plus />
-                    )}
-                    Create invitation
-                  </Button>
-                  {invitationMutation.isPending && (
-                    <p role="status" className="text-xs text-muted-foreground">
-                      Creating invitation for{" "}
-                      {invitationMutation.variables?.email}…
-                    </p>
-                  )}
-                  {invitation && (
-                    <div className="space-y-3 rounded-lg border bg-muted/50 p-3">
-                      <p className="break-all font-mono text-[10px]">
-                        {invitation}
-                      </p>
-                      <CopyButton
-                        value={invitation}
-                        label="Copy invitation link"
-                      />
-                    </div>
-                  )}
-                </form>
-              </CardContent>
-            </Card>
-          </div>
-          <ProjectAccessDialog
-            assign={assign}
-            setAssign={setAssign}
-            resources={resources}
-            team={team}
-            assignmentMutation={assignmentMutation}
-          />
-        </>
+        <TeamWorkspace controller={controller} team={team} />
       ) : (
         <Empty
           title="Build a team around your project"
@@ -267,7 +55,7 @@ export function TeamsMainView() {
       />
       <Confirm
         open={!!remove}
-        onOpenChange={(v) => !v && setRemove("")}
+        onOpenChange={handleRemovalOpenChange}
         title="Remove team member?"
         description="Their membership and all project grants in this team will be removed."
         destructive

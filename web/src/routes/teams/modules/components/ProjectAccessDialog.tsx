@@ -7,46 +7,34 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { toastValidationError } from "@/lib/api/toaster";
-import { ASSIGNMENT_ROLES } from "@/lib/enums";
 
 import type { useAssignTeamMember } from "../hooks";
 
-import { projectAssignmentSchema } from "../generics";
+import { ProjectAccessRow } from "./ProjectAccessRow";
+export type ProjectAccessDialogProps = {
+  assign: string;
+  setAssign: (value: string) => void;
+  resources: Resource[];
+  team: Resource;
+  assignmentMutation: ReturnType<typeof useAssignTeamMember>;
+  assignProject: (projectId: string, role: string) => void;
+};
 export function ProjectAccessDialog({
   assign,
   setAssign,
   resources,
   team,
   assignmentMutation,
-}: {
-  assign: string;
-  setAssign: (value: string) => void;
-  resources: Resource[];
-  team: Resource;
-  assignmentMutation: ReturnType<typeof useAssignTeamMember>;
-}) {
-  function assignProject(projectId: string, role: string) {
-    const assignment = projectAssignmentSchema.safeParse({
-      userId: assign,
-      role,
-    });
-    if (!assignment.success) {
-      toastValidationError(assignment.error);
-      return;
-    }
-    assignmentMutation.mutate({ projectId, assignment: assignment.data });
+  assignProject,
+}: ProjectAccessDialogProps) {
+  const projects = resources.filter(
+    (resource) => resource.kind === "project" && resource.teamId === team.id,
+  );
+  function handleOpenChange(open: boolean) {
+    if (!open) setAssign("");
   }
   return (
-    <Dialog open={!!assign} onOpenChange={(v) => !v && setAssign("")}>
+    <Dialog open={!!assign} onOpenChange={handleOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Project access</DialogTitle>
@@ -55,34 +43,14 @@ export function ProjectAccessDialog({
             have read access.
           </DialogDescription>
         </DialogHeader>
-        {resources
-          .filter((r) => r.kind === "project" && r.teamId === team.id)
-          .map((p) => (
-            <div
-              key={p.id}
-              className="flex items-center justify-between gap-3 rounded-lg border p-3"
-            >
-              <Label>{p.name}</Label>
-              <Select
-                disabled={
-                  assignmentMutation.isPending &&
-                  assignmentMutation.variables?.projectId === p.id
-                }
-                onValueChange={(value) => assignProject(p.id, value)}
-              >
-                <SelectTrigger className="w-36">
-                  <SelectValue placeholder="Assign role" />
-                </SelectTrigger>
-                <SelectContent>
-                  {ASSIGNMENT_ROLES.map((v) => (
-                    <SelectItem key={v} value={v}>
-                      {v}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          ))}
+        {projects.map((project) => (
+          <ProjectAccessRow
+            key={project.id}
+            project={project}
+            assignmentMutation={assignmentMutation}
+            assignProject={assignProject}
+          />
+        ))}
       </DialogContent>
     </Dialog>
   );

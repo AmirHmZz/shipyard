@@ -1,8 +1,9 @@
-import type { FormEvent } from "react";
+import type { FormEvent, MouseEvent } from "react";
 
 import { useReducer } from "react";
 
 import { toastValidationError } from "@/lib/api/toaster";
+import { PROJECT_ROLES } from "@/lib/enums";
 import { useResources } from "@/lib/hooks/useResources";
 import { useAccount } from "@/lib/session";
 
@@ -10,6 +11,7 @@ import {
   initialTeamsState,
   teamsReducer,
   invitationFormSchema,
+  projectAssignmentSchema,
 } from "../generics";
 import { useAssignTeamMember } from "./useAssignTeamMember";
 import { useCreateInvitation } from "./useCreateInvitation";
@@ -30,6 +32,20 @@ export function useTeamsPage() {
   const invitationMutation = useCreateInvitation(team?.id ?? "");
   const assignmentMutation = useAssignTeamMember();
   const invitation = invitationMutation.data?.url ?? "";
+  const teamOptions = teams.map((resource) => ({
+    value: resource.id,
+    label: resource.name,
+  }));
+  const projectOptions = resources
+    .filter(
+      (resource) => resource.kind === "project" && resource.teamId === team?.id,
+    )
+    .map((resource) => ({ value: resource.id, label: resource.name }));
+  const scopeOptions = [
+    { value: "team", label: "Team membership" },
+    ...projectOptions,
+  ];
+  const roles = state.project ? PROJECT_ROLES : ["member", "owner"];
   function setTeamId(teamId: string) {
     dispatch({ type: "team_changed", teamId });
   }
@@ -69,6 +85,31 @@ export function useTeamsPage() {
     if (removeMutation.isPending) return;
     removeMutation.mutate(state.remove, { onSuccess: () => setRemove("") });
   }
+  function handleRemovalOpenChange(open: boolean) {
+    if (!open) setRemove("");
+  }
+  function handleMemberAction(event: MouseEvent<HTMLTableSectionElement>) {
+    if (!(event.target instanceof Element)) return;
+    const button = event.target.closest<HTMLButtonElement>(
+      "button[data-member-id]",
+    );
+    if (!button || button.disabled || !event.currentTarget.contains(button))
+      return;
+    const id = button.dataset.memberId ?? "";
+    if (button.dataset.action === "assign") setAssign(id);
+    if (button.dataset.action === "remove") setRemove(id);
+  }
+  function assignProject(projectId: string, role: string) {
+    const assignment = projectAssignmentSchema.safeParse({
+      userId: state.assign,
+      role,
+    });
+    if (!assignment.success) {
+      toastValidationError(assignment.error);
+      return;
+    }
+    assignmentMutation.mutate({ projectId, assignment: assignment.data });
+  }
   return {
     state,
     derived: {
@@ -82,6 +123,9 @@ export function useTeamsPage() {
       invitationMutation,
       assignmentMutation,
       invitation,
+      teamOptions,
+      scopeOptions,
+      roles,
     },
     handlers: {
       setTeamId,
@@ -93,6 +137,9 @@ export function useTeamsPage() {
       setRemove,
       submitInvitation,
       confirmRemoval,
+      handleRemovalOpenChange,
+      handleMemberAction,
+      assignProject,
     },
   };
 }
