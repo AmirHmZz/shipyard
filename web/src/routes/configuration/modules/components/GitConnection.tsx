@@ -1,5 +1,4 @@
 import { Plus, Settings2 } from "lucide-react";
-import { useState } from "react";
 
 import type { Resource } from "@/lib/api/types";
 
@@ -23,25 +22,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { toastValidationError } from "@/lib/api/toaster";
 import { describeError } from "@/lib/api/translate-error";
-import { useConfigurationChanges } from "@/lib/configuration-state";
 import { GIT_PROVIDERS } from "@/lib/enums";
 import { text } from "@/lib/resource-fields";
 
-import type { Start } from "../generics";
-
-import { gitSetupSchema } from "../generics";
-import {
-  useGiteaInstances,
-  useGitSetupConfig,
-  useGitSetupStatus,
-  useStartGitSetup,
-  useReconnectGit,
-  useSaveGiteaInstance,
-  useCreateGitWebhook,
-} from "../hooks";
-import { followGitSetup } from "../utils";
+import { useGitConnectionForm } from "../hooks";
 import { GitConnectionActions } from "./GitConnectionActions";
 import { GiteaInstanceEditor } from "./GiteaInstanceEditor";
 import { GitWebhookConfiguration } from "./GitWebhookConfiguration";
@@ -55,72 +40,29 @@ export function GitConnection({
   onClose: () => void;
   onManual: () => void;
 }) {
-  const changes = useConfigurationChanges();
-  const [provider, setProvider] = useState(() =>
-    text(existing?.data || {}, "provider", "github"),
-  );
-  const [name, setName] = useState(existing?.name || "");
-  const [owner, setOwner] = useState("");
-  const [instanceId, setInstanceId] = useState(() =>
-    text(existing?.data || {}, "instanceId"),
-  );
-  const [instanceForm, setInstanceForm] = useState<{
-    id: string;
-    name: string;
-    url: string;
-    clientId: string;
-    clientSecret: string;
-  } | null>(null);
-  const startSetup = useStartGitSetup();
-  const reconnect = useReconnectGit(existing?.id ?? "");
-  const saveInstance = useSaveGiteaInstance();
-  const createWebhook = useCreateGitWebhook(existing?.id ?? "");
-  const busy =
-    startSetup.isPending ||
-    reconnect.isPending ||
-    saveInstance.isPending ||
-    createWebhook.isPending;
-  const mutationError =
-    startSetup.error ||
-    reconnect.error ||
-    saveInstance.error ||
-    createWebhook.error;
-  const error = mutationError ? describeError(mutationError) : "";
-  const [secret, setSecret] = useState("");
-  const instances = useGiteaInstances(provider);
-  const config = useGitSetupConfig();
-  const status = useGitSetupStatus(existing);
-  const callback = config.data?.giteaCallback || "";
-  const selected = instances.data?.find((v) => v.id === instanceId);
-  function resetErrors() {
-    startSetup.reset();
-    reconnect.reset();
-    saveInstance.reset();
-    createWebhook.reset();
-  }
-  function completeConnection(result: Start) {
-    changes.saved();
-    followGitSetup(result);
-  }
-  function connect() {
-    if (busy) return;
-    resetErrors();
-    if (existing) {
-      reconnect.mutate(undefined, { onSuccess: completeConnection });
-      return;
-    }
-    const parsed = gitSetupSchema.safeParse({
-      provider,
-      name,
-      owner,
-      instanceId,
-    });
-    if (!parsed.success) {
-      toastValidationError(parsed.error);
-      return;
-    }
-    startSetup.mutate(parsed.data, { onSuccess: completeConnection });
-  }
+  const { state, derived, handlers } = useGitConnectionForm(existing);
+  const { provider, name, owner, instanceId, instanceForm } = state;
+  const {
+    busy,
+    error,
+    instances,
+    config,
+    status,
+    callback,
+    selected,
+    secret,
+    saveInstance,
+    createWebhook,
+  } = derived;
+  const {
+    resetErrors,
+    setProvider,
+    setName,
+    setOwner,
+    setInstanceId,
+    setInstanceForm,
+    connect,
+  } = handlers;
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
@@ -145,14 +87,7 @@ export function GitConnection({
             </div>
             <div className="space-y-2">
               <Label htmlFor="git-provider">Provider</Label>
-              <Select
-                value={provider}
-                onValueChange={(v) => {
-                  setProvider(v);
-                  resetErrors();
-                  setInstanceForm(null);
-                }}
-              >
+              <Select value={provider} onValueChange={setProvider}>
                 <SelectTrigger id="git-provider" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
@@ -282,7 +217,6 @@ export function GitConnection({
             busy={busy}
             createWebhook={createWebhook}
             resetErrors={resetErrors}
-            setSecret={setSecret}
             secret={secret}
           />
         )}

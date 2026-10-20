@@ -6,3 +6,4 @@ export { dashboardKeys } from "./constants";
 export { authFormSchema } from "./schema";
 
 export { setupStatusResponseSchema } from "./schema";
+export { shellReducer } from "./shell-state";

@@ -55,7 +55,6 @@ export function ResourceFormView({
       setParent,
       setProject,
       setTeam,
-      setData,
       setComposeYAML,
       save,
       testDNS,
@@ -154,10 +153,7 @@ export function ResourceFormView({
                       <Label htmlFor={`${formId}-parent`}>{parentLabel}</Label>
                       {choose(
                         parent,
-                        (value) => {
-                          setParent(value);
-                          if (kind === "zone") setData({});
-                        },
+                        setParent,
                         parentOptions,
                         kind === "zone"
                           ? "Select DNS provider"

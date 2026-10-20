@@ -16,3 +16,6 @@ export { useSaveDashboardAccess } from "./useSaveDashboardAccess";
 export { useSetMaintenanceMode } from "./useSetMaintenanceMode";
 export { useStartTOTP } from "./useStartTOTP";
 export { useUpdateUser } from "./useUpdateUser";
+export { usePasswordForm } from "./usePasswordForm";
+export { useDashboardAccessForm } from "./useDashboardAccessForm";
+export { useSystemUpdatesPage } from "./useSystemUpdatesPage";

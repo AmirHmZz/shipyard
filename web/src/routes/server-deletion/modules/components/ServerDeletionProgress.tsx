@@ -1,5 +1,3 @@
-import type { Dispatch, SetStateAction } from "react";
-
 import { RefreshCw } from "lucide-react";
 
 import type { Resource } from "@/lib/api/types";
@@ -9,38 +7,26 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import { describeError } from "@/lib/api/translate-error";
 
 import type { Status } from "../generics";
 
-import { useRetryServerDeletion } from "../hooks";
 import { RepairConnection } from "./RepairConnection";
 
 export function ServerDeletionProgress({
   operation,
-  busy: reviewing,
-  setError,
-  id,
+  busy,
+  retryCleanup,
   server,
   repair,
   setRepair,
 }: {
   operation: Status;
   busy: boolean;
-  setError: (value: string) => void;
-  id: string;
+  retryCleanup: () => void;
   server?: Resource;
   repair: boolean;
-  setRepair: Dispatch<SetStateAction<boolean>>;
+  setRepair: (value: boolean) => void;
 }) {
-  const retry = useRetryServerDeletion(id);
-  const busy = reviewing || retry.isPending;
-  function retryCleanup() {
-    setError("");
-    retry.mutate(undefined, {
-      onError: (error) => setError(describeError(error)),
-    });
-  }
   return (
     <>
       <Card className="shadow-none">
@@ -69,10 +55,7 @@ export function ServerDeletionProgress({
                   Retry cleanup
                 </Button>
                 {server && (
-                  <Button
-                    variant="outline"
-                    onClick={() => setRepair((current) => !current)}
-                  >
+                  <Button variant="outline" onClick={() => setRepair(!repair)}>
                     Repair connection
                   </Button>
                 )}

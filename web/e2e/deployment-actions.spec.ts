@@ -49,6 +49,8 @@ async function setup(page: Page, { writable = true, stopped = false } = {}) {
   ];
   const requests: { path: string; body: Record<string, unknown> }[] = [];
   let fail = false;
+  let deletionGate: Promise<void> | undefined;
+  let releaseDeletion = () => {};
   let runtimeStatus = stopped ? "stopped" : "running";
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -111,6 +113,7 @@ async function setup(page: Page, { writable = true, stopped = false } = {}) {
     ) {
       const body = request.postDataJSON() || {};
       requests.push({ path, body });
+      if (path.startsWith("/deployments/") && deletionGate) await deletionGate;
       if (fail)
         return route.fulfill({
           status: 409,
@@ -142,6 +145,15 @@ async function setup(page: Page, { writable = true, stopped = false } = {}) {
   });
   return {
     requests,
+    holdDeletion() {
+      deletionGate = new Promise<void>((resolve) => {
+        releaseDeletion = resolve;
+      });
+    },
+    releaseDeletion() {
+      releaseDeletion();
+      deletionGate = undefined;
+    },
     setFailure: (value: boolean) => {
       fail = value;
     },
@@ -295,10 +307,23 @@ for (const theme of ["light", "dark"]) {
       const dialog = page.getByRole("dialog");
       await expect(dialog).toContainText("retained rollback release");
       state.setFailure(true);
+      state.holdDeletion();
       await dialog
         .getByRole("button", { name: "Delete deployment", exact: true })
         .click();
+      const pendingRow = page.getByRole("row", { includeHidden: true }).nth(2);
+      await expect(pendingRow).toContainText("Deleting…");
+      await expect(
+        dialog.getByRole("button", { name: "Delete deployment", exact: true }),
+      ).toBeDisabled();
+      state.releaseDeletion();
       await expect(dialog).toContainText("Operation could not be queued");
+      await expect(pendingRow).not.toContainText("Deleting…");
+      await expect(
+        page
+          .locator("[data-sonner-toast]")
+          .filter({ hasText: "Operation could not be queued" }),
+      ).toHaveCount(1);
       state.setFailure(false);
       await dialog
         .getByRole("button", { name: "Delete deployment", exact: true })

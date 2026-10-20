@@ -13,7 +13,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 
-import { settingsDraft } from "../hooks";
 import { useHAProxyController } from "../hooks";
 import { HAProxyFrontend } from "./HAProxyFrontend";
 
@@ -27,12 +26,11 @@ export function HAProxySettings({
   const {
     q,
     draft,
-    setDraft,
+    reloadSaved,
     pending,
     stale,
     success,
     error,
-    setError,
     update,
     save,
   } = useHAProxyController(server);
@@ -86,10 +84,7 @@ export function HAProxySettings({
                       variant="outline"
                       size="sm"
                       disabled={pending}
-                      onClick={() => {
-                        setDraft(settingsDraft(q.data));
-                        setError("");
-                      }}
+                      onClick={reloadSaved}
                     >
                       Reload saved settings
                     </Button>

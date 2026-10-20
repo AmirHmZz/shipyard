@@ -1,5 +1,7 @@
 import type * as z from "zod/mini";
 
+import type { Session } from "@/lib/api/types";
+
 import type {
   alertPolicyResponseSchema,
   systemUpdatesResponseSchema,
@@ -18,6 +20,7 @@ import type {
 } from "./schema";
 
 export type AlertPolicy = z.infer<typeof alertPolicyResponseSchema>;
+export type MaintenanceSnapshot = { session: Session | null | undefined };
 
 export type Status = z.infer<typeof systemUpdatesResponseSchema>;
 

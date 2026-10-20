@@ -1,5 +1,3 @@
-import type { Dispatch, SetStateAction } from "react";
-
 import { CopyButton } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,7 +19,7 @@ export function GiteaInstanceEditor({
   setInstanceId,
 }: {
   instanceForm: InstanceDraft;
-  setInstanceForm: Dispatch<SetStateAction<InstanceDraft | null>>;
+  setInstanceForm: (value: InstanceDraft | null) => void;
   callback: string;
   busy: boolean;
   saveInstance: ReturnType<typeof useSaveGiteaInstance>;
@@ -82,9 +80,7 @@ export function GiteaInstanceEditor({
                 : undefined
             }
             onChange={(e) =>
-              setInstanceForm((current) =>
-                current ? { ...current, [key]: e.target.value } : current,
-              )
+              setInstanceForm({ ...instanceForm, [key]: e.target.value })
             }
           />
         </div>

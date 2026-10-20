@@ -1,5 +1,8 @@
+import type { QueryKey } from "@tanstack/react-query";
 import type * as z from "zod/mini";
 
+import type { Resource } from "@/lib/api/types";
+import type { Deployment } from "@/lib/api/types";
 import type { DraftRow } from "@/lib/draft-rows";
 
 import type {
@@ -12,6 +15,13 @@ import type {
   domainStatusResponseSchema,
   deploymentCreationResultResponseSchema,
   applicationVolumesResponseSchema,
+} from "./schema";
+import type {
+  freshDeploySchema,
+  previewCommitSchema,
+  composeSourceSchema,
+  networkingPayloadSchema,
+  publishedPortsPayloadSchema,
 } from "./schema";
 
 export type Runtime = z.infer<typeof runtimeResponseSchema>;
@@ -59,15 +69,6 @@ export type ApplicationVolumesResponse = z.infer<
   typeof applicationVolumesResponseSchema
 >;
 
-import type { Resource } from "@/lib/api/types";
-
-import type {
-  freshDeploySchema,
-  previewCommitSchema,
-  composeSourceSchema,
-  networkingPayloadSchema,
-  publishedPortsPayloadSchema,
-} from "./schema";
 export type FreshDeployValues = z.output<ReturnType<typeof freshDeploySchema>>;
 export type PreviewCommitValues = z.output<typeof previewCommitSchema>;
 export type ComposeSourceValues = z.output<typeof composeSourceSchema>;
@@ -80,4 +81,9 @@ export type NetworkingSaveValues = {
   payload:
     | z.output<typeof networkingPayloadSchema>
     | z.output<typeof publishedPortsPayloadSchema>;
+};
+
+export type RemovedDeploymentSnapshot = {
+  lists: [QueryKey, Deployment[] | undefined][];
+  selected: Deployment | undefined;
 };

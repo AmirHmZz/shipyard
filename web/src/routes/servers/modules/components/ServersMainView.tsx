@@ -5,14 +5,6 @@ import { useNavigate } from "react-router";
 import type { Resource } from "@/lib/api/types";
 
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/configuration-surface";
-import { Grants } from "@/components/grants";
-import {
   Confirm,
   Empty,
   ErrorState,
@@ -34,11 +26,10 @@ export function ServersMainView() {
   const q = useResources();
   const openServer = (server?: Resource) =>
     navigate(`/configure/server/${server?.id || "new"}?return=/servers`);
-  const [grants, setGrants] = useState<Resource | null>(null);
   const [provision, setProvision] = useState<Resource | null>(null);
   const [filter, setFilter] = useState("");
   function confirmProvisioning() {
-    if (!provision) return;
+    if (!provision || provisionMutation.isPending) return;
     provisionMutation.mutate(provision.id, {
       onSuccess: () => setProvision(null),
     });
@@ -109,17 +100,6 @@ export function ServersMainView() {
           }
         />
       )}
-      <Dialog open={!!grants} onOpenChange={(v) => !v && setGrants(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Team access · {grants?.name}</DialogTitle>
-            <DialogDescription>
-              Infrastructure stays private until explicitly granted.
-            </DialogDescription>
-          </DialogHeader>
-          {grants && <Grants resource={grants} resources={resources} />}
-        </DialogContent>
-      </Dialog>
       <Confirm
         open={!!provision}
         onOpenChange={(v) => !v && setProvision(null)}

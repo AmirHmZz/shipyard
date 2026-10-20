@@ -7,7 +7,7 @@ import {
   Settings2,
   Sun,
 } from "lucide-react";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense } from "react";
 import {
   Link,
   Outlet,
@@ -47,10 +47,9 @@ import {
 } from "@/components/ui/sheet";
 import { useResources } from "@/lib/hooks/useResources";
 import { resolvePageLabel } from "@/lib/route-handle";
-import { readTheme, writeTheme } from "@/lib/theme";
 
 import { navigation } from "../generics";
-import { useLogout } from "../hooks";
+import { useLogout, useShellState } from "../hooks";
 import { Sidebar } from "./Sidebar";
 import { WorkspaceSearch } from "./WorkspaceSearch";
 
@@ -59,28 +58,15 @@ export function Shell({ session }: { session: Session }) {
   const location = useLocation();
   const navigate = useNavigate();
   const resources = useResources();
-  const [search, setSearch] = useState(false);
-  const [mobile, setMobile] = useState(false);
-  const [dark, setDark] = useState(() => readTheme() === "dark");
+  const { state, handlers } = useShellState();
+  const { search, mobile, dark } = state;
+  const { setSearch, setMobile, toggleTheme } = handlers;
   function signOut() {
     if (logout.isPending) return;
     logout.mutate(undefined, {
       onSuccess: () => navigate("/", { replace: true }),
     });
   }
-  useEffect(() => {
-    writeTheme(dark ? "dark" : "light");
-  }, [dark]);
-  useEffect(() => {
-    const key = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
-        e.preventDefault();
-        setSearch((v) => !v);
-      }
-    };
-    addEventListener("keydown", key);
-    return () => removeEventListener("keydown", key);
-  }, []);
   const section = navigation.find(
     (n) => n.path !== "/" && location.pathname.startsWith(n.path),
   );
@@ -172,7 +158,7 @@ export function Shell({ session }: { session: Session }) {
             size="icon"
             aria-label={dark ? "Use light theme" : "Use dark theme"}
             className="size-8"
-            onClick={() => setDark((v) => !v)}
+            onClick={toggleTheme}
           >
             {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
           </Button>

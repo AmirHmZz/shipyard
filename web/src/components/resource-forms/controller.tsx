@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { createContext, use, useId, useState } from "react";
+import { createContext, use, useId, useReducer } from "react";
 import { toast } from "sonner";
 import * as z from "zod/mini";
 
@@ -17,12 +17,14 @@ import {
   useTestDNSCredentials,
   useProbeServerFingerprint,
 } from "@/lib/hooks";
-import { defaults, parents } from "@/lib/resource-form-definitions";
-import { relativeHostname, routeHostnameSchema } from "@/lib/route-hostname";
+import { parents } from "@/lib/resource-form-definitions";
+import { routeHostnameSchema } from "@/lib/route-hostname";
 import { previewApplicationRoutingSchema } from "@/lib/schemas/application";
 import { dnsCredentialSchema } from "@/lib/schemas/dns";
 import { serverFingerprintFormSchema } from "@/lib/schemas/endpoint-responses";
 import { resourceFormSchema } from "@/lib/schemas/resource-form";
+
+import { initialResourceFormState, resourceFormReducer } from "./state";
 export type ResourceFormProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -47,45 +49,34 @@ function useResourceFormController({
   const saveResource = useSaveResource();
   const testCredentials = useTestDNSCredentials();
   const fingerprint = useProbeServerFingerprint();
-  const [name, setName] = useState(existing?.name || "");
-  const [parent, setParent] = useState(existing?.parentId || parentId || "");
-  const initialParent = resources.find(
-    (r) => r.id === (existing?.parentId || parentId),
+  const [formState, dispatch] = useReducer(
+    resourceFormReducer,
+    { kind, resources, existing, parentId },
+    initialResourceFormState,
   );
-  const [project, setProject] = useState(
-    initialParent?.kind === "environment"
-      ? initialParent.parentId || ""
-      : initialParent?.kind === "project"
-        ? initialParent.id
-        : "",
-  );
-  const [team, setTeam] = useState(existing?.teamId || "");
-  const [data, setData] = useState<Record<string, unknown>>(() => {
-    let initial = { ...defaults[kind], ...existing?.data };
-    if (kind === "application")
-      initial = {
-        ...initial,
-        ...normalizeApplicationSettings(
-          existing?.data || initial,
-          resources.filter(
-            (r) => r.kind === "route" && r.parentId === existing?.id,
-          ),
-        ),
-      };
-    if (kind === "route") {
-      delete initial.path;
-      delete initial.stripPrefix;
-      const zone = resources.find((r) => r.id === initial.zoneId);
-      initial.domain = relativeHostname(
-        String(initial.domain || ""),
-        String(zone?.data.domain || ""),
-      );
-    }
-    if (kind === "application" && !existing) initial.branch = "";
-    return initial;
-  });
-  const [secrets, setSecrets] = useState<Record<string, string>>({});
-  const [version] = useState(existing?.version || 0);
+  const { name, parent, project, team, data, secrets, version, composeYAML } =
+    formState;
+  function setName(value: string) {
+    dispatch({ type: "name_changed", value });
+  }
+  function setParent(value: string) {
+    dispatch({ type: "parent_changed", value });
+  }
+  function setProject(value: string) {
+    dispatch({ type: "project_changed", value });
+  }
+  function setTeam(value: string) {
+    dispatch({ type: "team_changed", value });
+  }
+  function setData(value: Record<string, unknown>) {
+    dispatch({ type: "data_changed", value });
+  }
+  function setSecret(key: string, value: string) {
+    dispatch({ type: "secret_changed", key, value });
+  }
+  function setComposeYAML(value: string) {
+    dispatch({ type: "compose_changed", value });
+  }
   const busy = saveResource.isPending;
   const probe = fingerprint.isPending;
   const dnsTesting = testCredentials.isPending;
@@ -99,7 +90,6 @@ function useResourceFormController({
       testCredentials.variables?.provider,
       testCredentials.variables?.token,
     ]) === dnsCredentials;
-  const [composeYAML, setComposeYAML] = useState("");
   const needsComposeDocument =
     kind === "application" &&
     data.source === "compose" &&
@@ -131,39 +121,9 @@ function useResourceFormController({
     }));
   const gitId = String(data.gitId || "");
   const repository = String(data.repository || "");
-  const update = (key: string, value: unknown) => {
-    if (kind === "application" && key === "source" && value === "compose") {
-      setData((d) => ({
-        ...d,
-        source: "compose",
-        engine: "compose",
-        gitId: "",
-        repository: "",
-        branch: "",
-        context: ".",
-        file: "compose.yaml",
-        autoDeploy: false,
-        previews: false,
-      }));
-      return;
-    }
-    if (kind === "server" && key === "authMethod") setSecrets({});
-    setData((d) => ({
-      ...d,
-      [key]: value,
-      ...(kind === "application" && key === "gitId" && value !== d.gitId
-        ? { repository: "", branch: "" }
-        : {}),
-      ...(kind === "application" &&
-      key === "repository" &&
-      value !== d.repository
-        ? { branch: "" }
-        : {}),
-      ...(key === "engine"
-        ? { file: value === "compose" ? "compose.yaml" : "Dockerfile" }
-        : {}),
-    }));
-  };
+  function update(key: string, value: unknown) {
+    dispatch({ type: "data_field_changed", key, value });
+  }
   function testDNS() {
     if (dnsTesting) return;
     saveResource.reset();
@@ -327,13 +287,10 @@ function useResourceFormController({
     actions: {
       setName,
       setParent,
-      setProject: (value: string) => {
-        setProject(value);
-        setParent("");
-      },
+      setProject,
       setTeam,
       setData,
-      setSecrets,
+      setSecret,
       setComposeYAML,
       update,
       save,

@@ -1,8 +1,3 @@
-import type { FormEvent } from "react";
-
-import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
-
 import { PageHeader } from "@/components/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -16,72 +11,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
-import { toastValidationError } from "@/lib/api/toaster";
 import { describeError } from "@/lib/api/translate-error";
-import { useConfigurationChanges } from "@/lib/configuration-state";
-import { useResources } from "@/lib/hooks/useResources";
-import { useAccount } from "@/lib/session";
 
-import { networkFormSchema } from "../generics";
-import { useNetworkInventory, useCreateNetwork } from "../hooks";
+import { useNetworkForm } from "../hooks";
 
 export function NetworkForm() {
-  const changes = useConfigurationChanges();
-  const q = useResources();
-  const [params] = useSearchParams();
-  const navigate = useNavigate();
-  const account = useAccount();
-  const [server, setServer] = useState(() => params.get("server") || "");
-  const [mode, setMode] = useState(() =>
-    params.has("dockerId") ? "existing" : "create",
-  );
-  const [name, setName] = useState(() => params.get("name") || "");
-  const [selected, setSelected] = useState(() => params.get("dockerId") || "");
-  const [subnet, setSubnet] = useState("");
-  const [range, setRange] = useState("");
-  const [v6, setV6] = useState(false);
-  const [subnet6, setSubnet6] = useState("");
-  const createNetwork = useCreateNetwork(server);
-  const busy = createNetwork.isPending;
-  const error = createNetwork.error ? describeError(createNetwork.error) : "";
-  const inventory = useNetworkInventory(server, !!account?.admin);
-  function submitNetwork(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (busy) return;
-    createNetwork.reset();
-    const parsed = networkFormSchema.safeParse({
-      name,
-      server,
-      mode,
-      selected,
-      subnet,
-      range,
-      v6,
-      subnet6,
-    });
-    if (!parsed.success) {
-      toastValidationError(parsed.error);
-      return;
-    }
-    const values = parsed.data;
-    createNetwork.mutate(
-      {
-        name: values.name,
-        dockerId: values.mode === "existing" ? values.selected : "",
-        subnet: values.mode === "create" ? values.subnet : "",
-        dynamicRange: values.range,
-        enableIPv6: values.v6,
-        ipv6Subnet: values.subnet6,
-      },
-      {
-        onSuccess: () => {
-          changes.saved();
-          navigate("/networks");
-        },
-      },
-    );
-  }
+  const { state, derived, handlers } = useNetworkForm();
+  const { server, mode, name, selected, subnet, range, v6, subnet6 } = state;
+  const { q, account, inventory, busy, error, pendingNetwork } = derived;
+  const {
+    setServer,
+    setMode,
+    setName,
+    setSelected,
+    setSubnet,
+    setRange,
+    setV6,
+    setSubnet6,
+    cancel,
+    submitNetwork,
+  } = handlers;
   if (!account?.admin) return <p>Platform administrator access required.</p>;
   return (
     <div className="mx-auto max-w-3xl">
@@ -103,13 +54,7 @@ export function NetworkForm() {
             </div>
             <div className="space-y-2">
               <Label>Server</Label>
-              <Select
-                value={server}
-                onValueChange={(value) => {
-                  setServer(value);
-                  setSelected("");
-                }}
-              >
+              <Select value={server} onValueChange={setServer}>
                 <SelectTrigger className="w-full" aria-label="Network server">
                   <SelectValue placeholder="Select server" />
                 </SelectTrigger>
@@ -235,14 +180,7 @@ export function NetworkForm() {
               </Alert>
             )}
             <div className="flex justify-end gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  changes.discard();
-                  navigate("/networks");
-                }}
-              >
+              <Button type="button" variant="outline" onClick={cancel}>
                 Cancel
               </Button>
               <Button
@@ -250,9 +188,14 @@ export function NetworkForm() {
                   busy || !server || !name || (mode === "existing" && !selected)
                 }
               >
-                Save network
+                {busy && <Spinner />}Save network
               </Button>
             </div>
+            {busy && (
+              <p role="status" className="text-xs text-muted-foreground">
+                Saving network {pendingNetwork?.name}…
+              </p>
+            )}
           </form>
         </CardContent>
       </Card>

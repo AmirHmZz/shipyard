@@ -10,7 +10,6 @@ export function GitWebhookConfiguration({
   busy,
   createWebhook,
   resetErrors,
-  setSecret,
   secret,
 }: {
   provider: string;
@@ -18,15 +17,12 @@ export function GitWebhookConfiguration({
   busy: boolean;
   createWebhook: ReturnType<typeof useCreateGitWebhook>;
   resetErrors: () => void;
-  setSecret: (secret: string) => void;
   secret: string;
 }) {
   function generateSecret() {
     if (busy) return;
     resetErrors();
-    createWebhook.mutate(undefined, {
-      onSuccess: (value) => setSecret(value.secret),
-    });
+    createWebhook.mutate();
   }
   return (
     <section

@@ -31,17 +31,15 @@ import { describeAuthError } from "../utils";
 export function Auth() {
   const navigate = useNavigate();
   const status = useSetupStatus();
-  const [token] = useState(
-    () => new URLSearchParams(location.search).get("token") || "",
-  );
-  const setup = status.data?.setupRequired && !token;
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(() => ({
     email: "",
     password: "",
     name: "",
     code: "",
-    token,
-  });
+    token: new URLSearchParams(location.search).get("token") || "",
+  }));
+  const token = form.token;
+  const setup = status.data?.setupRequired && !token;
   const mode = token ? "accept" : setup ? "setup" : "login";
   const signIn = useSubmitAuth(mode);
   const busy = signIn.isPending;

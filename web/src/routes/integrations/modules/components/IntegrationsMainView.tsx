@@ -6,19 +6,10 @@ import {
   ShieldCheck,
   Users,
 } from "lucide-react";
-import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
 import type { Resource } from "@/lib/api/types";
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/configuration-surface";
-import { Grants } from "@/components/grants";
 import { ProviderLogo } from "@/components/provider-name";
 import { ErrorState, Loading, PageHeader } from "@/components/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -43,7 +34,6 @@ export function IntegrationsMainView() {
     navigate(
       `/configure/${request.kind}/${request.resource?.id || "new"}?return=/integrations`,
     );
-  const [grant, setGrant] = useState<Resource | null>(null);
   const openGit = (resource?: Resource) =>
     navigate(
       `/configure/source-control/${resource?.id || "new"}?return=/integrations`,
@@ -209,17 +199,6 @@ export function IntegrationsMainView() {
           </AlertDescription>
         </Alert>
       )}
-      <Dialog open={!!grant} onOpenChange={(v) => !v && setGrant(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Team access</DialogTitle>
-            <DialogDescription>
-              Assign this connection to trusted teams.
-            </DialogDescription>
-          </DialogHeader>
-          {grant && <Grants resource={grant} resources={resources} />}
-        </DialogContent>
-      </Dialog>
     </>
   );
 }

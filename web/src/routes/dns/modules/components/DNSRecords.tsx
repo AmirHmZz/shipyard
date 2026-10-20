@@ -105,6 +105,7 @@ export function DNSRecords({ zone }: { zone: Resource }) {
     });
   }
   function confirmRemoval() {
+    if (removeRecord.isPending) return;
     removeRecord.mutate(deleteId, { onSuccess: () => setDeleteId("") });
   }
   return (
@@ -237,6 +238,7 @@ export function DNSRecords({ zone }: { zone: Resource }) {
               extra={extra}
               setExtra={setExtra}
               busy={saveRecord.isPending}
+              pendingRecord={saveRecord.variables}
               save={save}
               navigate={navigate}
               zone={zone}

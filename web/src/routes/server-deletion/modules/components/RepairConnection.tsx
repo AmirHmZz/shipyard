@@ -1,7 +1,3 @@
-import type { FormEvent } from "react";
-
-import { useState } from "react";
-
 import type { Resource } from "@/lib/api/types";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -18,12 +14,8 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
-import { toastValidationError } from "@/lib/api/toaster";
-import { describeError } from "@/lib/api/translate-error";
-import { text } from "@/lib/resource-fields";
 
-import { serverConnectionSchema } from "../generics";
-import { useRepairServerConnection } from "../hooks";
+import { useRepairConnectionForm } from "../hooks";
 
 export function RepairConnection({
   server,
@@ -32,58 +24,28 @@ export function RepairConnection({
   server: Resource;
   onSaved: () => void;
 }) {
-  const repair = useRepairServerConnection(server.id);
-  const [host, setHost] = useState(() => text(server.data, "host"));
-  const [port, setPort] = useState(String(server.data.port || 22));
-  const [user, setUser] = useState(() => text(server.data, "user"));
-  const [fingerprint, setFingerprint] = useState(() =>
-    text(server.data, "fingerprint"),
-  );
-  const [auth, setAuth] = useState(() =>
-    text(server.data, "authMethod", "private_key"),
-  );
-  const [credential, setCredential] = useState("");
-  const busy = repair.isPending;
-  const error = repair.error ? describeError(repair.error) : "";
-  function submitRepair(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (repair.isPending) return;
-    const parsed = serverConnectionSchema.safeParse({
-      host,
-      port,
-      user,
-      fingerprint,
-      authMethod: auth,
-      credential,
-    });
-    if (!parsed.success) {
-      toastValidationError(parsed.error);
-      return;
-    }
-    const connection = parsed.data;
-    repair.mutate(
-      {
-        host: connection.host,
-        port: connection.port,
-        user: connection.user,
-        fingerprint: connection.fingerprint,
-        authMethod: connection.authMethod,
-        secrets: connection.credential
-          ? {
-              [connection.authMethod === "password"
-                ? "password"
-                : "private_key"]: connection.credential,
-            }
-          : {},
-      },
-      {
-        onSuccess: () => {
-          setCredential("");
-          onSaved();
-        },
-      },
-    );
-  }
+  const { state, derived, handlers } = useRepairConnectionForm(server, onSaved);
+  const { host, port, user, fingerprint, auth, credential } = state;
+  const { busy, error } = derived;
+  const {
+    setHost,
+    setPort,
+    setUser,
+    setFingerprint,
+    setCredential,
+    setAuth,
+    submitRepair,
+  } = handlers;
+  const fields = [
+    { label: "SSH host", value: host, setValue: setHost },
+    { label: "SSH port", value: port, setValue: setPort },
+    { label: "SSH user", value: user, setValue: setUser },
+    {
+      label: "Verified host fingerprint",
+      value: fingerprint,
+      setValue: setFingerprint,
+    },
+  ];
   return (
     <Card className="shadow-none">
       <CardHeader>
@@ -98,20 +60,13 @@ export function RepairConnection({
             credential blank to keep its saved value.
           </p>
           <div className="grid gap-4 sm:grid-cols-2">
-            {[
-              ["SSH host", host, setHost],
-              ["SSH port", port, setPort],
-              ["SSH user", user, setUser],
-              ["Verified host fingerprint", fingerprint, setFingerprint],
-            ].map(([label, value, setter]) => (
+            {fields.map(({ label, value, setValue }) => (
               <div key={String(label)} className="space-y-2">
                 <Label htmlFor={String(label)}>{String(label)}</Label>
                 <Input
                   id={String(label)}
                   value={String(value)}
-                  onChange={(e) =>
-                    (setter as (v: string) => void)(e.target.value)
-                  }
+                  onChange={(e) => setValue(e.target.value)}
                   required
                 />
               </div>
@@ -119,13 +74,7 @@ export function RepairConnection({
           </div>
           <div className="space-y-2">
             <Label htmlFor="repair-auth">Authentication</Label>
-            <Select
-              value={auth}
-              onValueChange={(v) => {
-                setAuth(v);
-                setCredential("");
-              }}
-            >
+            <Select value={auth} onValueChange={setAuth}>
               <SelectTrigger id="repair-auth">
                 <SelectValue />
               </SelectTrigger>

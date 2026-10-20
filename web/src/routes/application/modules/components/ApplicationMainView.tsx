@@ -1,8 +1,7 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import { toast } from "sonner";
 
-import type { Deployment } from "@/lib/api/types";
 import type { Resource } from "@/lib/api/types";
 
 import { ConfigurationGuard } from "@/components/configuration-surface";
@@ -25,6 +24,7 @@ import {
   useApplicationReleases,
   useSelectedDeployment,
   useCreateDeployment,
+  useApplicationDialogs,
 } from "../hooks";
 import { ApplicationActionConfirmation } from "./ApplicationActionConfirmation";
 import { ApplicationDeployments } from "./ApplicationDeployments";
@@ -44,7 +44,9 @@ const ContainerTerminal = lazy(() => import("./ContainerTerminal"));
 
 export function ApplicationMainView() {
   const navigate = useNavigate();
-  const [deleting, setDeleting] = useState(false);
+  const { state, handlers } = useApplicationDialogs();
+  const { deleting, confirmAction, deleteDeployment } = state;
+  const { setDeleting, setConfirmAction, setDeleteDeployment } = handlers;
   const { id = "" } = useParams();
   const deployment = useCreateDeployment(id);
   const [params, setParams] = useSearchParams();
@@ -71,11 +73,7 @@ export function ApplicationMainView() {
     navigate(
       `/configure/${resource === "new" ? "route/new?parent=" + id : resource.kind + "/" + resource.id + "?parent="}&return=${encodeURIComponent(location.pathname + location.search)}`,
     );
-  const [confirmAction, setConfirmAction] = useState("");
   const busy = deployment.isPending;
-  const [deleteDeployment, setDeleteDeployment] = useState<Deployment | null>(
-    null,
-  );
   const selected = params.get("deployment");
   const selectedDeployment = useSelectedDeployment(
     selected,

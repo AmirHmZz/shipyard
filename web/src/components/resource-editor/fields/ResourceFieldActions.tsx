@@ -12,7 +12,7 @@ export function ResourceFieldActions({
 }: Pick<ResourceFieldProps, "kind" | "f" | "repos" | "branches">) {
   const {
     state: { data, probe },
-    actions: { setSecrets, probeFingerprint, change },
+    actions: { setSecret, probeFingerprint, change },
   } = useResourceForm();
   return (
     <>
@@ -35,13 +35,12 @@ export function ResourceFieldActions({
           size="sm"
           onClick={() => {
             change();
-            setSecrets((s) => ({
-              ...s,
-              webhook_secret: Array.from(
-                crypto.getRandomValues(new Uint8Array(32)),
-                (n) => n.toString(16).padStart(2, "0"),
+            setSecret(
+              "webhook_secret",
+              Array.from(crypto.getRandomValues(new Uint8Array(32)), (n) =>
+                n.toString(16).padStart(2, "0"),
               ).join(""),
-            }));
+            );
           }}
         >
           <RefreshCw />

@@ -65,19 +65,18 @@ export function ComposeSource({
   const saveSource = useSaveComposeSource(app.id);
   const deploySource = useDeployComposeSource(app.id);
   const [editedDraft, setDraft] = useState<Source | null>(null);
-  const draft = editedDraft ?? q.data ?? null;
+  const draft = editedDraft ?? saveSource.data ?? q.data ?? null;
   const busy = saveSource.isPending || deploySource.isPending;
   const failure = saveSource.error ?? deploySource.error ?? q.error;
   const error = failure ? describeError(failure) : "";
-  const [saved, setSaved] = useState(false);
+  const saved = saveSource.isSuccess && editedDraft === null;
   async function reload() {
     const result = await q.refetch();
     if (!result.error && result.data) {
       changes.saved();
-      setDraft(result.data);
+      setDraft(null);
       saveSource.reset();
       deploySource.reset();
-      setSaved(false);
     }
   }
   function save(deploy: boolean) {
@@ -89,12 +88,10 @@ export function ComposeSource({
     }
     saveSource.reset();
     deploySource.reset();
-    setSaved(false);
     saveSource.mutate(parsed.data, {
       onSuccess: (result) => {
         changes.saved();
-        setDraft(result);
-        setSaved(true);
+        setDraft(null);
         if (deploy) {
           deploySource.mutate(
             { version: result.version },
@@ -133,7 +130,6 @@ export function ComposeSource({
               const source = current ?? draft;
               return source ? { ...source, yaml } : source;
             });
-            setSaved(false);
           }}
         />
         <p className="text-xs text-muted-foreground">

@@ -5,7 +5,6 @@ import {
   use,
   useCallback,
   useMemo,
-  useState,
   useSyncExternalStore,
 } from "react";
 import { useBeforeUnload, useBlocker } from "react-router";
@@ -51,7 +50,7 @@ export function ConfigurationGuard({
   children: ReactNode;
   className?: string;
 }) {
-  const [store] = useState(createDirtyScopes);
+  const store = useMemo(() => createDirtyScopes(), []);
   const dirty = useSyncExternalStore(
     store.subscribe,
     store.isDirty,

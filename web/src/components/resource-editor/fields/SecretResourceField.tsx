@@ -9,7 +9,7 @@ import type { ResourceFieldProps } from "../types";
 export function SecretResourceField({ f, existing }: ResourceFieldProps) {
   const {
     state: { secrets },
-    actions: { setSecrets },
+    actions: { setSecret },
     meta: { formId },
   } = useResourceForm();
   const password = f.type === "password";
@@ -24,9 +24,7 @@ export function SecretResourceField({ f, existing }: ResourceFieldProps) {
       value={secrets[f.key] || ""}
       onChange={(
         event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-      ) =>
-        setSecrets((current) => ({ ...current, [f.key]: event.target.value }))
-      }
+      ) => setSecret(f.key, event.target.value)}
       placeholder={
         stored
           ? "Stored securely. Leave untouched to retain."

@@ -1,7 +1,3 @@
-import type { FormEvent } from "react";
-
-import { useState } from "react";
-
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -12,33 +8,14 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { toastValidationError } from "@/lib/api/toaster";
 
-import { passwordFormSchema } from "../generics";
-import { useChangePassword } from "../hooks";
+import { usePasswordForm } from "../hooks";
 
 export function PasswordSettings() {
-  const change = useChangePassword();
-  const [current, setCurrent] = useState(""),
-    [password, setPassword] = useState(""),
-    [code, setCode] = useState("");
-  const busy = change.isPending;
-  function submitPassword(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (busy) return;
-    const parsed = passwordFormSchema.safeParse({ current, password, code });
-    if (!parsed.success) {
-      toastValidationError(parsed.error);
-      return;
-    }
-    change.mutate(parsed.data, {
-      onSuccess: () => {
-        setCurrent("");
-        setPassword("");
-        setCode("");
-      },
-    });
-  }
+  const { state, derived, handlers } = usePasswordForm();
+  const { current, password, code } = state;
+  const { busy } = derived;
+  const { setCurrent, setPassword, setCode, submitPassword } = handlers;
   return (
     <Card className="mt-5 max-w-2xl shadow-none">
       <CardHeader>

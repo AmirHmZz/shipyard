@@ -1,6 +1,5 @@
 import { Layers3, MoreHorizontal, Plus, Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router";
+import { Link } from "react-router";
 
 import type { Resource } from "@/lib/api/types";
 
@@ -17,62 +16,30 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useResources } from "@/lib/hooks/useResources";
-import { indexResources } from "@/lib/resource-index";
 
+import { useProjectsPage } from "../hooks";
 import { ApplicationCards } from "./ApplicationCards";
 import { ProjectsHeader } from "./ProjectsHeader";
 import { ProjectToolbar } from "./ProjectToolbar";
-import { ProjectVariablesDialog } from "./ProjectVariablesDialog";
 
 export function ProjectsMainView({ previews = false }: { previews?: boolean }) {
-  const q = useResources();
-  const navigate = useNavigate();
-  const index = useMemo(() => indexResources(q.data || []), [q.data]);
-  const [deleting, setDeleting] = useState<Resource | null>(null);
-  const [filter, setFilter] = useState("");
-  const [editor, setEditor] = useState<{
-    kind: string;
-    existing?: Resource;
-    parentId?: string;
-  } | null>(null);
-  const { id } = useParams();
-  const [params, setParams] = useSearchParams();
-  const activeEnvironment = params.get("environment") || "";
-  const [variables, setVariables] = useState<Resource | null>(null);
-  function openEditor(request: {
-    kind: string;
-    existing?: Resource;
-    parentId?: string;
-  }) {
-    if (["team", "project", "environment"].includes(request.kind)) {
-      setEditor(request);
-      return;
-    }
-    navigate(
-      `/configure/${request.kind}/${request.existing?.id || "new"}?parent=${request.parentId || ""}&return=${encodeURIComponent(location.pathname + location.search)}`,
-    );
-  }
+  const { state, derived, handlers } = useProjectsPage(previews);
+  const { deleting, filter, editor } = state;
+  const {
+    q,
+    resources,
+    index,
+    id,
+    project,
+    environments,
+    currentEnvironment,
+    applications,
+    projects,
+  } = derived;
+  const { navigate, setParams, setDeleting, setFilter, setEditor, openEditor } =
+    handlers;
   if (q.isPending) return <Loading />;
   if (q.error) return <ErrorState error={q.error} />;
-  const resources = q.data || [];
-  const project = index.byId.get(id || "");
-  const environments = resources.filter(
-    (r) => r.kind === "environment" && r.parentId === id,
-  );
-  const currentEnvironment =
-    environments.find((e) => e.id === activeEnvironment) || environments[0];
-  const applications = resources.filter(
-    (r) =>
-      r.kind === "application" &&
-      !!r.data.previewOf === previews &&
-      !r.data.previewClosed,
-  );
-  const projects = resources.filter(
-    (r) =>
-      r.kind === "project" &&
-      r.name.toLowerCase().includes(filter.toLowerCase()),
-  );
   const cards = (apps: Resource[]) => (
     <ApplicationCards
       apps={apps}
@@ -292,11 +259,6 @@ export function ProjectsMainView({ previews = false }: { previews?: boolean }) {
           }}
         />
       )}
-      <ProjectVariablesDialog
-        variables={variables}
-        setVariables={setVariables}
-        resources={resources}
-      />
     </>
   );
 }

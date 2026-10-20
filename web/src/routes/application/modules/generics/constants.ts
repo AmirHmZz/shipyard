@@ -1,4 +1,7 @@
 export const applicationKeys = {
+  deploymentPrefix: ["deployment"] as const,
+  releasesPrefix: ["releases"] as const,
+  deploymentRemoval: ["remove-deployment"] as const,
   deployment: (selected: string | null) => ["deployment", selected] as const,
   domain: (routeId: string) => ["domain", routeId] as const,
   composeSource: (appId: string, version: number) =>

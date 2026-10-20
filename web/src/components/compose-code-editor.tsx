@@ -1,14 +1,17 @@
 import type { OnMount } from "@monaco-editor/react";
 
 import "@/lib/monaco";
-import type { editor } from "monaco-editor";
 
 import Editor from "@monaco-editor/react";
 import { FileCode2, WandSparkles, WrapText } from "lucide-react";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useReducer } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import {
+  initialComposeEditorState,
+  composeEditorReducer,
+} from "@/lib/compose-editor-state";
 
 let tabNavigationInitialized = false;
 
@@ -22,16 +25,17 @@ export default function ComposeCodeEditor({
   disabled?: boolean;
 }) {
   const id = useId();
-  const [instance, setInstance] = useState<editor.IStandaloneCodeEditor | null>(
-    null,
-  );
-  const [wrap, setWrap] = useState(true);
-  const [dark, setDark] = useState(() =>
+  const [{ instance, wrap, dark }, dispatch] = useReducer(
+    composeEditorReducer,
     document.documentElement.classList.contains("dark"),
+    initialComposeEditorState,
   );
   useEffect(() => {
     const observer = new MutationObserver(() =>
-      setDark(document.documentElement.classList.contains("dark")),
+      dispatch({
+        type: "theme_changed",
+        value: document.documentElement.classList.contains("dark"),
+      }),
     );
     observer.observe(document.documentElement, {
       attributes: true,
@@ -48,7 +52,7 @@ export default function ComposeCodeEditor({
       tabNavigationInitialized = true;
     }
     editor.getDomNode()?.setAttribute("data-private", "true");
-    setInstance(editor);
+    dispatch({ type: "mounted", instance: editor });
   };
   async function format() {
     try {
@@ -90,7 +94,7 @@ export default function ComposeCodeEditor({
             aria-pressed={wrap}
             title="Word wrap"
             disabled={!instance}
-            onClick={() => setWrap((current) => !current)}
+            onClick={() => dispatch({ type: "wrap_toggled" })}
           >
             <WrapText />
           </Button>

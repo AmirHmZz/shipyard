@@ -35,7 +35,7 @@ export function VersionChangeReview({
   blocked,
   apply,
   resetErrors,
-  setPlan,
+  onApplied,
 }: {
   plan: Plan;
   pass: string;
@@ -48,7 +48,7 @@ export function VersionChangeReview({
   blocked: boolean;
   apply: ReturnType<typeof useApplyUpdate>;
   resetErrors: () => void;
-  setPlan: (value: Plan | null) => void;
+  onApplied: () => void;
 }) {
   function submitUpdate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -69,8 +69,7 @@ export function VersionChangeReview({
     }
     apply.mutate(parsed.data, {
       onSuccess: () => {
-        setPass("");
-        setPlan(null);
+        onApplied();
       },
     });
   }

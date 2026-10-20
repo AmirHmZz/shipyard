@@ -13,9 +13,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { inputNumberSchema } from "@/lib/schemas/coercion";
+
+import type { DNSRecordFormValues } from "../generics";
 
 export function DNSRecordForm({
   edit,
@@ -23,6 +26,7 @@ export function DNSRecordForm({
   extra,
   setExtra,
   busy,
+  pendingRecord,
   save,
   navigate,
   zone,
@@ -32,6 +36,7 @@ export function DNSRecordForm({
   extra: string;
   setExtra: (value: string) => void;
   busy: boolean;
+  pendingRecord: DNSRecordFormValues | undefined;
   save: () => void;
   navigate: ReturnType<typeof useNavigate>;
   zone: Resource;
@@ -128,8 +133,13 @@ export function DNSRecordForm({
         >
           Cancel
         </Button>
-        <Button disabled={busy}>Save record</Button>
+        <Button disabled={busy}>{busy && <Spinner />}Save record</Button>
       </DialogFooter>
+      {busy && pendingRecord && (
+        <p role="status" className="text-xs text-muted-foreground">
+          Saving {pendingRecord.type} record {pendingRecord.name}…
+        </p>
+      )}
     </form>
   );
 }

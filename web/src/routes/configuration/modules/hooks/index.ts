@@ -9,3 +9,5 @@ export { useStartGitSetup } from "./useStartGitSetup";
 export { useReconnectGit } from "./useReconnectGit";
 export { useCreateGitWebhook } from "./useCreateGitWebhook";
 export { useSaveHAProxySettings } from "./useSaveHAProxySettings";
+export { useNetworkForm } from "./useNetworkForm";
+export { useGitConnectionForm } from "./useGitConnectionForm";

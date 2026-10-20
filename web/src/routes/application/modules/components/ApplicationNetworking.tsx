@@ -43,7 +43,7 @@ export function ApplicationNetworking({ app }: { app: Resource }) {
   );
   const busy = saveNetworking.isPending;
   const error = saveNetworking.error ? describeError(saveNetworking.error) : "";
-  const [saved, setSaved] = useState(false);
+  const saved = saveNetworking.isSuccess;
   const savedServices = useMemo(
     () =>
       Object.fromEntries(
@@ -116,7 +116,6 @@ export function ApplicationNetworking({ app }: { app: Resource }) {
       {
         onSuccess: () => {
           (published ? portChanges : networkingChanges).saved();
-          setSaved(true);
           if (published) setPorts(null);
           else setDraft(null);
         },

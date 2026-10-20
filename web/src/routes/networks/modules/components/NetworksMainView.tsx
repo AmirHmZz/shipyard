@@ -45,7 +45,7 @@ export function NetworksMainView() {
   const [filter, setFilter] = useState("");
   const inventory = useDockerNetworks(filter, !!filter && !!account?.admin);
   function confirmRemoval() {
-    if (!remove) return;
+    if (!remove || removeMutation.isPending) return;
     removeMutation.mutate(remove.id, {
       onSuccess: () => {
         changes.saved();

@@ -18,3 +18,5 @@ export { useSaveApplicationNetworking } from "./useSaveApplicationNetworking";
 export { useSaveComposeSource } from "./useSaveComposeSource";
 export { useDeployComposeSource } from "./useDeployComposeSource";
 export { useSyncRoute } from "./useSyncRoute";
+export { useApplicationPreviewsForm } from "./useApplicationPreviewsForm";
+export { useApplicationDialogs } from "./useApplicationDialogs";

@@ -10,62 +10,28 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
-import { toastValidationError } from "@/lib/api/toaster";
-import { describeError } from "@/lib/api/translate-error";
 
 import type { Plan } from "../generics";
 
-import { serverDeletionSchema } from "../generics";
-import { useConfirmServerDeletion } from "../hooks";
 import { Inventory } from "./Inventory";
 
 export function ServerDeletionPlanReview({
   plan,
-  setPlan,
   name,
   setName,
   ack,
   setAck,
-  busy: reviewing,
-  setError,
-  id,
+  busy,
+  submitConfirmation,
 }: {
   plan: Plan | null;
-  setPlan: (value: Plan | null) => void;
   name: string;
   setName: (value: string) => void;
   ack: boolean;
   setAck: (value: boolean) => void;
   busy: boolean;
-  setError: (value: string) => void;
-  id: string;
+  submitConfirmation: (event: FormEvent<HTMLFormElement>) => void;
 }) {
-  const confirmation = useConfirmServerDeletion(id);
-  const busy = reviewing || confirmation.isPending;
-  function submitConfirmation(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!plan || confirmation.isPending) return;
-    setError("");
-    const parsed = serverDeletionSchema(plan.serverName).safeParse({
-      planId: plan.id,
-      name,
-      deleteVolumes: ack,
-    });
-    if (!parsed.success) {
-      toastValidationError(parsed.error);
-      return;
-    }
-    confirmation.mutate(parsed.data, {
-      onError: (error) => {
-        setError(describeError(error));
-        if (error.error.kind === "http" && error.error.status === 409) {
-          setPlan(null);
-          setName("");
-          setAck(false);
-        }
-      },
-    });
-  }
   return (
     <>
       {plan && (

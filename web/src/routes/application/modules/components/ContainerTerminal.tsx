@@ -1,7 +1,7 @@
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
 import { Plug, Unplug } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useReducer } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +15,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { getCSRF } from "@/lib/api/csrf";
+
+import { initialTerminalState, terminalReducer } from "../generics";
 export default function ContainerTerminal({
   applicationId,
   containers,
@@ -22,9 +24,11 @@ export default function ContainerTerminal({
   applicationId: string;
   containers: string[];
 }) {
-  const [container, setContainer] = useState(containers[0] || "");
-  const [connected, setConnected] = useState(false);
-  const [status, setStatus] = useState("disconnected");
+  const [{ container, connected, status }, dispatch] = useReducer(
+    terminalReducer,
+    containers[0] || "",
+    initialTerminalState,
+  );
   const host = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!connected || !host.current || !container) return;
@@ -49,7 +53,7 @@ export default function ContainerTerminal({
     );
     socket.binaryType = "arraybuffer";
     socket.onopen = () => {
-      setStatus("connected");
+      dispatch({ type: "status_changed", value: "connected" });
       socket.send(
         JSON.stringify({
           type: "resize",
@@ -66,11 +70,11 @@ export default function ContainerTerminal({
           : new Uint8Array(event.data as ArrayBuffer),
       );
     socket.onclose = (event) => {
-      setStatus("disconnected");
+      dispatch({ type: "status_changed", value: "disconnected" });
       terminal.writeln(`\r\n[${event.reason || "Connection closed"}]`);
     };
     socket.onerror = () => {
-      setStatus("failed");
+      dispatch({ type: "status_changed", value: "failed" });
       terminal.writeln(
         "\r\n[Unable to connect. Check permissions and container status.]",
       );
@@ -111,10 +115,9 @@ export default function ContainerTerminal({
         <div className="flex items-center gap-2">
           <Select
             value={container}
-            onValueChange={(v) => {
-              setConnected(false);
-              setContainer(v);
-            }}
+            onValueChange={(value) =>
+              dispatch({ type: "container_changed", value })
+            }
           >
             <SelectTrigger className="w-36">
               <SelectValue placeholder="Container" />
@@ -130,7 +133,7 @@ export default function ContainerTerminal({
           <Button
             variant={connected ? "outline" : "default"}
             disabled={!container}
-            onClick={() => setConnected((v) => !v)}
+            onClick={() => dispatch({ type: "connection_toggled" })}
           >
             {connected ? <Unplug /> : <Plug />}
             {connected ? "Disconnect" : "Connect"}

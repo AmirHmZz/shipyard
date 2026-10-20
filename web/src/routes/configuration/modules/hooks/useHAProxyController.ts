@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useReducer } from "react";
 
 import type { Resource } from "@/lib/api/types";
 import type { DraftRow } from "@/lib/draft-rows";
@@ -10,7 +10,11 @@ import { draftRow } from "@/lib/draft-rows";
 
 import type { Settings, Draft } from "../generics";
 
-import { haproxySettingsSchema } from "../generics";
+import {
+  haproxySettingsSchema,
+  initialHAProxyDraftState,
+  haproxyDraftReducer,
+} from "../generics";
 import { useHAProxySettings } from "./useHAProxySettings";
 import { useSaveHAProxySettings } from "./useSaveHAProxySettings";
 
@@ -30,11 +34,17 @@ export function settingsDraft(
 
 export function useHAProxyController(server: Resource) {
   const changes = useConfigurationChanges();
-  const [editedDraft, setDraft] = useState<Draft | null>(null);
-  const [job, setJob] = useState<string | null>(null);
+  const [state, dispatch] = useReducer(
+    haproxyDraftReducer,
+    initialHAProxyDraftState,
+  );
+  const { editedDraft } = state;
   const saveSettings = useSaveHAProxySettings(server.id);
   const busy = saveSettings.isPending;
-  const [localError, setError] = useState("");
+  const job = state.trackingJob ? saveSettings.data?.jobId : undefined;
+  const localError = saveSettings.error
+    ? describeError(saveSettings.error)
+    : "";
   const q = useHAProxySettings(server);
   const bindings = q.data?.bindings;
   const version = q.data?.version;
@@ -77,25 +87,27 @@ export function useHAProxyController(server: Resource) {
         (id) => !q.data.frontends.some((frontend) => frontend.id === id),
       ));
   function update(id: string, values: DraftRow<{ value: string }>[] | null) {
-    setDraft((current) => {
-      if (success) current = savedDraft;
-      current ??= draft;
-      if (!current) return current;
-      const bindings = { ...current.bindings };
-      if (values === null) delete bindings[id];
-      else bindings[id] = values;
-      return { ...current, bindings };
+    const current = success ? savedDraft : (editedDraft ?? draft);
+    if (!current) return;
+    const bindings = { ...current.bindings };
+    if (values === null) delete bindings[id];
+    else bindings[id] = values;
+    dispatch({
+      type: "edited",
+      draft: { ...current, bindings },
+      stopTracking: jobDone,
     });
-    if (jobDone) {
-      if (!success) setError(error);
-      setJob(null);
-    }
+  }
+  function reloadSaved() {
+    if (!q.data) return;
+    saveSettings.reset();
+    dispatch({ type: "reloaded", draft: settingsDraft(q.data) });
   }
   function save() {
     if (!draft) return;
-    setDraft(draft);
-    setJob(null);
-    setError("");
+    if (pending) return;
+    saveSettings.reset();
+    dispatch({ type: "save_started", draft });
     const parsed = haproxySettingsSchema.safeParse({
       version: draft.version,
       bindings: Object.fromEntries(
@@ -110,23 +122,18 @@ export function useHAProxyController(server: Resource) {
       return;
     }
     saveSettings.mutate(parsed.data, {
-      onSuccess: (result) => {
-        setJob(result.jobId);
-        changes.saved();
-      },
-      onError: (error) => setError(describeError(error)),
+      onSuccess: () => changes.saved(),
     });
   }
 
   return {
     q,
     draft,
-    setDraft,
+    reloadSaved,
     pending,
     stale,
     success,
     error,
-    setError,
     update,
     save,
   };

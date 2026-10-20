@@ -2,14 +2,6 @@ import { ArrowRight, Globe2, Plus, ShieldCheck, Users } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/configuration-surface";
-import { Grants } from "@/components/grants";
 import { ProviderName } from "@/components/provider-name";
 import {
   Empty,
@@ -43,7 +35,6 @@ export function DNSMainView() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const [filter, setFilter] = useState("");
-  const [grant, setGrant] = useState(false);
   if (q.isPending) return <Loading />;
   if (q.error) return <ErrorState error={q.error} />;
   const resources = q.data || [];
@@ -217,17 +208,6 @@ export function DNSMainView() {
           icon={<Globe2 />}
         />
       )}
-      <Dialog open={grant} onOpenChange={setGrant}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Zone access</DialogTitle>
-            <DialogDescription>
-              Team owners can edit records in granted zones.
-            </DialogDescription>
-          </DialogHeader>
-          {zone && <Grants resource={zone} resources={resources} />}
-        </DialogContent>
-      </Dialog>
     </>
   );
 }

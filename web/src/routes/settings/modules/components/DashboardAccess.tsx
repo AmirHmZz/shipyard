@@ -1,5 +1,4 @@
 import { ExternalLink, RefreshCw } from "lucide-react";
-import { useState } from "react";
 
 import { ConfigurationGuard } from "@/components/configuration-surface";
 import { ErrorState, Loading, StateBadge } from "@/components/shared";
@@ -16,14 +15,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
-import { toastValidationError } from "@/lib/api/toaster";
-import { describeError } from "@/lib/api/translate-error";
-import { useConfigurationChanges } from "@/lib/configuration-state";
 
-import type { State, DashboardAccessValues } from "../generics";
+import type { State } from "../generics";
 
-import { dashboardHostnameSchema } from "../generics";
-import { useDashboardAccess, useSaveDashboardAccess } from "../hooks";
+import { useDashboardAccessForm } from "../hooks";
 export function DashboardAccess() {
   return (
     <ConfigurationGuard className="max-w-none">
@@ -32,48 +27,15 @@ export function DashboardAccess() {
   );
 }
 function DashboardAccessForm() {
-  const changes = useConfigurationChanges();
-  const q = useDashboardAccess();
-  const [draft, setDraft] = useState<string | null>(null),
-    [email, setEmail] = useState(""),
-    [accept, setAccept] = useState(false);
-  const saveAccess = useSaveDashboardAccess();
-  const busy = saveAccess.isPending;
-  const error = saveAccess.error ? describeError(saveAccess.error) : "";
+  const { state: form, derived, handlers } = useDashboardAccessForm();
+  const { draft, email, accept } = form;
+  const { q, busy, error } = derived;
+  const { setDraft, setEmail, setAccept, save } = handlers;
   if (!q.data) {
     if (q.error) return <ErrorState error={q.error} />;
     return <Loading />;
   }
   const state = q.data;
-  function save(retry = false) {
-    if (busy) return;
-    saveAccess.reset();
-    let payload: DashboardAccessValues["payload"] = { version: state.version };
-    if (!retry) {
-      const parsed = dashboardHostnameSchema(state.acmeConfigured).safeParse({
-        version: state.version,
-        domain: draft ?? state.domain,
-        acmeEmail: email,
-        acceptTos: accept,
-      });
-      if (!parsed.success) {
-        toastValidationError(parsed.error);
-        return;
-      }
-      payload = state.acmeConfigured
-        ? { version: parsed.data.version, domain: parsed.data.domain }
-        : parsed.data;
-    }
-    saveAccess.mutate(
-      { retry, payload },
-      {
-        onSuccess: () => {
-          setDraft(null);
-          changes.saved();
-        },
-      },
-    );
-  }
   return (
     <>
       <Card>

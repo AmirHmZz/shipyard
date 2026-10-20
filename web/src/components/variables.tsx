@@ -1,95 +1,13 @@
 import { ShieldCheck } from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
 
 import type { Resource } from "@/lib/api/types";
 
 import { Confirm } from "@/components/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { toastValidationError } from "@/lib/api/toaster";
-import { useConfigurationChanges } from "@/lib/configuration-state";
-import { useSaveVariable } from "@/lib/hooks";
-import { variableWriteSchema } from "@/lib/schemas/variables";
+import { useVariableController } from "@/lib/hooks/useVariableController";
 
 import { VariableEditor } from "./VariableEditor";
 import { VariableTable } from "./VariableTable";
-function useVariableController(resource: Resource) {
-  const changes = useConfigurationChanges();
-  const variable = useSaveVariable(resource);
-  const [key, setKey] = useState("");
-  const [value, setValue] = useState("");
-  const [scope, setScope] = useState("env:");
-  const [secret, setSecret] = useState(false);
-  const [editing, setEditing] = useState("");
-  const buildScope = scope === "build:" || scope === "preview-build:";
-  const isSecret = buildScope || secret;
-  const ordinary = resource.variables || {};
-  const secretKeys = new Set(
-    resource.secretKeys.filter((key) =>
-      /^(env|build|preview-env|preview-build):/.test(key),
-    ),
-  );
-  const keys = [...new Set([...Object.keys(ordinary), ...secretKeys])].sort();
-  const busy = variable.isPending;
-  const [remove, setRemove] = useState("");
-  function reset() {
-    setKey("");
-    setValue("");
-    setEditing("");
-    setSecret(false);
-  }
-  function edit(name: string) {
-    const index = name.indexOf(":");
-    setScope(name.slice(0, index + 1));
-    setKey(name.slice(index + 1));
-    setValue(secretKeys.has(name) ? "" : ordinary[name]);
-    setSecret(secretKeys.has(name));
-    setEditing(name);
-  }
-  function save(name: string, v: string | null, encrypted: boolean) {
-    if (busy) return;
-    const parsed = variableWriteSchema.safeParse({ name, value: v, encrypted });
-    if (!parsed.success) {
-      toastValidationError(parsed.error);
-      return;
-    }
-    variable.mutate(parsed.data, {
-      onSuccess: () => {
-        if (v !== null || editing === name) {
-          reset();
-          changes.saved();
-        }
-        setRemove("");
-        toast.success(
-          `Variable ${v === null ? "removed" : "saved"}. Deploy to apply it.`,
-        );
-      },
-    });
-  }
-  return {
-    resource,
-    changes,
-    key,
-    setKey,
-    value,
-    setValue,
-    scope,
-    setScope,
-    secretKeys,
-    isSecret,
-    setSecret,
-    buildScope,
-    editing,
-    busy,
-    ordinary,
-    keys,
-    remove,
-    setRemove,
-    reset,
-    edit,
-    save,
-  };
-}
 export type VariableController = ReturnType<typeof useVariableController>;
 
 export function Variables({ resource }: { resource: Resource }) {
