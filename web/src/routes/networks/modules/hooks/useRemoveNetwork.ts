@@ -1,17 +1,14 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-
+import { useApiMutation } from "@/lib/api/use-api-mutation";
+import { apiPath } from "@/lib/paths";
 import { dockerNetworkKeys, resourceKeys } from "@/lib/query-keys";
-
-import { removeNetwork } from "../services";
+import { deletionResponseSchema } from "@/lib/schemas/acknowledgements";
 
 export function useRemoveNetwork() {
-  const client = useQueryClient();
-  return useMutation({
-    mutationFn: removeNetwork,
-    onSuccess: () =>
-      Promise.all([
-        client.invalidateQueries({ queryKey: resourceKeys.all }),
-        client.invalidateQueries({ queryKey: dockerNetworkKeys.all }),
-      ]),
+  return useApiMutation({
+    method: "DELETE",
+    path: (id: string) => apiPath`/resources/${id}`,
+    body: () => ({}),
+    schema: deletionResponseSchema,
+    invalidate: [resourceKeys.all, dockerNetworkKeys.all],
   });
 }

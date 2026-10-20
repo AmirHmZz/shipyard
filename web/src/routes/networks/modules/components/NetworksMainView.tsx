@@ -22,9 +22,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { errorMessage, text, useAccount, useResources } from "@/lib/api";
+import { text, useResources } from "@/lib/api";
+import { describeError } from "@/lib/api/translate-error";
 import { useConfigurationChanges } from "@/lib/configuration-state";
 import { indexResources } from "@/lib/resource-index";
+import { useAccount } from "@/lib/session";
 
 import type { DockerNetwork } from "../generics";
 
@@ -41,6 +43,15 @@ export function NetworksMainView() {
   const [remove, setRemove] = useState<Resource | null>(null);
   const [filter, setFilter] = useState("");
   const inventory = useDockerNetworks(filter, !!filter && !!account?.admin);
+  function confirmRemoval() {
+    if (!remove) return;
+    removeMutation.mutate(remove.id, {
+      onSuccess: () => {
+        changes.saved();
+        setRemove(null);
+      },
+    });
+  }
   if (q.isPending) return <Loading />;
   if (q.error) return <ErrorState error={q.error} />;
   const resources = q.data || [];
@@ -109,7 +120,7 @@ export function NetworksMainView() {
       {filter && inventory.error && (
         <Alert variant="destructive" className="mb-5">
           <AlertDescription>
-            Could not load server networks: {errorMessage(inventory.error)}
+            Could not load server networks: {describeError(inventory.error)}
             <Button
               variant="outline"
               size="sm"
@@ -268,10 +279,8 @@ export function NetworksMainView() {
         }
         description="The network must not be referenced by applications or have attached containers. External Docker networks are preserved."
         destructive
-        onConfirm={async () => {
-          await removeMutation.mutateAsync(remove!.id);
-          changes.saved();
-        }}
+        pending={removeMutation.isPending}
+        onConfirm={confirmRemoval}
       />
     </>
   );
