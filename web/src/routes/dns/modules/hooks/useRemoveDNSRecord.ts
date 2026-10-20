@@ -1,13 +1,15 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useApiMutation } from "@/lib/api/use-api-mutation";
+import { apiPath } from "@/lib/paths";
+import { okResponseSchema } from "@/lib/schemas/acknowledgements";
 
 import { dnsKeys } from "../generics";
-import { removeDNSRecord } from "../services";
 
 export function useRemoveDNSRecord(zoneId: string) {
-  const client = useQueryClient();
-  return useMutation({
-    mutationFn: (recordId: string) => removeDNSRecord(zoneId, recordId),
-    onSuccess: () =>
-      client.invalidateQueries({ queryKey: dnsKeys.records(zoneId) }),
+  return useApiMutation({
+    method: "DELETE",
+    path: (recordId: string) => apiPath`/zones/${zoneId}/records/${recordId}`,
+    body: () => ({}),
+    schema: okResponseSchema,
+    invalidate: [dnsKeys.records(zoneId)],
   });
 }

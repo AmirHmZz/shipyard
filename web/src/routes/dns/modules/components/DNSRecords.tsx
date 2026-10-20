@@ -1,8 +1,6 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { Plus, RefreshCw, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { toast } from "sonner";
 
 import type { DNSRecord, Resource } from "@/lib/api";
 
@@ -26,21 +24,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { errorMessage, text } from "@/lib/api";
+import { text } from "@/lib/api";
+import { toastValidationError } from "@/lib/api/toaster";
 import { useConfigurationChanges } from "@/lib/configuration-state";
 import { jsonText } from "@/lib/schemas/form-rules";
 
 import { dnsRecordFormSchema } from "../generics";
-import { dnsKeys } from "../generics";
-import { useDNSRecords, useRemoveDNSRecord } from "../hooks";
-import { saveDNSRecord } from "../services";
+import { useDNSRecords, useRemoveDNSRecord, useSaveDNSRecord } from "../hooks";
 import { DNSRecordForm } from "./DNSRecordForm";
 
 export function DNSRecords({ zone }: { zone: Resource }) {
   const changes = useConfigurationChanges();
   const { record: recordId } = useParams();
   const navigate = useNavigate();
-  const client = useQueryClient();
   const q = useDNSRecords(zone);
   const removeRecord = useRemoveDNSRecord(zone.id);
   const [draft, setDraft] = useState<{
@@ -82,25 +78,34 @@ export function DNSRecords({ zone }: { zone: Resource }) {
       extra,
     }));
   }
-  const [busy, setBusy] = useState(false);
+  const saveRecord = useSaveDNSRecord(zone.id, edit?.id);
   const [deleteId, setDeleteId] = useState("");
-  async function save() {
-    if (!edit) return;
-    setBusy(true);
-    try {
-      const data = extra.trim() ? jsonText.parse(extra) : undefined;
-      const record = dnsRecordFormSchema.parse({ ...edit, data });
-      await saveDNSRecord(zone.id, edit, record);
-      await client.invalidateQueries({ queryKey: dnsKeys.records(zone.id) });
-      setEdit(null);
-      changes.saved();
-      navigate(`/dns/${zone.id}`);
-      toast.success("DNS record saved");
-    } catch (e) {
-      toast.error(errorMessage(e));
-    } finally {
-      setBusy(false);
+  function save() {
+    if (!edit || saveRecord.isPending) return;
+    let data;
+    if (extra.trim()) {
+      const parsed = jsonText.safeParse(extra);
+      if (!parsed.success) {
+        toastValidationError(parsed.error);
+        return;
+      }
+      data = parsed.data;
     }
+    const record = dnsRecordFormSchema.safeParse({ ...edit, data });
+    if (!record.success) {
+      toastValidationError(record.error);
+      return;
+    }
+    saveRecord.mutate(record.data, {
+      onSuccess: () => {
+        setEdit(null);
+        changes.saved();
+        navigate(`/dns/${zone.id}`);
+      },
+    });
+  }
+  function confirmRemoval() {
+    removeRecord.mutate(deleteId, { onSuccess: () => setDeleteId("") });
   }
   return (
     <>
@@ -231,7 +236,7 @@ export function DNSRecords({ zone }: { zone: Resource }) {
               setEdit={setEdit}
               extra={extra}
               setExtra={setExtra}
-              busy={busy}
+              busy={saveRecord.isPending}
               save={save}
               navigate={navigate}
               zone={zone}
@@ -245,9 +250,8 @@ export function DNSRecords({ zone }: { zone: Resource }) {
         title="Delete this DNS record?"
         description="This removes the record from your DNS provider."
         destructive
-        onConfirm={async () => {
-          await removeRecord.mutateAsync(deleteId);
-        }}
+        pending={removeRecord.isPending}
+        onConfirm={confirmRemoval}
       />
     </>
   );

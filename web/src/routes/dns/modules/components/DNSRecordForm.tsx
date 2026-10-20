@@ -32,7 +32,7 @@ export function DNSRecordForm({
   extra: string;
   setExtra: (value: string) => void;
   busy: boolean;
-  save: () => Promise<void>;
+  save: () => void;
   navigate: ReturnType<typeof useNavigate>;
   zone: Resource;
 }) {

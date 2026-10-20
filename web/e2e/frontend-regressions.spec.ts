@@ -79,6 +79,7 @@ async function fixture(page: Page) {
             name: "example.com",
             content: state.content,
             ttl: 120,
+            proxied: false,
           },
         ],
       });

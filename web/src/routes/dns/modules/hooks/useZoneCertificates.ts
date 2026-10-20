@@ -1,16 +1,16 @@
-import { useQuery } from "@tanstack/react-query";
-
 import type { Resource } from "@/lib/api";
 
+import { useApiQuery } from "@/lib/api/use-api-query";
 import { POLL_INTERVALS } from "@/lib/constants";
+import { apiPath } from "@/lib/paths";
 
-import { dnsKeys } from "../generics";
-import { getZoneCertificates } from "../services";
+import { dnsKeys, getZoneCertificatesResponseSchema } from "../generics";
 
 export function useZoneCertificates(zone: Resource) {
-  return useQuery({
+  return useApiQuery({
     queryKey: dnsKeys.certificates(zone.id),
-    queryFn: () => getZoneCertificates(zone),
+    path: apiPath`/zones/${zone.id}/certificates`,
+    schema: getZoneCertificatesResponseSchema,
     refetchInterval: POLL_INTERVALS.metrics,
   });
 }

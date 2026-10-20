@@ -1,13 +1,14 @@
-import { useQuery } from "@tanstack/react-query";
-
 import type { Resource } from "@/lib/api";
 
-import { dnsKeys } from "../generics";
-import { getDNSRecords } from "../services";
+import { useApiQuery } from "@/lib/api/use-api-query";
+import { apiPath } from "@/lib/paths";
+
+import { dnsKeys, getDNSRecordsResponseSchema } from "../generics";
 
 export function useDNSRecords(zone: Resource) {
-  return useQuery({
+  return useApiQuery({
     queryKey: dnsKeys.records(zone.id),
-    queryFn: () => getDNSRecords(zone),
+    path: apiPath`/zones/${zone.id}/records`,
+    schema: getDNSRecordsResponseSchema,
   });
 }
