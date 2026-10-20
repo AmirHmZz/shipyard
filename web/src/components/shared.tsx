@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
+import { describeError } from "@/lib/api/translate-error";
 export function StateBadge({ state }: { state?: string }) {
   const healthy = [
     "healthy",
@@ -171,9 +172,7 @@ export function ErrorState({ error }: { error: unknown }) {
   return (
     <Alert variant="destructive">
       <AlertCircle className="size-4" />
-      <AlertDescription>
-        {error instanceof Error ? error.message : "Something went wrong"}
-      </AlertDescription>
+      <AlertDescription>{describeError(error)}</AlertDescription>
     </Alert>
   );
 }

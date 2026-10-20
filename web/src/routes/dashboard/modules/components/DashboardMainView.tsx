@@ -1,5 +1,4 @@
 import { Loading } from "@/components/shared";
-import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 import { useSession } from "../hooks";
@@ -20,7 +19,6 @@ export function DashboardMainView() {
         ) : (
           <Auth />
         )}
-        <Toaster position="bottom-right" richColors />
       </TooltipProvider>
     </>
   );
