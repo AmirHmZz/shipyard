@@ -28,8 +28,9 @@ import {
 } from "@/components/ui/table";
 import { errorMessage, text } from "@/lib/api";
 import { useConfigurationChanges } from "@/lib/configuration-state";
-import { dnsRecordFormSchema, jsonText } from "@/lib/validation";
+import { jsonText } from "@/lib/schemas/form-rules";
 
+import { dnsRecordFormSchema } from "../generics";
 import { dnsKeys } from "../generics";
 import { useDNSRecords, useRemoveDNSRecord } from "../hooks";
 import { saveDNSRecord } from "../services";

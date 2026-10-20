@@ -1,11 +1,13 @@
-import type { dnsCredentialSchema } from "@/lib/validation";
+import type * as z from "zod/mini";
+
+import type { dnsCredentialSchema } from "@/lib/schemas/dns";
 
 import { post } from "@/lib/api/client";
 
 // TODO(openapi): add the option response shapes to the generated schema.
 
 export function testDNSCredentials(
-  credentials: typeof dnsCredentialSchema._output,
+  credentials: z.output<typeof dnsCredentialSchema>,
 ) {
   return post<unknown>("/dns/test", credentials);
 }

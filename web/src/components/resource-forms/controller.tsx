@@ -3,26 +3,25 @@ import type { ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { createContext, use, useId, useState } from "react";
 import { toast } from "sonner";
-import * as z from "zod";
+import * as z from "zod/mini";
 
 import type { Resource } from "@/lib/api";
+import type { ResourceKind } from "@/lib/resource-form-definitions";
 
 import { ProviderLogo } from "@/components/provider-name";
 import { errorMessage } from "@/lib/api";
 import { normalizeApplicationSettings } from "@/lib/application-settings";
 import { useConfigurationChanges } from "@/lib/configuration-state";
 import { resourceKeys } from "@/lib/query-keys";
+import { defaults, parents } from "@/lib/resource-form-definitions";
 import { relativeHostname, routeHostname } from "@/lib/route-hostname";
+import { dnsCredentialSchema } from "@/lib/schemas/dns";
+import { parseResourceForm } from "@/lib/schemas/resource-form";
 import {
   probeServerFingerprint,
   saveResource,
   testDNSCredentials,
 } from "@/lib/services";
-import { dnsCredentialSchema, parseResourceForm } from "@/lib/validation";
-
-import type { ResourceKind } from "./definitions";
-
-import { defaults, parents } from "./definitions";
 export type ResourceFormProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -31,8 +30,9 @@ export type ResourceFormProps = {
   parentId?: string;
   onSaved?: (resource: Resource) => void;
 };
-type ControllerProps = ResourceFormProps & { kind: ResourceKind };
-
+type ControllerProps = ResourceFormProps & {
+  kind: ResourceKind;
+};
 function useResourceFormController({
   kind,
   resources,
@@ -195,9 +195,11 @@ function useResourceFormController({
       const writeSecrets = { ...secrets };
       if (kind === "application") {
         z.string()
-          .refine(
-            (value) => parentOptions.some((option) => option.value === value),
-            "Select an environment in this project.",
+          .check(
+            z.refine(
+              (value) => parentOptions.some((option) => option.value === value),
+              "Select an environment in this project.",
+            ),
           )
           .parse(parent);
       }
@@ -208,12 +210,15 @@ function useResourceFormController({
         if (resolved.protocol !== "tcp") resolved.tls = "terminate";
         const zoneId = z
           .string()
-          .refine(
-            (value) =>
-              resources.some(
-                (resource) => resource.kind === "zone" && resource.id === value,
-              ),
-            "Select a connected zone",
+          .check(
+            z.refine(
+              (value) =>
+                resources.some(
+                  (resource) =>
+                    resource.kind === "zone" && resource.id === value,
+                ),
+              "Select a connected zone",
+            ),
           )
           .parse(resolved.zoneId);
         const zone = resources.find((resource) => resource.id === zoneId)!;
@@ -223,7 +228,11 @@ function useResourceFormController({
       if (
         kind === "application" &&
         resolved.previews &&
-        (resolved.previewRouting as { mode?: string })?.mode === "inherit" &&
+        (
+          resolved.previewRouting as {
+            mode?: string;
+          }
+        )?.mode === "inherit" &&
         !resources.some(
           (r) =>
             r.kind === "route" &&
@@ -257,7 +266,6 @@ function useResourceFormController({
       setBusy(false);
     }
   }
-
   async function probeFingerprint() {
     setProbe(true);
     try {
@@ -270,7 +278,6 @@ function useResourceFormController({
       setProbe(false);
     }
   }
-
   return {
     state: {
       name,
@@ -320,7 +327,9 @@ const FormContext = createContext<FormContextValue | null>(null);
 export function ResourceFormProvider({
   children,
   ...props
-}: ControllerProps & { children: ReactNode }) {
+}: ControllerProps & {
+  children: ReactNode;
+}) {
   const value = useResourceFormController(props);
   return <FormContext value={value}>{children}</FormContext>;
 }

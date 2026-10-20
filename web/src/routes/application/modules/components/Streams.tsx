@@ -2,7 +2,6 @@ import { Copy, Eraser } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import type { Deployment } from "@/lib/api";
 import type { LogLine } from "@/lib/log-buffer";
 
 import { StateBadge } from "@/components/shared";
@@ -18,6 +17,9 @@ import {
 } from "@/components/ui/select";
 import { LogBuffer } from "@/lib/log-buffer";
 import { logText } from "@/lib/log-text";
+import { inputNumberSchema } from "@/lib/schemas/coercion";
+
+import { logMessageSchema, logStatusSchema } from "../generics";
 export function LogStream({
   deploymentId,
   applicationId,
@@ -60,22 +62,25 @@ export function LogStream({
     const source = new EventSource("/api/v1" + endpoint);
     let lastEventID = 0;
     source.addEventListener("log", (event) => {
+      if (!(event instanceof MessageEvent)) return;
       if (deploymentId) {
-        const id = Number((event as MessageEvent).lastEventId);
-        if (id > 0) {
-          if (id <= lastEventID) return;
-          lastEventID = id;
+        const id = inputNumberSchema.safeParse(event.lastEventId);
+        if (id.success && id.data > 0) {
+          if (id.data <= lastEventID) return;
+          lastEventID = id.data;
         }
       }
 
-      const data = JSON.parse((event as MessageEvent).data) as {
-        message: string;
-      };
-      current.push(logText(data.message));
+      const data = logMessageSchema.safeParse(event.data);
+      if (!data.success) return;
+      current.push(logText(data.data.message));
       updateOutput({ state: "connected" });
     });
     source.addEventListener("status", (event) => {
-      const d = JSON.parse((event as MessageEvent).data) as Deployment;
+      if (!(event instanceof MessageEvent)) return;
+      const result = logStatusSchema.safeParse(event.data);
+      if (!result.success) return;
+      const d = result.data;
       updateOutput({ state: d.state, error: d.error || "" });
       if (["healthy", "failed", "recovery_failed"].includes(d.state))
         source.close();

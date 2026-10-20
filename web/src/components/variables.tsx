@@ -10,8 +10,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { errorMessage } from "@/lib/api";
 import { useConfigurationChanges } from "@/lib/configuration-state";
 import { resourceKeys } from "@/lib/query-keys";
+import { variableFormSchema } from "@/lib/schemas/variables";
 import { saveVariable } from "@/lib/services";
-import { variableFormSchema } from "@/lib/validation";
 
 import { VariableEditor } from "./VariableEditor";
 import { VariableTable } from "./VariableTable";

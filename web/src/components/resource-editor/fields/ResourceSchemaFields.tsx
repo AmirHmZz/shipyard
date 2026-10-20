@@ -1,5 +1,5 @@
 import { useResourceForm } from "@/components/resource-forms/controller";
-import { fields } from "@/components/resource-forms/definitions";
+import { fields } from "@/lib/resource-form-definitions";
 
 import type { ResourceFieldProps } from "../types";
 

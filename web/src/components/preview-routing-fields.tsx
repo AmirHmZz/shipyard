@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { inputNumberSchema } from "@/lib/schemas/coercion";
 
 export function PreviewRoutingFields({
   value,
@@ -24,19 +25,20 @@ export function PreviewRoutingFields({
   disabled?: boolean;
 }) {
   const id = useId();
+  function changeMode(mode: string) {
+    if (mode === "target") {
+      onChange({
+        mode,
+        service: value.mode === "target" ? value.service || "app" : "app",
+        port: value.mode === "target" ? value.port || 0 : 0,
+      });
+      return;
+    }
+    if (mode === "inherit" || mode === "private") onChange({ mode });
+  }
   return (
     <div className="space-y-3">
-      <Select
-        value={value.mode}
-        disabled={disabled}
-        onValueChange={(mode) =>
-          onChange(
-            mode === "target"
-              ? { mode, service: value.service || "app", port: value.port || 0 }
-              : { mode: mode as "inherit" | "private" },
-          )
-        }
-      >
+      <Select value={value.mode} disabled={disabled} onValueChange={changeMode}>
         <SelectTrigger aria-label="Preview routing">
           <SelectValue />
         </SelectTrigger>
@@ -75,7 +77,10 @@ export function PreviewRoutingFields({
               value={value.port || ""}
               disabled={disabled}
               onChange={(e) =>
-                onChange({ ...value, port: Number(e.target.value) })
+                onChange({
+                  ...value,
+                  port: inputNumberSchema.parse(e.target.value),
+                })
               }
             />
           </div>

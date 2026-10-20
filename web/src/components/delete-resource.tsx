@@ -20,8 +20,8 @@ import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { errorMessage, text } from "@/lib/api";
 import { resourceKeys } from "@/lib/query-keys";
+import { resourceDeletionSchema } from "@/lib/schemas/resources";
 import { deleteResource } from "@/lib/services";
-import { resourceDeletionSchema } from "@/lib/validation";
 
 export function DeleteResource({
   resource,

@@ -1,8 +1,11 @@
+import type * as z from "zod/mini";
+
 import type { Session } from "@/lib/api/types";
-import type { passwordFormSchema } from "@/lib/validation";
 
 import { post } from "@/lib/api/client";
 
-export function changePassword(payload: typeof passwordFormSchema._output) {
+import type { passwordFormSchema } from "../generics";
+
+export function changePassword(payload: z.output<typeof passwordFormSchema>) {
   return post<Session>("/auth/password", payload);
 }

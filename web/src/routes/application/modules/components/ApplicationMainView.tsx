@@ -20,8 +20,8 @@ import {
 } from "@/lib/api";
 import { deploymentKeys } from "@/lib/query-keys";
 import { indexResources } from "@/lib/resource-index";
-import { freshDeploySchema } from "@/lib/validation";
 
+import { freshDeploySchema } from "../generics";
 import {
   useApplicationRuntime,
   useApplicationMetrics,

@@ -26,8 +26,8 @@ import {
 } from "@/components/ui/select";
 import { errorMessage, text } from "@/lib/api";
 import { useConfigurationChanges } from "@/lib/configuration-state";
-import { gitSetupSchema } from "@/lib/validation";
 
+import { gitSetupSchema } from "../generics";
 import {
   useGiteaInstances,
   useGitSetupConfig,

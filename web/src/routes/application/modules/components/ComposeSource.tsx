@@ -19,10 +19,10 @@ import { errorMessage } from "@/lib/api";
 import { useConfigurationChanges } from "@/lib/configuration-state";
 import { loadComposeEditor } from "@/lib/feature-loaders";
 import { resourceKeys } from "@/lib/query-keys";
-import { composeSourceSchema } from "@/lib/validation";
 
 import type { Source } from "../generics";
 
+import { composeSourceSchema } from "../generics";
 import { useComposeSource } from "../hooks";
 import { saveComposeSource, deployComposeSource } from "../services";
 

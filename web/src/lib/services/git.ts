@@ -1,11 +1,16 @@
+import type * as z from "zod/mini";
+
+import type { branchOptionResponseSchema } from "@/lib/schemas/branch-option";
+import type { repositoryOptionResponseSchema } from "@/lib/schemas/repository-option";
+
 import { api } from "@/lib/api/client";
 import { apiPath } from "@/lib/paths";
 
 // TODO(openapi): add the option response shapes to the generated schema.
 
-export type RepositoryOption = { full_name: string };
+export type RepositoryOption = z.infer<typeof repositoryOptionResponseSchema>;
 
-export type BranchOption = { name: string };
+export type BranchOption = z.infer<typeof branchOptionResponseSchema>;
 
 export function getRepositories(gitId: string, signal: AbortSignal) {
   return api<RepositoryOption[]>(apiPath`/git/${gitId}/repositories`, {

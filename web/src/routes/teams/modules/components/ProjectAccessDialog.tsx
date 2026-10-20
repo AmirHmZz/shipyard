@@ -1,5 +1,4 @@
 import { toast } from "sonner";
-import * as z from "zod";
 
 import type { Resource } from "@/lib/api";
 
@@ -19,9 +18,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { errorMessage } from "@/lib/api";
+import { ASSIGNMENT_ROLES } from "@/lib/enums";
 
 import type { useAssignTeamMember } from "../hooks";
 
+import { projectAssignmentSchema } from "../generics";
 export function ProjectAccessDialog({
   assign,
   setAssign,
@@ -62,20 +63,10 @@ export function ProjectAccessDialog({
                   try {
                     await assignmentMutation.mutateAsync({
                       projectId: p.id,
-                      assignment: z
-                        .object({
-                          userId: z.string().min(1),
-                          role: z.enum([
-                            "owner",
-                            "operator",
-                            "viewer",
-                            "remove",
-                          ]),
-                        })
-                        .parse({
-                          userId: assign,
-                          role: value,
-                        }),
+                      assignment: projectAssignmentSchema.parse({
+                        userId: assign,
+                        role: value,
+                      }),
                     });
                     toast.success("Project access updated");
                   } catch (e) {
@@ -87,7 +78,7 @@ export function ProjectAccessDialog({
                   <SelectValue placeholder="Assign role" />
                 </SelectTrigger>
                 <SelectContent>
-                  {["owner", "operator", "viewer", "remove"].map((v) => (
+                  {ASSIGNMENT_ROLES.map((v) => (
                     <SelectItem key={v} value={v}>
                       {v}
                     </SelectItem>

@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { inputNumberSchema } from "@/lib/schemas/coercion";
 
 export function DNSRecordForm({
   edit,
@@ -80,7 +81,9 @@ export function DNSRecordForm({
           <Input
             type="number"
             value={edit.ttl}
-            onChange={(e) => setEdit({ ...edit, ttl: Number(e.target.value) })}
+            onChange={(e) =>
+              setEdit({ ...edit, ttl: inputNumberSchema.parse(e.target.value) })
+            }
           />
         </div>
         <div className="space-y-2">
@@ -91,7 +94,9 @@ export function DNSRecordForm({
             onChange={(e) =>
               setEdit({
                 ...edit,
-                priority: e.target.value ? Number(e.target.value) : undefined,
+                priority: e.target.value
+                  ? inputNumberSchema.parse(e.target.value)
+                  : undefined,
               })
             }
           />

@@ -6,10 +6,10 @@ import type { DraftRow } from "@/lib/draft-rows";
 import { errorMessage } from "@/lib/api";
 import { useConfigurationChanges } from "@/lib/configuration-state";
 import { draftRow } from "@/lib/draft-rows";
-import { haproxySettingsSchema } from "@/lib/validation";
 
 import type { Settings, Draft } from "../generics";
 
+import { haproxySettingsSchema } from "../generics";
 import { saveHAProxySettings } from "../services";
 import { useHAProxySettings } from "./useHAProxySettings";
 

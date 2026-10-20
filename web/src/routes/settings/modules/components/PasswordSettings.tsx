@@ -14,8 +14,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { errorMessage, setCSRF } from "@/lib/api";
 import { sessionKeys } from "@/lib/query-keys";
-import { passwordFormSchema } from "@/lib/validation";
 
+import { passwordFormSchema } from "../generics";
 import { useChangePassword } from "../hooks";
 
 export function PasswordSettings() {

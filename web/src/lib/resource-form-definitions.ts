@@ -1,14 +1,6 @@
-export type ResourceKind =
-  | "team"
-  | "project"
-  | "environment"
-  | "server"
-  | "git"
-  | "dns"
-  | "zone"
-  | "application"
-  | "route"
-  | "webhook";
+import type { ResourceKind } from "@/lib/types";
+export type { ResourceKind } from "@/lib/types";
+import { DNS_PROVIDERS, GIT_PROVIDERS, SSH_AUTH_METHODS } from "@/lib/enums";
 export type Field = {
   key: string;
   label: string;
@@ -22,7 +14,7 @@ export type Field = {
     | "csv"
     | "readiness"
     | "previewRouting";
-  options?: string[];
+  options?: readonly string[];
   resource?: string;
   help?: string;
 };
@@ -37,7 +29,7 @@ export const fields: Record<ResourceKind, Field[]> = {
     {
       key: "authMethod",
       label: "SSH authentication",
-      options: ["private_key", "password"],
+      options: SSH_AUTH_METHODS,
       help: "Private keys are recommended. Passwords are encrypted and never returned.",
     },
     {
@@ -51,7 +43,7 @@ export const fields: Record<ResourceKind, Field[]> = {
     { key: "ipv6", label: "Public IPv6 (optional)" },
   ],
   git: [
-    { key: "provider", label: "Provider", options: ["github", "gitea"] },
+    { key: "provider", label: "Provider", options: GIT_PROVIDERS },
     {
       key: "url",
       label: "Gitea instance URL",
@@ -72,7 +64,7 @@ export const fields: Record<ResourceKind, Field[]> = {
     {
       key: "provider",
       label: "DNS provider",
-      options: ["cloudflare", "arvancloud"],
+      options: DNS_PROVIDERS,
     },
     { key: "token", label: "Provider API token", type: "secret" },
   ],

@@ -1,5 +1,5 @@
 import type { ResourceFormProps } from "@/components/resource-forms/controller";
-import type { ResourceKind } from "@/components/resource-forms/definitions";
+import type { ResourceKind } from "@/lib/resource-form-definitions";
 
 import { ResourceFormProvider } from "@/components/resource-forms/controller";
 import { ErrorState } from "@/components/shared";

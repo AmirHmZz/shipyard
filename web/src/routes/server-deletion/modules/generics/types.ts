@@ -1,7 +1,13 @@
-import type { components } from "@/lib/schema";
+import type * as z from "zod/mini";
 
-export type Plan = components["schemas"]["ServerDeletionPlan"];
+import type {
+  serverDeletionPlanResponseSchema,
+  serverDeletionStatusResponseSchema,
+  deletionItemResponseSchema,
+} from "./schema";
 
-export type Status = components["schemas"]["ServerDeletionStatus"];
+export type Plan = z.infer<typeof serverDeletionPlanResponseSchema>;
 
-export type Item = components["schemas"]["DeletionItem"];
+export type Status = z.infer<typeof serverDeletionStatusResponseSchema>;
+
+export type Item = z.infer<typeof deletionItemResponseSchema>;

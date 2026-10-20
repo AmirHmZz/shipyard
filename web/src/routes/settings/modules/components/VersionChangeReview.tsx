@@ -13,10 +13,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { updateFormSchema } from "@/lib/validation";
 
 import type { Plan } from "../generics";
 
+import { updateFormSchema } from "../generics";
 import { applyUpdate } from "../services";
 import { ReleaseNotes } from "./ReleaseNotes";
 

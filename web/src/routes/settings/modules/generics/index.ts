@@ -5,3 +5,35 @@ export type { User } from "./types";
 export type { HistoryResponse } from "./types";
 export type { TOTPRecoveryResult } from "./types";
 export { settingsKeys } from "./constants";
+
+export {
+  passwordFormSchema,
+  alertPolicySchema,
+  passphraseSchema,
+  totpCodeSchema,
+  totpPasswordSchema,
+  totpDisableSchema,
+  dashboardHostnameSchema,
+  updateFormSchema,
+} from "./schema";
+
+export {
+  alertPolicyResponseSchema,
+  buildInfoResponseSchema,
+  dashboardAccessResponseSchema,
+  migrationDirectionResponseSchema,
+  migrationResponseSchema,
+  migrationStepResponseSchema,
+  migrationPlanResponseSchema,
+  releaseManifestResponseSchema,
+  versionChangePlanResponseSchema,
+  versionChangeOperationResponseSchema,
+  systemUpdatesResponseSchema,
+  userResponseSchema,
+  historyResponseSchema,
+  totpRecoveryResultResponseSchema,
+  getUsersResponseSchema,
+  downloadBackupResponseSchema,
+  regenerateRecoveryCodesResponseSchema,
+  downloadUpdateBackupResponseSchema,
+} from "./schema";

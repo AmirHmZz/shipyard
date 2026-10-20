@@ -38,8 +38,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { errorMessage, useAccount, useResources } from "@/lib/api";
-import { invitationFormSchema } from "@/lib/validation";
 
+import { invitationFormSchema } from "../generics";
 import {
   useAssignTeamMember,
   useCreateInvitation,

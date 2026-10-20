@@ -1,25 +1,30 @@
-import type { components } from "@/lib/schema";
+import type * as z from "zod/mini";
 
-export type AlertPolicy = components["schemas"]["AlertPolicy"];
+import type {
+  alertPolicyResponseSchema,
+  systemUpdatesResponseSchema,
+  versionChangePlanResponseSchema,
+  dashboardAccessResponseSchema,
+  userResponseSchema,
+  historyResponseSchema,
+  totpRecoveryResultResponseSchema,
+} from "./schema";
 
-export type Status = components["schemas"]["SystemUpdates"];
+export type AlertPolicy = z.infer<typeof alertPolicyResponseSchema>;
 
-export type Plan = components["schemas"]["VersionChangePlan"];
+export type Status = z.infer<typeof systemUpdatesResponseSchema>;
 
-export type State = components["schemas"]["DashboardAccess"];
+export type Plan = z.infer<typeof versionChangePlanResponseSchema>;
+
+export type State = z.infer<typeof dashboardAccessResponseSchema>;
 
 // TODO(openapi): add user administration responses to api/openapi.yaml.
-export type User = {
-  id: string;
-  name: string;
-  email: string;
-  admin: boolean;
-  disabled: boolean;
-  totp: boolean;
-};
+export type User = z.infer<typeof userResponseSchema>;
 
 // TODO(openapi): add HistoryResponse to api/openapi.yaml.
-export type HistoryResponse = Record<string, string | number>[];
+export type HistoryResponse = z.infer<typeof historyResponseSchema>;
 
 // TODO(openapi): add TOTPRecoveryResult to api/openapi.yaml.
-export type TOTPRecoveryResult = { recoveryCodes: string[] };
+export type TOTPRecoveryResult = z.infer<
+  typeof totpRecoveryResultResponseSchema
+>;

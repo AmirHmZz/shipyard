@@ -20,8 +20,8 @@ import { errorMessage, useAccount, useResources } from "@/lib/api";
 import { useConfigurationChanges } from "@/lib/configuration-state";
 import { dockerNetworkKeys } from "@/lib/query-keys";
 import { resourceKeys } from "@/lib/query-keys";
-import { networkFormSchema } from "@/lib/validation";
 
+import { networkFormSchema } from "../generics";
 import { useNetworkInventory } from "../hooks";
 import { createNetwork } from "../services";
 

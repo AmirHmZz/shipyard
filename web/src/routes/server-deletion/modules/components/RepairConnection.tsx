@@ -17,8 +17,8 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { errorMessage, text } from "@/lib/api";
-import { serverConnectionSchema } from "@/lib/validation";
 
+import { serverConnectionSchema } from "../generics";
 import { useRepairServerConnection } from "../hooks";
 
 export function RepairConnection({

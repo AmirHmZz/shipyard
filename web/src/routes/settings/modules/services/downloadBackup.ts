@@ -1,7 +1,9 @@
-import type { passphraseSchema } from "@/lib/validation";
+import type * as z from "zod/mini";
 
 import { post } from "@/lib/api/client";
 
-export function downloadBackup(payload: typeof passphraseSchema._output) {
+import type { passphraseSchema } from "../generics";
+
+export function downloadBackup(payload: z.output<typeof passphraseSchema>) {
   return post<Blob>("/backup", payload);
 }

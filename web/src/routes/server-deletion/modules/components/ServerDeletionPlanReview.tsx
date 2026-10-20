@@ -12,10 +12,10 @@ import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { APIError, errorMessage } from "@/lib/api";
 import { resourceKeys } from "@/lib/query-keys";
-import { serverDeletionSchema } from "@/lib/validation";
 
 import type { Plan } from "../generics";
 
+import { serverDeletionSchema } from "../generics";
 import { serverDeletionKeys } from "../generics";
 import { confirmServerDeletion } from "../services";
 import { Inventory } from "./Inventory";

@@ -18,10 +18,10 @@ import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { errorMessage } from "@/lib/api";
 import { useConfigurationChanges } from "@/lib/configuration-state";
-import { dashboardHostnameSchema } from "@/lib/validation";
 
 import type { State } from "../generics";
 
+import { dashboardHostnameSchema } from "../generics";
 import { useDashboardAccess } from "../hooks";
 import { saveDashboardAccess } from "../services";
 export function DashboardAccess() {

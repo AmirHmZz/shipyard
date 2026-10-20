@@ -21,9 +21,9 @@ import { Switch } from "@/components/ui/switch";
 import { errorMessage, text, useResources } from "@/lib/api";
 import { normalizeApplicationSettings } from "@/lib/application-settings";
 import { useConfigurationChanges } from "@/lib/configuration-state";
-import { previewRoutingSchema } from "@/lib/validation";
-import { previewFormSchema } from "@/lib/validation";
+import { previewRoutingSchema } from "@/lib/schemas/application";
 
+import { previewFormSchema } from "../generics";
 import {
   useSaveApplicationPreview,
   useCreateApplicationPreview,

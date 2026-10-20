@@ -1,11 +1,13 @@
-import type { previewCommitSchema } from "@/lib/validation";
+import type * as z from "zod/mini";
 
 import { post } from "@/lib/api/client";
 import { apiPath } from "@/lib/paths";
 
+import type { previewCommitSchema } from "../generics";
+
 export function updateApplicationVersion(
   id: string,
-  payload: typeof previewCommitSchema._output,
+  payload: z.output<typeof previewCommitSchema>,
 ) {
   return post<unknown>(apiPath`/applications/${id}/approve-preview`, payload);
 }

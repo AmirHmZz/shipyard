@@ -14,10 +14,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { errorMessage } from "@/lib/api";
-import { alertPolicySchema } from "@/lib/validation";
+import { inputNumberSchema } from "@/lib/schemas/coercion";
 
 import type { AlertPolicy } from "../generics";
 
+import { alertPolicySchema } from "../generics";
 import { useAlertPolicy, useSaveAlertPolicy } from "../hooks";
 
 export function AlertSettings() {
@@ -76,7 +77,10 @@ export function AlertSettings() {
                 max={f.max}
                 value={value[f.key]}
                 onChange={(e) =>
-                  setDraft({ ...value, [f.key]: Number(e.target.value) })
+                  setDraft({
+                    ...value,
+                    [f.key]: inputNumberSchema.parse(e.target.value),
+                  })
                 }
                 required
               />

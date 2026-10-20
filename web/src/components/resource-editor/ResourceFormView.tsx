@@ -2,7 +2,7 @@ import { lazy, Suspense } from "react";
 import { Link } from "react-router";
 
 import type { ResourceFormProps } from "@/components/resource-forms/controller";
-import type { ResourceKind } from "@/components/resource-forms/definitions";
+import type { ResourceKind } from "@/lib/resource-form-definitions";
 
 import {
   Dialog,

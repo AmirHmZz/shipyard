@@ -1,17 +1,19 @@
-import type {
-  networkingPayloadSchema,
-  publishedPortsPayloadSchema,
-} from "@/lib/validation";
+import type * as z from "zod/mini";
 
 import { api } from "@/lib/api/client";
 import { apiPath } from "@/lib/paths";
+
+import type {
+  networkingPayloadSchema,
+  publishedPortsPayloadSchema,
+} from "../generics";
 
 export function saveApplicationNetworking(
   appId: string,
   published: boolean,
   payload:
-    | typeof networkingPayloadSchema._output
-    | typeof publishedPortsPayloadSchema._output,
+    | z.output<typeof networkingPayloadSchema>
+    | z.output<typeof publishedPortsPayloadSchema>,
 ) {
   return api<unknown>(
     published

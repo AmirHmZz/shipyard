@@ -22,8 +22,8 @@ import {
 } from "@/components/ui/table";
 import { TabsContent } from "@/components/ui/tabs";
 import { errorMessage, text } from "@/lib/api";
-import { previewCommitSchema } from "@/lib/validation";
 
+import { previewCommitSchema } from "../generics";
 import { updateApplicationVersion } from "../services";
 
 export function ApplicationOverview({

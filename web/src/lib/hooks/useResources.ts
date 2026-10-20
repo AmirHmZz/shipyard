@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import type { Resource } from "@/lib/api/types";
 
+import { POLL_INTERVALS } from "@/lib/constants";
 import { resourceKeys } from "@/lib/query-keys";
 import { getResources } from "@/lib/services";
 export function useResources<T = Resource[]>(
@@ -11,6 +12,6 @@ export function useResources<T = Resource[]>(
     select,
     queryKey: resourceKeys.all,
     queryFn: getResources,
-    refetchInterval: 15000,
+    refetchInterval: POLL_INTERVALS.resources,
   });
 }

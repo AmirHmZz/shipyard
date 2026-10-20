@@ -1,22 +1,27 @@
+import type * as z from "zod/mini";
+
 import type { DraftRow } from "@/lib/draft-rows";
-import type { components } from "@/lib/schema";
 
-export type Runtime = {
-  status: string;
-  releaseId?: string;
-  commit?: string;
-  containers?: string[];
-  targets?: { port: number; address: string; networkId: string }[];
-};
+import type {
+  runtimeResponseSchema,
+  attachmentResponseSchema,
+  composeSourceResponseSchema,
+  applicationNetworkingResponseSchema,
+  applicationReleasesResponseSchema,
+  applicationServicesResponseSchema,
+  domainStatusResponseSchema,
+  deploymentCreationResultResponseSchema,
+  applicationVolumesResponseSchema,
+} from "./schema";
 
-type Attachment = { networkId: string; ipv4?: string; ipv6?: string };
+export type Runtime = z.infer<typeof runtimeResponseSchema>;
+
+type Attachment = z.infer<typeof attachmentResponseSchema>;
 
 export type Service = {
   hostname?: string;
   connections: DraftRow<Attachment>[];
 };
-
-type NetworkService = { hostname?: string; connections: Attachment[] };
 
 export type Port = {
   host: string;
@@ -25,43 +30,31 @@ export type Port = {
   protocol: string;
 };
 
-export type Source = components["schemas"]["ComposeSource"];
+export type Source = z.infer<typeof composeSourceResponseSchema>;
 
 // TODO(openapi): add ApplicationNetworkingResponse to api/openapi.yaml.
-export type ApplicationNetworkingResponse = {
-  version: number;
-  services: Record<string, NetworkService>;
-  pending: boolean;
-  endpoints?: {
-    service: string;
-    replica: number;
-    ipv4: string;
-    ipv6: string;
-    ingress: boolean;
-    dockerName: string;
-  }[];
-};
+export type ApplicationNetworkingResponse = z.infer<
+  typeof applicationNetworkingResponseSchema
+>;
 
 // TODO(openapi): add ApplicationReleasesResponse to api/openapi.yaml.
-export type ApplicationReleasesResponse = {
-  id: string;
-  commit: string;
-  createdAt: string;
-  images: Record<string, string>;
-}[];
+export type ApplicationReleasesResponse = z.infer<
+  typeof applicationReleasesResponseSchema
+>;
 
 // TODO(openapi): add ApplicationServicesResponse to api/openapi.yaml.
-export type ApplicationServicesResponse = {
-  name: string;
-  replicas: number;
-  ignoredPorts: boolean;
-}[];
+export type ApplicationServicesResponse = z.infer<
+  typeof applicationServicesResponseSchema
+>;
 
 // TODO(openapi): add DomainStatusResponse to api/openapi.yaml.
-export type DomainStatusResponse = Record<string, string>;
+export type DomainStatusResponse = z.infer<typeof domainStatusResponseSchema>;
 
 // TODO(openapi): add DeploymentCreationResult to api/openapi.yaml.
-export type DeploymentCreationResult = { id: string };
+export type DeploymentCreationResult = z.infer<
+  typeof deploymentCreationResultResponseSchema
+>;
 
-export type ApplicationVolumesResponse =
-  components["schemas"]["ApplicationVolumes"];
+export type ApplicationVolumesResponse = z.infer<
+  typeof applicationVolumesResponseSchema
+>;

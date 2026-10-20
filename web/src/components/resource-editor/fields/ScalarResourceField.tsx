@@ -7,6 +7,7 @@ import {
   InputGroupText,
 } from "@/components/ui/input-group";
 import { Textarea } from "@/components/ui/textarea";
+import { inputNumberSchema } from "@/lib/schemas/coercion";
 
 import type { ResourceFieldProps } from "../types";
 
@@ -54,7 +55,9 @@ export function ScalarResourceField({ f, kind }: ResourceFieldProps) {
       onChange={(e) =>
         update(
           f.key,
-          f.type === "number" ? Number(e.target.value) : e.target.value,
+          f.type === "number"
+            ? inputNumberSchema.parse(e.target.value)
+            : e.target.value,
         )
       }
     />

@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { draftRow } from "@/lib/draft-rows";
+import { inputNumberSchema } from "@/lib/schemas/coercion";
 
 import type { Port } from "../generics";
 
@@ -74,7 +75,9 @@ export function PublishedPorts({
                                     [key]:
                                       key === "host"
                                         ? e.target.value
-                                        : Number(e.target.value),
+                                        : inputNumberSchema.parse(
+                                            e.target.value,
+                                          ),
                                   }
                                 : p,
                           ),

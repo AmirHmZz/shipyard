@@ -1,5 +1,5 @@
 import type { Resource } from "@/lib/api/types";
-import type { parseResourceForm } from "@/lib/validation";
+import type { parseResourceForm } from "@/lib/schemas/resource-form";
 
 import { api } from "@/lib/api/client";
 import { apiPath } from "@/lib/paths";

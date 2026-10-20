@@ -5,10 +5,10 @@ import { CopyButton } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { giteaInstanceSchema } from "@/lib/validation";
 
 import type { InstanceDraft } from "../generics";
 
+import { giteaInstanceSchema } from "../generics";
 import { configurationKeys } from "../generics";
 import { saveGiteaInstance } from "../services";
 

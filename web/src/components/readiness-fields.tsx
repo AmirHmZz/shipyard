@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { draftRow, withoutRowId } from "@/lib/draft-rows";
+import { inputNumberSchema } from "@/lib/schemas/coercion";
 
 export function ReadinessFields({
   value,
@@ -62,7 +63,7 @@ export function ReadinessFields({
                 update(
                   rows.map((r) =>
                     r.rowId === row.rowId
-                      ? { ...r, port: Number(e.target.value) }
+                      ? { ...r, port: inputNumberSchema.parse(e.target.value) }
                       : r,
                   ),
                 )

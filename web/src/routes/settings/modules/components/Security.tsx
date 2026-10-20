@@ -19,12 +19,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { errorMessage } from "@/lib/api";
 import { sessionKeys } from "@/lib/query-keys";
+
 import {
   totpCodeSchema,
   totpDisableSchema,
   totpPasswordSchema,
-} from "@/lib/validation";
-
+} from "../generics";
 import { useDisableTOTP, useRegenerateRecoveryCodes } from "../hooks";
 import { enableTOTP } from "../services";
 

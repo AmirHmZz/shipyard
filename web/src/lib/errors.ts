@@ -1,6 +1,6 @@
-import { ZodError } from "zod";
+import * as z from "zod/mini";
 export function errorMessage(error: unknown) {
-  if (error instanceof ZodError)
+  if (error instanceof z.core.$ZodError)
     return error.issues.map((issue) => issue.message).join(" ");
   return error instanceof Error ? error.message : "Operation failed";
 }

@@ -1,12 +1,14 @@
-import type { dnsRecordFormSchema } from "@/lib/validation";
+import type * as z from "zod/mini";
 
 import { api } from "@/lib/api/client";
 import { apiPath } from "@/lib/paths";
 
+import type { dnsRecordFormSchema } from "../generics";
+
 export function saveDNSRecord(
   zoneId: string,
   edit: { id?: string },
-  payload: typeof dnsRecordFormSchema._output,
+  payload: z.output<typeof dnsRecordFormSchema>,
 ) {
   return api<unknown>(
     edit.id

@@ -18,8 +18,8 @@ import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { errorMessage } from "@/lib/api";
-import { passphraseSchema } from "@/lib/validation";
 
+import { passphraseSchema } from "../generics";
 import { useSetMaintenanceMode } from "../hooks";
 import { downloadBackup } from "../services";
 

@@ -12,13 +12,13 @@ import { errorMessage, useAccount, useResources } from "@/lib/api";
 import { useConfigurationChanges } from "@/lib/configuration-state";
 import { draftRow, withoutRowId } from "@/lib/draft-rows";
 import { resourceKeys } from "@/lib/query-keys";
-import {
-  networkingPayloadSchema,
-  publishedPortsPayloadSchema,
-} from "@/lib/validation";
 
 import type { Service, Port } from "../generics";
 
+import {
+  networkingPayloadSchema,
+  publishedPortsPayloadSchema,
+} from "../generics";
 import { applicationKeys } from "../generics";
 import { useApplicationNetworking, useApplicationServices } from "../hooks";
 import { saveApplicationNetworking } from "../services";

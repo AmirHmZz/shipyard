@@ -1,11 +1,14 @@
+import type * as z from "zod/mini";
+
 import type { Session } from "@/lib/api/types";
-import type { authFormSchema } from "@/lib/validation";
 
 import { post } from "@/lib/api/client";
 
+import type { authFormSchema } from "../generics";
+
 export function submitAuth(
   mode: "accept" | "login" | "setup",
-  payload: ReturnType<typeof authFormSchema>["_output"],
+  payload: z.output<ReturnType<typeof authFormSchema>>,
 ) {
   return post<Session>(`/auth/${mode}`, payload);
 }
