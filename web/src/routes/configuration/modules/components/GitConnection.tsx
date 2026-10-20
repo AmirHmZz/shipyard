@@ -1,7 +1,7 @@
 import { Plus, Settings2 } from "lucide-react";
 import { useState } from "react";
 
-import type { Resource } from "@/lib/api";
+import type { Resource } from "@/lib/api/types";
 
 import {
   Dialog,
@@ -23,11 +23,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { text } from "@/lib/api";
 import { toastValidationError } from "@/lib/api/toaster";
 import { describeError } from "@/lib/api/translate-error";
 import { useConfigurationChanges } from "@/lib/configuration-state";
 import { GIT_PROVIDERS } from "@/lib/enums";
+import { text } from "@/lib/resource-fields";
 
 import type { Start } from "../generics";
 

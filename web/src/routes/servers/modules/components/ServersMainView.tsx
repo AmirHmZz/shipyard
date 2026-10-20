@@ -2,7 +2,7 @@ import { Plus, Server, Wrench } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 
-import type { Resource } from "@/lib/api";
+import type { Resource } from "@/lib/api/types";
 
 import {
   Dialog,
@@ -21,7 +21,7 @@ import {
   PageHeader,
 } from "@/components/shared";
 import { Button } from "@/components/ui/button";
-import { useResources } from "@/lib/api";
+import { useResources } from "@/lib/hooks/useResources";
 import { useAccount } from "@/lib/session";
 
 import { useProvisionServer } from "../hooks";

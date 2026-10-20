@@ -2,7 +2,7 @@ import type { Options } from "@/components/resource-forms/options";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { errorMessage } from "@/lib/api";
+import { describeError } from "@/lib/api/translate-error";
 
 export function RepositoryStatus({
   repos,
@@ -17,7 +17,7 @@ export function RepositoryStatus({
       {repos.isError && (
         <Alert variant="destructive">
           <AlertDescription>
-            {errorMessage(repos.error)}
+            {describeError(repos.error)}
             <Button
               type="button"
               variant="outline"

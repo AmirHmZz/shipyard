@@ -2,7 +2,7 @@ import { ShieldCheck } from "lucide-react";
 import { useMemo } from "react";
 import { Link } from "react-router";
 
-import type { Resource } from "@/lib/api";
+import type { Resource } from "@/lib/api/types";
 
 import { Empty, ErrorState, Loading, StateBadge } from "@/components/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";

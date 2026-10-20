@@ -12,3 +12,12 @@ export const variableFormSchema = z.object({
   value: z.string(),
   encrypted: z.boolean(),
 });
+export const variableRemovalSchema = z.object({
+  name: z.string(),
+  value: z.null(),
+  encrypted: z.boolean(),
+});
+export const variableWriteSchema = z.union([
+  variableFormSchema,
+  variableRemovalSchema,
+]);

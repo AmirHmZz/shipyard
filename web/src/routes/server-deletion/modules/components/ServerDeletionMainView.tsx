@@ -6,8 +6,8 @@ import { ErrorState, Loading } from "@/components/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { useResources } from "@/lib/api";
 import { describeError } from "@/lib/api/translate-error";
+import { useResources } from "@/lib/hooks/useResources";
 import { useAccount } from "@/lib/session";
 
 import type { Plan } from "../generics";

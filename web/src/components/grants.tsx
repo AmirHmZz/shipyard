@@ -1,17 +1,12 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { toast } from "sonner";
 
-import type { Resource } from "@/lib/api";
+import type { Resource } from "@/lib/api/types";
 
 import { ErrorState } from "@/components/shared";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { errorMessage } from "@/lib/api";
 import { useConfigurationChanges } from "@/lib/configuration-state";
-import { useGrants } from "@/lib/hooks";
-import { grantKeys } from "@/lib/query-keys";
-import { setGrant } from "@/lib/services";
+import { useGrants, useSetGrant } from "@/lib/hooks";
 export function Grants({
   resource,
   resources,
@@ -20,7 +15,7 @@ export function Grants({
   resources: Resource[];
 }) {
   const changes = useConfigurationChanges();
-  const client = useQueryClient();
+  const grant = useSetGrant(resource.id);
   const q = useGrants(resource);
   const granted = useMemo(() => new Set(q.data), [q.data]);
   return (
@@ -41,17 +36,12 @@ export function Grants({
               <Label>{team.name}</Label>
               <Switch
                 checked={granted.has(team.id)}
-                onCheckedChange={async (granted) => {
-                  try {
-                    await setGrant(resource.id, team.id, granted);
-                    await client.invalidateQueries({
-                      queryKey: grantKeys.resource(resource.id),
-                    });
-                    changes.saved();
-                  } catch (e) {
-                    toast.error(errorMessage(e));
-                  }
-                }}
+                onCheckedChange={(granted) =>
+                  grant.mutate(
+                    { teamId: team.id, granted },
+                    { onSuccess: changes.saved },
+                  )
+                }
               />
             </div>
           ))

@@ -1,7 +1,7 @@
 import { Box, FileCode2, GitBranch, Plus } from "lucide-react";
 import { Link } from "react-router";
 
-import type { Resource } from "@/lib/api";
+import type { Resource } from "@/lib/api/types";
 import type { indexResources } from "@/lib/resource-index";
 
 import { RepositoryName } from "@/components/repository-name";
@@ -9,7 +9,7 @@ import { Empty } from "@/components/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { text } from "@/lib/api";
+import { text } from "@/lib/resource-fields";
 
 import type { EditorRequest } from "../generics";
 

@@ -2,7 +2,7 @@ import { Plus, RefreshCw, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
 
-import type { DNSRecord, Resource } from "@/lib/api";
+import type { DNSRecord, Resource } from "@/lib/api/types";
 
 import {
   Dialog,
@@ -24,9 +24,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { text } from "@/lib/api";
 import { toastValidationError } from "@/lib/api/toaster";
 import { useConfigurationChanges } from "@/lib/configuration-state";
+import { text } from "@/lib/resource-fields";
 import { jsonText } from "@/lib/schemas/form-rules";
 
 import { dnsRecordFormSchema } from "../generics";

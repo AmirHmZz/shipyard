@@ -1,6 +1,6 @@
 import { useParams } from "react-router";
 
-import type { Resource } from "@/lib/api";
+import type { Resource } from "@/lib/api/types";
 
 import {
   ConfigurationGuard,

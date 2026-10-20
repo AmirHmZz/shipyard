@@ -6,7 +6,7 @@ import {
   useSearchParams,
 } from "react-router";
 
-import type { Resource } from "@/lib/api";
+import type { Resource } from "@/lib/api/types";
 
 import { Grants } from "@/components/grants";
 import { ResourceForm } from "@/components/resource-editor";
@@ -21,8 +21,8 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Variables } from "@/components/variables";
-import { useResources } from "@/lib/api";
 import { useConfigurationChanges } from "@/lib/configuration-state";
+import { useResources } from "@/lib/hooks/useResources";
 
 import { GitConnection } from "./GitConnection";
 import { HAProxySettings } from "./HAProxySettings";

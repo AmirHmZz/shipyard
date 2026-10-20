@@ -1,7 +1,7 @@
 import { Play, Save } from "lucide-react";
 import { lazy, Suspense, useState } from "react";
 
-import type { Resource } from "@/lib/api";
+import type { Resource } from "@/lib/api/types";
 
 import { ErrorState, Loading } from "@/components/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";

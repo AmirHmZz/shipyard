@@ -38,9 +38,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useResources } from "@/lib/api";
 import { toastValidationError } from "@/lib/api/toaster";
 import { PROJECT_ROLES } from "@/lib/enums";
+import { useResources } from "@/lib/hooks/useResources";
 import { useAccount } from "@/lib/session";
 
 import { invitationFormSchema } from "../generics";

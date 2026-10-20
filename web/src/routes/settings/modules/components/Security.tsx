@@ -1,7 +1,7 @@
 import { KeyRound, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 
-import type { Session } from "@/lib/api";
+import type { Session } from "@/lib/api/types";
 
 import { CopyButton, StateBadge } from "@/components/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";

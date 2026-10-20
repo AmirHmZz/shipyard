@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import type { Session } from "@/lib/api";
+import type { Session } from "@/lib/api/types";
 
 import { Confirm, ErrorState, Loading, StateBadge } from "@/components/shared";
 import { Button } from "@/components/ui/button";

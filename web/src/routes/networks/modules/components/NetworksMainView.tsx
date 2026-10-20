@@ -2,7 +2,7 @@ import { Plus, Trash2, Users } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 
-import type { Resource } from "@/lib/api";
+import type { Resource } from "@/lib/api/types";
 
 import {
   Confirm,
@@ -22,9 +22,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { text, useResources } from "@/lib/api";
 import { describeError } from "@/lib/api/translate-error";
 import { useConfigurationChanges } from "@/lib/configuration-state";
+import { useResources } from "@/lib/hooks/useResources";
+import { text } from "@/lib/resource-fields";
 import { indexResources } from "@/lib/resource-index";
 import { useAccount } from "@/lib/session";
 

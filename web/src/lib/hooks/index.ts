@@ -1,3 +1,13 @@
-export { useProviderZones, useServiceOptions } from "./options";
-export { useRepositories, useBranches } from "./git";
-export { useGrants } from "./grants";
+export { useProviderZones } from "./useProviderZones";
+export { useServiceOptions } from "./useServiceOptions";
+export { useRepositories } from "./useRepositories";
+export { useBranches } from "./useBranches";
+export { useGrants } from "./useGrants";
+export { useDeployments } from "./useDeployments";
+export { useResources } from "./useResources";
+export { useSetGrant } from "./useSetGrant";
+export { useTestDNSCredentials } from "./useTestDNSCredentials";
+export { useProbeServerFingerprint } from "./useProbeServerFingerprint";
+export { useSaveResource } from "./useSaveResource";
+export { useDeleteResource } from "./useDeleteResource";
+export { useSaveVariable } from "./useSaveVariable";

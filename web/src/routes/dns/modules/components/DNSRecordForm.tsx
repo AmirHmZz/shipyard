@@ -1,6 +1,6 @@
 import type { useNavigate } from "react-router";
 
-import type { DNSRecord, Resource } from "@/lib/api";
+import type { DNSRecord, Resource } from "@/lib/api/types";
 
 import { DialogFooter } from "@/components/configuration-surface";
 import { Button } from "@/components/ui/button";

@@ -120,7 +120,9 @@ async function fixture(page: Page, writable = true, provider = "gitea") {
       });
     }
     if (path.endsWith("/services"))
-      return route.fulfill({ json: [{ name: "app", replicas: 1 }] });
+      return route.fulfill({
+        json: [{ name: "app", replicas: 1, ignoredPorts: false }],
+      });
     if (path.endsWith("/resources") && request.method() === "GET")
       return route.fulfill({ json: resources });
     if (

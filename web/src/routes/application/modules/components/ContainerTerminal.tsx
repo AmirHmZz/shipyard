@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getCSRF } from "@/lib/api";
+import { getCSRF } from "@/lib/api/csrf";
 export default function ContainerTerminal({
   applicationId,
   containers,

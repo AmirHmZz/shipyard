@@ -251,18 +251,17 @@ export function Confirm({
   title,
   description,
   onConfirm,
-  pending,
+  pending = false,
   destructive = false,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   title: string;
   description: string;
-  onConfirm: () => void | Promise<unknown>;
+  onConfirm: () => void;
   pending?: boolean;
   destructive?: boolean;
 }) {
-  const [busy, setBusy] = useState(false);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -276,26 +275,10 @@ export function Confirm({
           </Button>
           <Button
             variant={destructive ? "destructive" : "default"}
-            disabled={pending ?? busy}
-            onClick={async () => {
-              if (pending !== undefined) {
-                onConfirm();
-                return;
-              }
-              setBusy(true);
-              try {
-                await onConfirm();
-                onOpenChange(false);
-              } catch (e) {
-                toast.error(
-                  e instanceof Error ? e.message : "Operation failed",
-                );
-              } finally {
-                setBusy(false);
-              }
-            }}
+            disabled={pending}
+            onClick={onConfirm}
           >
-            {(pending ?? busy) && <Spinner className="size-4 " />}Confirm
+            {pending && <Spinner className="size-4 " />}Confirm
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,6 +1,6 @@
 import { CheckCircle2 } from "lucide-react";
 
-import type { Resource } from "@/lib/api";
+import type { Resource } from "@/lib/api/types";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

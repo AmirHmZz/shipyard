@@ -1,10 +1,10 @@
 import { ExternalLink } from "lucide-react";
 
-import type { Resource } from "@/lib/api";
+import type { Resource } from "@/lib/api/types";
 
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { text } from "@/lib/api";
+import { text } from "@/lib/resource-fields";
 
 import type { InstanceDraft } from "../generics";
 

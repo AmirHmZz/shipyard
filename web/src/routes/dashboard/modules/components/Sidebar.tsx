@@ -3,7 +3,7 @@ import { Link, NavLink } from "react-router";
 
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { useResources } from "@/lib/api";
+import { useResources } from "@/lib/hooks/useResources";
 
 import { navigation } from "../generics";
 

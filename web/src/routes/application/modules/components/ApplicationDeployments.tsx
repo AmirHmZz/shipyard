@@ -2,8 +2,8 @@ import type { useSearchParams } from "react-router";
 
 import { RotateCcw } from "lucide-react";
 
-import type { Deployment } from "@/lib/api";
-import type { Resource } from "@/lib/api";
+import type { Deployment } from "@/lib/api/types";
+import type { Resource } from "@/lib/api/types";
 
 import { DeploymentTable } from "@/components/deployment-table";
 import { Empty } from "@/components/shared";

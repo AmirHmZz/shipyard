@@ -1,23 +1,21 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import type { Resource } from "@/lib/api";
+import type { Resource } from "@/lib/api/types";
 
 import { Confirm } from "@/components/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { errorMessage } from "@/lib/api";
+import { toastValidationError } from "@/lib/api/toaster";
 import { useConfigurationChanges } from "@/lib/configuration-state";
-import { resourceKeys } from "@/lib/query-keys";
-import { variableFormSchema } from "@/lib/schemas/variables";
-import { saveVariable } from "@/lib/services";
+import { useSaveVariable } from "@/lib/hooks";
+import { variableWriteSchema } from "@/lib/schemas/variables";
 
 import { VariableEditor } from "./VariableEditor";
 import { VariableTable } from "./VariableTable";
 function useVariableController(resource: Resource) {
   const changes = useConfigurationChanges();
-  const client = useQueryClient();
+  const variable = useSaveVariable(resource);
   const [key, setKey] = useState("");
   const [value, setValue] = useState("");
   const [scope, setScope] = useState("env:");
@@ -32,7 +30,7 @@ function useVariableController(resource: Resource) {
     ),
   );
   const keys = [...new Set([...Object.keys(ordinary), ...secretKeys])].sort();
-  const [busy, setBusy] = useState(false);
+  const busy = variable.isPending;
   const [remove, setRemove] = useState("");
   function reset() {
     setKey("");
@@ -48,29 +46,25 @@ function useVariableController(resource: Resource) {
     setSecret(secretKeys.has(name));
     setEditing(name);
   }
-  async function save(name: string, v: string | null, encrypted: boolean) {
-    setBusy(true);
-    try {
-      const values =
-        v === null
-          ? { name, value: v, encrypted }
-          : variableFormSchema.parse({ name, value: v, encrypted });
-      await saveVariable(resource, values);
-      await client.invalidateQueries({ queryKey: resourceKeys.all });
-      if (v !== null || editing === name) {
-        reset();
-        changes.saved();
-      }
-      setRemove("");
-      toast.success(
-        `Variable ${v === null ? "removed" : "saved"}. Deploy to apply it.`,
-      );
-    } catch (e) {
-      if (v === null) throw e;
-      toast.error(errorMessage(e));
-    } finally {
-      setBusy(false);
+  function save(name: string, v: string | null, encrypted: boolean) {
+    if (busy) return;
+    const parsed = variableWriteSchema.safeParse({ name, value: v, encrypted });
+    if (!parsed.success) {
+      toastValidationError(parsed.error);
+      return;
     }
+    variable.mutate(parsed.data, {
+      onSuccess: () => {
+        if (v !== null || editing === name) {
+          reset();
+          changes.saved();
+        }
+        setRemove("");
+        toast.success(
+          `Variable ${v === null ? "removed" : "saved"}. Deploy to apply it.`,
+        );
+      },
+    });
   }
   return {
     resource,
@@ -119,6 +113,7 @@ export function Variables({ resource }: { resource: Resource }) {
         title="Remove variable?"
         description={`${remove} will be removed from this scope. Redeploy applications to apply the change.`}
         destructive
+        pending={controller.busy}
         onConfirm={() => save(remove, null, secretKeys.has(remove))}
       />
     </div>

@@ -3,7 +3,7 @@ import type { FormEvent } from "react";
 import { useState } from "react";
 import { Link } from "react-router";
 
-import type { Resource } from "@/lib/api";
+import type { Resource } from "@/lib/api/types";
 import type { PreviewRouting } from "@/lib/application-settings";
 
 import { PreviewRoutingFields } from "@/components/preview-routing-fields";
@@ -20,11 +20,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { text, useResources } from "@/lib/api";
 import { toastValidationError } from "@/lib/api/toaster";
 import { describeError } from "@/lib/api/translate-error";
 import { normalizeApplicationSettings } from "@/lib/application-settings";
 import { useConfigurationChanges } from "@/lib/configuration-state";
+import { useResources } from "@/lib/hooks/useResources";
+import { text } from "@/lib/resource-fields";
 import { previewRoutingSchema } from "@/lib/schemas/application";
 
 import {

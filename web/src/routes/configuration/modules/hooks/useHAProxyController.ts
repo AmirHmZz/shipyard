@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 
-import type { Resource } from "@/lib/api";
+import type { Resource } from "@/lib/api/types";
 import type { DraftRow } from "@/lib/draft-rows";
 
 import { toastValidationError } from "@/lib/api/toaster";

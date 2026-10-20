@@ -1,6 +1,6 @@
 import { Settings2, Trash2 } from "lucide-react";
 
-import type { Resource } from "@/lib/api";
+import type { Resource } from "@/lib/api/types";
 
 import { Filter } from "@/components/shared";
 import { Button } from "@/components/ui/button";

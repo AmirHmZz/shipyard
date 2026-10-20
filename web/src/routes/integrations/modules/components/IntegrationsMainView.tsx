@@ -9,7 +9,7 @@ import {
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
-import type { Resource } from "@/lib/api";
+import type { Resource } from "@/lib/api/types";
 
 import {
   Dialog,
@@ -30,8 +30,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { text, useAccount, useResources } from "@/lib/api";
+import { useResources } from "@/lib/hooks/useResources";
 import { providerName } from "@/lib/providers";
+import { text } from "@/lib/resource-fields";
+import { useAccount } from "@/lib/session";
 
 export function IntegrationsMainView() {
   const navigate = useNavigate();

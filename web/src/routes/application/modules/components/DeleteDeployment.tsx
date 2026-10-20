@@ -1,6 +1,6 @@
 import { Trash2 } from "lucide-react";
 
-import type { Deployment } from "@/lib/api";
+import type { Deployment } from "@/lib/api/types";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";

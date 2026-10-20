@@ -16,7 +16,6 @@ declare module "@tanstack/react-query" {
 }
 
 function handleError(error: unknown, notify: boolean) {
-  // Legacy calls still own their notifications until their route is migrated.
   if (!(error instanceof ApiException)) return;
   reportApiError(error.error);
   if (notify) toastApiError(error.error);

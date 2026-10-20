@@ -4,7 +4,6 @@ import * as z from "zod/mini";
 import { emptyResponseSchema } from "@/lib/schemas/responses";
 
 import { callApi, callApiBlob } from "./call";
-import { setCSRF as setLegacyCSRF } from "./client";
 import { setCSRF } from "./csrf";
 
 const schema = z.object({ id: z.string() });
@@ -88,7 +87,7 @@ describe("validated Result transport", () => {
   it("forwards cancellation, method, JSON, CSRF and same-origin credentials", async () => {
     const fetch = respond('{"id":"one"}');
     const controller = new AbortController();
-    setLegacyCSRF("current-token");
+    setCSRF("current-token");
     await callApi({
       path: "/items/a%2Fb%3Fc",
       method: "PUT",

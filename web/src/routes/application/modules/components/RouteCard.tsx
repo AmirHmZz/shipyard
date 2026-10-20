@@ -1,7 +1,7 @@
 import { Pencil, RefreshCw, Trash2 } from "lucide-react";
 import { useState } from "react";
 
-import type { Resource } from "@/lib/api";
+import type { Resource } from "@/lib/api/types";
 
 import { Confirm, StateBadge } from "@/components/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -14,7 +14,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { number, text } from "@/lib/api";
+import { number, text } from "@/lib/resource-fields";
 
 import { useDomainStatus, useSyncRoute } from "../hooks";
 

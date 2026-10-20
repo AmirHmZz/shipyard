@@ -1,9 +1,7 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 
-import type { Resource } from "@/lib/api";
+import type { Resource } from "@/lib/api/types";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -18,10 +16,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
-import { errorMessage, text } from "@/lib/api";
-import { resourceKeys } from "@/lib/query-keys";
+import { toastValidationError } from "@/lib/api/toaster";
+import { describeError } from "@/lib/api/translate-error";
+import { useDeleteResource } from "@/lib/hooks";
+import { text } from "@/lib/resource-fields";
 import { resourceDeletionSchema } from "@/lib/schemas/resources";
-import { deleteResource } from "@/lib/services";
 
 export function DeleteResource({
   resource,
@@ -32,27 +31,23 @@ export function DeleteResource({
   onClose: () => void;
   onDeleted: () => void;
 }) {
-  const client = useQueryClient();
+  const deletion = useDeleteResource();
   const [name, setName] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  async function remove() {
-    setBusy(true);
-    setError("");
-    try {
-      resourceDeletionSchema(resource.name).parse({ name });
-      await deleteResource(resource.id);
-      await client.invalidateQueries({ queryKey: resourceKeys.all });
-      toast.success(
-        "Deletion queued. Cleanup will continue in the background.",
-      );
-      onDeleted();
-      onClose();
-    } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setBusy(false);
+  const busy = deletion.isPending;
+  const error = deletion.error ? describeError(deletion.error) : "";
+  function remove() {
+    if (busy) return;
+    const parsed = resourceDeletionSchema(resource.name).safeParse({ name });
+    if (!parsed.success) {
+      toastValidationError(parsed.error);
+      return;
     }
+    deletion.mutate(resource.id, {
+      onSuccess: () => {
+        onDeleted();
+        onClose();
+      },
+    });
   }
   return (
     <Dialog open onOpenChange={(open) => !open && !busy && onClose()}>

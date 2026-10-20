@@ -1,8 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api, post, setCSRF } from "./client";
+import { queuedResponseSchema } from "@/lib/schemas/acknowledgements";
+import { emptyResponseSchema } from "@/lib/schemas/responses";
 
-afterEach(() => vi.unstubAllGlobals());
+import { callApi, callApiBlob } from "./call";
+import { setCSRF } from "./csrf";
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  setCSRF("");
+});
 describe("API transport boundary", () => {
   it("attaches same-origin sessions and the current CSRF token to mutations", async () => {
     const fetch = vi.fn().mockResolvedValue(
@@ -12,9 +19,14 @@ describe("API transport boundary", () => {
     );
     vi.stubGlobal("fetch", fetch);
     setCSRF("session-token");
-    expect(await post("/applications/app/deploy", { ref: "main" })).toEqual({
-      queued: true,
-    });
+    expect(
+      await callApi({
+        path: "/applications/app/deploy",
+        method: "POST",
+        body: { ref: "main" },
+        schema: queuedResponseSchema,
+      }),
+    ).toEqual({ ok: true, data: { queued: true } });
     expect(fetch).toHaveBeenCalledWith(
       "/api/v1/applications/app/deploy",
       expect.objectContaining({
@@ -40,10 +52,28 @@ describe("API transport boundary", () => {
           }),
         ),
     );
-    await expect(api("/routes/id/status")).rejects.toThrow(
-      "DNS record conflict",
-    );
-    await expect(api("/resources")).rejects.toThrow("Bad Gateway");
+    await expect(
+      callApi({ path: "/routes/id/status", schema: emptyResponseSchema }),
+    ).resolves.toEqual({
+      ok: false,
+      error: {
+        kind: "http",
+        path: "/routes/id/status",
+        status: 409,
+        message: "DNS record conflict",
+      },
+    });
+    await expect(
+      callApi({ path: "/resources", schema: emptyResponseSchema }),
+    ).resolves.toEqual({
+      ok: false,
+      error: {
+        kind: "http",
+        path: "/resources",
+        status: 502,
+        message: "Bad Gateway",
+      },
+    });
   });
   it("downloads encrypted archives as binary blobs", async () => {
     vi.stubGlobal(
@@ -54,9 +84,11 @@ describe("API transport boundary", () => {
         }),
       ),
     );
-    const result = await post<Blob>("/backup", {
-      passphrase: "local-test-only",
+    const result = await callApiBlob("/backup", {
+      method: "POST",
+      body: { passphrase: "local-test-only" },
     });
-    expect(await result.text()).toBe("encrypted-archive");
+    if (!result.ok) throw new Error("Expected a validated binary archive");
+    expect(await result.data.text()).toBe("encrypted-archive");
   });
 });

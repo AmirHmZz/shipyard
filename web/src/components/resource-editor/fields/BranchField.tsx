@@ -2,7 +2,7 @@ import { useResourceForm } from "@/components/resource-forms/controller";
 import { Loading } from "@/components/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { errorMessage } from "@/lib/api";
+import { describeError } from "@/lib/api/translate-error";
 
 import type { ResourceFieldProps } from "../types";
 
@@ -43,7 +43,7 @@ export function BranchField({ branches, existing }: ResourceFieldProps) {
       {branches.isError && (
         <Alert variant="destructive">
           <AlertDescription>
-            {errorMessage(branches.error)}
+            {describeError(branches.error)}
             <Button
               type="button"
               variant="outline"

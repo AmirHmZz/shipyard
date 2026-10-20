@@ -1,17 +1,18 @@
 import { useMemo, useState } from "react";
 
-import type { Resource } from "@/lib/api";
+import type { Resource } from "@/lib/api/types";
 import type { DraftRow } from "@/lib/draft-rows";
 
 import { ErrorState, Loading } from "@/components/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useAccount, useResources } from "@/lib/api";
 import { toastValidationError } from "@/lib/api/toaster";
 import { describeError } from "@/lib/api/translate-error";
 import { useConfigurationChanges } from "@/lib/configuration-state";
 import { draftRow, withoutRowId } from "@/lib/draft-rows";
+import { useResources } from "@/lib/hooks/useResources";
+import { useAccount } from "@/lib/session";
 
 import type { Service, Port } from "../generics";
 

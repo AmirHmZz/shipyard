@@ -1,11 +1,11 @@
 import { Settings2 } from "lucide-react";
 
-import type { Resource } from "@/lib/api";
+import type { Resource } from "@/lib/api/types";
 
 import { RepositoryName } from "@/components/repository-name";
 import { PageHeader } from "@/components/shared";
 import { Button } from "@/components/ui/button";
-import { text } from "@/lib/api";
+import { text } from "@/lib/resource-fields";
 
 import type { Runtime } from "../generics";
 

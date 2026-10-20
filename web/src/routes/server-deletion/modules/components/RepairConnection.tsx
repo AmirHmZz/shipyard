@@ -2,7 +2,7 @@ import type { FormEvent } from "react";
 
 import { useState } from "react";
 
-import type { Resource } from "@/lib/api";
+import type { Resource } from "@/lib/api/types";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -18,9 +18,9 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
-import { text } from "@/lib/api";
 import { toastValidationError } from "@/lib/api/toaster";
 import { describeError } from "@/lib/api/translate-error";
+import { text } from "@/lib/resource-fields";
 
 import { serverConnectionSchema } from "../generics";
 import { useRepairServerConnection } from "../hooks";

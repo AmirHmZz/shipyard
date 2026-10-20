@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { useResources } from "@/lib/api";
+import { useResources } from "@/lib/hooks/useResources";
 
 export function WorkspaceSearch({
   open,

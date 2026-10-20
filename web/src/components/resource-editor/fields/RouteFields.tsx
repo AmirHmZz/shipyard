@@ -11,7 +11,7 @@ import {
   InputGroupText,
 } from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
-import { errorMessage } from "@/lib/api";
+import { describeError } from "@/lib/api/translate-error";
 
 import { choose } from "../utils";
 
@@ -66,7 +66,7 @@ export function RouteFields({
       {services.error && (
         <Alert variant="destructive">
           <AlertDescription>
-            {errorMessage(services.error)}
+            {describeError(services.error)}
             <Button type="button" onClick={() => void services.refetch()}>
               Retry service discovery
             </Button>

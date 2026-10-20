@@ -1,27 +1,8 @@
 import * as z from "zod/mini";
 
-import { previewRoutingSchema } from "@/lib/schemas/application";
 import { jsonText } from "@/lib/schemas/form-rules";
 
-export function previewApplicationRoutingSchema(hasRoutes: boolean) {
-  return z
-    .object({ enabled: z.boolean(), routing: previewRoutingSchema })
-    .check(
-      z.check((context) => {
-        if (
-          context.value.enabled &&
-          context.value.routing.mode === "inherit" &&
-          !hasRoutes
-        )
-          context.issues.push({
-            code: "custom",
-            message:
-              "Configure an explicit preview target or private previews when there are no HTTP/gRPC routes.",
-            input: context.value,
-          });
-      }),
-    );
-}
+export { previewApplicationRoutingSchema } from "@/lib/schemas/application";
 
 export const logMessageSchema = z.pipe(
   jsonText,

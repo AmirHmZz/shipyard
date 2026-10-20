@@ -4,7 +4,7 @@ import { useResourceForm } from "@/components/resource-forms/controller";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { errorMessage } from "@/lib/api";
+import { describeError } from "@/lib/api/translate-error";
 
 import { choose } from "../utils";
 
@@ -34,7 +34,7 @@ export function ZoneFields({
       ) : availableZones.error ? (
         <Alert variant="destructive">
           <AlertDescription>
-            {errorMessage(availableZones.error)}
+            {describeError(availableZones.error)}
             <Button
               type="button"
               variant="outline"

@@ -2,18 +2,20 @@ import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import { toast } from "sonner";
 
-import type { Deployment } from "@/lib/api";
-import type { Resource } from "@/lib/api";
+import type { Deployment } from "@/lib/api/types";
+import type { Resource } from "@/lib/api/types";
 
 import { ConfigurationGuard } from "@/components/configuration-surface";
 import { DeleteResource, DeletionStatus } from "@/components/delete-resource";
 import { Empty, ErrorState, Loading } from "@/components/shared";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Variables } from "@/components/variables";
-import { text, useDeployments, useResources } from "@/lib/api";
 import { ApiException } from "@/lib/api/errors";
 import { toastValidationError } from "@/lib/api/toaster";
 import { describeError } from "@/lib/api/translate-error";
+import { useDeployments } from "@/lib/hooks/useDeployments";
+import { useResources } from "@/lib/hooks/useResources";
+import { text } from "@/lib/resource-fields";
 import { indexResources } from "@/lib/resource-index";
 
 import { freshDeploySchema } from "../generics";

@@ -1,6 +1,6 @@
 import { Area, AreaChart } from "recharts";
 
-import type { Metric } from "@/lib/api";
+import type { Metric } from "@/lib/api/types";
 
 import {
   ChartContainer,

@@ -2,7 +2,7 @@ import type { Dispatch, SetStateAction } from "react";
 
 import { RefreshCw } from "lucide-react";
 
-import type { Resource } from "@/lib/api";
+import type { Resource } from "@/lib/api/types";
 
 import { StateBadge } from "@/components/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";

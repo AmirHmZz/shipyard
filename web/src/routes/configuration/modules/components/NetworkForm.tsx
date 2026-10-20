@@ -17,10 +17,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { useResources } from "@/lib/api";
 import { toastValidationError } from "@/lib/api/toaster";
 import { describeError } from "@/lib/api/translate-error";
 import { useConfigurationChanges } from "@/lib/configuration-state";
+import { useResources } from "@/lib/hooks/useResources";
 import { useAccount } from "@/lib/session";
 
 import { networkFormSchema } from "../generics";

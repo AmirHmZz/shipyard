@@ -3,8 +3,8 @@ import type { useSearchParams } from "react-router";
 
 import { ArrowUpRight } from "lucide-react";
 
-import type { Deployment } from "@/lib/api";
-import type { Metric, Resource } from "@/lib/api";
+import type { Deployment } from "@/lib/api/types";
+import type { Metric, Resource } from "@/lib/api/types";
 
 import { RepositoryName } from "@/components/repository-name";
 import { Empty, StateBadge } from "@/components/shared";
@@ -20,8 +20,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { TabsContent } from "@/components/ui/tabs";
-import { text } from "@/lib/api";
 import { toastValidationError } from "@/lib/api/toaster";
+import { text } from "@/lib/resource-fields";
 
 import { previewCommitSchema } from "../generics";
 import { useApprovePreview } from "../hooks";

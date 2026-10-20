@@ -1,27 +1,28 @@
 import type { ReactNode } from "react";
 
-import { useQueryClient } from "@tanstack/react-query";
 import { createContext, use, useId, useState } from "react";
 import { toast } from "sonner";
 import * as z from "zod/mini";
 
-import type { Resource } from "@/lib/api";
+import type { Resource } from "@/lib/api/types";
 import type { ResourceKind } from "@/lib/resource-form-definitions";
 
 import { ProviderLogo } from "@/components/provider-name";
-import { errorMessage } from "@/lib/api";
+import { toastValidationError } from "@/lib/api/toaster";
+import { describeError } from "@/lib/api/translate-error";
 import { normalizeApplicationSettings } from "@/lib/application-settings";
 import { useConfigurationChanges } from "@/lib/configuration-state";
-import { resourceKeys } from "@/lib/query-keys";
-import { defaults, parents } from "@/lib/resource-form-definitions";
-import { relativeHostname, routeHostname } from "@/lib/route-hostname";
-import { dnsCredentialSchema } from "@/lib/schemas/dns";
-import { parseResourceForm } from "@/lib/schemas/resource-form";
 import {
-  probeServerFingerprint,
-  saveResource,
-  testDNSCredentials,
-} from "@/lib/services";
+  useSaveResource,
+  useTestDNSCredentials,
+  useProbeServerFingerprint,
+} from "@/lib/hooks";
+import { defaults, parents } from "@/lib/resource-form-definitions";
+import { relativeHostname, routeHostnameSchema } from "@/lib/route-hostname";
+import { previewApplicationRoutingSchema } from "@/lib/schemas/application";
+import { dnsCredentialSchema } from "@/lib/schemas/dns";
+import { serverFingerprintFormSchema } from "@/lib/schemas/endpoint-responses";
+import { resourceFormSchema } from "@/lib/schemas/resource-form";
 export type ResourceFormProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -43,7 +44,9 @@ function useResourceFormController({
 }: ControllerProps) {
   const changes = useConfigurationChanges();
   const formId = useId();
-  const client = useQueryClient();
+  const saveResource = useSaveResource();
+  const testCredentials = useTestDNSCredentials();
+  const fingerprint = useProbeServerFingerprint();
   const [name, setName] = useState(existing?.name || "");
   const [parent, setParent] = useState(existing?.parentId || parentId || "");
   const initialParent = resources.find(
@@ -83,14 +86,19 @@ function useResourceFormController({
   });
   const [secrets, setSecrets] = useState<Record<string, string>>({});
   const [version] = useState(existing?.version || 0);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [probe, setProbe] = useState(false);
-  const [dnsTesting, setDNSTesting] = useState(false);
-  const [dnsTested, setDNSTested] = useState("");
+  const busy = saveResource.isPending;
+  const probe = fingerprint.isPending;
+  const dnsTesting = testCredentials.isPending;
+  const failure = saveResource.error ?? testCredentials.error;
+  const error = failure ? describeError(failure) : "";
   const dnsCredentials = JSON.stringify([data.provider, secrets.token]);
   const needsDNSTest = kind === "dns" && !existing;
-  const dnsVerified = dnsTested === dnsCredentials;
+  const dnsVerified =
+    testCredentials.isSuccess &&
+    JSON.stringify([
+      testCredentials.variables?.provider,
+      testCredentials.variables?.token,
+    ]) === dnsCredentials;
   const [composeYAML, setComposeYAML] = useState("");
   const needsComposeDocument =
     kind === "application" &&
@@ -156,127 +164,150 @@ function useResourceFormController({
         : {}),
     }));
   };
-  async function testDNS() {
-    const credentials = dnsCredentials;
-    setDNSTesting(true);
-    setDNSTested("");
-    setError("");
-    try {
-      await testDNSCredentials(
-        dnsCredentialSchema.parse({
-          provider: data.provider,
-          token: secrets.token,
-        }),
-      );
-      setDNSTested(credentials);
-    } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setDNSTesting(false);
-    }
-  }
-  async function save() {
-    if (needsDNSTest && (!dnsVerified || dnsTesting)) {
-      setError("Test the DNS provider successfully before saving.");
+  function testDNS() {
+    if (dnsTesting) return;
+    saveResource.reset();
+    testCredentials.reset();
+    const parsed = dnsCredentialSchema.safeParse({
+      provider: data.provider,
+      token: secrets.token,
+    });
+    if (!parsed.success) {
+      toastValidationError(parsed.error);
       return;
     }
-    setBusy(true);
-    setError("");
-    try {
-      const resolved =
-        kind === "application"
-          ? normalizeApplicationSettings(
-              data,
-              resources.filter(
-                (r) => r.kind === "route" && r.parentId === existing?.id,
-              ),
-            )
-          : { ...data };
-      const writeSecrets = { ...secrets };
-      if (kind === "application") {
-        z.string()
-          .check(
-            z.refine(
-              (value) => parentOptions.some((option) => option.value === value),
-              "Select an environment in this project.",
-            ),
-          )
-          .parse(parent);
-      }
-      if (kind === "route") {
-        delete resolved.backendTls;
-        delete resolved.backendServerName;
-        delete resolved.redirect;
-        if (resolved.protocol !== "tcp") resolved.tls = "terminate";
-        const zoneId = z
-          .string()
-          .check(
-            z.refine(
-              (value) =>
-                resources.some(
-                  (resource) =>
-                    resource.kind === "zone" && resource.id === value,
-                ),
-              "Select a connected zone",
-            ),
-          )
-          .parse(resolved.zoneId);
-        const zone = resources.find((resource) => resource.id === zoneId)!;
-        const base = String(zone.data.domain);
-        resolved.domain = routeHostname(String(resolved.domain || ""), base);
-      }
-      if (
-        kind === "application" &&
-        resolved.previews &&
-        (
-          resolved.previewRouting as {
-            mode?: string;
-          }
-        )?.mode === "inherit" &&
-        !resources.some(
-          (r) =>
-            r.kind === "route" &&
-            r.parentId === existing?.id &&
-            r.data.protocol !== "tcp",
-        )
-      )
-        throw new Error(
-          "Configure an explicit preview target or private previews when there are no HTTP/gRPC routes.",
-        );
-      const payload = parseResourceForm({
-        kind,
-        name: kind === "zone" ? String(resolved.domain || "zone") : name,
-        parentId: parent,
-        teamId: team,
-        data: resolved,
-        secrets: needsComposeDocument
-          ? { ...writeSecrets, compose: composeYAML }
-          : writeSecrets,
-        version,
-      });
-      const resource = await saveResource(existing?.id, kind, payload);
-      await client.invalidateQueries({ queryKey: resourceKeys.all });
-      changes.saved();
-      toast.success(`${kind[0].toUpperCase() + kind.slice(1)} saved`);
-      onOpenChange(false);
-      onSaved?.(resource);
-    } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setBusy(false);
-    }
+    testCredentials.mutate(parsed.data);
   }
-  async function probeFingerprint() {
-    setProbe(true);
-    try {
-      const value = await probeServerFingerprint(data);
-      update("fingerprint", value.fingerprint);
-      changes.change();
-    } catch (error) {
-      toast.error(errorMessage(error));
-    } finally {
-      setProbe(false);
+  function save() {
+    if (busy) return;
+    saveResource.reset();
+    const verified = z
+      .literal(true, {
+        error: "Test the DNS provider successfully before saving.",
+      })
+      .safeParse(!needsDNSTest || (dnsVerified && !dnsTesting));
+    if (!verified.success) {
+      toastValidationError(verified.error);
+      return;
     }
+    const resolved =
+      kind === "application"
+        ? normalizeApplicationSettings(
+            data,
+            resources.filter(
+              (resource) =>
+                resource.kind === "route" && resource.parentId === existing?.id,
+            ),
+          )
+        : { ...data };
+    if (kind === "application") {
+      const environment = z
+        .string()
+        .check(
+          z.refine(
+            (value) => parentOptions.some((option) => option.value === value),
+            "Select an environment in this project.",
+          ),
+        )
+        .safeParse(parent);
+      if (!environment.success) {
+        toastValidationError(environment.error);
+        return;
+      }
+    }
+    if (kind === "route") {
+      delete resolved.backendTls;
+      delete resolved.backendServerName;
+      delete resolved.redirect;
+      if (resolved.protocol !== "tcp") resolved.tls = "terminate";
+      const zoneId = z
+        .string()
+        .check(
+          z.refine(
+            (value) =>
+              resources.some(
+                (resource) => resource.kind === "zone" && resource.id === value,
+              ),
+            "Select a connected zone",
+          ),
+        )
+        .safeParse(resolved.zoneId);
+      if (!zoneId.success) {
+        toastValidationError(zoneId.error);
+        return;
+      }
+      const zone = resources.find((resource) => resource.id === zoneId.data);
+      if (!zone) return;
+      const hostname = routeHostnameSchema.safeParse({
+        relative: String(resolved.domain || ""),
+        zone: String(zone.data.domain),
+      });
+      if (!hostname.success) {
+        toastValidationError(hostname.error);
+        return;
+      }
+      resolved.domain = hostname.data;
+    }
+    if (kind === "application") {
+      const routing = previewApplicationRoutingSchema(
+        resources.some(
+          (resource) =>
+            resource.kind === "route" &&
+            resource.parentId === existing?.id &&
+            resource.data.protocol !== "tcp",
+        ),
+      ).safeParse({
+        enabled: !!resolved.previews,
+        routing: resolved.previewRouting,
+      });
+      if (!routing.success) {
+        toastValidationError(routing.error);
+        return;
+      }
+    }
+    const parsed = resourceFormSchema(kind).safeParse({
+      kind,
+      name: kind === "zone" ? String(resolved.domain || "zone") : name,
+      parentId: parent,
+      teamId: team,
+      data: resolved,
+      secrets: needsComposeDocument
+        ? { ...secrets, compose: composeYAML }
+        : { ...secrets },
+      version,
+    });
+    if (!parsed.success) {
+      toastValidationError(parsed.error);
+      return;
+    }
+    saveResource.mutate(
+      { existingId: existing?.id, kind, payload: parsed.data },
+      {
+        onSuccess: (resource) => {
+          changes.saved();
+          toast.success(kind[0].toUpperCase() + kind.slice(1) + " saved");
+          onOpenChange(false);
+          onSaved?.(resource);
+        },
+      },
+    );
+  }
+  function probeFingerprint() {
+    if (probe) return;
+    const parsed = serverFingerprintFormSchema.safeParse({
+      host: data.host,
+      port: data.port || 22,
+    });
+    if (!parsed.success) {
+      toastValidationError(parsed.error);
+      return;
+    }
+    fingerprint.mutate(parsed.data, {
+      onSuccess: (value) => {
+        update("fingerprint", value.fingerprint);
+        changes.change();
+      },
+    });
   }
   return {
     state: {

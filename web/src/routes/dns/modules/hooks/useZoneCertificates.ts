@@ -1,4 +1,4 @@
-import type { Resource } from "@/lib/api";
+import type { Resource } from "@/lib/api/types";
 
 import { useApiQuery } from "@/lib/api/use-api-query";
 import { POLL_INTERVALS } from "@/lib/constants";

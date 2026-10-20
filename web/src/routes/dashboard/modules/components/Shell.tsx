@@ -16,7 +16,7 @@ import {
   useMatches,
 } from "react-router";
 
-import type { Session } from "@/lib/api";
+import type { Session } from "@/lib/api/types";
 
 import { Loading } from "@/components/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -45,7 +45,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { useResources } from "@/lib/api";
+import { useResources } from "@/lib/hooks/useResources";
 import { resolvePageLabel } from "@/lib/route-handle";
 import { readTheme, writeTheme } from "@/lib/theme";
 

@@ -3,7 +3,7 @@ import type { FormEvent } from "react";
 import { Download } from "lucide-react";
 import { useState } from "react";
 
-import type { Session } from "@/lib/api";
+import type { Session } from "@/lib/api/types";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";

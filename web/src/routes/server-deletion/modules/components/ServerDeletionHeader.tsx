@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 
-import type { Resource } from "@/lib/api";
+import type { Resource } from "@/lib/api/types";
 
 import { PageHeader } from "@/components/shared";
 import { Button } from "@/components/ui/button";

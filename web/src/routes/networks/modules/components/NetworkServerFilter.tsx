@@ -1,6 +1,7 @@
 import { RefreshCw, Server } from "lucide-react";
 
-import type { useAccount, Resource } from "@/lib/api";
+import type { Resource } from "@/lib/api/types";
+import type { useAccount } from "@/lib/session";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";

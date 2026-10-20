@@ -17,7 +17,9 @@ import { Empty, ErrorState, Loading, PageHeader } from "@/components/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ago, useDeployments, useResources } from "@/lib/api";
+import { ago } from "@/lib/format";
+import { useDeployments } from "@/lib/hooks/useDeployments";
+import { useResources } from "@/lib/hooks/useResources";
 import { indexResources } from "@/lib/resource-index";
 
 import { OverviewGettingStarted } from "./OverviewGettingStarted";

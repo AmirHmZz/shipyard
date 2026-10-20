@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { useSearchParams } from "react-router";
 
-import type { Session } from "@/lib/api";
+import type { Session } from "@/lib/api/types";
 
 import { PageHeader } from "@/components/shared";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";

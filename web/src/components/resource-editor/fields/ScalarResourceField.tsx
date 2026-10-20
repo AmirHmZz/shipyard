@@ -17,6 +17,7 @@ export function ScalarResourceField({ f, kind }: ResourceFieldProps) {
     actions: { update },
     meta: { formId },
   } = useResourceForm();
+  const fieldValue = data[f.key];
   if (kind === "application" && (f.key === "context" || f.key === "file"))
     return (
       <InputGroup>
@@ -48,9 +49,9 @@ export function ScalarResourceField({ f, kind }: ResourceFieldProps) {
       id={`${formId}-${f.key}`}
       type={f.type === "number" ? "number" : "text"}
       value={
-        Array.isArray(data[f.key])
-          ? (data[f.key] as string[]).join(", ")
-          : String(data[f.key] ?? "")
+        Array.isArray(fieldValue)
+          ? fieldValue.join(", ")
+          : String(fieldValue ?? "")
       }
       onChange={(e) =>
         update(

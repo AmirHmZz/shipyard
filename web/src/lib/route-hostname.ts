@@ -46,12 +46,29 @@ export function relativeHostname(domain: string, zone: string): string {
     : domain;
 }
 export function routeHostname(relative: string, zone: string): string {
-  const base = z
-    .string()
-    .check(z.trim())
-    .check(z.minLength(1, "Select a connected zone"))
-    .parse(zone)
-    .toLowerCase();
-  const value = subdomain(base).parse(relative);
-  return value ? `${value}.${base}` : base;
+  return routeHostnameSchema.parse({ relative, zone });
 }
+
+export const routeHostnameSchema = z.pipe(
+  z.object({
+    relative: z.string(),
+    zone: z
+      .string()
+      .check(z.trim())
+      .check(z.minLength(1, "Select a connected zone"))
+      .check(z.toLowerCase()),
+  }),
+  z.transform(({ relative, zone }, context) => {
+    const parsed = subdomain(zone).safeParse(relative);
+    if (!parsed.success) {
+      for (const issue of parsed.error.issues)
+        context.issues.push({
+          code: "custom",
+          message: issue.message,
+          input: relative,
+        });
+      return z.NEVER;
+    }
+    return parsed.data ? `${parsed.data}.${zone}` : zone;
+  }),
+);

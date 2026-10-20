@@ -29,7 +29,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { text, useAccount, useResources } from "@/lib/api";
+import { useResources } from "@/lib/hooks/useResources";
+import { text } from "@/lib/resource-fields";
+import { useAccount } from "@/lib/session";
 
 import { DNSRecordSurface } from "./DNSRecordSurface";
 import { ZoneCertificates } from "./ZoneCertificates";

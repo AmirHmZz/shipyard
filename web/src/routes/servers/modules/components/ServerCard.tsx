@@ -2,7 +2,7 @@ import { Check, Server, Settings2, Trash2, Users } from "lucide-react";
 import { lazy, Suspense } from "react";
 import { toast } from "sonner";
 
-import type { Resource } from "@/lib/api";
+import type { Resource } from "@/lib/api/types";
 
 import { StateBadge } from "@/components/shared";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { text } from "@/lib/api";
+import { text } from "@/lib/resource-fields";
 import { useAdmin } from "@/lib/session";
 
 import { useServerMetrics, useCheckDockerVersion } from "../hooks";

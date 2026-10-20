@@ -84,7 +84,7 @@ export function ConfigurationGuard({
           }}
           title="Discard unsaved changes?"
           description="Your unsaved configuration will be lost."
-          onConfirm={async () => {
+          onConfirm={() => {
             actions.discard();
             if (blocker.state === "blocked") blocker.proceed();
           }}

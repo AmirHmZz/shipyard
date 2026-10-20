@@ -56,56 +56,18 @@
   },
   "overrides": [
     {
-      "files": [
-        "web/src/routes/*/modules/services/**",
-        "web/src/lib/services/**"
-      ],
-      "rules": {
-        "no-restricted-imports": [
-          "error",
-          {
-            "paths": [
-              "react",
-              "react-router",
-              "sonner",
-              "@tanstack/react-query",
-              "@/lib/api"
-            ],
-            "patterns": [
-              {
-                "group": [
-                  "@/pages/*",
-                  "@/App",
-                  "@/routes/*",
-                  "**/route",
-                  "**/route.tsx",
-                  "**/layout",
-                  "**/layout.tsx",
-                  "!**/+types/route",
-                  "!**/+types/layout",
-                  "react/*",
-                  "react-router/*",
-                  "sonner/*",
-                  "@tanstack/react-query/*",
-                  "**/hooks",
-                  "**/hooks/**",
-                  "**/components",
-                  "**/components/**"
-                ],
-                "message": "Follow the dependency boundaries in web/AGENTS.md."
-              }
-            ]
-          }
-        ]
-      }
-    },
-    {
       "files": ["**/hooks/**"],
       "rules": {
         "no-restricted-imports": [
           "error",
           {
-            "paths": [],
+            "paths": [
+              {
+                "name": "@/lib/api/call",
+                "importNames": ["callApi", "callApiBlob"],
+                "message": "Surface hooks call the internal API adapters."
+              }
+            ],
             "patterns": [
               {
                 "group": [
@@ -150,9 +112,7 @@
                   "**/components",
                   "**/components/**",
                   "**/hooks",
-                  "**/hooks/**",
-                  "**/services",
-                  "**/services/**"
+                  "**/hooks/**"
                 ],
                 "message": "Follow the dependency boundaries in web/AGENTS.md."
               }
@@ -163,17 +123,16 @@
     },
     {
       "files": ["web/src/**/*.tsx"],
-      "excludeFiles": ["**/services/**", "**/hooks/**"],
+      "excludeFiles": ["**/hooks/**"],
       "rules": {
         "no-restricted-imports": [
           "error",
           {
             "paths": [
-              "@/lib/api/client",
               {
-                "name": "@/lib/api",
-                "importNames": ["api", "post"],
-                "message": "Components call hooks, not the transport (AGENTS.md rule 11)."
+                "name": "@/lib/api/call",
+                "importNames": ["callApi", "callApiBlob"],
+                "message": "Components call surface hooks."
               }
             ],
             "patterns": [

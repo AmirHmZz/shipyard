@@ -10,7 +10,7 @@ import {
 } from "@/lib/schemas/application";
 import { jsonText, csvText, requiredText } from "@/lib/schemas/form-rules";
 
-export function parseResourceForm(input: {
+export type ResourceFormInput = {
   kind: ResourceKind;
   name: string;
   parentId: string;
@@ -18,9 +18,11 @@ export function parseResourceForm(input: {
   data: Record<string, unknown>;
   secrets: Record<string, string>;
   version: number;
-}) {
+};
+
+export function resourceFormSchema(kind: ResourceKind) {
   const shape: Record<string, z.ZodMiniType> = {};
-  for (const field of fields[input.kind]) {
+  for (const field of fields[kind]) {
     if (field.type === "readiness")
       shape[field.key] = z.optional(httpReadinessChecksSchema);
     else if (field.type === "previewRouting")
@@ -42,16 +44,14 @@ export function parseResourceForm(input: {
       shape[field.key] = z.optional(z.enum(field.options));
     else shape[field.key] = z.optional(z.string());
   }
-  const data = z.catchall(z.object(shape), z.unknown()).parse(input.data);
+  const data = z.catchall(z.object(shape), z.unknown());
   return z
     .object({
       kind: z.enum(RESOURCE_KINDS),
-      name: input.kind === "route" ? z.string() : requiredText("Name"),
-      parentId: parents[input.kind]
-        ? requiredText("Parent resource")
-        : z.string(),
+      name: kind === "route" ? z.string() : requiredText("Name"),
+      parentId: parents[kind] ? requiredText("Parent resource") : z.string(),
       teamId: z.string(),
-      data: z.record(z.string(), z.unknown()),
+      data,
       secrets: z.record(z.string(), z.string()),
       version: z.coerce.number().check(z.int()).check(z.gte(0)),
     })
@@ -60,8 +60,8 @@ export function parseResourceForm(input: {
         const value = context.value;
         if (
           value.kind === "application" &&
-          data.source !== "compose" &&
-          !data.branch
+          value.data.source !== "compose" &&
+          !value.data.branch
         )
           context.issues.push({
             code: "custom",
@@ -70,6 +70,9 @@ export function parseResourceForm(input: {
             input: context.value,
           });
       }),
-    )
-    .parse({ ...input, data });
+    );
+}
+
+export function parseResourceForm(input: ResourceFormInput) {
+  return resourceFormSchema(input.kind).parse(input);
 }

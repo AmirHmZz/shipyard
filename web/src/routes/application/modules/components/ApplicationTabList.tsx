@@ -11,7 +11,7 @@ import {
   Terminal,
 } from "lucide-react";
 
-import type { Resource } from "@/lib/api";
+import type { Resource } from "@/lib/api/types";
 
 import { TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { loadComposeEditor } from "@/lib/feature-loaders";
