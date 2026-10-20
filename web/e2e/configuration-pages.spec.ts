@@ -5,6 +5,7 @@ import { test, expect } from "@playwright/test";
 import { jsonObject } from "./json";
 async function mock(page: Page, admin = true) {
   const resource = (id: string, kind: string, parentId = "", data = {}) => ({
+    variables: {},
     id,
     kind,
     parentId,
@@ -56,7 +57,16 @@ async function mock(page: Page, admin = true) {
       return route.fulfill({ json: { dsn: "" } });
     if (path.endsWith("/auth/me"))
       return route.fulfill({
-        json: { user: { id: "user", name: "User", admin }, csrf: "csrf" },
+        json: {
+          user: {
+            email: "user@example.test",
+            totp: false,
+            id: "user",
+            name: "User",
+            admin,
+          },
+          csrf: "csrf",
+        },
       });
     if (path.endsWith("/resources")) {
       if (req.method() === "GET") return route.fulfill({ json: resources });
@@ -121,17 +131,38 @@ async function mock(page: Page, admin = true) {
     if (path.endsWith("/networks"))
       return route.fulfill({
         json: [
-          { Id: "external", Name: "external", Driver: "bridge", Labels: {} },
-          { Id: "default", Name: "bridge", Driver: "bridge", Labels: {} },
+          {
+            EnableIPv6: false,
+            IPAM: { Config: [] },
+            Containers: {},
+            Id: "external",
+            Name: "external",
+            Driver: "bridge",
+            Labels: {},
+          },
+          {
+            EnableIPv6: false,
+            IPAM: { Config: [] },
+            Containers: {},
+            Id: "default",
+            Name: "bridge",
+            Driver: "bridge",
+            Labels: {},
+          },
         ],
       });
     if (path.endsWith("/haproxy"))
       return route.fulfill({
         json: {
+          lastJobId: "",
+          appliedAt: null,
+          apply: null,
           version: 0,
           bindings: {},
           frontends: [
             {
+              applicationId: "",
+              applicationName: "",
               id: "web",
               name: "Web",
               protocol: "HTTP / HTTPS / gRPC",

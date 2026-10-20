@@ -4,6 +4,9 @@ import { expect, test } from "@playwright/test";
 
 async function setup(page: Page, { admin = true, writable = true } = {}) {
   const resource = (id: string, kind: string, parentId = "", data = {}) => ({
+    variables: {},
+    createdAt: "2026-10-19T00:00:00Z",
+    updatedAt: "2026-10-19T00:00:00Z",
     id,
     kind,
     parentId,
@@ -55,7 +58,16 @@ async function setup(page: Page, { admin = true, writable = true } = {}) {
       return route.fulfill({ json: { dsn: "" } });
     if (path.endsWith("/auth/me"))
       return route.fulfill({
-        json: { user: { id: "user", name: "Operator", admin }, csrf: "csrf" },
+        json: {
+          user: {
+            email: "user@example.test",
+            totp: false,
+            id: "user",
+            name: "Operator",
+            admin,
+          },
+          csrf: "csrf",
+        },
       });
     if (path.endsWith("/resources")) return route.fulfill({ json: resources });
     if (path.endsWith("/runtime"))
@@ -102,6 +114,13 @@ async function setup(page: Page, { admin = true, writable = true } = {}) {
     if (path.startsWith("/api/v1/deployments/"))
       return route.fulfill({
         json: {
+          phase: "",
+          commit: "",
+          error: "",
+          releaseId: "",
+          rollbackId: "",
+          createdAt: "2026-10-19T00:00:00Z",
+          updatedAt: "2026-10-19T00:00:00Z",
           id: path.split("/").at(-1),
           applicationId: "rustrack",
           state: "healthy",
@@ -124,6 +143,8 @@ async function setup(page: Page, { admin = true, writable = true } = {}) {
         json: path.includes("/test/")
           ? [
               {
+                EnableIPv6: false,
+                Containers: {},
                 Id: "docker-ingress",
                 Name: "sy-ingress",
                 Driver: "bridge",
@@ -131,6 +152,8 @@ async function setup(page: Page, { admin = true, writable = true } = {}) {
                 IPAM: { Config: [{ Subnet: "172.25.0.0/24" }] },
               },
               {
+                EnableIPv6: false,
+                Containers: {},
                 Id: "docker-external",
                 Name: "external-apps",
                 Driver: "bridge",
@@ -138,6 +161,8 @@ async function setup(page: Page, { admin = true, writable = true } = {}) {
                 IPAM: { Config: [{ Subnet: "172.26.0.0/24" }] },
               },
               {
+                EnableIPv6: false,
+                Containers: {},
                 Id: "docker-default",
                 Name: "bridge",
                 Driver: "bridge",
@@ -145,6 +170,8 @@ async function setup(page: Page, { admin = true, writable = true } = {}) {
                 IPAM: { Config: [] },
               },
               {
+                EnableIPv6: false,
+                Containers: {},
                 Id: "docker-host",
                 Name: "host",
                 Driver: "host",

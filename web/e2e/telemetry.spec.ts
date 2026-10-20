@@ -26,7 +26,9 @@ test("browser errors use the runtime DSN without session or URL tokens", async (
         },
       });
     if (path.endsWith("/auth/status"))
-      return route.fulfill({ json: { setupRequired: false } });
+      return route.fulfill({
+        json: { setupEnabled: false, setupRequired: false },
+      });
     return route.fulfill({ status: 401, json: { error: "Not signed in" } });
   });
   await page.goto("/login?csrf=private-query");

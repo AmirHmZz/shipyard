@@ -65,6 +65,7 @@ async function setup(page: Page, admin = true) {
       return route.fulfill({
         json: [
           {
+            variables: {},
             id: "server",
             kind: "server",
             name: "Destination",

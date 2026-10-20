@@ -6,6 +6,10 @@ import { jsonObject } from "./json";
 
 async function setup(page: Page, writable = true) {
   const resource = (id: string, kind: string, parentId = "", data = {}) => ({
+    secretKeys: [],
+    variables: {},
+    createdAt: "2026-10-19T00:00:00Z",
+    updatedAt: "2026-10-19T00:00:00Z",
     id,
     kind,
     name: id,
@@ -39,7 +43,13 @@ async function setup(page: Page, writable = true) {
     if (path.endsWith("/auth/me"))
       return route.fulfill({
         json: {
-          user: { id: "user", name: "Operator", admin: true },
+          user: {
+            email: "user@example.test",
+            totp: false,
+            id: "user",
+            name: "Operator",
+            admin: true,
+          },
           csrf: "csrf",
         },
       });

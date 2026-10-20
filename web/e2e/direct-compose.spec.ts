@@ -29,6 +29,9 @@ async function setup(page: Page, existing = false, canWrite = true) {
   let conflict = false;
   let reads = 0;
   const resource = (id: string, kind: string, parentId = "", data = {}) => ({
+    variables: {},
+    createdAt: "2026-10-19T00:00:00Z",
+    updatedAt: "2026-10-19T00:00:00Z",
     id,
     kind,
     parentId,
@@ -54,7 +57,13 @@ async function setup(page: Page, existing = false, canWrite = true) {
     if (path.endsWith("/auth/me"))
       return route.fulfill({
         json: {
-          user: { id: "operator", name: "Operator", admin: true },
+          user: {
+            email: "user@example.test",
+            totp: false,
+            id: "operator",
+            name: "Operator",
+            admin: true,
+          },
           csrf: "csrf",
         },
       });
@@ -106,6 +115,13 @@ async function setup(page: Page, existing = false, canWrite = true) {
     if (path.startsWith("/api/v1/deployments/"))
       return route.fulfill({
         json: {
+          phase: "",
+          commit: "",
+          error: "",
+          releaseId: "",
+          rollbackId: "",
+          createdAt: "2026-10-19T00:00:00Z",
+          updatedAt: "2026-10-19T00:00:00Z",
           id: path.split("/").at(-1),
           applicationId: "app",
           state: "healthy",

@@ -11,7 +11,9 @@ test("sign-in API errors are visible in the provider toaster", async ({
     if (path.endsWith("/auth/me"))
       return route.fulfill({ status: 401, json: { error: "Unauthorized" } });
     if (path.endsWith("/auth/status"))
-      return route.fulfill({ json: { setupRequired: false } });
+      return route.fulfill({
+        json: { setupEnabled: false, setupRequired: false },
+      });
     if (path.endsWith("/auth/login")) {
       expect(request.method()).toBe("POST");
       expect(request.postDataJSON()).toMatchObject({

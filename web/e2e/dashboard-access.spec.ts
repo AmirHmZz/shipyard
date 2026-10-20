@@ -30,7 +30,16 @@ async function setup(
       return route.fulfill({ json: { dsn: "" } });
     if (path.endsWith("/auth/me"))
       return route.fulfill({
-        json: { user: { id: "admin", name: "Admin", admin }, csrf: "csrf" },
+        json: {
+          user: {
+            email: "user@example.test",
+            totp: false,
+            id: "admin",
+            name: "Admin",
+            admin,
+          },
+          csrf: "csrf",
+        },
       });
     if (path.endsWith("/resources") || path.endsWith("/metrics"))
       return route.fulfill({ json: [] });

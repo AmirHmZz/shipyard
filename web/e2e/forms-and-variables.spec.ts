@@ -11,6 +11,8 @@ async function fixture(page: Page, writable = true, provider = "gitea") {
     parentId = "",
     data: Record<string, unknown> = {},
   ) => ({
+    createdAt: "2026-10-19T00:00:00Z",
+    updatedAt: "2026-10-19T00:00:00Z",
     id,
     kind,
     parentId,
@@ -77,7 +79,16 @@ async function fixture(page: Page, writable = true, provider = "gitea") {
       return route.fulfill({ json: { dsn: "" } });
     if (path.endsWith("/auth/me"))
       return route.fulfill({
-        json: { user: { id: "user", name: "User", admin: true }, csrf: "csrf" },
+        json: {
+          user: {
+            email: "user@example.test",
+            totp: false,
+            id: "user",
+            name: "User",
+            admin: true,
+          },
+          csrf: "csrf",
+        },
       });
     if (path.endsWith("/repositories")) {
       if (state.repoGate) await state.repoGate;

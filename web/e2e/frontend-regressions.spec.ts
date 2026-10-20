@@ -9,6 +9,7 @@ async function fixture(page: Page) {
     parentId = "",
     data: Record<string, unknown> = {},
   ) => ({
+    variables: {},
     id,
     kind,
     parentId,
@@ -39,6 +40,7 @@ async function fixture(page: Page) {
     resource("git", "git", "", { provider: "gitea" }),
   ];
   const state = {
+    status: "running",
     containers: ["first", "second"],
     runtimeRequests: 0,
     releases: 0,
@@ -56,6 +58,7 @@ async function fixture(page: Page) {
       return route.fulfill({
         json: {
           user: {
+            totp: false,
             id: "user",
             name: "User",
             email: "user@example.com",
@@ -123,6 +126,7 @@ test("framework routes survive direct loads, refreshes, and session changes", as
       json: signedIn
         ? {
             user: {
+              totp: false,
               id: "user",
               name: "User",
               email: "user@example.com",
@@ -391,7 +395,8 @@ test("server charts load only where a metrics chart is rendered", async ({
     route.fulfill({
       json: [
         {
-          timestamp: "2026-10-18T00:00:00Z",
+          resourceId: "server",
+          at: "2026-10-18T00:00:00Z",
           online: true,
           cpu: 10,
           memory: 20,
@@ -399,7 +404,8 @@ test("server charts load only where a metrics chart is rendered", async ({
           containers: [],
         },
         {
-          timestamp: "2026-10-18T00:00:30Z",
+          resourceId: "server",
+          at: "2026-10-18T00:00:30Z",
           online: true,
           cpu: 15,
           memory: 20,

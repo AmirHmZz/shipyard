@@ -7,6 +7,10 @@ async function setup(
   { admin = true, local = false, deleting = false } = {},
 ) {
   const host = {
+    secretKeys: [],
+    variables: {},
+    createdAt: "2026-10-19T00:00:00Z",
+    updatedAt: "2026-10-19T00:00:00Z",
     id: "host",
     kind: "server",
     name: "Production",
@@ -71,7 +75,16 @@ async function setup(
       return route.fulfill({ json: { dsn: "" } });
     if (path.endsWith("/auth/me"))
       return route.fulfill({
-        json: { user: { id: "user", name: "Admin", admin }, csrf: "csrf" },
+        json: {
+          user: {
+            email: "user@example.test",
+            totp: false,
+            id: "user",
+            name: "Admin",
+            admin,
+          },
+          csrf: "csrf",
+        },
       });
     if (path.endsWith("/resources")) return route.fulfill({ json: [host] });
     if (path.endsWith("/deletion-plan")) return route.fulfill({ json: plan });

@@ -86,7 +86,7 @@ async function dashboard(page: Page, initial: Resource[] = []) {
         ],
       });
     if (path.endsWith("/runtime"))
-      return route.fulfill({ json: { containers: [] } });
+      return route.fulfill({ json: { status: "running", containers: [] } });
     if (path === "/api/v1/deployments" || /\/(metrics|releases)$/.test(path))
       return route.fulfill({ json: [] });
     throw new Error(`Unexpected API request: ${request.method()} ${path}`);

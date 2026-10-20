@@ -21,7 +21,13 @@ async function setup(page: Page, existing = false, admin = true) {
     if (path.endsWith("/auth/me"))
       return route.fulfill({
         json: {
-          user: { id: "admin", name: "Administrator", admin },
+          user: {
+            email: "user@example.test",
+            totp: false,
+            id: "admin",
+            name: "Administrator",
+            admin,
+          },
           csrf: "csrf",
         },
       });
@@ -30,6 +36,11 @@ async function setup(page: Page, existing = false, admin = true) {
         json: existing
           ? [
               {
+                parentId: "",
+                teamId: "",
+                variables: {},
+                createdAt: "2026-10-19T00:00:00Z",
+                updatedAt: "2026-10-19T00:00:00Z",
                 id: "git",
                 kind: "git",
                 name: "Team code",

@@ -44,6 +44,8 @@ async function setup(
     Object.defineProperty(window, "EventSource", { value: FakeEventSource });
   });
   const resource = (id: string, kind: string, parentId = "", data = {}) => ({
+    createdAt: "2026-10-19T00:00:00Z",
+    updatedAt: "2026-10-19T00:00:00Z",
     id,
     kind,
     parentId,
@@ -90,7 +92,13 @@ async function setup(
     if (path.endsWith("/auth/me"))
       return route.fulfill({
         json: {
-          user: { id: "user", name: "Operator", admin: true },
+          user: {
+            email: "user@example.test",
+            totp: false,
+            id: "user",
+            name: "Operator",
+            admin: true,
+          },
           csrf: "csrf",
         },
       });
@@ -168,7 +176,18 @@ async function setup(
     }
     if (path.includes("/deployments/"))
       return route.fulfill({
-        json: { id: "deploy", applicationId: "app", state: "building" },
+        json: {
+          phase: "",
+          commit: "",
+          error: "",
+          releaseId: "",
+          rollbackId: "",
+          createdAt: "2026-10-19T00:00:00Z",
+          updatedAt: "2026-10-19T00:00:00Z",
+          id: "deploy",
+          applicationId: "app",
+          state: "building",
+        },
       });
     if (
       path.endsWith("/deployments") ||

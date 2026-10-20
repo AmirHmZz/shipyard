@@ -4,6 +4,9 @@ import { expect, test } from "@playwright/test";
 
 async function setup(page: Page, { writable = true, stopped = false } = {}) {
   const resource = (id: string, kind: string, parentId = "", data = {}) => ({
+    variables: {},
+    createdAt: "2026-10-19T00:00:00Z",
+    updatedAt: "2026-10-19T00:00:00Z",
     id,
     kind,
     parentId,
@@ -54,7 +57,13 @@ async function setup(page: Page, { writable = true, stopped = false } = {}) {
     if (path === "/auth/me")
       return route.fulfill({
         json: {
-          user: { id: "user", name: "Operator", admin: false },
+          user: {
+            email: "user@example.test",
+            totp: false,
+            id: "user",
+            name: "Operator",
+            admin: false,
+          },
           csrf: "csrf",
         },
       });
