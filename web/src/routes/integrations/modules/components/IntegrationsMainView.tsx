@@ -39,7 +39,7 @@ export function IntegrationsMainView() {
         title="Integrations"
         description="Connect the services between your repository and your domain."
       />
-      <div className="space-y-6" onClick={handleIntegrationAction}>
+      <div className="flex flex-col gap-6" onClick={handleIntegrationAction}>
         {sections.map((item) => (
           <IntegrationSection
             key={item.kind}

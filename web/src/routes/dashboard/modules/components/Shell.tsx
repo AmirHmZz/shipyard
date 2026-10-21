@@ -114,7 +114,7 @@ export function Shell({ session }: ShellProps) {
           </Breadcrumb>
           <Button
             variant="outline"
-            className="ml-auto hidden h-8 w-56 justify-start gap-2 bg-card text-xs font-normal text-muted-foreground sm:flex"
+            className="ml-auto hidden h-8 w-56 justify-start bg-card text-xs font-normal text-muted-foreground sm:flex"
             onClick={openSearch}
           >
             <Search className="size-3.5" />
@@ -130,12 +130,12 @@ export function Shell({ session }: ShellProps) {
             className="size-8"
             onClick={toggleTheme}
           >
-            {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
+            {dark ? <Sun /> : <Moon />}
           </Button>
           <Separator orientation="vertical" className="!h-5" />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-auto gap-2 p-1.5">
+              <Button variant="ghost" className="h-auto p-1.5">
                 <Avatar className="size-7">
                   <AvatarFallback className="bg-primary/10 text-[10px] text-primary">
                     {initials}

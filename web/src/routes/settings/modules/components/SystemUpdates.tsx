@@ -1,5 +1,6 @@
 import { RefreshCw } from "lucide-react";
 
+import { FormField } from "@/components/FormField";
 import { ErrorState, Loading } from "@/components/Shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -10,7 +11,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -55,7 +55,7 @@ export function SystemUpdates() {
           running while the dashboard restarts.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="flex flex-col gap-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="font-medium">
@@ -83,8 +83,11 @@ export function SystemUpdates() {
           </Alert>
         ) : (
           <>
-            <div className="space-y-3">
-              <Label htmlFor="system-version">Target version</Label>
+            <FormField
+              label={<>Target version</>}
+              labelProps={{ htmlFor: "system-version" }}
+              className="flex flex-col gap-3"
+            >
               <Select
                 value={target || undefined}
                 onValueChange={setTarget}
@@ -114,13 +117,14 @@ export function SystemUpdates() {
                 </p>
               )}
               <Button
+                className="self-start"
                 variant="outline"
                 disabled={!target || busy || blocked}
                 onClick={previewVersion}
               >
                 Preview version change
               </Button>
-            </div>
+            </FormField>
             {plan && (
               <VersionChangeReview
                 plan={plan}

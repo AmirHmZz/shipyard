@@ -1,6 +1,7 @@
 import type * as React from "react";
 import type { FormEvent } from "react";
 
+import { FormField } from "@/components/FormField";
 import { StateBadge } from "@/components/Shared";
 import { TableHeadings } from "@/components/TableHeadings";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -83,7 +84,7 @@ export function VersionChangeReview({
     });
   }
   return (
-    <section className="space-y-4 rounded-lg border p-4">
+    <section className="flex flex-col gap-4 rounded-lg border p-4">
       <h3 className="font-medium">
         {plan.current.version} → {plan.target.version}
       </h3>
@@ -130,9 +131,11 @@ export function VersionChangeReview({
           </AlertDescription>
         </Alert>
       )}
-      <form className="space-y-4" onSubmit={submitUpdate}>
-        <div className="space-y-2">
-          <Label htmlFor="upgrade-passphrase">Backup passphrase</Label>
+      <form className="flex flex-col gap-4" onSubmit={submitUpdate}>
+        <FormField
+          label={<>Backup passphrase</>}
+          labelProps={{ htmlFor: "upgrade-passphrase" }}
+        >
           <Input
             id="upgrade-passphrase"
             type="password"
@@ -146,7 +149,7 @@ export function VersionChangeReview({
             Keep this passphrase. You need it to restore the encrypted
             pre-change backup.
           </p>
-        </div>
+        </FormField>
         {plan.destructive && (
           <>
             <div className="flex items-center gap-3">
@@ -170,6 +173,7 @@ export function VersionChangeReview({
           </>
         )}
         <Button
+          className="self-start"
           variant={plan.destructive ? "destructive" : "default"}
           disabled={
             busy ||
@@ -178,7 +182,7 @@ export function VersionChangeReview({
             (plan.destructive && (!approve || confirm !== plan.target.version))
           }
         >
-          {busy && <Spinner className="size-4 " />}Back up & apply{" "}
+          {busy && <Spinner className="size-4" />}Back up & apply{" "}
           {plan.target.version}
         </Button>
       </form>

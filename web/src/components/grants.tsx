@@ -10,7 +10,7 @@ export function Grants({ resource, resources }: GrantsProps) {
   const { q, teams } = derived;
   const { grantTeam } = handlers;
   return (
-    <div className="space-y-3">
+    <div className="flex flex-col gap-3">
       <p className="text-xs text-muted-foreground">
         Grant this resource to a team before using it in an application.
       </p>

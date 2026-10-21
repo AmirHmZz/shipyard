@@ -4,6 +4,7 @@ import { Plus } from "lucide-react";
 
 import type { Resource } from "@/lib/api/types";
 
+import { FormField } from "@/components/FormField";
 import { InputField } from "@/components/InputField";
 import { SelectControl } from "@/components/SelectControl";
 import { CopyButton } from "@/components/Shared";
@@ -15,7 +16,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 
 import type { useTeamsPage } from "../hooks";
@@ -44,7 +44,7 @@ export function TeamInvitationForm({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form className="space-y-4" onSubmit={submitInvitation}>
+        <form className="flex flex-col gap-4" onSubmit={submitInvitation}>
           <InputField
             label={<>Email</>}
             labelProps={{}}
@@ -55,25 +55,24 @@ export function TeamInvitationForm({
               required: true,
             }}
           />
-          <div className="space-y-2">
-            <Label>Access scope</Label>
+          <FormField label={<>Access scope</>} labelProps={{}}>
             <SelectControl
               value={project || "team"}
               onValueChange={setScope}
               options={scopeOptions}
               triggerProps={{ className: "w-full" }}
             />
-          </div>
-          <div className="space-y-2">
-            <Label>Role</Label>
+          </FormField>
+          <FormField label={<>Role</>} labelProps={{}}>
             <SelectControl
               value={role}
               onValueChange={setRole}
               options={roles}
               triggerProps={{ className: "w-full" }}
             />
-          </div>
+          </FormField>
           <Button
+            className="self-start"
             disabled={!team.canWrite || invitationMutation.isPending}
             type="submit"
           >
@@ -90,9 +89,13 @@ export function TeamInvitationForm({
             </p>
           )}
           {invitation && (
-            <div className="space-y-3 rounded-lg border bg-muted/50 p-3">
+            <div className="flex flex-col gap-3 rounded-lg border bg-muted/50 p-3">
               <p className="break-all font-mono text-[10px]">{invitation}</p>
-              <CopyButton value={invitation} label="Copy invitation link" />
+              <CopyButton
+                className="self-start"
+                value={invitation}
+                label="Copy invitation link"
+              />
             </div>
           )}
         </form>

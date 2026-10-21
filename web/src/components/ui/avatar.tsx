@@ -72,7 +72,7 @@ function AvatarGroup({ className, ...props }: AvatarGroupProps) {
     <div
       data-slot="avatar-group"
       className={cn(
-        "group/avatar-group flex -space-x-2 *:data-[slot=avatar]:ring-2 *:data-[slot=avatar]:ring-background",
+        "group/avatar-group flex gap-0 [:where(&>*:not(:last-child))]:-me-2 *:data-[slot=avatar]:ring-2 *:data-[slot=avatar]:ring-background",
         className,
       )}
       {...props}

@@ -73,7 +73,7 @@ export function DeploymentTableRow({
                 aria-label="View deployment"
                 to={`/applications/${d.applicationId}?deployment=${d.id}`}
               >
-                <ArrowUpRight className="size-4" />
+                <ArrowUpRight />
               </Link>
             </Button>
           )}
@@ -93,7 +93,7 @@ export function DeploymentTableRow({
               {d.deleting && !d.deletionError ? (
                 <Spinner className="size-4" />
               ) : (
-                <Trash2 className="size-4" />
+                <Trash2 />
               )}
               {d.deletionError ? (
                 "Retry"

@@ -302,15 +302,13 @@ function ChartLegendContent({
       return (
         <div
           key={String(item.dataKey ?? item.value)}
-          className={cn(
-            "flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3 [&>svg]:text-muted-foreground",
-          )}
+          className="flex items-center gap-1.5 [&>svg]:size-3 [&>svg]:text-muted-foreground"
         >
           {itemConfig?.icon && !hideIcon ? (
             <itemConfig.icon />
           ) : (
             <div
-              className="h-2 w-2 shrink-0 rounded-[2px]"
+              className="size-2 shrink-0 rounded-[2px]"
               style={{
                 backgroundColor: item.color,
               }}

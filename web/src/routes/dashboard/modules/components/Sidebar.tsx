@@ -54,15 +54,15 @@ export function Sidebar({ close }: SidebarProps) {
           <ChevronDown className="ml-auto size-3.5 text-muted-foreground" />
         </div>
       </div>
-      <nav className="space-y-1 px-3">
+      <nav className="flex flex-col gap-1 px-3">
         {navigation.map((item, i) => (
           <div key={item.path}>
             {i === 3 && (
-              <div className="mt-7 mb-3 px-3 font-mono text-[9px] tracking-[.17em] text-muted-foreground">
+              <div className="mt-6 mb-3 px-3 font-mono text-[9px] tracking-[.17em] text-muted-foreground">
                 INFRASTRUCTURE
               </div>
             )}
-            {i === 7 && <Separator className="my-5" />}
+            {i === 7 && <Separator className="mt-4 mb-5" />}
             <NavLink
               to={item.path}
               prefetch="intent"

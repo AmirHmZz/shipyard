@@ -1,8 +1,8 @@
 import { Pencil, Trash2 } from "lucide-react";
 
+import { FlushCard } from "@/components/FlushCard";
 import { TableHeadings } from "@/components/TableHeadings";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -19,7 +19,7 @@ export function VariableTable({ controller }: VariableTableProps) {
   const { resource, keys, secretKeys, ordinary, busy } = controller.derived;
   const { handleVariableAction } = controller.handlers;
   return (
-    <Card className="gap-0 overflow-hidden py-0 shadow-none">
+    <FlushCard>
       <Table>
         <TableHeader>
           <TableHeadings
@@ -40,7 +40,7 @@ export function VariableTable({ controller }: VariableTableProps) {
                   ? "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
                   : ordinary[name]}
               </TableCell>
-              <TableCell className="text-right whitespace-nowrap">
+              <TableCell className="text-right">
                 <Button
                   variant="ghost"
                   size="icon-sm"
@@ -49,7 +49,7 @@ export function VariableTable({ controller }: VariableTableProps) {
                   data-variable-name={name}
                   data-variable-action="edit"
                 >
-                  <Pencil className="size-4" />
+                  <Pencil />
                 </Button>
                 <Button
                   variant="ghost"
@@ -59,13 +59,13 @@ export function VariableTable({ controller }: VariableTableProps) {
                   data-variable-name={name}
                   data-variable-action="remove"
                 >
-                  <Trash2 className="size-4" />
+                  <Trash2 />
                 </Button>
               </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
-    </Card>
+    </FlushCard>
   );
 }

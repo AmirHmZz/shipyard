@@ -12,7 +12,7 @@ export type AddButtonProps = {
 export function AddButton({ children, onClick }: AddButtonProps) {
   return (
     <Button onClick={onClick}>
-      <Plus className="size-4" />
+      <Plus />
       {children}
     </Button>
   );

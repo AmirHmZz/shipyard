@@ -1,5 +1,5 @@
+import { FlushCard } from "@/components/FlushCard";
 import { ErrorState, Loading, StateBadge } from "@/components/Shared";
-import { Card } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -17,7 +17,7 @@ export function History({ type }: HistoryProps) {
   if (q.isPending) return <Loading />;
   if (q.error) return <ErrorState error={q.error} />;
   return (
-    <Card className="gap-0 overflow-hidden py-0 shadow-none">
+    <FlushCard>
       <Table>
         <TableHeader>
           <TableRow>
@@ -56,6 +56,6 @@ export function History({ type }: HistoryProps) {
           No entries yet.
         </p>
       )}
-    </Card>
+    </FlushCard>
   );
 }

@@ -1,6 +1,7 @@
 import { Layers3, Plus } from "lucide-react";
 
 import { Empty } from "@/components/Shared";
+import { TabScroller } from "@/components/TabScroller";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -36,7 +37,7 @@ export function ProjectEnvironments({ controller }: ProjectEnvironmentsProps) {
       onValueChange={selectEnvironment}
       onClick={handleProjectAction}
     >
-      <div className="overflow-x-auto overflow-y-hidden p-1 -m-1">
+      <TabScroller>
         <TabsList>
           {environments.map((env) => (
             <TabsTrigger key={env.id} value={env.id}>
@@ -45,7 +46,7 @@ export function ProjectEnvironments({ controller }: ProjectEnvironmentsProps) {
             </TabsTrigger>
           ))}
         </TabsList>
-      </div>
+      </TabScroller>
       {environments.map((env) => (
         <ProjectEnvironment
           key={env.id}

@@ -1,6 +1,7 @@
 import { RotateCcw } from "lucide-react";
 
 import { DeploymentTable } from "@/components/deployment-table";
+import { FlushCard } from "@/components/FlushCard";
 import { Empty } from "@/components/Shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,7 +22,7 @@ export function ApplicationDeployments(props: ApplicationDeploymentsProps) {
   const { canDelete, selectDeployment, handleRollback } = handlers;
   return (
     <TabsContent value="deployments">
-      <Card className="gap-0 overflow-hidden py-0 shadow-none">
+      <FlushCard>
         {deployments.data?.length ? (
           <DeploymentTable
             resources={rows}
@@ -40,7 +41,7 @@ export function ApplicationDeployments(props: ApplicationDeploymentsProps) {
             }
           />
         )}
-      </Card>
+      </FlushCard>
       {selectedDeployment && (
         <div className="mt-5">
           <LogStream deploymentId={selectedDeployment} />
@@ -55,7 +56,7 @@ export function ApplicationDeployments(props: ApplicationDeploymentsProps) {
               database changes stay in place.
             </p>
           </CardHeader>
-          <CardContent className="space-y-3" onClick={handleRollback}>
+          <CardContent className="flex flex-col gap-3" onClick={handleRollback}>
             {releases.data.map((release) => (
               <div
                 key={release.id}

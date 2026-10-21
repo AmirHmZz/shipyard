@@ -29,7 +29,7 @@ export function HAProxyFrontend({
     <section
       key={frontend.id}
       aria-labelledby={`${id}-title`}
-      className="space-y-4 rounded-lg border p-4"
+      className="flex flex-col gap-4 rounded-lg border p-4"
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
@@ -58,7 +58,7 @@ export function HAProxyFrontend({
           {frontend.defaultAddresses.join(", ")}
         </p>
       ) : (
-        <div className="space-y-2">
+        <div className="flex flex-col gap-2">
           {values.map((value, index) => (
             <div key={value.rowId} className="flex items-center gap-2">
               <InputField
@@ -89,11 +89,12 @@ export function HAProxyFrontend({
                 onClick={removeAddress}
                 data-address-row={value.rowId}
               >
-                <Trash2 className="size-4" />
+                <Trash2 />
               </Button>
             </div>
           ))}
           <Button
+            className="self-start"
             type="button"
             size="sm"
             variant="outline"

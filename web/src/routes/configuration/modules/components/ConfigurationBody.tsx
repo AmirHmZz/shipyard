@@ -22,8 +22,8 @@ export function ConfigurationBody() {
     return <NetworkForm key={location.pathname + location.search} />;
   if (id !== "new" && !resource) return <p>Resource not found.</p>;
   return (
-    <>
-      <Breadcrumb aria-label="Configuration navigation" className="mb-6">
+    <div className="flex flex-col gap-6">
+      <Breadcrumb aria-label="Configuration navigation">
         <BreadcrumbList>
           <BreadcrumbItem>
             <BreadcrumbLink asChild>
@@ -39,6 +39,6 @@ export function ConfigurationBody() {
         </BreadcrumbList>
       </Breadcrumb>
       <ConfigurationContent controller={controller} />
-    </>
+    </div>
   );
 }

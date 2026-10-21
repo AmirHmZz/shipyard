@@ -32,18 +32,20 @@ export function ResourceFieldActions({ kind, f }: ResourceFieldActionsProps) {
     <>
       {kind === "server" && f.key === "fingerprint" && (
         <Button
+          className="self-start"
           type="button"
           variant="outline"
           size="sm"
           disabled={probe || !data.host}
           onClick={handleButtonClick}
         >
-          {probe ? <Spinner className="size-4 " /> : <Fingerprint />}
+          {probe ? <Spinner className="size-4" /> : <Fingerprint />}
           Probe fingerprint
         </Button>
       )}
       {f.key === "webhook_secret" && (
         <Button
+          className="self-start"
           type="button"
           variant="outline"
           size="sm"

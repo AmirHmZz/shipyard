@@ -51,7 +51,7 @@ export function ServerDeletionPlanReview({
                 <p className="mb-2 font-medium">
                   Resolve these conflicts before deletion:
                 </p>
-                <ul className="list-disc space-y-1 pl-5">
+                <ul className="list-disc flex flex-col gap-1 pl-5">
                   {plan.blockers.map((b) => (
                     <li key={b}>{b}</li>
                   ))}
@@ -68,7 +68,10 @@ export function ServerDeletionPlanReview({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <form className="space-y-5" onSubmit={submitConfirmation}>
+              <form
+                className="flex flex-col gap-5"
+                onSubmit={submitConfirmation}
+              >
                 <InputField
                   label={<>Type {plan.serverName} to confirm</>}
                   labelProps={{ htmlFor: "delete-server-name" }}
@@ -106,7 +109,7 @@ export function ServerDeletionPlanReview({
                       plan.blockers.length > 0
                     }
                   >
-                    {busy ? <Spinner className="size-4 " /> : <Trash2 />}
+                    {busy ? <Spinner className="size-4" /> : <Trash2 />}
                     Delete server
                   </Button>
                 </div>

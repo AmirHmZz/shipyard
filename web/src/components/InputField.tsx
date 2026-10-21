@@ -1,11 +1,13 @@
 import type { ComponentProps, ReactNode } from "react";
 
+import type { FormFieldProps } from "@/components/FormField";
+
+import { FormField } from "@/components/FormField";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
 export type InputFieldProps = {
   label: ReactNode;
-  labelProps?: Omit<ComponentProps<typeof Label>, "children">;
+  labelProps?: FormFieldProps["labelProps"];
   inputProps: ComponentProps<typeof Input> & {
     [attribute: `data-${string}`]: string | number | boolean | undefined;
   };
@@ -15,12 +17,11 @@ export function InputField({
   label,
   labelProps,
   inputProps,
-  className = "space-y-2",
+  className,
 }: InputFieldProps) {
   return (
-    <div className={className}>
-      <Label {...labelProps}>{label}</Label>
+    <FormField label={label} labelProps={labelProps} className={className}>
       <Input {...inputProps} />
-    </div>
+    </FormField>
   );
 }

@@ -32,8 +32,11 @@ export function Security({ session }: SecurityProps) {
           Add an authenticator to your local account.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <StateBadge state={session.user.totp ? "enabled" : "not configured"} />
+      <CardContent className="flex flex-col gap-4">
+        <StateBadge
+          className="mt-px"
+          state={session.user.totp ? "enabled" : "not configured"}
+        />
         <InputField
           label={<>Current password</>}
           labelProps={{}}

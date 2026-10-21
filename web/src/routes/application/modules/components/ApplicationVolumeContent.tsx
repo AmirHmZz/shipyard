@@ -89,7 +89,7 @@ export function ApplicationVolumeContent({
                   </Badge>
                 </TableCell>
                 <TableCell
-                  className="whitespace-nowrap text-right tabular-nums"
+                  className="text-right tabular-nums"
                   title={
                     volume.measuredAt
                       ? `Measured ${new Date(volume.measuredAt).toLocaleString()}`
@@ -98,7 +98,7 @@ export function ApplicationVolumeContent({
                 >
                   {usedSpace(volume.sizeBytes)}
                 </TableCell>
-                <TableCell className="whitespace-nowrap text-xs">
+                <TableCell className="text-xs">
                   {volume.createdAt
                     ? new Date(volume.createdAt).toLocaleString()
                     : "Unavailable"}

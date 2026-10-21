@@ -2,12 +2,12 @@ import type * as React from "react";
 
 import type { Resource } from "@/lib/api/types";
 
+import { FormField } from "@/components/FormField";
 import { InputField } from "@/components/InputField";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -44,7 +44,7 @@ export function RepairConnection({ server, onSaved }: RepairConnectionProps) {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <form className="space-y-4" onSubmit={submitRepair}>
+        <form className="flex flex-col gap-4" onSubmit={submitRepair}>
           <p className="text-sm text-muted-foreground">
             The repaired connection must reach the same Docker daemon. Leave the
             credential blank to keep its saved value.
@@ -67,8 +67,10 @@ export function RepairConnection({ server, onSaved }: RepairConnectionProps) {
               />
             ))}
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="repair-auth">Authentication</Label>
+          <FormField
+            label={<>Authentication</>}
+            labelProps={{ htmlFor: "repair-auth" }}
+          >
             <Select value={auth} onValueChange={setAuth}>
               <SelectTrigger id="repair-auth">
                 <SelectValue />
@@ -80,11 +82,11 @@ export function RepairConnection({ server, onSaved }: RepairConnectionProps) {
                 <SelectItem value="password">Password</SelectItem>
               </SelectContent>
             </Select>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="repair-credential">
-              {auth === "password" ? "Password" : "Private key"}
-            </Label>
+          </FormField>
+          <FormField
+            label={<>{auth === "password" ? "Password" : "Private key"}</>}
+            labelProps={{ htmlFor: "repair-credential" }}
+          >
             {auth === "password" ? (
               <Input
                 id="repair-credential"
@@ -101,14 +103,19 @@ export function RepairConnection({ server, onSaved }: RepairConnectionProps) {
                 onChange={handleTextareaChange}
               />
             )}
-          </div>
+          </FormField>
           {error && (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
-          <Button type="submit" variant="outline" disabled={busy}>
-            {busy && <Spinner className="size-4 " />}Verify & save connection
+          <Button
+            className="self-start"
+            type="submit"
+            variant="outline"
+            disabled={busy}
+          >
+            {busy && <Spinner className="size-4" />}Verify & save connection
           </Button>
         </form>
       </CardContent>

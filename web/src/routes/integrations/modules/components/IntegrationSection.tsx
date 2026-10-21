@@ -36,7 +36,7 @@ export function IntegrationSection({
   return (
     <section aria-labelledby={`integration-${item.kind}`}>
       <Card className="gap-0 overflow-hidden pb-0 shadow-none">
-        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-4 pb-5">
+        <CardHeader className="flex flex-wrap items-center justify-between gap-4 pb-5">
           <div className="flex min-w-0 items-center gap-4">
             <div className="flex size-10 shrink-0 items-center justify-center rounded-xl border bg-muted/50">
               <item.icon className="size-5 text-primary" />

@@ -2,6 +2,7 @@ import { Pencil, RefreshCw, Trash2 } from "lucide-react";
 
 import type { Resource } from "@/lib/api/types";
 
+import { SectionRow } from "@/components/SectionRow";
 import { Confirm, StateBadge } from "@/components/Shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -32,7 +33,7 @@ export function RouteCard({ route }: RouteCardProps) {
   return (
     <Card className="py-0 shadow-none">
       <CardContent className="p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <SectionRow>
           <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
             <Badge variant="secondary" className="font-mono text-[10px]">
               {protocol}
@@ -56,11 +57,7 @@ export function RouteCard({ route }: RouteCardProps) {
                   aria-label="Retry sync"
                   onClick={retrySync}
                 >
-                  {syncing ? (
-                    <Spinner className="size-4" />
-                  ) : (
-                    <RefreshCw className="size-4" />
-                  )}
+                  {syncing ? <Spinner className="size-4" /> : <RefreshCw />}
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Retry sync</TooltipContent>
@@ -75,7 +72,7 @@ export function RouteCard({ route }: RouteCardProps) {
                   data-route-id={route.id}
                   data-route-action="edit"
                 >
-                  <Pencil className="size-4" />
+                  <Pencil />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Edit route</TooltipContent>
@@ -88,10 +85,10 @@ export function RouteCard({ route }: RouteCardProps) {
               data-route-id={route.id}
               data-route-action="delete"
             >
-              <Trash2 className="size-4" />
+              <Trash2 />
             </Button>
           </div>
-        </div>
+        </SectionRow>
         <div className="mt-5 grid gap-3 border-t pt-4 sm:grid-cols-4">
           {["dns", "propagation", "certificate", "routing"].map((key) => (
             <div key={key}>

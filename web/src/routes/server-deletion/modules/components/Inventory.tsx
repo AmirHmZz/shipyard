@@ -1,8 +1,9 @@
 import { useState } from "react";
 
+import { FlushCard } from "@/components/FlushCard";
 import { TableHeadings } from "@/components/TableHeadings";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -33,7 +34,7 @@ export function Inventory({ title, items }: InventoryProps) {
   const rows = inventoryRows(items);
   const visibleRows = all ? rows : rows.slice(0, 15);
   return (
-    <Card className="gap-0 overflow-hidden py-0 shadow-none">
+    <FlushCard>
       <CardHeader className="py-5">
         <CardTitle className="text-base" role="heading" aria-level={2}>
           {title}{" "}
@@ -80,6 +81,6 @@ export function Inventory({ title, items }: InventoryProps) {
           None found.
         </CardContent>
       )}
-    </Card>
+    </FlushCard>
   );
 }

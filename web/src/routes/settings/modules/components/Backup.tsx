@@ -58,7 +58,7 @@ export function Backup({ session }: BackupProps) {
     });
   }
   return (
-    <div className="max-w-2xl space-y-5">
+    <div className="max-w-2xl flex flex-col gap-5">
       <Card className="shadow-none">
         <CardHeader>
           <CardTitle className="text-base">Maintenance mode</CardTitle>
@@ -86,7 +86,7 @@ export function Backup({ session }: BackupProps) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form className="space-y-4" onSubmit={exportBackup}>
+          <form className="flex flex-col gap-4" onSubmit={exportBackup}>
             <Label htmlFor="passphrase">Backup passphrase</Label>
             <Input
               id="passphrase"
@@ -96,8 +96,11 @@ export function Backup({ session }: BackupProps) {
               onChange={handleInputChange}
               required
             />
-            <Button disabled={busy || !session.maintenance}>
-              {busy ? <Spinner className="size-4 " /> : <Download />}Export
+            <Button
+              className="self-start"
+              disabled={busy || !session.maintenance}
+            >
+              {busy ? <Spinner className="size-4" /> : <Download />}Export
               encrypted backup
             </Button>
           </form>

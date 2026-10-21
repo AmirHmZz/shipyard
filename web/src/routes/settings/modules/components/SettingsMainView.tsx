@@ -13,6 +13,7 @@ import { useSearchParams } from "react-router";
 import type { Session } from "@/lib/api/types";
 
 import { PageHeader } from "@/components/Shared";
+import { TabScroller } from "@/components/TabScroller";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { AlertSettings } from "./AlertSettings";
@@ -42,7 +43,7 @@ export function SettingsMainView({ session }: SettingsMainViewProps) {
         value={params.get("tab") || "security"}
         onValueChange={handleTabsValueChange}
       >
-        <div className="overflow-x-auto overflow-y-hidden p-1 -m-1">
+        <TabScroller>
           <TabsList>
             <TabsTrigger value="security">
               <ShieldCheck aria-hidden="true" />
@@ -81,7 +82,7 @@ export function SettingsMainView({ session }: SettingsMainViewProps) {
               Audit log
             </TabsTrigger>
           </TabsList>
-        </div>
+        </TabScroller>
         <TabsContent value="security">
           <Security session={session} />
           <PasswordSettings />

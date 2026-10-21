@@ -34,7 +34,11 @@ export function SecurityControls({
             <code className="break-all text-xs">{setup.secret}</code>
           </AlertDescription>
         </Alert>
-        <CopyButton value={setup.url} label="Copy authenticator URL" />
+        <CopyButton
+          className="self-start"
+          value={setup.url}
+          label="Copy authenticator URL"
+        />
         <InputField
           label={<>Authenticator code</>}
           labelProps={{}}
@@ -44,7 +48,11 @@ export function SecurityControls({
             onChange: changeCode,
           }}
         />
-        <Button disabled={enable.isPending} onClick={confirmAuthenticator}>
+        <Button
+          className="self-start"
+          disabled={enable.isPending}
+          onClick={confirmAuthenticator}
+        >
           Confirm authenticator
         </Button>
       </>
@@ -58,6 +66,7 @@ export function SecurityControls({
           inputProps={{ value: code, onChange: changeCode }}
         />
         <Button
+          className="self-start"
           variant="destructive"
           disabled={disable.isPending}
           onClick={disableAuthenticator}
@@ -67,7 +76,11 @@ export function SecurityControls({
       </>
     );
   return (
-    <Button disabled={start.isPending} onClick={startAuthenticator}>
+    <Button
+      className="self-start"
+      disabled={start.isPending}
+      onClick={startAuthenticator}
+    >
       <ShieldCheck />
       Set up authenticator
     </Button>

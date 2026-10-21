@@ -16,7 +16,7 @@ export function ResourceFieldInput(props: ResourceFieldInputProps) {
       <div
         role="group"
         aria-labelledby={`${formId}-${f.key}-label`}
-        className="space-y-2"
+        className="flex flex-col gap-2"
       >
         <p id={`${formId}-${f.key}-label`} className="text-sm font-medium">
           {label}

@@ -26,7 +26,7 @@ export function HAProxyBindings({ controller }: HAProxyBindingsProps) {
       </p>
       <fieldset
         disabled={pending}
-        className="min-w-0 space-y-4 disabled:opacity-70"
+        className="min-w-0 flex flex-col gap-4 disabled:opacity-70"
       >
         {q.data.frontends.map((frontend) => (
           <HAProxyFrontend
@@ -43,7 +43,7 @@ export function HAProxyBindings({ controller }: HAProxyBindingsProps) {
       </p>
       {stale && (
         <Alert>
-          <AlertDescription className="space-y-2">
+          <AlertDescription className="gap-y-3">
             <p>Settings changed since this form was loaded.</p>
             <Button
               type="button"

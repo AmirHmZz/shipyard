@@ -2,6 +2,7 @@ import type * as React from "react";
 
 import type { Resource } from "@/lib/api/types";
 
+import { FormField } from "@/components/FormField";
 import { PreviewRoutingFields } from "@/components/preview-routing-fields";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -38,13 +39,13 @@ export function ApplicationPreviews({ app }: ApplicationPreviewsProps) {
     handleApproval,
   } = handlers;
   return (
-    <div className="space-y-5" onClick={handleApproval}>
+    <div className="flex flex-col gap-5" onClick={handleApproval}>
       <Card>
         <CardHeader>
           <CardTitle>Pull request previews</CardTitle>
         </CardHeader>
         <CardContent>
-          <form className="space-y-5" onSubmit={saveSettings}>
+          <form className="flex flex-col gap-5" onSubmit={saveSettings}>
             <div className="flex items-center justify-between">
               <Label htmlFor="previews-enabled">Enable PR previews</Label>
               <Switch
@@ -68,8 +69,7 @@ export function ApplicationPreviews({ app }: ApplicationPreviewsProps) {
                 />
                 {routing.mode !== "private" && (
                   <>
-                    <div className="space-y-2">
-                      <Label>Connected zone</Label>
+                    <FormField label={<>Connected zone</>} labelProps={{}}>
                       <Select
                         value={zone}
                         onValueChange={setZone}
@@ -88,11 +88,11 @@ export function ApplicationPreviews({ app }: ApplicationPreviewsProps) {
                             ))}
                         </SelectContent>
                       </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="preview-wildcard">
-                        Preview wildcard domain
-                      </Label>
+                    </FormField>
+                    <FormField
+                      label={<>Preview wildcard domain</>}
+                      labelProps={{ htmlFor: "preview-wildcard" }}
+                    >
                       <Input
                         id="preview-wildcard"
                         value={domain}
@@ -105,12 +105,12 @@ export function ApplicationPreviews({ app }: ApplicationPreviewsProps) {
                         {domain.replace(/^\*\./, "") || "preview.example.com"}.
                         Preview variables are configured in the Variables tab.
                       </p>
-                    </div>
+                    </FormField>
                   </>
                 )}
               </>
             )}
-            <Button disabled={busy || !app.canWrite}>
+            <Button className="self-start" disabled={busy || !app.canWrite}>
               Save preview settings
             </Button>
             {saved && (

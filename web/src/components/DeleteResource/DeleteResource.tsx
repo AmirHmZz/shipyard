@@ -74,7 +74,7 @@ export function DeleteResource({
             disabled={busy || !resource.canWrite || name !== resource.name}
             onClick={remove}
           >
-            {busy ? <Spinner className="size-4 " /> : <Trash2 />}Delete{" "}
+            {busy ? <Spinner className="size-4" /> : <Trash2 />}Delete{" "}
             {resource.kind}
           </Button>
         </DialogFooter>

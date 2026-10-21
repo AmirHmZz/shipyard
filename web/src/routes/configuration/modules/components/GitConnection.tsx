@@ -11,12 +11,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ConfigurationSurface";
+import { FormField } from "@/components/FormField";
 import { InputField } from "@/components/InputField";
 import { ProviderName } from "@/components/ProviderName";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -111,8 +111,10 @@ export function GitConnection({
                 onChange: handleInputChange,
               }}
             />
-            <div className="space-y-2">
-              <Label htmlFor="git-provider">Provider</Label>
+            <FormField
+              label={<>Provider</>}
+              labelProps={{ htmlFor: "git-provider" }}
+            >
               <Select value={provider} onValueChange={setProvider}>
                 <SelectTrigger id="git-provider" className="w-full">
                   <SelectValue />
@@ -125,7 +127,7 @@ export function GitConnection({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </FormField>
           </>
         )}
         {existing && (
@@ -163,8 +165,10 @@ export function GitConnection({
         {provider === "gitea" && (
           <>
             {!existing && (
-              <div className="space-y-2">
-                <Label htmlFor="gitea-instance">Gitea instance</Label>
+              <FormField
+                label={<>Gitea instance</>}
+                labelProps={{ htmlFor: "gitea-instance" }}
+              >
                 <Select
                   value={instanceId || undefined}
                   onValueChange={setInstanceId}
@@ -180,7 +184,7 @@ export function GitConnection({
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
+              </FormField>
             )}
             {instances.error && (
               <Alert variant="destructive">

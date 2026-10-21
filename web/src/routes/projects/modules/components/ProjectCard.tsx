@@ -36,7 +36,7 @@ export function ProjectCard({ project: p, index }: ProjectCardProps) {
                 aria-label="Project actions"
                 className="relative z-10"
               >
-                <MoreHorizontal className="size-4" />
+                <MoreHorizontal />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>

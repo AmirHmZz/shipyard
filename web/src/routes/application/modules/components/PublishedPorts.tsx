@@ -35,7 +35,7 @@ export function PublishedPorts({
           apply on the next deployment.
         </p>
       </CardHeader>
-      <CardContent className="space-y-5">
+      <CardContent className="flex flex-col gap-5">
         {services.data?.map((service) => (
           <PublishedPortService
             key={service.name}
@@ -44,7 +44,11 @@ export function PublishedPorts({
             editPorts={editPorts}
           />
         ))}
-        <Button disabled={busy || !ports} onClick={savePorts}>
+        <Button
+          className="self-start"
+          disabled={busy || !ports}
+          onClick={savePorts}
+        >
           Save published ports
         </Button>
       </CardContent>

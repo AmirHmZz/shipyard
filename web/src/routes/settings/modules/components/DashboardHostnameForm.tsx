@@ -1,5 +1,6 @@
 import type * as React from "react";
 
+import { FormField } from "@/components/FormField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,9 +45,11 @@ export function DashboardHostnameForm({
   }
 
   return (
-    <form className="space-y-4" onSubmit={handleformSubmit}>
-      <div className="space-y-2">
-        <Label htmlFor="dashboard-domain">Dashboard hostname</Label>
+    <form className="flex flex-col gap-4" onSubmit={handleformSubmit}>
+      <FormField
+        label={<>Dashboard hostname</>}
+        labelProps={{ htmlFor: "dashboard-domain" }}
+      >
         <Input
           id="dashboard-domain"
           required
@@ -58,12 +61,13 @@ export function DashboardHostnameForm({
           DNS is managed manually for this hostname. Certificate issuance and
           renewal use HTTP validation on public port 80.
         </p>
-      </div>
+      </FormField>
       {!state.acmeConfigured && (
-        <div className="space-y-3">
-          <Label htmlFor="dashboard-email">
-            Certificate contact email (optional)
-          </Label>
+        <FormField
+          label={<>Certificate contact email (optional)</>}
+          labelProps={{ htmlFor: "dashboard-email" }}
+          className="flex flex-col gap-3"
+        >
           <Input
             id="dashboard-email"
             type="email"
@@ -88,14 +92,15 @@ export function DashboardHostnameForm({
               Read terms
             </a>
           </div>
-        </div>
+        </FormField>
       )}
       <Button
+        className="self-start"
         disabled={
           busy || !(draft ?? state.domain) || (!state.acmeConfigured && !accept)
         }
       >
-        {busy && <Spinner className="size-4 " />}Save hostname
+        {busy && <Spinner className="size-4" />}Save hostname
       </Button>
     </form>
   );

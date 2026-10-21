@@ -19,7 +19,7 @@ export function ReadinessFields({
   const { rows } = state;
   const { changeField, removeRow, addRow } = handlers;
   return (
-    <div className="space-y-3">
+    <div className="flex flex-col gap-3">
       <p className="text-xs text-muted-foreground">
         Checks run for every replica, including private services. Public routes
         are optional. Docker health checks also apply.
@@ -30,7 +30,7 @@ export function ReadinessFields({
           className="grid grid-cols-[minmax(0,1fr)_5rem_auto] gap-2 rounded-lg border p-3"
         >
           <InputField
-            className="space-y-1"
+            className="flex flex-col gap-1"
             label={<>Service</>}
             labelProps={{ htmlFor: `${row.rowId}-service` }}
             inputProps={{
@@ -43,7 +43,7 @@ export function ReadinessFields({
             }}
           />
           <InputField
-            className="space-y-1"
+            className="flex flex-col gap-1"
             label={<>Port</>}
             labelProps={{ htmlFor: `${row.rowId}-port` }}
             inputProps={{
@@ -66,10 +66,10 @@ export function ReadinessFields({
             onClick={removeRow}
             data-readiness-id={row.rowId}
           >
-            <Trash2 className="size-4" />
+            <Trash2 />
           </Button>
           <InputField
-            className="col-span-3 space-y-1"
+            className="col-span-3 flex flex-col gap-1"
             label={<>HTTP path</>}
             labelProps={{ htmlFor: `${row.rowId}-path` }}
             inputProps={{
@@ -83,8 +83,14 @@ export function ReadinessFields({
           />
         </div>
       ))}
-      <Button type="button" variant="outline" size="sm" onClick={addRow}>
-        <Plus className="size-4" />
+      <Button
+        className="self-start"
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={addRow}
+      >
+        <Plus />
         Add HTTP check
       </Button>
     </div>

@@ -20,11 +20,13 @@ export function AppErrorFallback({ compact = false }: AppErrorFallbackProps) {
         <CardHeader>
           <CardTitle>Something went wrong</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="flex flex-col gap-4">
           <p className="text-sm text-muted-foreground">
             Reload the dashboard to try again.
           </p>
-          <Button onClick={handleButtonClick}>Reload dashboard</Button>
+          <Button className="self-start" onClick={handleButtonClick}>
+            Reload dashboard
+          </Button>
         </CardContent>
       </Card>
     </div>

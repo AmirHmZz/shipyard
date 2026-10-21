@@ -24,7 +24,7 @@ export function Variables({ resource }: VariablesProps) {
   const { secretKeys } = controller.derived;
   const { setRemove, save } = controller.handlers;
   return (
-    <div className="space-y-5">
+    <div className="flex flex-col gap-5">
       <Alert>
         <ShieldCheck className="size-4" />
         <AlertDescription>

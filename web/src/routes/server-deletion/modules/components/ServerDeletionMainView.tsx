@@ -19,7 +19,7 @@ export function ServerDeletionMainView() {
   return (
     <>
       <ServerDeletionHeader server={server} operation={status.data} />
-      <div className="space-y-6">
+      <div className="flex flex-col gap-6">
         <ServerDeletionBody id={id} controller={controller} />
         {error && (
           <Alert variant="destructive">

@@ -3,6 +3,7 @@ import type * as React from "react";
 import type { ResourceFormProps } from "@/components/resource-forms/controller";
 import type { Options } from "@/components/resource-forms/Options";
 
+import { FormField } from "@/components/FormField";
 import { useResourceForm } from "@/components/resource-forms/controller";
 import { SelectControl } from "@/components/SelectControl";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -13,7 +14,6 @@ import {
   InputGroupAddon,
   InputGroupText,
 } from "@/components/ui/input-group";
-import { Label } from "@/components/ui/label";
 import { describeError } from "@/lib/api/translate-error";
 
 export type RouteFieldsProps = {
@@ -38,9 +38,8 @@ export function RouteFields({ resources, services }: RouteFieldsProps) {
   } = useResourceForm();
   const zone = resources.find((r) => r.id === data.zoneId && r.kind === "zone");
   return (
-    <section className="space-y-4">
-      <div className="space-y-2">
-        <Label>Connected zone</Label>
+    <section className="flex flex-col gap-4">
+      <FormField label={<>Connected zone</>} labelProps={{}}>
         {
           <SelectControl
             value={String(data.zoneId || "") || undefined}
@@ -60,9 +59,11 @@ export function RouteFields({ resources, services }: RouteFieldsProps) {
             }}
           />
         }
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="route-subdomain">Subdomain</Label>
+      </FormField>
+      <FormField
+        label={<>Subdomain</>}
+        labelProps={{ htmlFor: "route-subdomain" }}
+      >
         <InputGroup>
           <InputGroupInput
             id="route-subdomain"
@@ -80,7 +81,7 @@ export function RouteFields({ resources, services }: RouteFieldsProps) {
         <p className="text-xs text-muted-foreground">
           Leave blank for the zone itself.
         </p>
-      </div>
+      </FormField>
       {services.error && (
         <Alert variant="destructive">
           <AlertDescription>

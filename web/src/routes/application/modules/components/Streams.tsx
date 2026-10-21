@@ -4,10 +4,11 @@ import { toast } from "sonner";
 
 import type { LogLine } from "@/lib/log-buffer";
 
+import { FlushCard } from "@/components/FlushCard";
 import { StateBadge } from "@/components/Shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -117,9 +118,9 @@ export function LogStream({
     scroll.current?.scrollTo({ top: scroll.current.scrollHeight });
   }, [lines]);
   return (
-    <Card className="gap-0 overflow-hidden py-0 shadow-none">
-      <CardHeader className="flex min-h-14 flex-row flex-wrap items-center justify-between gap-2 border-b px-4 py-2.5 [.border-b]:pb-2.5">
-        <CardTitle className="text-sm font-semibold leading-6">
+    <FlushCard>
+      <CardHeader className="flex min-h-14 flex-wrap items-center justify-between border-b px-4 py-2.5 [.border-b]:pb-2.5">
+        <CardTitle className="text-sm leading-6">
           {deploymentId ? (
             <>
               Deployment{" "}
@@ -203,6 +204,6 @@ export function LogStream({
           )}
         </pre>
       </CardContent>
-    </Card>
+    </FlushCard>
   );
 }

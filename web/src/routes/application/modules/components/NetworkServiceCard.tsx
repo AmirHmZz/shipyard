@@ -45,7 +45,7 @@ export function NetworkServiceCard({
           {service.replicas === 1 ? "" : "s"}
         </p>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="flex flex-col gap-4">
         <InputField
           label={<>Container hostname</>}
           labelProps={{ htmlFor: `hostname-${service.name}` }}
@@ -69,6 +69,7 @@ export function NetworkServiceCard({
           />
         ))}
         <Button
+          className="self-start"
           variant="outline"
           disabled={!app.canWrite}
           onClick={handleButtonClick}

@@ -42,7 +42,7 @@ export function AlertSettings() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form className="space-y-5" onSubmit={submitPolicy}>
+        <form className="flex flex-col gap-5" onSubmit={submitPolicy}>
           {fields.map((f) => (
             <InputField
               key={f.key}
@@ -60,8 +60,8 @@ export function AlertSettings() {
               }}
             />
           ))}
-          <Button disabled={busy}>
-            {busy && <Spinner className="size-4 " />}Save alert policy
+          <Button className="self-start" disabled={busy}>
+            {busy && <Spinner className="size-4" />}Save alert policy
           </Button>
         </form>
       </CardContent>

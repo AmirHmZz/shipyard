@@ -1,4 +1,4 @@
-import { CopyButton } from "@/components/Shared";
+import { CopyValue } from "@/components/CopyValue";
 import { Button } from "@/components/ui/button";
 
 import type { Status } from "../generics";
@@ -28,17 +28,12 @@ export function GitWebhookConfiguration({
   return (
     <section
       aria-label="Webhook configuration"
-      className="space-y-3 rounded-lg border p-4"
+      className="flex flex-col gap-3 rounded-lg border p-4"
     >
       <h3 className="text-sm font-medium">
         {provider === "gitea" ? "Manual webhook setup" : "GitHub App webhook"}
       </h3>
-      <div className="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:items-center">
-        <code className="w-full min-w-0 break-all text-xs sm:w-auto sm:flex-1">
-          {status.data.webhookUrl}
-        </code>
-        <CopyButton label="Copy webhook URL" value={status.data.webhookUrl} />
-      </div>
+      <CopyValue value={status.data.webhookUrl} label="Copy webhook URL" />
       <p className="text-xs text-muted-foreground">
         Events: push and pull_request. Use JSON payloads and the saved signing
         secret.
@@ -61,17 +56,12 @@ export function GitWebhookConfiguration({
               : "Generate signing secret"}
           </Button>
           {secret && (
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <p className="text-xs text-muted-foreground">
                 Copy now; this secret is shown once. Update the Gitea webhook
                 after replacing it.
               </p>
-              <div className="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:items-center">
-                <code className="w-full min-w-0 break-all text-xs sm:w-auto sm:flex-1">
-                  {secret}
-                </code>
-                <CopyButton label="Copy signing secret" value={secret} />
-              </div>
+              <CopyValue value={secret} label="Copy signing secret" />
             </div>
           )}
         </>

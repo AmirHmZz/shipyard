@@ -1,5 +1,6 @@
 import type * as React from "react";
 
+import { FormField } from "@/components/FormField";
 import { InputField } from "@/components/InputField";
 import { PageHeader } from "@/components/Shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -61,7 +62,7 @@ export function NetworkForm() {
       />
       <Card>
         <CardContent>
-          <form className="space-y-5" onSubmit={submitNetwork}>
+          <form className="flex flex-col gap-5" onSubmit={submitNetwork}>
             <InputField
               label={<>Name</>}
               labelProps={{ htmlFor: "network-name" }}
@@ -72,8 +73,7 @@ export function NetworkForm() {
                 required: true,
               }}
             />
-            <div className="space-y-2">
-              <Label>Server</Label>
+            <FormField label={<>Server</>} labelProps={{}}>
               <Select value={server} onValueChange={setServer}>
                 <SelectTrigger className="w-full" aria-label="Network server">
                   <SelectValue placeholder="Select server" />
@@ -88,7 +88,7 @@ export function NetworkForm() {
                     ))}
                 </SelectContent>
               </Select>
-            </div>
+            </FormField>
             <Select value={mode} onValueChange={setMode}>
               <SelectTrigger aria-label="Network source">
                 <SelectValue />
@@ -101,8 +101,7 @@ export function NetworkForm() {
               </SelectContent>
             </Select>
             {mode === "existing" ? (
-              <div className="space-y-2">
-                <Label>Existing bridge</Label>
+              <FormField label={<>Existing bridge</>} labelProps={{}}>
                 <Select value={selected} onValueChange={setSelected}>
                   <SelectTrigger aria-label="Existing bridge">
                     <SelectValue
@@ -142,7 +141,7 @@ export function NetworkForm() {
                     </AlertDescription>
                   </Alert>
                 )}
-              </div>
+              </FormField>
             ) : (
               <>
                 <InputField
@@ -155,10 +154,10 @@ export function NetworkForm() {
                     placeholder: "Automatic non-overlapping /24",
                   }}
                 />
-                <div className="space-y-2">
-                  <Label htmlFor="network-range">
-                    Dynamic IP range (optional)
-                  </Label>
+                <FormField
+                  label={<>Dynamic IP range (optional)</>}
+                  labelProps={{ htmlFor: "network-range" }}
+                >
                   <Input
                     id="network-range"
                     value={range}
@@ -168,7 +167,7 @@ export function NetworkForm() {
                   <p className="text-xs text-muted-foreground">
                     Fixed reservations use addresses outside this range.
                   </p>
-                </div>
+                </FormField>
                 <div className="flex items-center justify-between">
                   <Label htmlFor="network-v6">Enable IPv6</Label>
                   <Switch

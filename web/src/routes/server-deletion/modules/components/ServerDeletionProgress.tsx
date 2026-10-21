@@ -2,6 +2,7 @@ import { RefreshCw } from "lucide-react";
 
 import type { Resource } from "@/lib/api/types";
 
+import { SectionRow } from "@/components/SectionRow";
 import { StateBadge } from "@/components/Shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -41,11 +42,11 @@ export function ServerDeletionProgress({
   return (
     <>
       <Card className="shadow-none">
-        <CardContent className="space-y-4 pt-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+        <CardContent className="flex flex-col gap-4 pt-6">
+          <SectionRow>
             <p className="font-medium capitalize">{operation.stage}</p>
             <StateBadge state={stage} />
-          </div>
+          </SectionRow>
           <p className="text-sm text-muted-foreground">
             {operation.done
               ? "Host cleanup completed. The server and its applications have been removed. The audit trail is retained."

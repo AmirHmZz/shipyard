@@ -16,7 +16,7 @@ export function DeletionStatus({ resource, onRetry }: DeletionStatusProps) {
       className="mb-5"
       variant={resource.data.deletionError ? "destructive" : "default"}
     >
-      <AlertDescription className="space-y-2">
+      <AlertDescription className="gap-y-3">
         <p>
           {resource.data.deletionError
             ? `Cleanup needs attention: ${text(resource.data, "deletionError")}`

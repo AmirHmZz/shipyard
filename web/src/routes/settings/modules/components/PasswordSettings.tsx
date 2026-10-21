@@ -34,7 +34,7 @@ export function PasswordSettings() {
         <CardDescription>Other sessions will be signed out.</CardDescription>
       </CardHeader>
       <CardContent>
-        <form className="space-y-4" onSubmit={submitPassword}>
+        <form className="flex flex-col gap-4" onSubmit={submitPassword}>
           <InputField
             label={<>Current password</>}
             labelProps={{ htmlFor: "password-current" }}
@@ -70,7 +70,9 @@ export function PasswordSettings() {
               onChange: handleInputChange3,
             }}
           />
-          <Button disabled={busy}>Change password</Button>
+          <Button className="self-start" disabled={busy}>
+            Change password
+          </Button>
         </form>
       </CardContent>
     </Card>

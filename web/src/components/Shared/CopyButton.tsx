@@ -7,9 +7,14 @@ import { Button } from "@/components/ui/button";
 export type CopyButtonProps = {
   value: string;
   label?: string;
+  className?: string;
 };
 
-export function CopyButton({ value, label = "Copy" }: CopyButtonProps) {
+export function CopyButton({
+  value,
+  label = "Copy",
+  className,
+}: CopyButtonProps) {
   async function handleButtonClick() {
     try {
       await navigator.clipboard.writeText(value);
@@ -22,7 +27,12 @@ export function CopyButton({ value, label = "Copy" }: CopyButtonProps) {
 
   const [copied, setCopied] = useState(false);
   return (
-    <Button variant="outline" size="sm" onClick={handleButtonClick}>
+    <Button
+      className={className}
+      variant="outline"
+      size="sm"
+      onClick={handleButtonClick}
+    >
       {copied ? <Check /> : <Copy />}
       {copied ? "Copied" : label}
     </Button>

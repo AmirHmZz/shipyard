@@ -21,25 +21,27 @@ export function UserSettingsRow({
         <StateBadge state={access} />
       </TableCell>
       <TableCell>{u.totp ? "Enabled" : "Off"}</TableCell>
-      <TableCell className="space-x-2 text-right">
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={u.id === currentUserId}
-          data-user-id={u.id}
-          data-user-action="admin"
-        >
-          {u.admin ? "Remove admin" : "Make admin"}
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={u.id === currentUserId}
-          data-user-id={u.id}
-          data-user-action="disabled"
-        >
-          {u.disabled ? "Enable" : "Disable"}
-        </Button>
+      <TableCell>
+        <div className="flex justify-end gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={u.id === currentUserId}
+            data-user-id={u.id}
+            data-user-action="admin"
+          >
+            {u.admin ? "Remove admin" : "Make admin"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={u.id === currentUserId}
+            data-user-id={u.id}
+            data-user-action="disabled"
+          >
+            {u.disabled ? "Enable" : "Disable"}
+          </Button>
+        </div>
       </TableCell>
     </TableRow>
   );

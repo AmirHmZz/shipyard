@@ -2,8 +2,8 @@ import type { Resource } from "@/lib/api/types";
 import type { useDeployments } from "@/lib/hooks/useDeployments";
 
 import { DeploymentTable } from "@/components/deployment-table";
+import { FlushCard } from "@/components/FlushCard";
 import { Empty, ErrorState, Loading } from "@/components/Shared";
-import { Card } from "@/components/ui/card";
 
 export type DeploymentHistoryContentProps = {
   query: ReturnType<typeof useDeployments>;
@@ -23,8 +23,8 @@ export function DeploymentHistoryContent({
       />
     );
   return (
-    <Card className="gap-0 overflow-hidden py-0 shadow-none">
+    <FlushCard>
       <DeploymentTable deployments={query.data} resources={resources} />
-    </Card>
+    </FlushCard>
   );
 }

@@ -16,7 +16,7 @@ export function OverviewMetricCard({ stat: s }: OverviewMetricCardProps) {
   return (
     <Link to={s.path}>
       <Card className="gap-0 shadow-none transition-colors hover:border-primary/40">
-        <CardHeader className="flex flex-row items-center justify-between pb-3">
+        <CardHeader className="flex items-center justify-between pb-3">
           <CardTitle className="text-xs font-medium text-muted-foreground">
             {s.title}
           </CardTitle>

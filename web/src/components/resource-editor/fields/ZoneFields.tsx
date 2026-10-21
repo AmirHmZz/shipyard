@@ -17,7 +17,7 @@ export function ZoneFields({
     derived: { parentOptions },
   } = useResourceForm();
   return (
-    <section className="space-y-3">
+    <section className="flex flex-col gap-3">
       <Label>Available domain</Label>
       {!parentOptions.length && (
         <p>

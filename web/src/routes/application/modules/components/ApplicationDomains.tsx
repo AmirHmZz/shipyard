@@ -47,7 +47,7 @@ export function ApplicationDomains({
           Add route
         </Button>
       </div>
-      <div className="space-y-4" onClick={handleRouteAction}>
+      <div className="flex flex-col gap-4" onClick={handleRouteAction}>
         {routes.length ? (
           routes.map((route) => (
             <RouteCard

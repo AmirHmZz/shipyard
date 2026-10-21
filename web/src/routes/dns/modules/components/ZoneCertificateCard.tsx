@@ -2,6 +2,7 @@ import { Link } from "react-router";
 
 import type { CertificateSummary, Resource } from "@/lib/api/types";
 
+import { SectionRow } from "@/components/SectionRow";
 import { StateBadge } from "@/components/Shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -41,7 +42,7 @@ export function ZoneCertificateCard({
   return (
     <Card className="shadow-none">
       <CardHeader>
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <SectionRow>
           <CardTitle className="break-all text-base">
             {cert.certificateDomain || cert.domain}
           </CardTitle>
@@ -55,7 +56,7 @@ export function ZoneCertificateCard({
               </Badge>
             )}
           </div>
-        </div>
+        </SectionRow>
         <CardDescription className="break-all">
           {cert.domain}
           {cert.ownerType === "dashboard" && (
@@ -84,7 +85,7 @@ export function ZoneCertificateCard({
           )}
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-5">
+      <CardContent className="flex flex-col gap-5">
         <dl className="grid gap-5 text-sm sm:grid-cols-2 xl:grid-cols-4 [&_dt]:mb-1 [&_dt]:text-xs [&_dt]:text-muted-foreground [&_dd]:[overflow-wrap:anywhere]">
           <div>
             <dt>Issuer</dt>

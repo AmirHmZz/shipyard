@@ -13,7 +13,7 @@ export function DialogContent({
   ...props
 }: DialogContentProps) {
   return use(ConfigurationPageContext) ? (
-    <div className="space-y-6">{children}</div>
+    <div className="flex flex-col gap-6">{children}</div>
   ) : (
     <Modal.DialogContent className={className} {...props}>
       {children}

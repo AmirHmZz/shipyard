@@ -1,8 +1,8 @@
 import type { Resource } from "@/lib/api/types";
 
+import { FlushCard } from "@/components/FlushCard";
 import { ErrorState, Loading } from "@/components/Shared";
 import { TableHeadings } from "@/components/TableHeadings";
-import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableHeader } from "@/components/ui/table";
 
 import type { useDNSRecordsPage } from "../hooks";
@@ -18,7 +18,7 @@ export function DNSRecordTable({ zone, controller }: DNSRecordTableProps) {
   if (q.isPending) return <Loading />;
   if (q.error) return <ErrorState error={q.error} />;
   return (
-    <Card className="gap-0 overflow-hidden py-0 shadow-none">
+    <FlushCard>
       <Table>
         <TableHeader>
           <TableHeadings
@@ -48,6 +48,6 @@ export function DNSRecordTable({ zone, controller }: DNSRecordTableProps) {
           No records in this zone.
         </div>
       )}
-    </Card>
+    </FlushCard>
   );
 }

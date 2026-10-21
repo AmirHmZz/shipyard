@@ -74,7 +74,7 @@ export function ApplicationOverview({
             <CardTitle className="text-sm">Deployment configuration</CardTitle>
           </CardHeader>
           <CardContent>
-            <dl className="space-y-4 text-sm">
+            <dl className="flex flex-col gap-4 text-sm">
               {(directCompose
                 ? [
                     ["Source", "Direct Compose"],

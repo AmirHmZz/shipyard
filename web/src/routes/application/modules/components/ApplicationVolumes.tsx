@@ -1,5 +1,6 @@
 import { RefreshCw } from "lucide-react";
 
+import { SectionRow } from "@/components/SectionRow";
 import { Button } from "@/components/ui/button";
 
 import { useApplicationVolumes } from "../hooks";
@@ -17,8 +18,8 @@ export function ApplicationVolumes({
     void query.refetch();
   }
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="flex flex-col gap-4">
+      <SectionRow>
         <div>
           <h2 className="font-semibold">Application volumes</h2>
           <p className="text-sm text-muted-foreground">
@@ -31,10 +32,10 @@ export function ApplicationVolumes({
           disabled={query.isFetching}
           onClick={refresh}
         >
-          <RefreshCw className="size-4" />
+          <RefreshCw />
           Refresh
         </Button>
-      </div>
+      </SectionRow>
       <ApplicationVolumeContent query={query} />
     </div>
   );

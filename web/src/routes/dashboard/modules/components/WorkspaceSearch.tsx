@@ -34,7 +34,7 @@ export function WorkspaceSearch({ open, onOpenChange }: WorkspaceSearchProps) {
           onChange={changeQuery}
         />
         <div
-          className="max-h-80 space-y-1 overflow-auto"
+          className="max-h-80 flex flex-col gap-1 overflow-auto"
           onClick={selectResource}
         >
           {matches.map((r) => (

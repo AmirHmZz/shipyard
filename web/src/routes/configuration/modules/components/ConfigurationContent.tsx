@@ -37,26 +37,28 @@ export function ConfigurationContent({
     );
   if (kind === "variables" && resource)
     return (
-      <>
+      <div className="flex flex-col gap-7">
         <PageHeader
+          className="mb-0"
           title={`${resource.name} variables`}
           description="Runtime variables and write-only secrets. Redeploy to apply changes."
         />
         <Variables key={resource.id} resource={resource} />
-        <Button variant="outline" onClick={close}>
+        <Button className="self-start" variant="outline" onClick={close}>
           Back
         </Button>
-      </>
+      </div>
     );
   if (kind === "access" && resource)
     return (
-      <>
+      <div className="flex flex-col gap-7">
         <PageHeader
+          className="mb-0"
           title={`${resource.name} access`}
           description="Manage the teams that can use this resource."
         />
         <Grants resource={resource} resources={resources} />
-      </>
+      </div>
     );
   return (
     <ResourceForm

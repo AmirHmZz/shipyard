@@ -1,5 +1,6 @@
 import { Anchor, ArrowRight, LockKeyhole, ShieldCheck } from "lucide-react";
 
+import { FormField } from "@/components/FormField";
 import { InputField } from "@/components/InputField";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { describeError } from "@/lib/api/translate-error";
 
@@ -36,7 +36,7 @@ export function AuthForm({ controller }: AuthFormProps) {
         <CardDescription className="mt-2">{description}</CardDescription>
       </CardHeader>
       <CardContent className="px-0">
-        <form className="space-y-5" onSubmit={submit}>
+        <form className="flex flex-col gap-5" onSubmit={submit}>
           {(setup || token) && (
             <InputField
               label={<>Full name</>}
@@ -82,8 +82,10 @@ export function AuthForm({ controller }: AuthFormProps) {
             }}
           />
           {setup ? (
-            <div className="space-y-2">
-              <Label htmlFor="bootstrap">Bootstrap token</Label>
+            <FormField
+              label={<>Bootstrap token</>}
+              labelProps={{ htmlFor: "bootstrap" }}
+            >
               <Input
                 id="bootstrap"
                 type="password"
@@ -95,7 +97,7 @@ export function AuthForm({ controller }: AuthFormProps) {
               <p className="text-xs text-muted-foreground">
                 From SHIPYARD_BOOTSTRAP_TOKEN in your installation environment.
               </p>
-            </div>
+            </FormField>
           ) : (
             <InputField
               label={
@@ -122,9 +124,9 @@ export function AuthForm({ controller }: AuthFormProps) {
             </Alert>
           )}
           <Button className="h-11 w-full" disabled={busy || status.isPending}>
-            {busy ? <Spinner className="size-4 " /> : null}
+            {busy ? <Spinner className="size-4" /> : null}
             {submitLabel}
-            <ArrowRight className="ml-auto size-4" />
+            <ArrowRight className="ml-auto" />
           </Button>
           <p className="flex items-center justify-center gap-2 pt-3 text-xs text-muted-foreground">
             <ShieldCheck className="size-3.5" />

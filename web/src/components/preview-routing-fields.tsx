@@ -51,7 +51,7 @@ export function PreviewRoutingFields({
     if (mode === "inherit" || mode === "private") onChange({ mode });
   }
   return (
-    <div className="space-y-3">
+    <div className="flex flex-col gap-3">
       <Select value={value.mode} disabled={disabled} onValueChange={changeMode}>
         <SelectTrigger aria-label="Preview routing">
           <SelectValue />
@@ -73,7 +73,7 @@ export function PreviewRoutingFields({
       {value.mode === "target" && (
         <div className="grid grid-cols-[minmax(0,1fr)_7rem] gap-3">
           <InputField
-            className="space-y-1"
+            className="flex flex-col gap-1"
             label={<>Preview service</>}
             labelProps={{ htmlFor: `${id}-service` }}
             inputProps={{
@@ -84,7 +84,7 @@ export function PreviewRoutingFields({
             }}
           />
           <InputField
-            className="space-y-1"
+            className="flex flex-col gap-1"
             label={<>Preview port</>}
             labelProps={{ htmlFor: `${id}-port` }}
             inputProps={{

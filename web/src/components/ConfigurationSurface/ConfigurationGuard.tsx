@@ -19,9 +19,7 @@ export function ConfigurationGuard({
   const { handleOpenChange, discardChanges } = handlers;
   return (
     <ConfigurationContext value={context}>
-      <div
-        className={cn("mx-auto w-full max-w-4xl space-y-7 pb-10", className)}
-      >
+      <div className={cn("mx-auto w-full max-w-4xl pb-10", className)}>
         {children}
         <Confirm
           open={blocked}

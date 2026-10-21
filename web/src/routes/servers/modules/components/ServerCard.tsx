@@ -29,7 +29,7 @@ export function ServerCard({ server }: ServerCardProps) {
   const { testConnection } = handlers;
   return (
     <Card className="shadow-none">
-      <CardHeader className="flex flex-row items-start justify-between">
+      <CardHeader className="flex justify-between">
         <div>
           <div className="mb-4 flex size-10 items-center justify-center rounded-xl border bg-muted/50">
             <Server className="size-5 text-primary" />
@@ -45,7 +45,7 @@ export function ServerCard({ server }: ServerCardProps) {
       </CardHeader>
       <CardContent>
         {server.data.deleting ? (
-          <div className="space-y-3">
+          <div className="flex flex-col gap-3">
             <p className="text-sm text-muted-foreground">
               {server.data.deletionError
                 ? text(server.data, "deletionError")
@@ -53,6 +53,7 @@ export function ServerCard({ server }: ServerCardProps) {
             </p>
             {admin && (
               <Button
+                className="self-start"
                 variant="outline"
                 size="sm"
                 data-server-id={server.id}
@@ -124,7 +125,7 @@ export function ServerCard({ server }: ServerCardProps) {
                   data-server-id={server.id}
                   data-action="haproxy"
                 >
-                  <Settings2 className="size-4" /> HAProxy settings
+                  <Settings2 /> HAProxy settings
                 </Button>
               )}
               <Button

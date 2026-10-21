@@ -9,7 +9,7 @@ export type DialogHeaderProps = ComponentProps<typeof Modal.DialogHeader>;
 
 export function DialogHeader(props: DialogHeaderProps) {
   return use(ConfigurationPageContext) ? (
-    <header {...props} className="space-y-3" />
+    <header {...props} className="flex flex-col gap-3" />
   ) : (
     <Modal.DialogHeader {...props} />
   );

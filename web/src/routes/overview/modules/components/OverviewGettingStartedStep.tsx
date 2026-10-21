@@ -21,7 +21,7 @@ export function OverviewGettingStartedStep({
       data-overview-kind={s.kind}
     >
       {done ? (
-        <CheckCircle2 className="size-5 shrink-0 text-primary" />
+        <CheckCircle2 className="size-5 text-primary" />
       ) : (
         <span className="flex size-6 shrink-0 items-center justify-center rounded-full border font-mono text-xs text-muted-foreground">
           {number}

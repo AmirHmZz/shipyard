@@ -30,13 +30,13 @@ export function ApplicationNetworking({ app }: ApplicationNetworkingProps) {
   if (q.error) return <ErrorState error={q.error} />;
   return (
     <ConfigurationScope name="networking">
-      <div className="space-y-5">
+      <div className="flex flex-col gap-5">
         {!!q.data?.endpoints?.length && (
           <Card>
             <CardHeader>
               <CardTitle>Active container addresses</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
+            <CardContent className="flex flex-col gap-2">
               {q.data.endpoints.map((endpoint) => (
                 <div
                   key={JSON.stringify([
@@ -72,6 +72,7 @@ export function ApplicationNetworking({ app }: ApplicationNetworkingProps) {
         </Alert>
         {services.error && <ErrorState error={services.error} />}
         <Button
+          className="self-start"
           variant="outline"
           disabled={services.isFetching || !app.canWrite}
           onClick={refreshServices}
@@ -97,6 +98,7 @@ export function ApplicationNetworking({ app }: ApplicationNetworkingProps) {
           />
         ))}
         <Button
+          className="self-start"
           disabled={busy || !app.canWrite || !draft}
           onClick={saveNetworks}
         >

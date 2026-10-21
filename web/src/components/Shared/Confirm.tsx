@@ -48,7 +48,7 @@ export function Confirm({
             disabled={pending}
             onClick={onConfirm}
           >
-            {pending && <Spinner className="size-4 " />}Confirm
+            {pending && <Spinner className="size-4" />}Confirm
           </Button>
         </DialogFooter>
       </DialogContent>

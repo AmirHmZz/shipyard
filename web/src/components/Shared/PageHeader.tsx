@@ -11,6 +11,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { cn } from "@/lib/utils";
 
 export type PageHeaderProps = {
   eyebrow?: string;
@@ -18,6 +19,7 @@ export type PageHeaderProps = {
   title: string;
   description?: ReactNode;
   children?: ReactNode;
+  className?: string;
 };
 
 export function PageHeader({
@@ -26,9 +28,15 @@ export function PageHeader({
   title,
   description,
   children,
+  className,
 }: PageHeaderProps) {
   return (
-    <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
+    <div
+      className={cn(
+        "mb-7 flex flex-wrap items-end justify-between gap-4",
+        className,
+      )}
+    >
       <div className="min-w-0 max-w-full">
         {breadcrumbs?.length ? (
           <Breadcrumb className="mb-2">

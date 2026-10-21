@@ -49,7 +49,7 @@ export function NetworkConnection({
       resource.data.status === "ready",
   );
   return (
-    <div className="space-y-3 rounded-lg border p-4">
+    <div className="flex flex-col gap-3 rounded-lg border p-4">
       <Label>Additional network</Label>
       <Select
         value={connection.networkId || undefined}
@@ -85,7 +85,12 @@ export function NetworkConnection({
           />
         ))}
       </div>
-      <Button variant="ghost" disabled={!app.canWrite} onClick={disconnect}>
+      <Button
+        className="self-start"
+        variant="ghost"
+        disabled={!app.canWrite}
+        onClick={disconnect}
+      >
         <Trash2 />
         Disconnect on next deployment
       </Button>

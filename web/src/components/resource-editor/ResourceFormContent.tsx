@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ConfigurationSurface";
+import { FormField } from "@/components/FormField";
 import { InputField } from "@/components/InputField";
 import { useResourceOptions } from "@/components/resource-forms/Options";
 import { SelectControl } from "@/components/SelectControl";
@@ -92,7 +93,7 @@ export function ResourceFormContent(props: ResourceFormContentProps) {
               Credentials are encrypted and never returned.
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={submit} className="space-y-5">
+          <form onSubmit={submit} className="flex flex-col gap-5">
             {kind !== "zone" && kind !== "route" && (
               <InputField
                 label={<>Name</>}
@@ -108,8 +109,10 @@ export function ResourceFormContent(props: ResourceFormContentProps) {
               />
             )}
             {kind === "application" && !existing && (
-              <div className="space-y-2">
-                <Label htmlFor={`${formId}-project`}>Project</Label>
+              <FormField
+                label={<>Project</>}
+                labelProps={{ htmlFor: `${formId}-project` }}
+              >
                 {
                   <SelectControl
                     value={project || undefined}
@@ -124,11 +127,13 @@ export function ResourceFormContent(props: ResourceFormContentProps) {
                     }}
                   />
                 }
-              </div>
+              </FormField>
             )}
             {parentKind && (
-              <div className="space-y-2">
-                <Label htmlFor={`${formId}-parent`}>{parentLabel}</Label>
+              <FormField
+                label={<>{parentLabel}</>}
+                labelProps={{ htmlFor: `${formId}-parent` }}
+              >
                 {
                   <SelectControl
                     value={parent || undefined}
@@ -143,7 +148,7 @@ export function ResourceFormContent(props: ResourceFormContentProps) {
                     }}
                   />
                 }
-              </div>
+              </FormField>
             )}
             {kind === "zone" && (
               <ZoneFields
@@ -155,8 +160,10 @@ export function ResourceFormContent(props: ResourceFormContentProps) {
               <RouteFields resources={resources} services={services} />
             )}
             {kind === "webhook" && (
-              <div className="space-y-2">
-                <Label>Team (optional for platform-wide alerts)</Label>
+              <FormField
+                label={<>Team (optional for platform-wide alerts)</>}
+                labelProps={{}}
+              >
                 {
                   <SelectControl
                     value={team || undefined}
@@ -171,7 +178,7 @@ export function ResourceFormContent(props: ResourceFormContentProps) {
                     }}
                   />
                 }
-              </div>
+              </FormField>
             )}
             <Separator />
             {kind === "server" && data.connection === "local" && (
@@ -193,12 +200,12 @@ export function ResourceFormContent(props: ResourceFormContentProps) {
             {kind === "application" &&
               data.source === "compose" &&
               existing?.data.source === "compose" && (
-                <section className="space-y-3 border-t pt-5">
+                <section className="flex flex-col gap-3 border-t pt-5">
                   <p className="text-sm text-muted-foreground">
                     Manage the saved Docker Compose document in the
                     application's Compose tab.
                   </p>
-                  <Button variant="outline" asChild>
+                  <Button className="self-start" variant="outline" asChild>
                     <Link to={`/applications/${existing.id}?tab=compose`}>
                       Open Compose editor
                     </Link>
@@ -207,7 +214,7 @@ export function ResourceFormContent(props: ResourceFormContentProps) {
               )}
             {needsComposeDocument && (
               <section
-                className="min-w-0 space-y-2"
+                className="min-w-0 flex flex-col gap-2"
                 aria-label="Direct Compose source"
               >
                 <Label>Compose YAML</Label>
@@ -238,7 +245,7 @@ export function ResourceFormContent(props: ResourceFormContentProps) {
                   disabled={dnsTesting || busy || !secrets.token?.trim()}
                   onClick={testProvider}
                 >
-                  {dnsTesting && <Spinner className="size-4 " />}
+                  {dnsTesting && <Spinner className="size-4" />}
                   {dnsTesting ? "Testing provider…" : "Test provider"}
                 </Button>
                 <p role="status" className="text-sm text-muted-foreground">
@@ -253,7 +260,7 @@ export function ResourceFormContent(props: ResourceFormContentProps) {
                 Cancel
               </Button>
               <Button type="submit" disabled={saveDisabled}>
-                {busy && <Spinner className="size-4 " />}Save {saveLabel}
+                {busy && <Spinner className="size-4" />}Save {saveLabel}
               </Button>
             </DialogFooter>
           </form>

@@ -40,12 +40,12 @@ export function NetworkServerFilter({
   }
   return (
     <div className="mb-5 flex flex-wrap items-end gap-3">
-      <div className="w-full space-y-2 sm:w-72">
+      <div className="w-full flex flex-col gap-2 sm:w-72">
         <Label htmlFor="network-server-filter">Server</Label>
         <Select value={filter || "all"} onValueChange={handleFilterChange}>
           <SelectTrigger id="network-server-filter" className="w-full">
             <span className="flex min-w-0 items-center gap-2 text-left">
-              <Server className="size-4 shrink-0 text-muted-foreground" />
+              <Server className="text-muted-foreground" />
               <SelectValue />
             </span>
           </SelectTrigger>

@@ -59,7 +59,7 @@ export function GitConnectionActions({
             }
             onClick={handleButtonClick}
           >
-            {busy ? <Spinner className="size-4 " /> : <ExternalLink />}
+            {busy ? <Spinner className="size-4" /> : <ExternalLink />}
             {connectionLabel}
           </Button>
         )}

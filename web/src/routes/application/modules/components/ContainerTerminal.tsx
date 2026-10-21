@@ -1,7 +1,8 @@
 import { Plug, Unplug } from "lucide-react";
 
+import { FlushCard } from "@/components/FlushCard";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -28,8 +29,8 @@ export function ContainerTerminal({
   const { host } = derived;
   const { selectContainer, toggleConnection } = handlers;
   return (
-    <Card className="gap-0 overflow-hidden py-0 shadow-none">
-      <CardHeader className="flex flex-row items-center justify-between border-b py-4">
+    <FlushCard>
+      <CardHeader className="flex items-center justify-between border-b py-4">
         <div>
           <CardTitle className="text-sm">Container terminal</CardTitle>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -71,6 +72,6 @@ export function ContainerTerminal({
           {status.toUpperCase()}
         </div>
       </CardContent>
-    </Card>
+    </FlushCard>
   );
 }

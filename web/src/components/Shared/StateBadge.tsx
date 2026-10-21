@@ -2,10 +2,11 @@ import { Circle } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
+import { cn } from "@/lib/utils";
 
-export type StateBadgeProps = { state?: string };
+export type StateBadgeProps = { state?: string; className?: string };
 
-export function StateBadge({ state }: StateBadgeProps) {
+export function StateBadge({ state, className }: StateBadgeProps) {
   const healthy = [
     "healthy",
     "ready",
@@ -35,7 +36,7 @@ export function StateBadge({ state }: StateBadgeProps) {
   return (
     <Badge
       variant="outline"
-      className={`gap-1.5 font-normal capitalize ${appearance}`}
+      className={cn("gap-1.5 font-normal capitalize", appearance, className)}
     >
       {pending ? (
         <Spinner className="size-3" />

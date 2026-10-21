@@ -70,8 +70,13 @@ export function ServerDeletionBody({
           Docker and unrelated workloads remain. This cannot be undone.
         </AlertDescription>
       </Alert>
-      <Button variant="outline" disabled={busy} onClick={review}>
-        {busy ? <Spinner className="size-4 " /> : <RefreshCw />}
+      <Button
+        className="self-start"
+        variant="outline"
+        disabled={busy}
+        onClick={review}
+      >
+        {busy ? <Spinner className="size-4" /> : <RefreshCw />}
         {plan ? "Refresh cleanup inventory" : "Review cleanup inventory"}
       </Button>
       <ServerDeletionPlanReview

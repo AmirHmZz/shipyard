@@ -17,7 +17,7 @@ export function DashboardAccessStatus({
   retry,
 }: DashboardAccessStatusProps) {
   return (
-    <section className="space-y-4 border-t pt-5">
+    <section className="flex flex-col gap-4 border-t pt-5">
       <p className="font-medium break-all">{state.domain}</p>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {(["dns", "propagation", "certificate", "routing"] as const).map(

@@ -1,11 +1,12 @@
 import { ArrowRight, Plus, TerminalSquare } from "lucide-react";
 import { Link } from "react-router";
 
+import { FlushCard } from "@/components/FlushCard";
 import { ResourceEditor } from "@/components/resource-editor";
 import { Empty, ErrorState, Loading, PageHeader } from "@/components/Shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import { useOverviewPage } from "../hooks";
 import { OverviewGettingStarted } from "./OverviewGettingStarted";
@@ -92,8 +93,8 @@ export function OverviewMainView() {
           />
         </div>
       )}
-      <Card className="gap-0 overflow-hidden py-0 shadow-none">
-        <CardHeader className="flex flex-row items-center justify-between border-b py-5">
+      <FlushCard>
+        <CardHeader className="flex items-center justify-between border-b py-5">
           <CardTitle className="text-sm">Recent deployments</CardTitle>
           <Badge variant="outline" className="font-mono text-[10px]">
             LIVE HISTORY
@@ -102,7 +103,7 @@ export function OverviewMainView() {
         <CardContent className="p-0">
           <RecentDeploymentContent deployments={deployments} rows={rows} />
         </CardContent>
-      </Card>
+      </FlushCard>
       <div className="mt-7 flex items-center gap-2 text-[11px] text-muted-foreground">
         <span className="size-1.5 rounded-full bg-primary" />
         Shipyard control plane{" "}

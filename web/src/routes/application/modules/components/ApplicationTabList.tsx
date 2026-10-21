@@ -13,6 +13,7 @@ import {
 
 import type { Resource } from "@/lib/api/types";
 
+import { TabScroller } from "@/components/TabScroller";
 import { TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { loadComposeEditor } from "@/lib/feature-loaders";
 
@@ -25,7 +26,7 @@ export function ApplicationTabList({
   directCompose,
 }: ApplicationTabListProps) {
   return (
-    <div className="overflow-x-auto overflow-y-hidden p-1 -m-1">
+    <TabScroller>
       <TabsList>
         {[
           { value: "overview", icon: LayoutDashboard },
@@ -64,6 +65,6 @@ export function ApplicationTabList({
           </TabsTrigger>
         ))}
       </TabsList>
-    </div>
+    </TabScroller>
   );
 }

@@ -37,7 +37,7 @@ export function ComposeSource({ app, onDeploy }: ComposeSourceProps) {
           editor.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="flex flex-col gap-4">
         <SourceEditor
           pending={q.isPending}
           error={q.error}
@@ -80,7 +80,7 @@ export function ComposeSource({ app, onDeploy }: ComposeSourceProps) {
               disabled={busy || !draft?.yaml.trim()}
               onClick={saveOnly}
             >
-              {busy ? <Spinner className="size-4 " /> : <Save />}Save
+              {busy ? <Spinner className="size-4" /> : <Save />}Save
             </Button>
             <Button
               disabled={busy || !draft?.yaml.trim()}

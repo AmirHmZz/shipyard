@@ -2,9 +2,9 @@ import { Globe2 } from "lucide-react";
 
 import type { Resource } from "@/lib/api/types";
 
+import { FlushCard } from "@/components/FlushCard";
 import { Empty } from "@/components/Shared";
 import { TableHeadings } from "@/components/TableHeadings";
-import { Card } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -29,7 +29,7 @@ export function DNSZoneTable({ zones, visible, byId }: DNSZoneTableProps) {
       />
     );
   return (
-    <Card className="gap-0 overflow-hidden py-0 shadow-none">
+    <FlushCard>
       <Table>
         <TableHeader>
           <TableHeadings
@@ -71,6 +71,6 @@ export function DNSZoneTable({ zones, visible, byId }: DNSZoneTableProps) {
           )}
         </TableBody>
       </Table>
-    </Card>
+    </FlushCard>
   );
 }

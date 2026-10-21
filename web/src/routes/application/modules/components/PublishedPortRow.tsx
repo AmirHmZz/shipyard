@@ -40,7 +40,7 @@ export function PublishedPortRow({
       {fields.map((field) => (
         <InputField
           key={field.key}
-          className="space-y-1"
+          className="flex flex-col gap-1"
           label={<>{field.label}</>}
           labelProps={{ htmlFor: `port-${service}-${index}-${field.key}` }}
           inputProps={{

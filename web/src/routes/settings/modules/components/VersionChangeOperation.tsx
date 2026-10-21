@@ -31,7 +31,7 @@ export function VersionChangeOperation({
   }
 
   return (
-    <section className="space-y-3 border-t pt-5">
+    <section className="flex flex-col gap-3 border-t pt-5">
       <div className="flex flex-wrap items-center gap-3">
         <h3 className="font-medium">
           Version change to {operation.plan.target.version}
@@ -57,6 +57,7 @@ export function VersionChangeOperation({
       )}
       {operation.backup && (
         <Button
+          className="self-start"
           variant="outline"
           onClick={handleButtonClick}
           disabled={busy || active}
@@ -67,7 +68,9 @@ export function VersionChangeOperation({
       )}
       {operation.state === "succeeded" &&
         version !== operation.plan.target.version && (
-          <Button onClick={handleButtonClick2}>Reload dashboard</Button>
+          <Button className="self-start" onClick={handleButtonClick2}>
+            Reload dashboard
+          </Button>
         )}
     </section>
   );

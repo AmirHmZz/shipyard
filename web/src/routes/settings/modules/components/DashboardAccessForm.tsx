@@ -34,7 +34,7 @@ export function DashboardAccessForm() {
           </CardDescription>
         </CardHeader>
         {state.enabled && (
-          <CardContent className="space-y-6">
+          <CardContent className="flex flex-col gap-6">
             <DashboardHostnameForm
               state={state}
               draft={draft}

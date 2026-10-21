@@ -1,6 +1,7 @@
 import { useResourceForm } from "@/components/resource-forms/controller";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
 
 import type { ResourceFieldProps as ResourceFieldPropsInput } from "../types";
 
@@ -32,9 +33,9 @@ export function ResourceField(props: ResourceFieldProps) {
   if (kind === "application" && f.key === "file")
     label = data.engine === "compose" ? "Compose file" : "Dockerfile";
   return (
-    <div className="space-y-2">
+    <div className={cn("flex flex-col gap-2", section && "pt-3")}>
       {section && (
-        <h2 className="mt-8 border-t pt-6 text-lg font-semibold">{section}</h2>
+        <h2 className="border-t pt-6 text-lg font-semibold">{section}</h2>
       )}
       {f.type === "switch" ? (
         <div className="flex items-center justify-between gap-4 rounded-lg border p-3">

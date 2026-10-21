@@ -35,7 +35,7 @@ export function PublishedPortService({
     });
   }
   return (
-    <section className="space-y-3">
+    <section className="flex flex-col gap-3">
       <h3 className="text-sm font-medium">{service}</h3>
       {ports.map((port, index) => (
         <PublishedPortRow
@@ -47,7 +47,7 @@ export function PublishedPortService({
           editPorts={editPorts}
         />
       ))}
-      <Button variant="outline" onClick={addPort}>
+      <Button className="self-start" variant="outline" onClick={addPort}>
         <Plus />
         Add port exception
       </Button>

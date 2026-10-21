@@ -3,6 +3,7 @@ import type { useNavigate } from "react-router";
 import type { DNSRecord, Resource } from "@/lib/api/types";
 
 import { DialogFooter } from "@/components/ConfigurationSurface";
+import { FormField } from "@/components/FormField";
 import { InputField } from "@/components/InputField";
 import { SelectControl } from "@/components/SelectControl";
 import { Button } from "@/components/ui/button";
@@ -52,7 +53,7 @@ export function DNSRecordForm({
     navigate("/dns/" + zone.id);
   }
   return (
-    <form className="space-y-4" onSubmit={handleSubmit}>
+    <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
       <Label>Type</Label>
       <SelectControl
         value={edit.type}
@@ -90,8 +91,10 @@ export function DNSRecordForm({
         <Label>Provider proxy enabled</Label>
         <Switch checked={edit.proxied} onCheckedChange={changeProxy} />
       </div>
-      <div className="space-y-2">
-        <Label>Provider value / structured data (JSON)</Label>
+      <FormField
+        label={<>Provider value / structured data (JSON)</>}
+        labelProps={{}}
+      >
         <Textarea
           className="font-mono text-xs"
           value={extra}
@@ -100,7 +103,7 @@ export function DNSRecordForm({
         <p className="text-xs text-muted-foreground">
           Use this for SRV/CAA and ArvanCloud multi-value records.
         </p>
-      </div>
+      </FormField>
       <DialogFooter>
         <Button type="button" variant="outline" onClick={cancel}>
           Cancel

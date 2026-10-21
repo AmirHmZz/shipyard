@@ -1,5 +1,5 @@
+import { CopyValue } from "@/components/CopyValue";
 import { InputField } from "@/components/InputField";
-import { CopyButton } from "@/components/Shared";
 import { Button } from "@/components/ui/button";
 
 import type { InstanceDraft } from "../generics";
@@ -37,21 +37,18 @@ export function GiteaInstanceEditor({
   return (
     <section
       aria-label="Gitea OAuth application"
-      className="space-y-4 rounded-lg border p-4"
+      className="flex flex-col gap-4 rounded-lg border p-4"
     >
       <p className="text-sm text-muted-foreground">
         Once per Gitea instance, register a confidential OAuth2 application
         under Settings → Applications. Use the callback URL below, then copy its
         client ID and client secret. Gitea 1.23 or newer is required.
       </p>
-      <div className="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:items-center">
-        <code className="w-full min-w-0 break-all text-xs sm:w-auto sm:flex-1">
-          {callback || "Loading callback URL…"}
-        </code>
-        {callback && (
-          <CopyButton label="Copy OAuth callback URL" value={callback} />
-        )}
-      </div>
+      <CopyValue
+        value={callback || ""}
+        label="Copy OAuth callback URL"
+        placeholder="Loading callback URL…"
+      />
       {(
         [
           ["name", "Instance name"],

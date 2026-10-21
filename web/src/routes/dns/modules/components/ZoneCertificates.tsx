@@ -25,7 +25,7 @@ export function ZoneCertificates({ zone, resources }: ZoneCertificatesProps) {
       />
     );
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       <p className="text-sm text-muted-foreground">
         Managed certificates renew automatically during their final 30 days of
         validity.
