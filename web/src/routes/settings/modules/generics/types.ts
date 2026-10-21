@@ -8,8 +8,6 @@ import type {
   versionChangePlanResponseSchema,
   dashboardAccessResponseSchema,
   userResponseSchema,
-  historyResponseSchema,
-  totpRecoveryResultResponseSchema,
   passwordFormSchema,
   passphraseSchema,
   totpCodeSchema,
@@ -31,13 +29,6 @@ export type State = z.infer<typeof dashboardAccessResponseSchema>;
 // TODO(openapi): add user administration responses to api/openapi.yaml.
 export type User = z.infer<typeof userResponseSchema>;
 
-// TODO(openapi): add HistoryResponse to api/openapi.yaml.
-export type HistoryResponse = z.infer<typeof historyResponseSchema>;
-
-// TODO(openapi): add TOTPRecoveryResult to api/openapi.yaml.
-export type TOTPRecoveryResult = z.infer<
-  typeof totpRecoveryResultResponseSchema
->;
 export type PasswordValues = z.infer<typeof passwordFormSchema>;
 export type PassphraseValues = z.infer<typeof passphraseSchema>;
 export type TOTPCodeValues = z.infer<typeof totpCodeSchema>;

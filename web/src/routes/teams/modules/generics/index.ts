@@ -1,5 +1,4 @@
 export type { TeamMembersResponse } from "./types";
-export type { InvitationResult } from "./types";
 export type {
   Invitation,
   ProjectAssignment,

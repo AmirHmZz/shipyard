@@ -1,31 +1,29 @@
-# Web route folders
+# Dashboard architecture
 
-Routes are registered explicitly in `src/routes.ts`. Folder names have no routing meaning. Each route has `route.tsx` and a README (at most 15 lines); the dashboard uses `layout.tsx` with `<Outlet />`.
+React Router framework SPA routes are registered in `src/routes.ts`. Feature folders contain thin route entries and only the `modules/components`, `hooks`, `generics` and `utils` folders they need. Each feature README stays within 15 lines. Do not create empty folders or barrels.
 
-Use only the needed subfolders under `modules/`: `components/` (PascalCase `.tsx` files and an `index.ts` barrel), `generics/` (`index.ts`, `types.ts`, `schema.ts` for Zod forms/runtime validation, `constants.ts`), `services/` (`index.ts` and plain async API functions using `api()`, no React), `utils/` (`index.ts`), and `hooks/` (`index.ts` for TanStack Query and UI hooks). Do not create empty folders or barrels.
-
-1. Keep `route.tsx` thin: it reads params or outlet context and renders `<XMainView />`, with no business logic. Allowed exports are `default`, `clientLoader`, `clientAction`, `meta`, `handle`, `links`, `shouldRevalidate`, `ErrorBoundary`, and `HydrateFallback`. SPA mode has no server `loader` or `action`.
-2. Only `src/routes.ts` references `route.tsx` and `layout.tsx`. Never import or barrel-re-export route modules; preserve route code splitting and HMR.
-3. Dependency direction is components → hooks → services → generics/utils. Services never import React, hooks, or components. Generics and utils import nothing else from the route.
-4. Import siblings in one folder directly (`./Foo`), never through their own barrel. Across folders in one route, use the destination barrel (`../hooks`). Outside the route, use `@/`. Never import another route's `modules/`.
-5. Use generated API types from `@/lib/schema` via `@/lib/api`; do not redeclare them. Put route-local aliases and types in `generics/types.ts` and derive Zod types with `z.infer`.
-6. Put code used by two or more routes in `src/components` (keep shadcn in `ui/`) or `src/lib`.
-7. Group sibling routes that share code under one feature folder, with shared `modules/` at the feature root and one subfolder per route containing only `route.tsx`.
-8. Use generated route types (`import type { Route } from "./+types/route"`) only when the module needs params or loader data.
-9. Do not add `"use client"`. Use `import type` and `export type` with `verbatimModuleSyntax`.
-10. Use PascalCase component filenames inside route folders. Leave existing kebab-case files in `src/components` as they are.
-11. Components never call `api()`, `post()` or `fetch` directly (including through the `@/lib/api` facade). Services own the endpoint, method and body serialization, take domain arguments (never a `path`), and return typed results.
-12. Hooks own `useQuery` / `useMutation`; components only call hooks.
-13. Services and hooks used by two or more routes live in `src/lib/services` and `src/lib/hooks`.
-14. Build API paths with `apiPath` when interpolating identifiers.
-15. Query keys come from factories (shared: `src/lib/query-keys.ts`; route-local: `generics/constants.ts`). No `queryKey: [` literals elsewhere. Factories are pure and tested.
-16. Mutations are hooks; `mutateAsync` runs inside the component's try/catch, toasts stay in the component, invalidation lives in `onSuccess` and returns its promise.
-17. Services import only `@/lib/api/client` and `@/lib/api/types` (never the `@/lib/api` facade, React, or hooks).
-18. Session comes from `useCurrentSession()`/`useAccount()`/`useAdmin()` (dashboard outlet context). Never peek at the query cache.
-19. Every page route module exports `meta` (static title) and `ErrorBoundary` (re-export of `ContentErrorBoundary`); `handle.pageLabel` is for the header label of routes not in the sidebar.
-20. `bun run lint` must pass; the import-boundary rules in `../.oxlintrc.json` enforce rules 3-4, 11, 17.
-21. Files in route folders stay under ~300 lines where there is a natural seam; large shared components live in folders with an `index.ts`.
-
-CI runs `bun run lint` (web) and `bun run format:check` (root).
-
-Tooling: Oxlint checks src, e2e, configs and scripts. Oxfmt formats web/src and scripts with sorted imports. Husky runs lint-staged and conventional commit validation. Use `bun run lint:fix` (web) and `bun run format` (root) before committing.
+1. Keep route entries thin: read params/context and render the main view. Page routes export static `meta` and re-export `ContentErrorBoundary`; use `handle.pageLabel` for pages outside the sidebar. SPA routes have no server `loader` or `action`.
+2. Only `src/routes.ts` references route entries and the dashboard layout. Never import or barrel-export them elsewhere; preserve route splitting and lazy editor, terminal and chart boundaries.
+3. Dependencies flow components → surface hooks → internal API adapters → Result-based core. Generics and utils never import hooks or components; `lib/api` never imports routes. Do not create a `services/` layer.
+4. Each endpoint has a surface hook owning its method, path, body, response schema and TanStack options. Components and surface hooks never import `callApi`/`callApiBlob`; only `lib/api/use-api-query.ts` and `use-api-mutation.ts` adapt the core to TanStack.
+5. Use `import * as z from "zod/mini"` exclusively. Runtime response and form schemas live in route `generics/schema.ts`, or `lib/schemas` when shared. Derive consumed types with `z.infer`/`z.output`; never assert API data or edit generated `lib/schema.d.ts` by hand.
+6. Validate form/dataset conversions with schema parsing and coercion. Use `z.stringbool()` for boolean strings. The entry initializes Mini's English locale once; validation failures use `toastValidationError`.
+7. `callApi` validates JSON against the supplied schema and returns `Result<T, ApiError>` without throwing. Parse only the existing error envelope `{ error: string }`; do not invent a success envelope. Only the two internal adapters throw `ApiException` for TanStack error/rollback behavior.
+8. The core imports neither React nor sonner. Query/Mutation caches own API error reporting/toasts; mutations notify unless `meta.silent`, queries opt in with `meta.toast`, and `meta.successMessage` owns success copy. Components do not catch API errors or toast them again.
+9. Keep TanStack options available at the surface, including `enabled`, `select`, polling, retry and metadata. Internal adapters own abort/CSRF/session wiring. Build identifier paths with `apiPath`; query keys come from tested shared/route factories.
+10. Classify every mutation: reversible shared data may use cache optimism; a local pending item may use mutation `variables`; deployment, provisioning, deletion of servers, backups, security and provider setup wait for server success.
+11. Cache optimism cancels matching queries, snapshots, updates, restores on failure and returns invalidation from `onSettled`. Coordinate concurrent changes with mutation keys. Test immediate updates, rollback and refetch using QueryClient/MutationObserver; retain request contract tests when a layer moves.
+12. Derive pending flags and server state from TanStack. Close dialogs through `mutate` success callbacks; avoid `mutateAsync` and API try/catch in components. Keep real UI state only; use tested pure reducers for related transitions rather than effect-synchronized mirrors.
+13. Read session through `useCurrentSession`, `useAccount` and `useAdmin` from `lib/session`. Do not inspect caches for authentication state or duplicate provider/QueryClient setup; `AppProviders` owns the provider composition.
+14. Put one component in each matching PascalCase file, with an exported `FooProps` type directly above it. `components/ui/**` is the vendored shadcn family exception. Split root exports into `src/root`, leaving `root.tsx` as the framework entry.
+15. JSX describes the screen; hooks/body own state, derivations and named handlers. Extract substantial logic into a specific route hook; one hook per file. Prefer early loading/error returns and simple branches; no nested ternaries or complex JSX callbacks.
+16. Mapped rows use `data-*` identifiers and one named handler reading `currentTarget.dataset`, or a container handler using `closest`. Avoid per-row callback closures; preserve portal event bubbling and coerce numeric dataset values with schemas.
+17. Use function declarations for named helpers, handlers, hooks and components; arrows are for small inline callbacks. Use named exports outside the exact framework/config exceptions below.
+18. Default exports are allowed only in `src/routes/**/route.tsx`, `src/routes/dashboard/layout.tsx`, `src/routes.ts`, `src/root.tsx`, `vite.config.ts`, `vitest.config.ts`, `playwright.config.ts`, `react-router.config.ts` and root `commitlint.config.js`. Adapt named lazy exports with `.then(m => ({ default: m.Name }))`.
+19. Import same-folder siblings directly, use destination barrels across folders within a feature, and use `@/` outside it. Never import another feature's modules. Use `import type`/`export type`; do not add `"use client"`, casts to silence errors or lint-disable comments.
+20. Share code used by multiple routes in `src/components` or `src/lib`; shared constants, enums, types, schemas and endpoint hooks have dedicated `lib` homes. Group sibling routes under one feature: leaf folders contain only `route.tsx`, with shared modules/README at the feature root.
+21. Extract repeated primitive markup into small components with plain typed props, such as SelectControl, InputField/FormField, FlushCard and TableHeadings. Do not replace duplication with shared class strings, render-prop machinery or orphan barrels.
+22. Use flex/gap instead of `space-x/y`, preserving grid behavior, intrinsic widths and collapsed-margin spacing. Review Tailwind's emitted declarations and component defaults before deleting classes. Use shorthands when equivalent; `cn` combines conditional/optional classes. Leave `.release-notes` Markdown sibling margins intact; avatar overlap needs a logical negative margin with its original selector specificity.
+23. Prefer direct calculations to speculative memoization. Preserve tested draft-row identities and dirty-scope store/callback identities; remove identity mechanisms only with evidence that navigation and editing behavior stay correct.
+24. Keep WebSocket/EventSource and telemetry fetch outside the JSON caller; validate fixed-shape messages. Telemetry must never call the toaster. Backups use `callApiBlob` through the mutation adapter and an explicit Blob schema.
+25. Run frozen Bun installs at root and `web`, then web `typecheck`, `lint`, `test`, `build`, and root `format:check`; run e2e against an isolated backend with matching origin and production assets. Oxlint enforces boundaries/conventions with zero warnings; Oxfmt sorts imports. Husky/lint-staged check staged files and commitlint requires conventional messages. Never weaken tests or rules to pass a gate.

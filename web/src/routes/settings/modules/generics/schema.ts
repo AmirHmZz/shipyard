@@ -227,6 +227,7 @@ export const userResponseSchema = z.object({
   totp: z.boolean(),
 });
 
+// TODO(openapi): document history category and TOTP recovery responses.
 export const historyResponseSchema = z.array(
   z.record(z.string(), z.union([z.string(), z.number()])),
 );

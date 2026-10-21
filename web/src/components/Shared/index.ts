@@ -14,7 +14,3 @@ export { CopyButton } from "./CopyButton";
 export type { CopyButtonProps } from "./CopyButton";
 export { Confirm } from "./Confirm";
 export type { ConfirmProps } from "./Confirm";
-export { AddButton } from "./AddButton";
-export type { AddButtonProps } from "./AddButton";
-export { ExternalLink } from "./ExternalLink";
-export type { ExternalLinkProps } from "./ExternalLink";

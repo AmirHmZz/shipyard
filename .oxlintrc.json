@@ -91,6 +91,10 @@
             ],
             "patterns": [
               {
+                "group": ["**/api/call", "**/api/call.ts"],
+                "message": "Surface hooks call the internal API adapters."
+              },
+              {
                 "group": [
                   "@/pages/*",
                   "@/App",
@@ -112,7 +116,7 @@
       }
     },
     {
-      "files": ["**/generics/**", "**/utils/**"],
+      "files": ["**/generics/**", "**/utils/**", "web/src/lib/utils.ts"],
       "rules": {
         "no-restricted-imports": [
           "error",
@@ -143,7 +147,11 @@
       }
     },
     {
-      "files": ["web/src/**/*.tsx"],
+      "files": [
+        "web/src/**/*.tsx",
+        "web/src/components/**/*.ts",
+        "web/src/routes/**/modules/components/**/*.ts"
+      ],
       "excludeFiles": ["**/hooks/**"],
       "rules": {
         "no-restricted-imports": [
@@ -158,6 +166,10 @@
             ],
             "patterns": [
               {
+                "group": ["**/api/call", "**/api/call.ts"],
+                "message": "Components call surface hooks."
+              },
+              {
                 "group": [
                   "@/pages/*",
                   "@/App",
@@ -170,6 +182,79 @@
                   "!**/+types/layout"
                 ],
                 "message": "Follow the dependency boundaries in web/AGENTS.md."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["web/src/lib/api/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "@/pages/*",
+                  "@/App",
+                  "**/route",
+                  "**/route.tsx",
+                  "**/layout",
+                  "**/layout.tsx",
+                  "!**/+types/route",
+                  "!**/+types/layout"
+                ],
+                "message": "Follow the dependency boundaries in web/AGENTS.md."
+              },
+              {
+                "group": [
+                  "@/routes",
+                  "@/routes/**",
+                  "**/routes",
+                  "**/routes/**"
+                ],
+                "message": "The API infrastructure cannot depend on routes."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["web/src/lib/api/call.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": ["react", "sonner"],
+            "patterns": [
+              {
+                "group": [
+                  "@/pages/*",
+                  "@/App",
+                  "**/route",
+                  "**/route.tsx",
+                  "**/layout",
+                  "**/layout.tsx",
+                  "!**/+types/route",
+                  "!**/+types/layout"
+                ],
+                "message": "Follow the dependency boundaries in web/AGENTS.md."
+              },
+              {
+                "group": ["react/*", "sonner/*"],
+                "message": "The Result-based transport core has no React or toast dependencies."
+              },
+              {
+                "group": [
+                  "@/routes",
+                  "@/routes/**",
+                  "**/routes",
+                  "**/routes/**"
+                ],
+                "message": "The API infrastructure cannot depend on routes."
               }
             ]
           }
