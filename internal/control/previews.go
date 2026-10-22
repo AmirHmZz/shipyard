@@ -40,7 +40,10 @@ func (c *Controller) GitEvent(ctx context.Context, connection, event string, bod
 			if len(delivery) > 0 {
 				key = "git:" + connection + ":" + delivery[0]
 			}
-			if _, err = c.queue(ctx, app, e.SHA, "", key); err != nil {
+			if key == "" {
+				key = "git:" + connection + ":" + db.NowID()
+			}
+			if _, err = c.queue(ctx, app, e.SHA, "", key); err != nil && !errors.Is(err, ErrAutoDeployPaused) {
 				return err
 			}
 		}
@@ -293,6 +296,9 @@ func (c *Controller) preview(ctx context.Context, app model.Resource, spec model
 		}
 	}
 	_, err = c.queue(ctx, r, e.HeadSHA, "", "preview:"+r.ID+":"+e.HeadSHA)
+	if errors.Is(err, ErrAutoDeployPaused) {
+		return nil
+	}
 	return err
 }
 func (c *Controller) ApprovePreview(ctx context.Context, id, sha string) error {

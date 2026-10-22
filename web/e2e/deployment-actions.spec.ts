@@ -2,7 +2,15 @@ import type { Page } from "@playwright/test";
 
 import { expect, test } from "@playwright/test";
 
-async function setup(page: Page, { writable = true, stopped = false } = {}) {
+async function setup(
+  page: Page,
+  {
+    writable = true,
+    stopped = false,
+    activeRelease = true,
+    delayedStop = false,
+  } = {},
+) {
   function resource(id: string, kind: string, parentId = "", data = {}) {
     return {
       variables: {},
@@ -81,7 +89,7 @@ async function setup(page: Page, { writable = true, stopped = false } = {}) {
       return route.fulfill({
         json: {
           status: runtimeStatus,
-          releaseId: "active",
+          releaseId: activeRelease ? "active" : undefined,
           containers: ["container"],
         },
       });
@@ -131,8 +139,16 @@ async function setup(page: Page, { writable = true, stopped = false } = {}) {
         return route.fulfill({ status: 202, json: { id: "new" } });
       }
       if (path.endsWith("/action")) {
-        runtimeStatus = body.action === "stop" ? "stopped" : "running";
-        return route.fulfill({ json: { ok: true } });
+        runtimeStatus =
+          body.action === "stop"
+            ? delayedStop
+              ? "stopping"
+              : "stopped"
+            : "running";
+        return route.fulfill({
+          status: body.action === "stop" ? 202 : 200,
+          json: { ok: true },
+        });
       }
       if (path.startsWith("/deployments/"))
         deployments = deployments.map((d) =>
@@ -152,6 +168,9 @@ async function setup(page: Page, { writable = true, stopped = false } = {}) {
   });
   return {
     requests,
+    completeStop() {
+      runtimeStatus = "stopped";
+    },
     holdDeletion() {
       deletionGate = new Promise<void>((resolve) => {
         releaseDeletionCallback = resolve;
@@ -177,6 +196,61 @@ async function setup(page: Page, { writable = true, stopped = false } = {}) {
 
 for (const theme of ["light", "dark"]) {
   test.describe(theme, () => {
+    test("Stop works without an active release and reports pending completion", async ({
+      page,
+    }) => {
+      const state = await setup(page, {
+        activeRelease: false,
+        delayedStop: true,
+      });
+      await page.goto("/applications/app");
+      await page.getByRole("button", { name: "Application actions" }).click();
+      await expect(
+        page.getByRole("menuitem", { name: "Restart", exact: true }),
+      ).toBeDisabled();
+      await page.getByRole("menuitem", { name: "Stop", exact: true }).click();
+      await expect(page.getByRole("dialog")).toContainText(
+        "Automatic deployments stay paused",
+      );
+      await page
+        .getByRole("dialog")
+        .getByRole("button", { name: "Confirm", exact: true })
+        .click();
+      await expect
+        .poll(() => state.requests.at(-1)?.body)
+        .toEqual({ action: "stop" });
+      await expect(page.getByText("stopping", { exact: true })).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: "Deploy", exact: true }),
+      ).toBeDisabled();
+      state.completeStop();
+      await expect(
+        page.getByText("Automatic deployments paused"),
+      ).toBeVisible();
+      await page.getByRole("button", { name: "Application actions" }).click();
+      await expect(
+        page.getByRole("menuitem", { name: "Start", exact: true }),
+      ).toBeDisabled();
+    });
+
+    test("failed startup retains service error output and cancellation closes the stream", async ({
+      page,
+    }) => {
+      await setup(page);
+      await page.route("**/api/v1/deployments/pending/events", (route) =>
+        route.fulfill({
+          contentType: "text/event-stream",
+          body: 'event: log\ndata: {"message":"[clickhouse/1 abcdef] Configuration error: invalid config"}\n\nevent: log\ndata: {"message":"[clickhouse/1 abcdef] state=restarting exit=78 restarts=4 OOM=false"}\n\nevent: status\ndata: {"state":"cancelled","error":"Deployment cancelled by Stop"}\n\n',
+        }),
+      );
+      await page.goto("/applications/app?tab=deployments&deployment=pending");
+      await expect(
+        page.getByText("Configuration error: invalid config", { exact: false }),
+      ).toBeVisible();
+      await expect(
+        page.getByText("state=restarting exit=78", { exact: false }),
+      ).toBeVisible();
+    });
     test.beforeEach(async ({ page }) => {
       await page.addInitScript(
         (value) => localStorage.setItem("shipyard-theme:v1", value),

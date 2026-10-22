@@ -406,7 +406,7 @@ func (c *Controller) syncProxy(ctx context.Context, server string, candidate *mo
 }
 
 func (c *Controller) syncProxyLocked(ctx context.Context, server string, candidate *model.Release, overrides proxy.Bindings) error {
-	rows, e := c.Store.Pool.Query(ctx, "SELECT app_id FROM app_runtime WHERE status='running'")
+	rows, e := c.Store.Pool.Query(ctx, "SELECT a.app_id FROM app_runtime a LEFT JOIN application_control c ON c.app_id=a.app_id WHERE a.status='running' AND COALESCE(c.desired_state,'running')='running'")
 	if e != nil {
 		return e
 	}
@@ -436,7 +436,13 @@ func (c *Controller) syncProxyLocked(ctx context.Context, server string, candida
 		}
 	}
 	if candidate != nil {
-		releases = append(releases, *candidate)
+		var stopped bool
+		if e = c.Store.Pool.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM application_control WHERE app_id=$1 AND desired_state='stopped')", candidate.AppID).Scan(&stopped); e != nil {
+			return e
+		}
+		if !stopped {
+			releases = append(releases, *candidate)
+		}
 	}
 	bindings := []proxy.Binding{}
 	certs := map[string][]byte{}

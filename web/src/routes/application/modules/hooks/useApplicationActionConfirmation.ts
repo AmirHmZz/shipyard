@@ -47,6 +47,9 @@ export function useApplicationActionConfirmation({
 
   let title = confirmAction + " application?";
   let description = "This operation affects the application containers.";
+  if (confirmAction === "stop")
+    description =
+      "Cancel queued and running deployments and stop all application containers. Automatic deployments stay paused until you explicitly Start, Deploy, or Rollback. Application data is preserved.";
   if (confirmAction.startsWith("rollback:")) {
     title = "Roll back this application?";
     description =

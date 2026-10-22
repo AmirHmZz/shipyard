@@ -2,6 +2,7 @@ package control
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"log/slog"
 	"net"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -48,15 +50,18 @@ type Controller struct {
 	volumeUsage       map[string]volumeUsageCache
 }
 type DeploymentSnapshot struct {
-	Resource         model.Resource    `json:"resource"`
-	App              model.App         `json:"app"`
-	Env              map[string]string `json:"env"`
-	BuildSecrets     map[string]string `json:"buildSecrets"`
-	Routes           []model.Resource  `json:"routes"`
-	Ref              string            `json:"ref"`
-	RegistryPassword string            `json:"registryPassword"`
-	ComposeSource    string            `json:"composeSource,omitempty"`
-	Fresh            bool              `json:"fresh,omitempty"`
+	Resource          model.Resource                      `json:"resource"`
+	App               model.App                           `json:"app"`
+	Env               map[string]string                   `json:"env"`
+	BuildSecrets      map[string]string                   `json:"buildSecrets"`
+	Routes            []model.Resource                    `json:"routes"`
+	Ref               string                              `json:"ref"`
+	RegistryPassword  string                              `json:"registryPassword"`
+	Registries        map[string]model.RegistryCredential `json:"registries,omitempty"`
+	ControlGeneration int64                               `json:"controlGeneration"`
+	SecretValues      []string                            `json:"secretValues"`
+	ComposeSource     string                              `json:"composeSource,omitempty"`
+	Fresh             bool                                `json:"fresh,omitempty"`
 }
 
 func (c *Controller) Queue(ctx context.Context, app model.Resource, ref, rollback string) (model.Deployment, error) {
@@ -85,7 +90,11 @@ func (c *Controller) queue(ctx context.Context, app model.Resource, ref, rollbac
 	if !c.Store.TeamGranted(ctx, app.TeamID, spec.ServerID) || (spec.Source != "compose" && !c.Store.TeamGranted(ctx, app.TeamID, spec.GitID)) {
 		return model.Deployment{}, errors.New("server and Git connection must be granted to this team")
 	}
-	snapshot := DeploymentSnapshot{Resource: c.Store.Public(app), App: spec, Env: map[string]string{}, BuildSecrets: map[string]string{}, Ref: ref}
+	snapshot := DeploymentSnapshot{Resource: c.Store.Public(app), App: spec, Env: map[string]string{}, BuildSecrets: map[string]string{}, Ref: ref, SecretValues: []string{}}
+	snapshot.Registries, e = c.Store.RegistryCredentials(ctx, app.TeamID)
+	if e != nil {
+		return model.Deployment{}, e
+	}
 	snapshot.Fresh = len(freshMode) > 0 && freshMode[0]
 	if spec.Source == "compose" {
 		if ref != "" {
@@ -115,6 +124,10 @@ func (c *Controller) queue(ctx context.Context, app model.Resource, ref, rollbac
 		chain = append(chain, parent)
 	}
 	for i := len(chain) - 1; i >= 0; i-- {
+		secretValues, secretErr := c.Store.Secrets(chain[i])
+		if secretErr != nil {
+			return model.Deployment{}, secretErr
+		}
 		values, e := c.Store.Values(chain[i])
 		if e != nil {
 			return model.Deployment{}, e
@@ -126,6 +139,9 @@ func (c *Controller) queue(ctx context.Context, app model.Resource, ref, rollbac
 			}
 			if strings.HasPrefix(k, envPrefix) {
 				snapshot.Env[strings.TrimPrefix(k, envPrefix)] = v
+				if value, ok := secretValues[k]; ok {
+					snapshot.SecretValues = append(snapshot.SecretValues, value)
+				}
 			}
 			if strings.HasPrefix(k, buildPrefix) {
 				snapshot.BuildSecrets[strings.TrimPrefix(k, buildPrefix)] = v
@@ -166,6 +182,19 @@ func (c *Controller) queue(ctx context.Context, app model.Resource, ref, rollbac
 	if deleting {
 		return model.Deployment{}, db.ErrDeleting
 	}
+	generation, controlErr := prepareApplicationControl(ctx, tx, app.ID, key == "")
+	if controlErr != nil {
+		return model.Deployment{}, controlErr
+	}
+	snapshot.ControlGeneration = generation
+	b, e = json.Marshal(snapshot)
+	if e != nil {
+		return model.Deployment{}, e
+	}
+	encrypted, e = c.Store.Vault.Seal(b, "deployment:"+id)
+	if e != nil {
+		return model.Deployment{}, e
+	}
 	var freshBusy bool
 	if e = tx.QueryRow(ctx, freshDeploymentBusySQL, app.ID, "").Scan(&freshBusy); e != nil {
 		return model.Deployment{}, e
@@ -200,7 +229,7 @@ func (c *Controller) queue(ctx context.Context, app model.Resource, ref, rollbac
 			return model.Deployment{}, errors.New("PR previews are disabled")
 		}
 	}
-	if _, e = tx.Exec(ctx, "INSERT INTO deployments(id,app_id,snapshot,rollback_id) VALUES($1,$2,$3,$4) ON CONFLICT(id) DO NOTHING", id, app.ID, encrypted, rollback); e != nil {
+	if _, e = tx.Exec(ctx, "INSERT INTO deployments(id,app_id,snapshot,rollback_id,control_generation) VALUES($1,$2,$3,$4,$5) ON CONFLICT(id) DO NOTHING", id, app.ID, encrypted, rollback, generation); e != nil {
 		return model.Deployment{}, e
 	}
 	payload, _ := json.Marshal(map[string]string{"deploymentId": id})
@@ -238,7 +267,7 @@ func (c *Controller) Run(ctx context.Context) {
 			}
 		}
 	}
-	ops := []string{"git-event", "domain", "proxy", "proxy-settings", "provision", "prune", "notify", "preview-cleanup", "drain", "resource-delete", "server-delete", "deployment-delete", "network-create", "network-delete", "dashboard-apply", "dashboard-retire"}
+	ops := []string{"application-stop", "git-event", "domain", "proxy", "proxy-settings", "provision", "prune", "notify", "preview-cleanup", "drain", "resource-delete", "server-delete", "deployment-delete", "network-create", "network-delete", "dashboard-apply", "dashboard-retire"}
 	// Long builds and DNS challenges cannot monopolize metric sampling or all
 	// operational workers. Every lane still uses the same durable job leases.
 	for _, kinds := range [][]string{{"deploy"}, {"deploy"}, ops, ops, {"metrics"}} {
@@ -342,6 +371,14 @@ func (c *Controller) runJob(parent context.Context, j model.Job, worker string) 
 		return
 	}
 	switch j.Kind {
+	case "application-stop":
+		var p struct {
+			Generation int64 `json:"generation"`
+		}
+		e = json.Unmarshal(j.Payload, &p)
+		if e == nil {
+			e = c.stopApplication(ctx, j.ResourceID, p.Generation)
+		}
 	case "server-delete":
 		e = c.deleteServer(ctx, j)
 	case "dashboard-apply":
@@ -501,6 +538,7 @@ type deploymentLog struct {
 	mu      sync.Mutex
 	write   func(string)
 	pending string
+	secrets []string
 }
 
 func interrupted(err error) bool {
@@ -529,7 +567,15 @@ func (w *deploymentLog) Write(b []byte) (int, error) {
 	return len(b), nil
 }
 func (w *deploymentLog) emit(line string) {
-	w.write(line)
+	w.write(w.redact(line))
+}
+func (w *deploymentLog) redact(line string) string {
+	for _, secret := range w.secrets {
+		if secret != "" {
+			line = strings.ReplaceAll(line, secret, "[REDACTED]")
+		}
+	}
+	return line
 }
 func (w *deploymentLog) Flush() {
 	w.mu.Lock()
@@ -544,8 +590,16 @@ func (c *Controller) deploy(ctx context.Context, id string) (result error) {
 	if e != nil {
 		return e
 	}
-	if d.State == "healthy" || d.State == "failed" || d.State == "recovery_failed" {
+	if d.State == "healthy" || d.State == "failed" || d.State == "recovery_failed" || d.State == "cancelled" {
 		return nil
+	}
+	ctx, stopWatching := c.watchDeployment(ctx, id)
+	defer stopWatching()
+	if err := c.deploymentFence(ctx, id); err != nil {
+		if errors.Is(err, ErrApplicationStopped) {
+			return c.Store.Stage(context.WithoutCancel(ctx), id, "cancelled", "cancelled", ErrApplicationStopped.Error())
+		}
+		return err
 	}
 	current, e := c.Store.Resource(ctx, d.AppID)
 	if e != nil {
@@ -586,7 +640,25 @@ func (c *Controller) deploy(ctx context.Context, id string) (result error) {
 	if currentSpec.PreviewOf != "" && d.RollbackID == "" && (snapshot.Ref != currentSpec.PreviewSHA || snapshot.Ref != currentSpec.ApprovedSHA) {
 		return c.Store.Stage(ctx, id, "failed", "cancelled", "Preview commit was superseded or its approval was revoked")
 	}
-	log := &deploymentLog{write: func(line string) { c.Store.Event(ctx, id, line) }}
+	log := &deploymentLog{write: func(line string) {
+		eventCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancel()
+		c.Store.Event(eventCtx, id, line)
+	}}
+	log.secrets = append(log.secrets, snapshot.SecretValues...)
+	if snapshot.SecretValues == nil {
+		for _, value := range snapshot.Env {
+			log.secrets = append(log.secrets, value)
+		}
+	}
+	for _, value := range snapshot.BuildSecrets {
+		log.secrets = append(log.secrets, value)
+	}
+	for _, credential := range snapshot.Registries {
+		log.secrets = append(log.secrets, credential.Password, base64.StdEncoding.EncodeToString([]byte(credential.Username+":"+credential.Password)))
+	}
+	log.secrets = append(log.secrets, snapshot.RegistryPassword)
+	sort.Slice(log.secrets, func(i, j int) bool { return len(log.secrets[i]) > len(log.secrets[j]) })
 	defer log.Flush()
 	client, _, e := c.connect(ctx, snapshot.App.ServerID)
 	if e != nil {
@@ -600,10 +672,11 @@ func (c *Controller) deploy(ctx context.Context, id string) (result error) {
 		return e
 	}
 	defer client.Close()
-	engine := &deploy.Engine{Remote: client, Log: log, Dial: client.DialContext, PrepareNetworks: c.prepareNetworks, ValidateConfig: c.validateRenderedNetworks}
+	engine := &deploy.Engine{Remote: client, Log: log, Dial: client.DialContext, PrepareNetworks: c.prepareNetworks, ValidateConfig: c.validateRenderedNetworks, Guard: func(guardCtx context.Context) error { return c.deploymentFence(guardCtx, id) }}
 	old, oldErr := c.Store.Active(ctx, d.AppID)
 	r := model.Release{ID: id, DeploymentID: id, AppID: d.AppID, TeamID: snapshot.Resource.TeamID, ServerID: snapshot.App.ServerID, App: snapshot.App, Env: snapshot.Env, BuildSecrets: snapshot.BuildSecrets, Routes: snapshot.Routes, Directory: remote.Root + "/releases/" + id, CreatedAt: time.Now()}
 	changed := false
+	stopLogs := func() {}
 	freshStarted := false
 	if snapshot.Fresh {
 		freshStarted, e = c.freshDeploymentStarted(ctx, id)
@@ -612,7 +685,22 @@ func (c *Controller) deploy(ctx context.Context, id string) (result error) {
 		}
 	}
 	defer func() {
+		stopLogs()
 		if result == nil {
+			return
+		}
+		if changed && !errors.Is(context.Cause(ctx), ErrApplicationStopped) {
+			diagnosticCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+			engine.Diagnostics(diagnosticCtx, r)
+			cancel()
+		}
+		if errors.Is(context.Cause(ctx), ErrApplicationStopped) || errors.Is(result, ErrApplicationStopped) {
+			update, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+			defer cancel()
+			log.emit("Deployment cancelled by Stop; automatic recovery skipped")
+			log.Flush()
+			_ = c.Store.Stage(update, id, "cancelled", "cancelled", ErrApplicationStopped.Error())
+			result = ErrApplicationStopped
 			return
 		}
 		if interrupted(result) {
@@ -630,6 +718,8 @@ func (c *Controller) deploy(ctx context.Context, id string) (result error) {
 		state := "failed"
 		recoveryCtx, stop := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Minute)
 		defer stop()
+		recoveryCtx, stopRecoveryWatch := c.watchDeployment(recoveryCtx, id)
+		defer stopRecoveryWatch()
 		if freshStarted {
 			if err := c.stopFreshDeployment(recoveryCtx, r); err != nil {
 				state = "recovery_failed"
@@ -639,7 +729,7 @@ func (c *Controller) deploy(ctx context.Context, id string) (result error) {
 			recoveryClient, _, ce := c.connect(recoveryCtx, old.ServerID)
 			if ce == nil {
 				defer recoveryClient.Close()
-				recovery := &deploy.Engine{Remote: recoveryClient, Log: log, Dial: recoveryClient.DialContext, PrepareNetworks: c.prepareNetworks, ValidateConfig: c.validateRenderedNetworks}
+				recovery := &deploy.Engine{Remote: recoveryClient, Log: log, Dial: recoveryClient.DialContext, PrepareNetworks: c.prepareNetworks, ValidateConfig: c.validateRenderedNetworks, Guard: func(guardCtx context.Context) error { return c.deploymentFence(guardCtx, id) }}
 				ce = recovery.Start(recoveryCtx, &old)
 				if ce == nil {
 					ce = recovery.Healthy(recoveryCtx, old)
@@ -661,8 +751,19 @@ func (c *Controller) deploy(ctx context.Context, id string) (result error) {
 		if r.App.Engine == "dockerfile" && changed && !freshStarted {
 			_ = engine.Remove(recoveryCtx, r, false)
 		}
+		if errors.Is(context.Cause(ctx), ErrApplicationStopped) || errors.Is(context.Cause(recoveryCtx), ErrApplicationStopped) {
+			update, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+			defer cancel()
+			log.emit("Deployment cancelled by Stop; recovery interrupted")
+			log.Flush()
+			_ = c.Store.Stage(update, id, "cancelled", "cancelled", ErrApplicationStopped.Error())
+			result = ErrApplicationStopped
+			return
+		}
 		msg := result.Error()
+		msg = log.redact(msg)
 		result = errors.New(msg)
+		log.Flush()
 		_ = c.Store.Stage(recoveryCtx, id, state, "failed", msg)
 		_ = c.Store.Enqueue(recoveryCtx, "prune", d.AppID, "prune-failed:"+id, nil)
 		_ = c.Emit(recoveryCtx, "deployment."+state, snapshot.Resource.TeamID, d.AppID, map[string]string{"deploymentId": id, "error": msg})
@@ -739,9 +840,30 @@ func (c *Controller) deploy(ctx context.Context, id string) (result error) {
 				return err
 			}
 		}
-		password := snapshot.RegistryPassword
+		registries := snapshot.Registries
+		if len(registries) > 0 {
+			granted, err := c.Store.RegistryCredentials(ctx, snapshot.Resource.TeamID)
+			if err != nil {
+				return err
+			}
+			for host := range registries {
+				if _, ok := granted[host]; !ok {
+					return fmt.Errorf("registry %s is no longer granted to this team", host)
+				}
+			}
+		}
+		if registries == nil {
+			registries = map[string]model.RegistryCredential{}
+		}
+		if snapshot.RegistryPassword != "" && r.App.Registry != "" {
+			host, err := model.RegistryHostname(r.App.Registry)
+			if err != nil {
+				return err
+			}
+			registries[host] = model.RegistryCredential{Username: r.App.RegistryUser, Password: snapshot.RegistryPassword}
+		}
 		_ = c.Store.Stage(ctx, id, "building", "build", "")
-		if e = engine.Build(ctx, &r, r.App.Registry, r.App.RegistryUser, password); e != nil {
+		if e = engine.Build(ctx, &r, registries); e != nil {
 			return e
 		}
 	}
@@ -751,6 +873,9 @@ func (c *Controller) deploy(ctx context.Context, id string) (result error) {
 		return e
 	}
 	if e = c.preflightNetworks(ctx, r); e != nil {
+		return e
+	}
+	if e = c.deploymentFence(ctx, id); e != nil {
 		return e
 	}
 	if snapshot.Fresh {
@@ -773,6 +898,7 @@ func (c *Controller) deploy(ctx context.Context, id string) (result error) {
 	}
 	_ = c.Store.Stage(ctx, id, "deploying", "start", "")
 	changed = true
+	stopLogs = engine.FollowStartup(ctx, r)
 	if e = engine.Start(ctx, &r); e != nil {
 		return e
 	}
@@ -783,13 +909,20 @@ func (c *Controller) deploy(ctx context.Context, id string) (result error) {
 	if e = engine.Healthy(ctx, r); e != nil {
 		return e
 	}
+	stopLogs()
+	log.Flush()
 	if e = c.Store.SaveRelease(ctx, r); e != nil {
 		return e
 	}
 	_ = c.Store.Stage(ctx, id, "deploying", "routing", "")
+	if e = c.deploymentFence(ctx, id); e != nil {
+		return e
+	}
 	if e = c.syncProxy(ctx, r.ServerID, &r); e != nil {
 		return e
 	}
+	log.emit("Release passed readiness; activating")
+	log.Flush()
 	if e = c.Store.Activate(ctx, r); e != nil {
 		return e
 	}
@@ -797,7 +930,6 @@ func (c *Controller) deploy(ctx context.Context, id string) (result error) {
 		_ = c.Store.Enqueue(ctx, "drain", old.AppID, "drain:"+old.ID, map[string]string{"releaseId": old.ID})
 		_, _ = c.Store.Pool.Exec(ctx, "UPDATE jobs SET available_at=now()+interval '60 seconds' WHERE dedupe=$1", "drain:"+old.ID)
 	}
-	log.emit("Release is healthy and active")
 	_ = c.Store.Enqueue(ctx, "prune", r.AppID, "prune:"+r.ID, nil)
 	_ = c.Emit(ctx, "deployment.healthy", snapshot.Resource.TeamID, d.AppID, map[string]string{"deploymentId": id, "commit": r.Commit})
 	return nil

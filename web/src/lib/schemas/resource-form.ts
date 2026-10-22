@@ -44,6 +44,20 @@ export function resourceFormSchema(kind: ResourceKind) {
       shape[field.key] = z.optional(z.enum(field.options));
     else shape[field.key] = z.optional(z.string());
   }
+  if (kind === "registry") {
+    shape.hostname = requiredText("Registry hostname").check(
+      z.refine((value) => {
+        if (/[\s/\\@?#]/.test(value)) return false;
+        try {
+          const host = new URL(`https://${value}`);
+          return !!host.hostname && !host.username && !host.password;
+        } catch {
+          return false;
+        }
+      }, "Enter a hostname and optional port, without a URL or image path."),
+    );
+    shape.username = requiredText("Username");
+  }
   const data = z.catchall(z.object(shape), z.unknown());
   return z
     .object({

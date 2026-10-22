@@ -12,7 +12,7 @@ const sections: Record<string, string> = {
   source: "Source",
   readinessChecks: "Readiness",
   previews: "Pull request previews",
-  profiles: "Build and registry",
+  profiles: "Build",
 };
 
 export type ResourceFieldProps = ResourceFieldPropsInput;

@@ -100,7 +100,9 @@ export function LogStream({
       if (!result.success) return;
       const d = result.data;
       updateOutput({ state: d.state, error: d.error || "" });
-      if (["healthy", "failed", "recovery_failed"].includes(d.state))
+      if (
+        ["healthy", "failed", "recovery_failed", "cancelled"].includes(d.state)
+      )
         source.close();
     });
     source.onerror = () => {

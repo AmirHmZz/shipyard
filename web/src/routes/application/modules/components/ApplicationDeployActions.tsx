@@ -36,7 +36,7 @@ export function ApplicationDeployActions(props: ApplicationDeployActionsProps) {
   const { app, busy, deployError, onDelete } = props;
   const { state, derived, handlers } = useApplicationDeployActions(props);
   const { freshOpen, name } = state;
-  const { canDeploy, canControl, stopped } = derived;
+  const { canDeploy, canControl, canStop, stopped } = derived;
   const {
     handleButtonClick,
     handleDropdownMenuItemSelect,
@@ -59,7 +59,7 @@ export function ApplicationDeployActions(props: ApplicationDeployActionsProps) {
               size="icon"
               className="border-l border-primary-foreground/25"
               aria-label="Application actions"
-              disabled={busy || !app.canWrite}
+              disabled={!app.canWrite}
             >
               <ChevronDown />
             </Button>
@@ -73,14 +73,14 @@ export function ApplicationDeployActions(props: ApplicationDeployActionsProps) {
               Fresh deploy
             </DropdownMenuItem>
             <DropdownMenuItem
-              disabled={!canControl}
+              disabled={!canControl || stopped}
               onSelect={handleDropdownMenuItemSelect2}
             >
               <RotateCcw />
               Restart
             </DropdownMenuItem>
             <DropdownMenuItem
-              disabled={!canControl}
+              disabled={stopped ? !canControl : !canStop}
               onSelect={handleDropdownMenuItemSelect3}
             >
               {stopped ? <Play /> : <Square />}

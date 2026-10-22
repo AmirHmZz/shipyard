@@ -136,6 +136,7 @@ export const composeSourceResponseSchema = z.object({
 
 export const runtimeResponseSchema = z.object({
   status: z.string(),
+  error: z.optional(z.string()),
   releaseId: z.optional(z.string()),
   commit: z.optional(z.string()),
   containers: z.optional(z.nullable(z.array(z.string()))),

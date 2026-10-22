@@ -7,3 +7,5 @@ Deployment-history removal uses cache optimism; deploys, rollback, source saves 
 Keep draft-row identities stable and state transitions in tested reducers; pending controls use TanStack state.
 Compose editor and terminal remain lazy; fixed-shape SSE/WebSocket JSON messages validate at their transport boundary.
 Hook contracts and browser tests cover payload parity, schema errors, permissions, dirty navigation and editor CSP.
+Stop accepts asynchronously, cancels deployment work and pauses auto-deploy; runtime polling reports completion without requiring an active release.
+Deployment SSE retains bounded startup logs and diagnostics, including terminal cancellation.

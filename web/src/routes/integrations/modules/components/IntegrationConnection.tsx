@@ -28,12 +28,15 @@ export function IntegrationConnection({
           <p className="mt-1 text-xs text-muted-foreground">
             {text(resource.data, "provider")
               ? providerName(text(resource.data, "provider"))
-              : text(resource.data, "url")}
+              : text(
+                  resource.data,
+                  resource.kind === "registry" ? "hostname" : "url",
+                )}
           </p>
         </div>
       </div>
       <div className="flex gap-2">
-        {resource.kind === "git" && (
+        {(resource.kind === "git" || resource.kind === "registry") && (
           <Button
             disabled={!resource.canWrite}
             variant="outline"
@@ -54,6 +57,17 @@ export function IntegrationConnection({
         >
           Configure
         </Button>
+        {resource.kind === "registry" && (
+          <Button
+            disabled={!resource.canWrite}
+            variant="outline"
+            size="sm"
+            data-action="delete"
+            data-resource-id={resource.id}
+          >
+            Delete
+          </Button>
+        )}
       </div>
     </div>
   );

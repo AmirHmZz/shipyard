@@ -18,6 +18,7 @@ export function StateBadge({ state, className }: StateBadgeProps) {
   const failed = [
     "failed",
     "recovery_failed",
+    "stop_failed",
     "conflict",
     "offline",
     "renewal_failed",
@@ -28,6 +29,7 @@ export function StateBadge({ state, className }: StateBadgeProps) {
     "deploying",
     "issuing",
     "pending",
+    "stopping",
   ].includes(state || "");
   let appearance = "bg-muted/60 text-muted-foreground";
   if (failed)

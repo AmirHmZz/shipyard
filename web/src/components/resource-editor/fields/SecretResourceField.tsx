@@ -7,7 +7,11 @@ import { Textarea } from "@/components/ui/textarea";
 import type { ResourceFieldProps } from "../types";
 
 export type SecretResourceFieldProps = ResourceFieldProps;
-export function SecretResourceField({ f, existing }: SecretResourceFieldProps) {
+export function SecretResourceField({
+  f,
+  existing,
+  kind,
+}: SecretResourceFieldProps) {
   function handleControlChange(
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) {
@@ -23,6 +27,7 @@ export function SecretResourceField({ f, existing }: SecretResourceFieldProps) {
   const Control = password ? Input : Textarea;
   const stored = existing?.secretKeys.includes(f.key);
   let placeholder = password ? "Enter SSH password" : "Paste credential";
+  if (kind === "registry") placeholder = "Enter password or token";
   if (stored) placeholder = "Stored securely. Leave untouched to retain.";
   return (
     <Control

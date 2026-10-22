@@ -5,6 +5,7 @@ export const RESOURCE_KINDS = [
   "server",
   "git",
   "dns",
+  "registry",
   "zone",
   "application",
   "route",

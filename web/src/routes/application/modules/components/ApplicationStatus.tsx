@@ -22,6 +22,16 @@ export function ApplicationStatus({
   return (
     <div className="mb-6 flex flex-wrap items-center gap-5 rounded-xl border bg-card px-5 py-4 text-xs">
       <StateBadge state={runtime.data?.status} />
+      {runtime.data?.status === "stopped" && (
+        <span className="text-muted-foreground">
+          Automatic deployments paused
+        </span>
+      )}
+      {runtime.data?.error && (
+        <span role="alert" className="text-destructive">
+          {runtime.data.error}
+        </span>
+      )}
       <span className="flex items-center gap-2 text-muted-foreground">
         {directCompose ? (
           <FileCode2 className="size-3.5" />

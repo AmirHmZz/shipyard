@@ -1,15 +1,32 @@
 import type { MouseEvent } from "react";
 
+import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
 import { useResources } from "@/lib/hooks/useResources";
 import { useAccount } from "@/lib/session";
+
+import { useDeleteRegistry } from "./useDeleteRegistry";
 export function useIntegrationsPage() {
   const navigate = useNavigate();
   const account = useAccount();
   const q = useResources();
+  const deletion = useDeleteRegistry();
+  const [deleting, setDeleting] = useState("");
   const [params] = useSearchParams();
   const resources = q.data || [];
+  const deletingRegistry = resources.find(
+    (resource) => resource.id === deleting && resource.kind === "registry",
+  );
+  function closeDeletion(open: boolean) {
+    if (!open && !deletion.isPending) setDeleting("");
+  }
+  function confirmDeletion() {
+    if (deletingRegistry?.canWrite && !deletion.isPending)
+      deletion.mutate(deletingRegistry.id, {
+        onSuccess: () => setDeleting(""),
+      });
+  }
   const gitMessage =
     params.get("gitError") ||
     "Git connection authorized. Grant team access and, for Gitea, configure your repository webhook.";
@@ -27,6 +44,14 @@ export function useIntegrationsPage() {
     const resource = resources.find(
       (resource) => resource.id === button.dataset.resourceId,
     );
+    if (
+      button.dataset.action === "delete" &&
+      resource?.kind === "registry" &&
+      resource.canWrite
+    ) {
+      setDeleting(resource.id);
+      return;
+    }
     if (button.dataset.action === "grants" && resource) {
       navigate("/configure/access/" + resource.id + "?return=/integrations");
       return;
@@ -44,7 +69,16 @@ export function useIntegrationsPage() {
   }
   return {
     state: {},
-    derived: { account, q, resources, gitMessage, showGitMessage, gitFailed },
-    handlers: { handleIntegrationAction },
+    derived: {
+      account,
+      q,
+      resources,
+      gitMessage,
+      showGitMessage,
+      gitFailed,
+      deletingRegistry,
+      deletionPending: deletion.isPending,
+    },
+    handlers: { handleIntegrationAction, closeDeletion, confirmDeletion },
   };
 }

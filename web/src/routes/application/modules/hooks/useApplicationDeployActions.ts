@@ -43,10 +43,16 @@ export function useApplicationDeployActions({
   const canDeploy =
     app.canWrite &&
     !app.data.previewClosed &&
-    (!app.data.previewOf || !!app.data.approvedSha);
+    (!app.data.previewOf || !!app.data.approvedSha) &&
+    runtime?.status !== "stopping";
   const canControl =
-    app.canWrite && !!runtime?.releaseId && !app.data.previewClosed;
+    app.canWrite &&
+    !!runtime?.releaseId &&
+    !app.data.previewClosed &&
+    runtime?.status !== "stopping";
   const stopped = runtime?.status === "stopped";
+  const canStop =
+    app.canWrite && !app.data.previewClosed && runtime?.status !== "stopping";
 
   function freshDeploy() {
     deploy(true, name, () => setFreshOpen(false));
@@ -54,7 +60,7 @@ export function useApplicationDeployActions({
 
   return {
     state: { freshOpen, name },
-    derived: { canDeploy, canControl, stopped },
+    derived: { canDeploy, canControl, canStop, stopped },
     handlers: {
       handleButtonClick,
       handleDropdownMenuItemSelect,

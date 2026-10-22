@@ -319,7 +319,7 @@ func (a *API) resources(w http.ResponseWriter, r *http.Request) {
 	respond(w, 200, out)
 }
 func (a *API) validateParent(ctx context.Context, u model.User, in *model.ResourceInput, id string) error {
-	global := in.Kind == "server" || in.Kind == "git" || in.Kind == "dns" || in.Kind == "zone" || in.Kind == "team"
+	global := in.Kind == "server" || in.Kind == "git" || in.Kind == "dns" || in.Kind == "zone" || in.Kind == "team" || in.Kind == "registry"
 	if global {
 		if !u.Admin {
 			return errors.New("platform administrator required")
@@ -538,6 +538,10 @@ func (a *API) saveResource(w http.ResponseWriter, r *http.Request) {
 	if in.Kind == "network" {
 		fail(w, 400, "Use the server network creation interface")
 		return
+	}
+	if in.Kind=="registry" {
+		password,provided:=in.Secrets["password"]
+		if (creating || provided) && password=="" { fail(w,400,"Registry password or token is required");return }
 	}
 	if in.Kind == "route" {
 		if err := model.Validate(in); err != nil {
@@ -766,8 +770,8 @@ func (a *API) grant(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if v.Kind != "server" && v.Kind != "git" && v.Kind != "zone" && v.Kind != "network" {
-		fail(w, 400, "Only servers, Git connections and zones can be granted")
+	if v.Kind != "server" && v.Kind != "git" && v.Kind != "zone" && v.Kind != "network" && v.Kind != "registry" {
+		fail(w, 400, "Only servers, Git connections, registries, networks and zones can be granted")
 		return
 	}
 	var in struct {
@@ -782,7 +786,9 @@ func (a *API) grant(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, "Team not found")
 		return
 	}
-	if in.Granted {
+	if v.Kind == "registry" {
+		e = a.Store.GrantRegistry(r.Context(), v.ID, in.TeamID, in.Granted)
+	} else if in.Granted {
 		_, e = a.Store.Pool.Exec(r.Context(), "INSERT INTO resource_grants(resource_id,team_id) VALUES($1,$2) ON CONFLICT DO NOTHING", v.ID, in.TeamID)
 	} else {
 		_, e = a.Store.Pool.Exec(r.Context(), "DELETE FROM resource_grants WHERE resource_id=$1 AND team_id=$2", v.ID, in.TeamID)
@@ -1208,11 +1214,19 @@ func (a *API) action(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if e := a.Control.Action(r.Context(), v, in.Action); e != nil {
-		fail(w, 400, e.Error())
+		status := http.StatusBadRequest
+		if errors.Is(e, db.ErrConflict) {
+			status = http.StatusConflict
+		}
+		fail(w, status, e.Error())
 		return
 	}
 	_ = a.Store.Audit(r.Context(), user(r).ID, "application."+in.Action, v.ID, v.TeamID, nil)
-	respond(w, 200, map[string]bool{"ok": true})
+	status := http.StatusOK
+	if in.Action == "stop" {
+		status = http.StatusAccepted
+	}
+	respond(w, status, map[string]bool{"ok": true})
 }
 func (a *API) approvePreview(w http.ResponseWriter, r *http.Request) {
 	v, ok := a.get(w, r, true)

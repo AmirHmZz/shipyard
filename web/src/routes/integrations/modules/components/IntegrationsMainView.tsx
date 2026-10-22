@@ -1,11 +1,23 @@
-import { Activity, Cloud, GitBranch, ShieldCheck } from "lucide-react";
+import {
+  Activity,
+  Cloud,
+  GitBranch,
+  ShieldCheck,
+  Container,
+} from "lucide-react";
 
-import { ErrorState, Loading, PageHeader } from "@/components/Shared";
+import { Confirm, ErrorState, Loading, PageHeader } from "@/components/Shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 import { useIntegrationsPage } from "../hooks";
 import { IntegrationSection } from "./IntegrationSection";
 const sections = [
+  {
+    kind: "registry",
+    title: "Container registries",
+    desc: "Credentials are matched automatically to image hosts for granted teams.",
+    icon: Container,
+  },
   {
     kind: "git",
     title: "Source control",
@@ -27,9 +39,17 @@ const sections = [
 ];
 export function IntegrationsMainView() {
   const { derived, handlers } = useIntegrationsPage();
-  const { account, q, resources, gitMessage, showGitMessage, gitFailed } =
-    derived;
-  const { handleIntegrationAction } = handlers;
+  const {
+    account,
+    q,
+    resources,
+    gitMessage,
+    showGitMessage,
+    gitFailed,
+    deletingRegistry,
+    deletionPending,
+  } = derived;
+  const { handleIntegrationAction, closeDeletion, confirmDeletion } = handlers;
   if (q.isPending) return <Loading />;
   if (q.error) return <ErrorState error={q.error} />;
   return (
@@ -49,6 +69,15 @@ export function IntegrationsMainView() {
           />
         ))}
       </div>
+      <Confirm
+        open={!!deletingRegistry}
+        onOpenChange={closeDeletion}
+        title="Delete registry integration?"
+        description={`Remove ${deletingRegistry?.name || "this registry"} and its stored credentials. Future deployments may require another registry integration.`}
+        pending={deletionPending}
+        destructive
+        onConfirm={confirmDeletion}
+      />
       <Alert className="mt-6">
         <ShieldCheck className="size-4" />
         <AlertDescription>

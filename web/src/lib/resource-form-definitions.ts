@@ -69,6 +69,15 @@ export const fields: Record<ResourceKind, Field[]> = {
     { key: "token", label: "Provider API token", type: "secret" },
   ],
   zone: [],
+  registry: [
+    {
+      key: "hostname",
+      label: "Registry hostname",
+      help: "For example ghcr.io, docker.io, or registry.example.com:5000. Images select credentials automatically.",
+    },
+    { key: "username", label: "Username" },
+    { key: "password", label: "Password / token", type: "password" },
+  ],
   application: [
     { key: "source", label: "Source", options: ["git", "compose"] },
     {
@@ -121,13 +130,6 @@ export const fields: Record<ResourceKind, Field[]> = {
       label: "Build arguments (JSON)",
       type: "json",
       help: "Use build secrets for credentials; build arguments can appear in image metadata.",
-    },
-    { key: "registry", label: "Private registry (optional)" },
-    { key: "registryUser", label: "Registry username" },
-    {
-      key: "registry_password",
-      label: "Registry password / token",
-      type: "secret",
     },
   ],
   route: [

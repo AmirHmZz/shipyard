@@ -16,7 +16,7 @@ export function useDeploymentHistory({
     return (
       !!app.canWrite &&
       !!runtime.data &&
-      ["healthy", "failed", "recovery_failed"].includes(d.state) &&
+      ["healthy", "failed", "recovery_failed", "cancelled"].includes(d.state) &&
       runtime.data.releaseId !== (d.releaseId || d.id) &&
       !deployments.data?.some(
         (other) =>

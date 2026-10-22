@@ -20,6 +20,7 @@ import (
 )
 
 type Engine struct {
+	Guard           func(context.Context) error
 	Remote          remote.Executor
 	Log             io.Writer
 	Dial            func(context.Context, string, string) (net.Conn, error)
@@ -34,7 +35,17 @@ func Output(ctx context.Context, r remote.Executor, args ...string) (string, err
 func Write(ctx context.Context, r remote.Executor, path string, b []byte) error {
 	return r.Run(ctx, "umask 077; cat > "+remote.Quote(path)+" && chmod 600 "+remote.Quote(path), bytes.NewReader(b), io.Discard)
 }
+func (e *Engine) cleanupTemporary(ctx context.Context, paths ...string) {
+	cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+	defer cancel()
+	_ = e.Remote.Run(cleanup, remote.Command(append([]string{"rm", "-f"}, paths...)...), nil, io.Discard)
+}
 func (e *Engine) command(ctx context.Context, args ...string) error {
+	if e.Guard != nil {
+		if err := e.Guard(ctx); err != nil {
+			return err
+		}
+	}
 	output := e.Log
 	if output == nil {
 		output = io.Discard
@@ -47,6 +58,11 @@ func (e *Engine) command(ctx context.Context, args ...string) error {
 	return e.Remote.Run(ctx, remote.Command(args...), nil, output)
 }
 func (e *Engine) runComposeProgress(ctx context.Context, command string) error {
+	if e.Guard != nil {
+		if err := e.Guard(ctx); err != nil {
+			return err
+		}
+	}
 	output := e.Log
 	if output == nil {
 		output = io.Discard
@@ -94,7 +110,8 @@ func envFile(env map[string]string) []byte {
 	}
 	return []byte(b.String())
 }
-func (e *Engine) Build(ctx context.Context, r *model.Release, registry, user, password string) error {
+func (e *Engine) Build(ctx context.Context, r *model.Release, registries map[string]model.RegistryCredential) error {
+	defer e.cleanupTemporary(ctx, r.Directory+"/auth/config.json", r.Directory+"/build.env")
 	base := r.Directory + "/source"
 	contextDir := base + "/" + r.App.Context
 	file := base + "/" + r.App.File
@@ -105,22 +122,28 @@ func (e *Engine) Build(ctx context.Context, r *model.Release, registry, user, pa
 	if err := Write(ctx, e.Remote, r.Directory+"/build.env", envFile(r.Env)); err != nil {
 		return err
 	}
-	if registry != "" && user != "" {
-		auth := map[string]any{"auths": map[string]any{registry: map[string]string{"auth": base64.StdEncoding.EncodeToString([]byte(user + ":" + password))}}}
-		b, _ := json.Marshal(auth)
-		if err := Write(ctx, e.Remote, r.Directory+"/auth/config.json", b); err != nil {
-			return err
-		}
+	if err := e.command(ctx, "mkdir", "-p", r.Directory+"/auth"); err != nil {
+		return err
 	}
-	defer e.command(context.WithoutCancel(ctx), "rm", "-f", r.Directory+"/auth/config.json", r.Directory+"/build.env")
+	if err := e.command(ctx, "chmod", "700", r.Directory+"/auth"); err != nil {
+		return err
+	}
+	auths := map[string]any{}
+	for host, credential := range registries {
+		auths[model.RegistryAuthKey(host)] = map[string]string{"auth": base64.StdEncoding.EncodeToString([]byte(credential.Username + ":" + credential.Password))}
+	}
+	b, _ := json.Marshal(map[string]any{"auths": auths})
+	if err := Write(ctx, e.Remote, r.Directory+"/auth/config.json", b); err != nil {
+		return err
+	}
 	for name, value := range r.BuildSecrets {
 		if !model.ValidEnv(name) {
 			return errors.New("invalid build secret ID")
 		}
+		defer e.cleanupTemporary(ctx, r.Directory+"/secret-"+name)
 		if err := Write(ctx, e.Remote, r.Directory+"/secret-"+name, []byte(value)); err != nil {
 			return err
 		}
-		defer e.command(context.WithoutCancel(ctx), "rm", "-f", r.Directory+"/secret-"+name)
 	}
 	if r.App.Engine == "dockerfile" {
 		tag := "shipyard/" + r.AppID + ":" + r.ID
@@ -395,12 +418,21 @@ func (e *Engine) Start(ctx context.Context, r *model.Release) error {
 }
 
 type container struct {
-	ID     string
-	Config struct{ Labels map[string]string }
-	State  struct {
-		Status   string
-		ExitCode int
-		Health   *struct{ Status string }
+	RestartCount int
+	ID           string
+	Config       struct{ Labels map[string]string }
+	State        struct {
+		OOMKilled bool
+		Error     string
+		Status    string
+		ExitCode  int
+		Health    *struct {
+			Status string
+			Log    []struct {
+				ExitCode int
+				Output   string
+			}
+		}
 	}
 	NetworkSettings struct {
 		Networks map[string]struct {
@@ -491,6 +523,7 @@ func (e *Engine) Healthy(ctx context.Context, r model.Release) error {
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeout)*time.Second)
 	defer cancel()
 	var last error
+	lastMessage := ""
 	for {
 		containers, err := e.inspect(ctx, r)
 		healthy := err == nil
@@ -510,7 +543,11 @@ func (e *Engine) Healthy(ctx context.Context, r model.Release) error {
 			}
 			if c.State.Status != "running" || c.State.Health != nil && c.State.Health.Status != "healthy" {
 				healthy = false
-				last = fmt.Errorf("container %s is not healthy", c.ID[:12])
+				message := fmt.Sprintf("%sstate=%s exit=%d restarts=%d OOM=%t", containerLabel(c), c.State.Status, c.State.ExitCode, c.RestartCount, c.State.OOMKilled)
+				if c.State.Health != nil {
+					message += " health=" + c.State.Health.Status
+				}
+				last = errors.New(message)
 			}
 		}
 		if healthy && e.Dial != nil {
@@ -558,13 +595,19 @@ func (e *Engine) Healthy(ctx context.Context, r model.Release) error {
 						return errors.New("SSH server disallows forwarding to container addresses; permit local TCP forwarding to Docker bridge subnets")
 					}
 					healthy = false
-					last = err
+					last = fmt.Errorf("service %s readiness %s%s: %w", t.Service, address, probe.Path, err)
 					break
 				}
 			}
 		}
 		if healthy {
 			return nil
+		}
+		if last != nil && last.Error() != lastMessage {
+			lastMessage = last.Error()
+			if e.Log != nil {
+				fmt.Fprintf(e.Log, "Waiting for readiness: %s\n", lastMessage)
+			}
 		}
 		select {
 		case <-ctx.Done():

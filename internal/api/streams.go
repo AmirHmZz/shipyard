@@ -69,7 +69,7 @@ func (a *API) events(w http.ResponseWriter, r *http.Request) {
 		if e != nil {
 			return
 		}
-		finished := current.State == "healthy" || current.State == "failed" || current.State == "recovery_failed"
+		finished := current.State == "healthy" || current.State == "failed" || current.State == "recovery_failed" || current.State == "cancelled"
 		// Drain retained batches before announcing completion. Clients close the
 		// EventSource when they receive the final status.
 		if finished && len(events) == 500 {

@@ -14,6 +14,25 @@ function object(properties, required = Object.keys(properties)) {
   };
 }
 const schemas = {
+  RegistryConfiguration: object({
+    hostname: {
+      type: "string",
+      description:
+        "Registry hostname and optional port, without scheme or image path. Docker Hub aliases normalize to docker.io.",
+    },
+    username: str,
+  }),
+  ApplicationRuntime: object(
+    {
+      status: str,
+      error: str,
+      releaseId: str,
+      commit: str,
+      containers: { type: "array", items: str },
+      targets: { type: "array", items: obj },
+    },
+    ["status"],
+  ),
   HTTPReadinessCheck: object({
     service: str,
     port: { type: "integer", minimum: 1, maximum: 65535 },
@@ -216,7 +235,7 @@ const schemas = {
     data: {
       ...obj,
       description:
-        "Kind-specific configuration. Application readiness and preview settings use ApplicationChecks. Server resources use ServerConfiguration; connection and daemonId are managed by Shipyard.",
+        "Kind-specific configuration. Registry resources use RegistryConfiguration and encrypted secrets.password, with administrator-managed team grants and automatic image authentication. Application readiness and preview settings use ApplicationChecks. Server resources use ServerConfiguration; connection and daemonId are managed by Shipyard.",
     },
     secretKeys: { type: "array", items: str },
     variables: { type: "object", additionalProperties: str },
@@ -251,7 +270,11 @@ const schemas = {
     {
       id: str,
       applicationId: str,
-      state: str,
+      state: {
+        type: "string",
+        description:
+          "Deployment state, including terminal healthy, failed, recovery_failed and cancelled.",
+      },
       phase: str,
       commit: str,
       error: str,
@@ -953,7 +976,8 @@ add(
 add(
   "/applications/{id}/runtime",
   "get",
-  "Active release, containers and ports",
+  "Application status, including stopping/stopped/stop_failed without an active release",
+  ref("ApplicationRuntime"),
 );
 for (const action of ["deploy", "rollback", "action", "approve-preview"])
   add(
@@ -986,6 +1010,13 @@ for (const action of ["deploy", "rollback", "action", "approve-preview"])
       : obj,
   );
 add("/applications/{id}/releases", "get", "Retained releases", array(obj));
+paths["/applications/{id}/action"].post.summary =
+  "Start, restart, or durably stop an application. Stop cancels deployment work and pauses automatic deployment until explicit resume.";
+paths["/applications/{id}/action"].post.responses[202] = {
+  description:
+    "Stop accepted; poll application runtime until stopped or stop_failed",
+  content: { "application/json": { schema: object({ ok: bool }) } },
+};
 add(
   "/applications/{id}/metrics",
   "get",
