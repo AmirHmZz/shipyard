@@ -1,8 +1,11 @@
 import type { ComponentProps } from "react";
-import { Input } from "./input";
+
 import { cn } from "@/lib/utils";
 
-export function InputGroup({ className, ...props }: ComponentProps<"div">) {
+import { Input } from "./input";
+
+export type InputGroupProps = ComponentProps<"div">;
+export function InputGroup({ className, ...props }: InputGroupProps) {
   return (
     <div
       data-slot="input-group"
@@ -15,10 +18,8 @@ export function InputGroup({ className, ...props }: ComponentProps<"div">) {
     />
   );
 }
-export function InputGroupInput({
-  className,
-  ...props
-}: ComponentProps<typeof Input>) {
+export type InputGroupInputProps = ComponentProps<typeof Input>;
+export function InputGroupInput({ className, ...props }: InputGroupInputProps) {
   return (
     <Input
       data-slot="input-group-control"
@@ -30,11 +31,14 @@ export function InputGroupInput({
     />
   );
 }
+export type InputGroupAddonProps = ComponentProps<"div"> & {
+  align?: "inline-start" | "inline-end";
+};
 export function InputGroupAddon({
   className,
   align = "inline-start",
   ...props
-}: ComponentProps<"div"> & { align?: "inline-start" | "inline-end" }) {
+}: InputGroupAddonProps) {
   return (
     <div
       data-slot="input-group-addon"
@@ -47,9 +51,7 @@ export function InputGroupAddon({
     />
   );
 }
-export function InputGroupText({
-  className,
-  ...props
-}: ComponentProps<"span">) {
+export type InputGroupTextProps = ComponentProps<"span">;
+export function InputGroupText({ className, ...props }: InputGroupTextProps) {
   return <span className={cn("whitespace-nowrap", className)} {...props} />;
 }

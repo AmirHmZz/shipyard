@@ -1,4 +1,4 @@
-import { Empty } from "@/components/shared";
+import { Empty } from "@/components/Shared";
 
 export function NotFoundMainView() {
   return (

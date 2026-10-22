@@ -1,44 +1,39 @@
-import { resourceKeys } from "@/lib/query-keys";
-import { createGitWebhook } from "../services";
-import type { Status } from "../generics";
-import { CopyButton } from "@/components/shared";
+import { CopyValue } from "@/components/CopyValue";
 import { Button } from "@/components/ui/button";
-import { type Resource } from "@/lib/api";
-import { useQueryClient } from "@tanstack/react-query";
 
+import type { Status } from "../generics";
+import type { useCreateGitWebhook } from "../hooks";
+
+export type GitWebhookConfigurationProps = {
+  provider: string;
+  status: { data: Status };
+  busy: boolean;
+  createWebhook: ReturnType<typeof useCreateGitWebhook>;
+  resetErrors: () => void;
+  secret: string;
+};
 export function GitWebhookConfiguration({
-  existing,
   provider,
   status,
   busy,
-  perform,
-  setSecret,
+  createWebhook,
+  resetErrors,
   secret,
-  client,
-}: {
-  existing: Resource;
-  provider: string;
-  status: { data: Status; refetch: () => Promise<unknown> };
-  busy: boolean;
-  perform: (action: () => Promise<void>) => Promise<void>;
-  setSecret: (secret: string) => void;
-  secret: string;
-  client: ReturnType<typeof useQueryClient>;
-}) {
+}: GitWebhookConfigurationProps) {
+  function generateSecret() {
+    if (busy) return;
+    resetErrors();
+    createWebhook.mutate();
+  }
   return (
     <section
       aria-label="Webhook configuration"
-      className="space-y-3 rounded-lg border p-4"
+      className="flex flex-col gap-3 rounded-lg border p-4"
     >
       <h3 className="text-sm font-medium">
         {provider === "gitea" ? "Manual webhook setup" : "GitHub App webhook"}
       </h3>
-      <div className="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:items-center">
-        <code className="w-full min-w-0 break-all text-xs sm:w-auto sm:flex-1">
-          {status.data.webhookUrl}
-        </code>
-        <CopyButton label="Copy webhook URL" value={status.data.webhookUrl} />
-      </div>
+      <CopyValue value={status.data.webhookUrl} label="Copy webhook URL" />
       <p className="text-xs text-muted-foreground">
         Events: push and pull_request. Use JSON payloads and the saved signing
         secret.
@@ -54,33 +49,19 @@ export function GitWebhookConfiguration({
             variant="outline"
             size="sm"
             disabled={busy}
-            onClick={() =>
-              void perform(async () => {
-                const v = await createGitWebhook(existing.id);
-                setSecret(v.secret);
-                await Promise.all([
-                  status.refetch(),
-                  client.invalidateQueries({ queryKey: resourceKeys.all }),
-                ]);
-              })
-            }
+            onClick={generateSecret}
           >
             {status.data.signingSecretConfigured
               ? "Replace signing secret"
               : "Generate signing secret"}
           </Button>
           {secret && (
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <p className="text-xs text-muted-foreground">
                 Copy now; this secret is shown once. Update the Gitea webhook
                 after replacing it.
               </p>
-              <div className="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:items-center">
-                <code className="w-full min-w-0 break-all text-xs sm:w-auto sm:flex-1">
-                  {secret}
-                </code>
-                <CopyButton label="Copy signing secret" value={secret} />
-              </div>
+              <CopyValue value={secret} label="Copy signing secret" />
             </div>
           )}
         </>

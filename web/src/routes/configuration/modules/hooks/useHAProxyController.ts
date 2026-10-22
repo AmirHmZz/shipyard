@@ -1,11 +1,23 @@
-import { saveHAProxySettings } from "../services";
-import { useHAProxySettings } from "./useHAProxySettings";
-import type { Settings, Draft } from "../generics";
-import { errorMessage, type Resource } from "@/lib/api";
+import { useMemo, useReducer } from "react";
+
+import type { Resource } from "@/lib/api/types";
+import type { DraftRow } from "@/lib/draft-rows";
+
+import { toastValidationError } from "@/lib/api/toaster";
+import { describeError } from "@/lib/api/translate-error";
 import { useConfigurationChanges } from "@/lib/configuration-state";
-import { draftRow, type DraftRow } from "@/lib/draft-rows";
-import { haproxySettingsSchema } from "@/lib/validation";
-import { useEffect, useMemo, useState } from "react";
+import { draftRow } from "@/lib/draft-rows";
+
+import type { Settings, Draft } from "../generics";
+
+import {
+  haproxySettingsSchema,
+  initialHAProxyDraftState,
+  haproxyDraftReducer,
+} from "../generics";
+import { haProxyOperation, isStaleHAProxyDraft } from "../utils";
+import { useHAProxySettings } from "./useHAProxySettings";
+import { useSaveHAProxySettings } from "./useSaveHAProxySettings";
 
 export function settingsDraft(
   settings: Pick<Settings, "version" | "bindings">,
@@ -23,11 +35,17 @@ export function settingsDraft(
 
 export function useHAProxyController(server: Resource) {
   const changes = useConfigurationChanges();
-  const [editedDraft, setDraft] = useState<Draft | null>(null);
-  const [job, setJob] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
+  const [state, dispatch] = useReducer(
+    haproxyDraftReducer,
+    initialHAProxyDraftState,
+  );
+  const { editedDraft } = state;
+  const saveSettings = useSaveHAProxySettings(server.id);
+  const busy = saveSettings.isPending;
+  const job = state.trackingJob ? saveSettings.data?.jobId : undefined;
+  const localError = saveSettings.error
+    ? describeError(saveSettings.error)
+    : "";
   const q = useHAProxySettings(server);
   const bindings = q.data?.bindings;
   const version = q.data?.version;
@@ -38,105 +56,66 @@ export function useHAProxyController(server: Resource) {
         : null,
     [bindings, version],
   );
-  const draft = editedDraft ?? savedDraft;
-  const applyId = q.data?.apply?.id;
-  const applyState = q.data?.apply?.state;
-  const applyError = q.data?.apply?.error;
-  const lastJobId = q.data?.lastJobId;
-  const queryVersion = q.data?.version;
-  const queryBindings = q.data?.bindings;
-  useEffect(() => {
-    if (
-      !job ||
-      applyId !== job ||
-      !["done", "failed"].includes(applyState || "")
-    )
-      return;
-    setJob(null);
-    if (
-      applyState === "done" &&
-      lastJobId === job &&
-      queryVersion !== undefined &&
-      queryBindings
-    ) {
-      setDraft({
-        version: queryVersion,
-        bindings: settingsDraft({
-          version: queryVersion,
-          bindings: queryBindings,
-        }).bindings,
-      });
-      setSuccess(true);
-    } else setError(applyError || "HAProxy settings could not be applied.");
-  }, [
+  const { jobDone, success, error, pending } = haProxyOperation(
+    q.data,
     job,
-    applyId,
-    applyState,
-    applyError,
-    lastJobId,
-    queryVersion,
-    queryBindings,
-  ]);
-  const pending =
-    busy ||
-    !!job ||
-    (!!q.data?.apply && ["queued", "running"].includes(q.data.apply.state));
-  const stale =
-    !!draft &&
-    !!q.data &&
-    (draft.version !== q.data.version ||
-      Object.keys(draft.bindings).some(
-        (id) => !q.data.frontends.some((frontend) => frontend.id === id),
-      ));
-  const update = (id: string, values: DraftRow<{ value: string }>[] | null) => {
-    setDraft((current) => {
-      current ??= draft;
-      if (!current) return current;
-      const bindings = { ...current.bindings };
-      if (values === null) delete bindings[id];
-      else bindings[id] = values;
-      return { ...current, bindings };
+    busy,
+    localError,
+  );
+  const draft = success ? savedDraft : (editedDraft ?? savedDraft);
+  const stale = isStaleHAProxyDraft(draft, q.data);
+  const saveDisabled =
+    !draft ||
+    !!q.error ||
+    pending ||
+    stale ||
+    Object.values(draft?.bindings || {}).some(
+      (addresses) =>
+        !addresses.length || addresses.some((address) => !address.value.trim()),
+    );
+  function update(id: string, values: DraftRow<{ value: string }>[] | null) {
+    const current = success ? savedDraft : (editedDraft ?? draft);
+    if (!current) return;
+    const bindings = { ...current.bindings };
+    if (values === null) delete bindings[id];
+    else bindings[id] = values;
+    dispatch({
+      type: "edited",
+      draft: { ...current, bindings },
+      stopTracking: jobDone,
     });
-    setSuccess(false);
-  };
-  async function save() {
+  }
+  function reloadSaved() {
+    if (!q.data) return;
+    saveSettings.reset();
+    dispatch({ type: "reloaded", draft: settingsDraft(q.data) });
+  }
+  function save() {
     if (!draft) return;
-    setBusy(true);
-    setError("");
-    setSuccess(false);
-    try {
-      const result = await saveHAProxySettings(
-        server.id,
-        haproxySettingsSchema.parse({
-          version: draft.version,
-          bindings: Object.fromEntries(
-            Object.entries(draft.bindings).map(([id, rows]) => [
-              id,
-              rows.map((row) => row.value),
-            ]),
-          ),
-        }),
-      );
-      setJob(result.jobId);
-      changes.saved();
-      await q.refetch();
-    } catch (err) {
-      setError(errorMessage(err));
-    } finally {
-      setBusy(false);
+    if (pending) return;
+    saveSettings.reset();
+    dispatch({ type: "save_started", draft });
+    const parsed = haproxySettingsSchema.safeParse({
+      version: draft.version,
+      bindings: Object.fromEntries(
+        Object.entries(draft.bindings).map(([id, rows]) => [
+          id,
+          rows.map((row) => row.value),
+        ]),
+      ),
+    });
+    if (!parsed.success) {
+      toastValidationError(parsed.error);
+      return;
     }
+    saveSettings.mutate(parsed.data, {
+      onSuccess: () => changes.saved(),
+    });
   }
 
   return {
-    q,
-    draft,
-    setDraft,
-    pending,
-    stale,
-    success,
-    error,
-    setError,
-    update,
-    save,
+    state: { draft },
+    derived: { q, pending, stale, success, error, saveDisabled },
+    handlers: { reloadSaved, update, save },
   };
 }

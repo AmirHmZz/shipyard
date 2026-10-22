@@ -1,12 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { normalizeApplicationSettings } from "./application-settings";
-import { httpReadinessChecksSchema, previewRoutingSchema } from "./validation";
+
 import type { Resource } from "@/lib/api/types";
 
-const route = (service: string, port: number) =>
-  ({
+import {
+  httpReadinessChecksSchema,
+  previewRoutingSchema,
+} from "@/lib/schemas/application";
+
+import { normalizeApplicationSettings } from "./application-settings";
+
+function route(service: string, port: number) {
+  return {
     data: { service, targetPort: port, protocol: "https" },
-  }) as unknown as Resource;
+  } as unknown as Resource;
+}
 describe("application configuration compatibility", () => {
   it("preserves effective legacy checks and removes generic port fields from writes", () => {
     const result = normalizeApplicationSettings(

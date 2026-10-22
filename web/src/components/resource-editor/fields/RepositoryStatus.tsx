@@ -1,27 +1,26 @@
+import type { Options } from "@/components/resource-forms/Options";
+
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { errorMessage } from "@/lib/api";
-import type { Options } from "@/components/resource-forms/options";
+import { describeError } from "@/lib/api/translate-error";
 
-export function RepositoryStatus({
-  repos,
-  connected,
-}: {
+export type RepositoryStatusProps = {
   repos: Options["repos"];
   connected: boolean;
-}) {
+};
+export function RepositoryStatus({ repos, connected }: RepositoryStatusProps) {
+  function handleButtonClick() {
+    return void repos.refetch();
+  }
+
   return (
     <>
       {" "}
       {repos.isError && (
         <Alert variant="destructive">
           <AlertDescription>
-            {errorMessage(repos.error)}
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => void repos.refetch()}
-            >
+            {describeError(repos.error)}
+            <Button type="button" variant="outline" onClick={handleButtonClick}>
               Retry repositories
             </Button>
           </AlertDescription>

@@ -1,24 +1,29 @@
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+
+import { expect, test } from "@playwright/test";
 
 async function fixture(page: Page) {
-  const resource = (
+  function resource(
     id: string,
     kind: string,
     parentId = "",
     data: Record<string, unknown> = {},
-  ) => ({
-    id,
-    kind,
-    parentId,
-    data,
-    name: id,
-    teamId: "team",
-    version: 1,
-    canWrite: true,
-    secretKeys: [],
-    createdAt: "2026-10-18T00:00:00Z",
-    updatedAt: "2026-10-18T00:00:00Z",
-  });
+  ) {
+    return {
+      variables: {},
+      id,
+      kind,
+      parentId,
+      data,
+      name: id,
+      teamId: "team",
+      version: 1,
+      canWrite: true,
+      secretKeys: [],
+      createdAt: "2026-10-18T00:00:00Z",
+      updatedAt: "2026-10-18T00:00:00Z",
+    };
+  }
   const resources = [
     resource("team", "team"),
     resource("project", "project", "team"),
@@ -37,6 +42,7 @@ async function fixture(page: Page) {
     resource("git", "git", "", { provider: "gitea" }),
   ];
   const state = {
+    status: "running",
     containers: ["first", "second"],
     runtimeRequests: 0,
     releases: 0,
@@ -54,6 +60,7 @@ async function fixture(page: Page) {
       return route.fulfill({
         json: {
           user: {
+            totp: false,
             id: "user",
             name: "User",
             email: "user@example.com",
@@ -77,6 +84,7 @@ async function fixture(page: Page) {
             name: "example.com",
             content: state.content,
             ttl: 120,
+            proxied: false,
           },
         ],
       });
@@ -88,12 +96,16 @@ async function fixture(page: Page) {
         });
       state.writes.push(path);
       state.payloads.push(request.postDataJSON());
-      return route.fulfill({ json: {} });
+      return route.fulfill({
+        json: resources.find((resource) => resource.id === "app"),
+      });
     }
     if (path.endsWith("/published-ports")) {
       state.writes.push(path);
       state.payloads.push(request.postDataJSON());
-      return route.fulfill({ json: {} });
+      return route.fulfill({
+        json: resources.find((resource) => resource.id === "app"),
+      });
     }
     if (path.endsWith("/services"))
       return route.fulfill({
@@ -120,6 +132,7 @@ test("framework routes survive direct loads, refreshes, and session changes", as
       json: signedIn
         ? {
             user: {
+              totp: false,
               id: "user",
               name: "User",
               email: "user@example.com",
@@ -388,7 +401,8 @@ test("server charts load only where a metrics chart is rendered", async ({
     route.fulfill({
       json: [
         {
-          timestamp: "2026-10-18T00:00:00Z",
+          resourceId: "server",
+          at: "2026-10-18T00:00:00Z",
           online: true,
           cpu: 10,
           memory: 20,
@@ -396,7 +410,8 @@ test("server charts load only where a metrics chart is rendered", async ({
           containers: [],
         },
         {
-          timestamp: "2026-10-18T00:00:30Z",
+          resourceId: "server",
+          at: "2026-10-18T00:00:30Z",
           online: true,
           cpu: 15,
           memory: 20,

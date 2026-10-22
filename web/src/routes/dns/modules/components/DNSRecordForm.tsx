@@ -1,128 +1,120 @@
-import { DialogFooter } from "@/components/configuration-surface";
+import type { useNavigate } from "react-router";
+
+import type { DNSRecord, Resource } from "@/lib/api/types";
+
+import { DialogFooter } from "@/components/ConfigurationSurface";
+import { FormField } from "@/components/FormField";
+import { InputField } from "@/components/InputField";
+import { SelectControl } from "@/components/SelectControl";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { type DNSRecord, type Resource } from "@/lib/api";
-import { useNavigate } from "react-router";
 
+import type { DNSRecordFormValues } from "../generics";
+
+import { useDNSRecordForm } from "../hooks";
+
+export type DNSRecordFormProps = {
+  edit: DNSRecord;
+  setEdit: (value: DNSRecord) => void;
+  extra: string;
+  setExtra: (value: string) => void;
+  busy: boolean;
+  pendingRecord: DNSRecordFormValues | undefined;
+  save: () => void;
+  navigate: ReturnType<typeof useNavigate>;
+  zone: Resource;
+};
 export function DNSRecordForm({
   edit,
   setEdit,
   extra,
   setExtra,
   busy,
+  pendingRecord,
   save,
   navigate,
   zone,
-}: {
-  edit: DNSRecord;
-  setEdit: (value: DNSRecord) => void;
-  extra: string;
-  setExtra: (value: string) => void;
-  busy: boolean;
-  save: () => Promise<void>;
-  navigate: ReturnType<typeof useNavigate>;
-  zone: Resource;
-}) {
+}: DNSRecordFormProps) {
+  const { handlers } = useDNSRecordForm({ edit, setEdit, setExtra, save });
+  const {
+    handleSubmit,
+    changeType,
+    changeName,
+    changeContent,
+    changeTTL,
+    changePriority,
+    changeProxy,
+    changeExtra,
+  } = handlers;
+  function cancel() {
+    navigate("/dns/" + zone.id);
+  }
   return (
-    <form
-      className="space-y-4"
-      onSubmit={(e) => {
-        e.preventDefault();
-        void save();
-      }}
-    >
+    <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
       <Label>Type</Label>
-      <Select
+      <SelectControl
         value={edit.type}
-        onValueChange={(v) => setEdit({ ...edit, type: v })}
-      >
-        <SelectTrigger className="w-full">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {["A", "AAAA", "CNAME", "TXT", "MX", "NS", "SRV", "CAA"].map((t) => (
-            <SelectItem key={t} value={t}>
-              {t}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <div className="space-y-2">
-        <Label>Name</Label>
-        <Input
-          value={edit.name}
-          onChange={(e) => setEdit({ ...edit, name: e.target.value })}
-          required
-        />
-      </div>
-      <div className="space-y-2">
-        <Label>Content</Label>
-        <Input
-          value={edit.content}
-          onChange={(e) => setEdit({ ...edit, content: e.target.value })}
-        />
-      </div>
+        onValueChange={changeType}
+        options={["A", "AAAA", "CNAME", "TXT", "MX", "NS", "SRV", "CAA"]}
+        triggerProps={{ className: "w-full" }}
+      />
+      <InputField
+        label={<>Name</>}
+        labelProps={{}}
+        inputProps={{ value: edit.name, onChange: changeName, required: true }}
+      />
+      <InputField
+        label={<>Content</>}
+        labelProps={{}}
+        inputProps={{ value: edit.content, onChange: changeContent }}
+      />
       <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>TTL (1 = automatic)</Label>
-          <Input
-            type="number"
-            value={edit.ttl}
-            onChange={(e) => setEdit({ ...edit, ttl: Number(e.target.value) })}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label>Priority</Label>
-          <Input
-            type="number"
-            value={edit.priority ?? ""}
-            onChange={(e) =>
-              setEdit({
-                ...edit,
-                priority: e.target.value ? Number(e.target.value) : undefined,
-              })
-            }
-          />
-        </div>
+        <InputField
+          label={<>TTL (1 = automatic)</>}
+          labelProps={{}}
+          inputProps={{ type: "number", value: edit.ttl, onChange: changeTTL }}
+        />
+        <InputField
+          label={<>Priority</>}
+          labelProps={{}}
+          inputProps={{
+            type: "number",
+            value: edit.priority ?? "",
+            onChange: changePriority,
+          }}
+        />
       </div>
       <div className="flex items-center justify-between">
         <Label>Provider proxy enabled</Label>
-        <Switch
-          checked={edit.proxied}
-          onCheckedChange={(v) => setEdit({ ...edit, proxied: v })}
-        />
+        <Switch checked={edit.proxied} onCheckedChange={changeProxy} />
       </div>
-      <div className="space-y-2">
-        <Label>Provider value / structured data (JSON)</Label>
+      <FormField
+        label={<>Provider value / structured data (JSON)</>}
+        labelProps={{}}
+      >
         <Textarea
           className="font-mono text-xs"
           value={extra}
-          onChange={(e) => setExtra(e.target.value)}
+          onChange={changeExtra}
         />
         <p className="text-xs text-muted-foreground">
           Use this for SRV/CAA and ArvanCloud multi-value records.
         </p>
-      </div>
+      </FormField>
       <DialogFooter>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => navigate(`/dns/${zone.id}`)}
-        >
+        <Button type="button" variant="outline" onClick={cancel}>
           Cancel
         </Button>
-        <Button disabled={busy}>Save record</Button>
+        <Button disabled={busy}>{busy && <Spinner />}Save record</Button>
       </DialogFooter>
+      {busy && pendingRecord && (
+        <p role="status" className="text-xs text-muted-foreground">
+          Saving {pendingRecord.type} record {pendingRecord.name}…
+        </p>
+      )}
     </form>
   );
 }

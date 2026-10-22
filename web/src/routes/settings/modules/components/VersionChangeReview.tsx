@@ -1,7 +1,9 @@
-import { applyUpdate } from "../services";
-import type { Plan } from "../generics";
-import { StateBadge } from "@/components/shared";
-import { ReleaseNotes } from "./ReleaseNotes";
+import type * as React from "react";
+import type { FormEvent } from "react";
+
+import { FormField } from "@/components/FormField";
+import { StateBadge } from "@/components/Shared";
+import { TableHeadings } from "@/components/TableHeadings";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,12 +14,31 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { updateFormSchema } from "@/lib/validation";
+import { toastValidationError } from "@/lib/api/toaster";
 
+import type { Plan } from "../generics";
+import type { useApplyUpdate } from "../hooks";
+
+import { updateFormSchema } from "../generics";
+import { ReleaseNotes } from "./ReleaseNotes";
+
+export type VersionChangeReviewProps = {
+  plan: Plan;
+  pass: string;
+  setPass: (value: string) => void;
+  confirm: string;
+  setConfirm: (value: string) => void;
+  approve: boolean;
+  setApprove: (value: boolean) => void;
+  busy: boolean;
+  blocked: boolean;
+  apply: ReturnType<typeof useApplyUpdate>;
+  resetErrors: () => void;
+  onApplied: () => void;
+};
 export function VersionChangeReview({
   plan,
   pass,
@@ -28,23 +49,42 @@ export function VersionChangeReview({
   setApprove,
   busy,
   blocked,
-  action,
-  setPlan,
-}: {
-  plan: Plan;
-  pass: string;
-  setPass: (value: string) => void;
-  confirm: string;
-  setConfirm: (value: string) => void;
-  approve: boolean;
-  setApprove: (value: boolean) => void;
-  busy: boolean;
-  blocked: boolean;
-  action: (fn: () => Promise<unknown>) => Promise<void>;
-  setPlan: (value: Plan | null) => void;
-}) {
+  apply,
+  resetErrors,
+  onApplied,
+}: VersionChangeReviewProps) {
+  function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    return setPass(e.target.value);
+  }
+  function handleInputChange2(e: React.ChangeEvent<HTMLInputElement>) {
+    return setConfirm(e.target.value);
+  }
+
+  function submitUpdate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (busy || blocked) return;
+    resetErrors();
+    const parsed = updateFormSchema(
+      plan.target.version,
+      plan.destructive,
+    ).safeParse({
+      planId: plan.id,
+      passphrase: pass,
+      confirmation: confirm,
+      approveDataLoss: approve,
+    });
+    if (!parsed.success) {
+      toastValidationError(parsed.error);
+      return;
+    }
+    apply.mutate(parsed.data, {
+      onSuccess: () => {
+        onApplied();
+      },
+    });
+  }
   return (
-    <section className="space-y-4 rounded-lg border p-4">
+    <section className="flex flex-col gap-4 rounded-lg border p-4">
       <h3 className="font-medium">
         {plan.current.version} → {plan.target.version}
       </h3>
@@ -55,10 +95,13 @@ export function VersionChangeReview({
       {plan.migrations.steps.length ? (
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Migration</TableHead>
-              <TableHead>Effect</TableHead>
-            </TableRow>
+            <TableHeadings
+              columns={[
+                { id: "migration", label: <>Migration</> },
+                { id: "effect", label: <>Effect</> },
+              ]}
+              rowProps={{}}
+            />
           </TableHeader>
           <TableBody>
             {plan.migrations.steps.map((m) => (
@@ -88,26 +131,11 @@ export function VersionChangeReview({
           </AlertDescription>
         </Alert>
       )}
-      <form
-        className="space-y-4"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void action(async () => {
-            await applyUpdate(
-              updateFormSchema(plan.target.version, plan.destructive).parse({
-                planId: plan.id,
-                passphrase: pass,
-                confirmation: confirm,
-                approveDataLoss: approve,
-              }),
-            );
-            setPass("");
-            setPlan(null);
-          });
-        }}
-      >
-        <div className="space-y-2">
-          <Label htmlFor="upgrade-passphrase">Backup passphrase</Label>
+      <form className="flex flex-col gap-4" onSubmit={submitUpdate}>
+        <FormField
+          label={<>Backup passphrase</>}
+          labelProps={{ htmlFor: "upgrade-passphrase" }}
+        >
           <Input
             id="upgrade-passphrase"
             type="password"
@@ -115,13 +143,13 @@ export function VersionChangeReview({
             minLength={12}
             required
             value={pass}
-            onChange={(e) => setPass(e.target.value)}
+            onChange={handleInputChange}
           />
           <p className="text-sm text-muted-foreground">
             Keep this passphrase. You need it to restore the encrypted
             pre-change backup.
           </p>
-        </div>
+        </FormField>
         {plan.destructive && (
           <>
             <div className="flex items-center gap-3">
@@ -140,11 +168,12 @@ export function VersionChangeReview({
             <Input
               id="upgrade-confirm"
               value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
+              onChange={handleInputChange2}
             />
           </>
         )}
         <Button
+          className="self-start"
           variant={plan.destructive ? "destructive" : "default"}
           disabled={
             busy ||
@@ -153,7 +182,7 @@ export function VersionChangeReview({
             (plan.destructive && (!approve || confirm !== plan.target.version))
           }
         >
-          {busy && <Spinner className="size-4 " />}Back up & apply{" "}
+          {busy && <Spinner className="size-4" />}Back up & apply{" "}
           {plan.target.version}
         </Button>
       </form>

@@ -1,11 +1,16 @@
-import { useMutation } from "@tanstack/react-query";
-import { createInvitation } from "../services";
+import { useApiMutation } from "@/lib/api/use-api-mutation";
+import { apiPath } from "@/lib/paths";
 
-type Invitation = Parameters<typeof createInvitation>[1];
+import type { Invitation } from "../generics";
+
+import { invitationResultResponseSchema } from "../generics";
 
 export function useCreateInvitation(teamId: string) {
-  return useMutation({
-    mutationFn: (invitation: Invitation) =>
-      createInvitation(teamId, invitation),
+  return useApiMutation({
+    method: "POST",
+    path: apiPath`/teams/${teamId}/invitations`,
+    body: (invitation: Invitation) => invitation,
+    schema: invitationResultResponseSchema,
+    meta: { successMessage: "Invitation created" },
   });
 }

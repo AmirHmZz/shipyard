@@ -1,17 +1,32 @@
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
 
-async function setup(page: Page, { writable = true, stopped = false } = {}) {
-  const resource = (id: string, kind: string, parentId = "", data = {}) => ({
-    id,
-    kind,
-    parentId,
-    name: id === "app" ? "Example app" : id,
-    teamId: "team",
-    data,
-    version: 7,
-    secretKeys: [],
-    canWrite: writable,
-  });
+import { expect, test } from "@playwright/test";
+
+async function setup(
+  page: Page,
+  {
+    writable = true,
+    stopped = false,
+    activeRelease = true,
+    delayedStop = false,
+  } = {},
+) {
+  function resource(id: string, kind: string, parentId = "", data = {}) {
+    return {
+      variables: {},
+      createdAt: "2026-10-19T00:00:00Z",
+      updatedAt: "2026-10-19T00:00:00Z",
+      id,
+      kind,
+      parentId,
+      name: id === "app" ? "Example app" : id,
+      teamId: "team",
+      data,
+      version: 7,
+      secretKeys: [],
+      canWrite: writable,
+    };
+  }
   let resources = [
     resource("team", "team"),
     resource("project", "project", "team"),
@@ -23,20 +38,22 @@ async function setup(page: Page, { writable = true, stopped = false } = {}) {
       serverId: "host",
     }),
   ];
-  const deployment = (id: string, state = "healthy") => ({
-    id,
-    applicationId: "app",
-    state,
-    phase: "complete",
-    commit: "compose:abc",
-    error: "",
-    releaseId: state === "healthy" ? id : "",
-    rollbackId: "",
-    createdAt: "2026-10-18T00:00:00Z",
-    updatedAt: "2026-10-18T00:00:00Z",
-    deleting: false,
-    deletionError: "",
-  });
+  function deployment(id: string, state = "healthy") {
+    return {
+      id,
+      applicationId: "app",
+      state,
+      phase: "complete",
+      commit: "compose:abc",
+      error: "",
+      releaseId: state === "healthy" ? id : "",
+      rollbackId: "",
+      createdAt: "2026-10-18T00:00:00Z",
+      updatedAt: "2026-10-18T00:00:00Z",
+      deleting: false,
+      deletionError: "",
+    };
+  }
   let deployments = [
     deployment("active"),
     deployment("old"),
@@ -44,6 +61,11 @@ async function setup(page: Page, { writable = true, stopped = false } = {}) {
   ];
   const requests: { path: string; body: Record<string, unknown> }[] = [];
   let fail = false;
+  let deletionGate: Promise<void> | undefined;
+  let releaseDeletionCallback: (() => void) | undefined;
+  function releaseDeletion() {
+    releaseDeletionCallback?.();
+  }
   let runtimeStatus = stopped ? "stopped" : "running";
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -52,7 +74,13 @@ async function setup(page: Page, { writable = true, stopped = false } = {}) {
     if (path === "/auth/me")
       return route.fulfill({
         json: {
-          user: { id: "user", name: "Operator", admin: false },
+          user: {
+            email: "user@example.test",
+            totp: false,
+            id: "user",
+            name: "Operator",
+            admin: false,
+          },
           csrf: "csrf",
         },
       });
@@ -61,7 +89,7 @@ async function setup(page: Page, { writable = true, stopped = false } = {}) {
       return route.fulfill({
         json: {
           status: runtimeStatus,
-          releaseId: "active",
+          releaseId: activeRelease ? "active" : undefined,
           containers: ["container"],
         },
       });
@@ -70,7 +98,12 @@ async function setup(page: Page, { writable = true, stopped = false } = {}) {
       return route.fulfill({
         json: deployments
           .filter((d) => d.state === "healthy" && !d.deleting)
-          .map((d) => ({ id: d.id, commit: d.commit, createdAt: d.createdAt })),
+          .map((d) => ({
+            id: d.id,
+            commit: d.commit,
+            createdAt: d.createdAt,
+            images: {},
+          })),
       });
     if (path.endsWith("/metrics")) return route.fulfill({ json: [] });
     if (path.endsWith("/events"))
@@ -95,6 +128,7 @@ async function setup(page: Page, { writable = true, stopped = false } = {}) {
     ) {
       const body = request.postDataJSON() || {};
       requests.push({ path, body });
+      if (path.startsWith("/deployments/") && deletionGate) await deletionGate;
       if (fail)
         return route.fulfill({
           status: 409,
@@ -104,20 +138,48 @@ async function setup(page: Page, { writable = true, stopped = false } = {}) {
         deployments = [deployment("new", "queued"), ...deployments];
         return route.fulfill({ status: 202, json: { id: "new" } });
       }
-      if (path.endsWith("/action"))
-        runtimeStatus = body.action === "stop" ? "stopped" : "running";
+      if (path.endsWith("/action")) {
+        runtimeStatus =
+          body.action === "stop"
+            ? delayedStop
+              ? "stopping"
+              : "stopped"
+            : "running";
+        return route.fulfill({
+          status: body.action === "stop" ? 202 : 200,
+          json: { ok: true },
+        });
+      }
       if (path.startsWith("/deployments/"))
         deployments = deployments.map((d) =>
           d.id === path.split("/").at(-1) ? { ...d, deleting: true } : d,
         );
       if (path === "/resources/app")
         resources = resources.filter((r) => r.id !== "app");
-      return route.fulfill({ status: 202, json: { jobId: "job" } });
+      return route.fulfill({
+        status: 202,
+        json:
+          path === "/resources/app"
+            ? { ok: true, jobId: "job" }
+            : { jobId: "job" },
+      });
     }
     throw new Error(`Unexpected ${request.method()} ${path}`);
   });
   return {
     requests,
+    completeStop() {
+      runtimeStatus = "stopped";
+    },
+    holdDeletion() {
+      deletionGate = new Promise<void>((resolve) => {
+        releaseDeletionCallback = resolve;
+      });
+    },
+    releaseDeletion() {
+      releaseDeletion();
+      deletionGate = undefined;
+    },
     setFailure: (value: boolean) => {
       fail = value;
     },
@@ -134,6 +196,61 @@ async function setup(page: Page, { writable = true, stopped = false } = {}) {
 
 for (const theme of ["light", "dark"]) {
   test.describe(theme, () => {
+    test("Stop works without an active release and reports pending completion", async ({
+      page,
+    }) => {
+      const state = await setup(page, {
+        activeRelease: false,
+        delayedStop: true,
+      });
+      await page.goto("/applications/app");
+      await page.getByRole("button", { name: "Application actions" }).click();
+      await expect(
+        page.getByRole("menuitem", { name: "Restart", exact: true }),
+      ).toBeDisabled();
+      await page.getByRole("menuitem", { name: "Stop", exact: true }).click();
+      await expect(page.getByRole("dialog")).toContainText(
+        "Automatic deployments stay paused",
+      );
+      await page
+        .getByRole("dialog")
+        .getByRole("button", { name: "Confirm", exact: true })
+        .click();
+      await expect
+        .poll(() => state.requests.at(-1)?.body)
+        .toEqual({ action: "stop" });
+      await expect(page.getByText("stopping", { exact: true })).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: "Deploy", exact: true }),
+      ).toBeDisabled();
+      state.completeStop();
+      await expect(
+        page.getByText("Automatic deployments paused"),
+      ).toBeVisible();
+      await page.getByRole("button", { name: "Application actions" }).click();
+      await expect(
+        page.getByRole("menuitem", { name: "Start", exact: true }),
+      ).toBeDisabled();
+    });
+
+    test("failed startup retains service error output and cancellation closes the stream", async ({
+      page,
+    }) => {
+      await setup(page);
+      await page.route("**/api/v1/deployments/pending/events", (route) =>
+        route.fulfill({
+          contentType: "text/event-stream",
+          body: 'event: log\ndata: {"message":"[clickhouse/1 abcdef] Configuration error: invalid config"}\n\nevent: log\ndata: {"message":"[clickhouse/1 abcdef] state=restarting exit=78 restarts=4 OOM=false"}\n\nevent: status\ndata: {"state":"cancelled","error":"Deployment cancelled by Stop"}\n\n',
+        }),
+      );
+      await page.goto("/applications/app?tab=deployments&deployment=pending");
+      await expect(
+        page.getByText("Configuration error: invalid config", { exact: false }),
+      ).toBeVisible();
+      await expect(
+        page.getByText("state=restarting exit=78", { exact: false }),
+      ).toBeVisible();
+    });
     test.beforeEach(async ({ page }) => {
       await page.addInitScript(
         (value) => localStorage.setItem("shipyard-theme:v1", value),
@@ -271,10 +388,23 @@ for (const theme of ["light", "dark"]) {
       const dialog = page.getByRole("dialog");
       await expect(dialog).toContainText("retained rollback release");
       state.setFailure(true);
+      state.holdDeletion();
       await dialog
         .getByRole("button", { name: "Delete deployment", exact: true })
         .click();
+      const pendingRow = page.getByRole("row", { includeHidden: true }).nth(2);
+      await expect(pendingRow).toContainText("Deleting…");
+      await expect(
+        dialog.getByRole("button", { name: "Delete deployment", exact: true }),
+      ).toBeDisabled();
+      state.releaseDeletion();
       await expect(dialog).toContainText("Operation could not be queued");
+      await expect(pendingRow).not.toContainText("Deleting…");
+      await expect(
+        page
+          .locator("[data-sonner-toast]")
+          .filter({ hasText: "Operation could not be queued" }),
+      ).toHaveCount(1);
       state.setFailure(false);
       await dialog
         .getByRole("button", { name: "Delete deployment", exact: true })

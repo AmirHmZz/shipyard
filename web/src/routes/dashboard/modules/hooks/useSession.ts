@@ -1,12 +1,14 @@
+import { useApiQuery } from "@/lib/api/use-api-query";
+import { POLL_INTERVALS } from "@/lib/constants";
 import { sessionKeys } from "@/lib/query-keys";
-import { useQuery } from "@tanstack/react-query";
-import { getSession } from "../services";
+import { sessionOrSignedOutResponseSchema } from "@/lib/schemas/session";
 
 export function useSession() {
-  return useQuery({
+  return useApiQuery({
     queryKey: sessionKeys.all,
-    queryFn: () => getSession(),
+    path: "/auth/me",
+    schema: sessionOrSignedOutResponseSchema,
     retry: false,
-    refetchInterval: 60000,
+    refetchInterval: POLL_INTERVALS.session,
   });
 }

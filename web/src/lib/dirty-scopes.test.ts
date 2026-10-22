@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+
 import { createDirtyScopes } from "./dirty-scopes";
 
 describe("scoped navigation protection", () => {

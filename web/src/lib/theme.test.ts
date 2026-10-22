@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+
 import { readTheme, writeTheme } from "./theme";
 afterEach(() => vi.unstubAllGlobals());
 describe("optional theme persistence", () => {

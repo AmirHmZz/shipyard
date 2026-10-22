@@ -1,114 +1,76 @@
-import { ApplicationVolumes } from "./ApplicationVolumes";
-import { ApplicationTabList } from "./ApplicationTabList";
-import { deploymentKeys } from "@/lib/query-keys";
-import { createDeployment } from "../services";
-import {
-  useApplicationRuntime,
-  useApplicationMetrics,
-  useApplicationReleases,
-  useSelectedDeployment,
-  useRunApplicationAction,
-} from "../hooks";
-import { DeleteDeployment } from "./DeleteDeployment";
-import { ApplicationNetworking } from "./ApplicationNetworking";
-import { ApplicationPreviews } from "./ApplicationPreviews";
-import { ComposeSource } from "./ComposeSource";
-import { ConfigurationGuard } from "@/components/configuration-surface";
-import { Variables } from "@/components/variables";
-import type { Deployment } from "@/lib/api";
-import {
-  APIError,
-  errorMessage,
-  text,
-  useDeployments,
-  useResources,
-  type Resource,
-} from "@/lib/api";
-import { indexResources } from "@/lib/resource-index";
-import { freshDeploySchema } from "@/lib/validation";
-import { useQueryClient } from "@tanstack/react-query";
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router";
-import { toast } from "sonner";
-import { DeleteResource, DeletionStatus } from "@/components/delete-resource";
-import { Empty, ErrorState, Loading } from "@/components/shared";
-import { LogStream } from "./Streams";
+import { lazy, Suspense } from "react";
+
+import { ConfigurationGuard } from "@/components/ConfigurationSurface";
+import { DeleteResource, DeletionStatus } from "@/components/DeleteResource";
+import { Empty, ErrorState, Loading } from "@/components/Shared";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
-import { ApplicationOverview } from "./ApplicationOverview";
+import { Variables } from "@/components/variables";
+import { describeError } from "@/lib/api/translate-error";
+import { text } from "@/lib/resource-fields";
+
+import { useApplicationPage } from "../hooks";
+import { ApplicationActionConfirmation } from "./ApplicationActionConfirmation";
 import { ApplicationDeployments } from "./ApplicationDeployments";
 import { ApplicationDomains } from "./ApplicationDomains";
 import { ApplicationHeader } from "./ApplicationHeader";
+import { ApplicationNetworking } from "./ApplicationNetworking";
+import { ApplicationOverview } from "./ApplicationOverview";
+import { ApplicationPreviews } from "./ApplicationPreviews";
 import { ApplicationStatus } from "./ApplicationStatus";
-import { ApplicationActionConfirmation } from "./ApplicationActionConfirmation";
+import { ApplicationTabList } from "./ApplicationTabList";
+import { ApplicationVolumes } from "./ApplicationVolumes";
+import { ComposeSource } from "./ComposeSource";
+import { DeleteDeployment } from "./DeleteDeployment";
+import { LogStream } from "./Streams";
 
-const ContainerTerminal = lazy(() => import("./ContainerTerminal"));
+const ContainerTerminal = lazy(() =>
+  import("./ContainerTerminal").then((module) => ({
+    default: module.ContainerTerminal,
+  })),
+);
 
 export function ApplicationMainView() {
-  const navigate = useNavigate();
-  const [deleting, setDeleting] = useState(false);
-  const { id = "" } = useParams();
-  const actionMutation = useRunApplicationAction(id);
-  const [params, setParams] = useSearchParams();
-  const resources = useResources();
-  const index = useMemo(
-    () => indexResources(resources.data || []),
-    [resources.data],
-  );
-  const tab =
-    params.get("tab") ||
-    (params.has("deployment") ? "deployments" : "overview");
-
-  const deployments = useDeployments(id);
-  const runtime = useApplicationRuntime(id);
-  const metrics = useApplicationMetrics(id, tab === "overview");
-  const releases = useApplicationReleases(id, tab === "deployments");
-  const setTab = (value: string) =>
-    setParams((previous) => {
-      const next = new URLSearchParams(previous);
-      next.set("tab", value);
-      return next;
-    });
-  const openEditor = (resource: Resource | "new") =>
-    navigate(
-      `/configure/${resource === "new" ? "route/new?parent=" + id : resource.kind + "/" + resource.id + "?parent="}&return=${encodeURIComponent(location.pathname + location.search)}`,
-    );
-  const [confirmAction, setConfirmAction] = useState("");
-  const [busy, setBusy] = useState(false);
-  const client = useQueryClient();
-  const [deleteDeployment, setDeleteDeployment] = useState<Deployment | null>(
-    null,
-  );
-  const selected = params.get("deployment");
-  const selectedDeployment = useSelectedDeployment(
-    selected,
-    !!selected &&
-      !!deployments.data &&
-      !deployments.data.some((d) => d.id === selected),
-  );
-  useEffect(() => {
-    if (
-      selected &&
-      selectedDeployment.error instanceof APIError &&
-      selectedDeployment.error.status === 404
-    ) {
-      setParams(
-        (previous) => {
-          const next = new URLSearchParams(previous);
-          next.delete("deployment");
-          return next;
-        },
-        { replace: true },
-      );
-    }
-  }, [selected, selectedDeployment.error, setParams]);
+  const { state, derived, handlers } = useApplicationPage();
+  const { deleting, confirmAction, deleteDeployment } = state;
+  const {
+    id,
+    tab,
+    params,
+    resources,
+    index,
+    rows,
+    foundApp,
+    app,
+    routes,
+    server,
+    environment,
+    project,
+    containers,
+    latest,
+    directCompose,
+    busy,
+    deployment,
+    runtime,
+    metrics,
+    releases,
+    deployments,
+  } = derived;
+  const {
+    setTab,
+    setParams,
+    openEditor,
+    deploy,
+    setDeleting,
+    setConfirmAction,
+    setDeleteDeployment,
+    closeDeleteDeployment,
+    retryDeletion,
+    closeDeletion,
+    composeDeployed,
+    resourceDeleted,
+  } = handlers;
   if (resources.isPending) return <Loading />;
   if (resources.error) return <ErrorState error={resources.error} />;
-  const rows = resources.data || [];
-  const foundApp = index.byId.get(id);
-  const app = foundApp && {
-    ...foundApp,
-    canWrite: foundApp.canWrite && !foundApp.data.deleting,
-  };
   if (!app)
     return (
       <Empty
@@ -116,40 +78,6 @@ export function ApplicationMainView() {
         description="This application may not exist or you may not have access."
       />
     );
-  const routes = rows.filter((r) => r.kind === "route" && r.parentId === id);
-  const server = index.byId.get(text(app.data, "serverId"));
-  const environment = index.byId.get(app.parentId || "");
-  const project = index.byId.get(environment?.parentId || "");
-  const containers = runtime.data?.containers || [];
-  const latest = deployments.data?.[0];
-  const directCompose = app.data.source === "compose";
-  async function deploy(fresh = false, confirmName = "") {
-    setBusy(true);
-    try {
-      const d = await createDeployment(
-        id,
-        fresh
-          ? freshDeploySchema(app!.name).parse({
-              fresh,
-              confirmName,
-              version: app!.version,
-            })
-          : {},
-      );
-      setParams({ deployment: d.id, tab: "deployments" });
-      await client.invalidateQueries({ queryKey: deploymentKeys.all });
-      toast.success(fresh ? "Fresh deployment queued" : "Deployment queued");
-    } catch (e) {
-      if (fresh) throw e;
-      toast.error(errorMessage(e));
-    } finally {
-      setBusy(false);
-    }
-  }
-  async function act(action: string) {
-    await actionMutation.mutateAsync(action);
-    toast.success(`Application ${action} requested`);
-  }
   return (
     <>
       <ApplicationHeader
@@ -163,6 +91,8 @@ export function ApplicationMainView() {
         runtime={runtime}
         busy={busy}
         deploy={deploy}
+        deployError={deployment.error ? describeError(deployment.error) : ""}
+        resetDeploy={deployment.reset}
         openEditor={openEditor}
         setConfirmAction={setConfirmAction}
         setDeleting={setDeleting}
@@ -170,11 +100,11 @@ export function ApplicationMainView() {
       {deleteDeployment && (
         <DeleteDeployment
           deployment={deleteDeployment}
-          onClose={() => setDeleteDeployment(null)}
+          onClose={closeDeleteDeployment}
         />
       )}
       <ApplicationStatus app={app} runtime={runtime} server={server} />
-      <DeletionStatus resource={foundApp!} onRetry={() => setDeleting(true)} />
+      <DeletionStatus resource={foundApp ?? app} onRetry={retryDeletion} />
       <Tabs value={tab} onValueChange={setTab}>
         <ApplicationTabList app={app} directCompose={directCompose} />
         {directCompose && app.canWrite && (
@@ -183,12 +113,7 @@ export function ApplicationMainView() {
               <ComposeSource
                 key={app.id}
                 app={app}
-                onDeploy={(deployment) => {
-                  setParams({ deployment, tab: "deployments" });
-                  void client.invalidateQueries({
-                    queryKey: deploymentKeys.all,
-                  });
-                }}
+                onDeploy={composeDeployed}
               />
             </ConfigurationGuard>
           </TabsContent>
@@ -213,9 +138,7 @@ export function ApplicationMainView() {
           params={params}
           setParams={setParams}
           setConfirmAction={setConfirmAction}
-          onDeleteDeployment={(d) => {
-            setDeleteDeployment(d);
-          }}
+          onDeleteDeployment={setDeleteDeployment}
         />
         <ApplicationDomains
           app={app}
@@ -268,17 +191,13 @@ export function ApplicationMainView() {
         confirmAction={confirmAction}
         setConfirmAction={setConfirmAction}
         id={id}
-        client={client}
-        act={act}
         setParams={setParams}
       />
       {deleting && (
         <DeleteResource
-          resource={foundApp!}
-          onClose={() => setDeleting(false)}
-          onDeleted={() =>
-            navigate(project ? `/projects/${project.id}` : "/projects")
-          }
+          resource={foundApp ?? app}
+          onClose={closeDeletion}
+          onDeleted={resourceDeleted}
         />
       )}
     </>

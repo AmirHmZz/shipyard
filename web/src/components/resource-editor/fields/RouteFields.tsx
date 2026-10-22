@@ -1,3 +1,11 @@
+import type * as React from "react";
+
+import type { ResourceFormProps } from "@/components/resource-forms/controller";
+import type { Options } from "@/components/resource-forms/Options";
+
+import { FormField } from "@/components/FormField";
+import { useResourceForm } from "@/components/resource-forms/controller";
+import { SelectControl } from "@/components/SelectControl";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -6,50 +14,61 @@ import {
   InputGroupAddon,
   InputGroupText,
 } from "@/components/ui/input-group";
-import { Label } from "@/components/ui/label";
-import { errorMessage } from "@/lib/api";
-import {
-  useResourceForm,
-  type ResourceFormProps,
-} from "@/components/resource-forms/controller";
-import type { Options } from "@/components/resource-forms/options";
-import { choose } from "../utils";
+import { describeError } from "@/lib/api/translate-error";
 
-export function RouteFields({
-  resources,
-  services,
-}: {
+export type RouteFieldsProps = {
   resources: ResourceFormProps["resources"];
   services: Options["services"];
-}) {
+};
+export function RouteFields({ resources, services }: RouteFieldsProps) {
+  function handleSelectControlValueChange(value: string) {
+    return update("zoneId", value);
+  }
+
+  function handleInputGroupInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    return update("domain", e.target.value);
+  }
+  function handleButtonClick() {
+    return void services.refetch();
+  }
+
   const {
     state: { data },
-    actions: { update },
+    handlers: { update },
   } = useResourceForm();
   const zone = resources.find((r) => r.id === data.zoneId && r.kind === "zone");
   return (
-    <section className="space-y-4">
-      <div className="space-y-2">
-        <Label>Connected zone</Label>
-        {choose(
-          String(data.zoneId || ""),
-          (value) => update("zoneId", value),
-          resources
-            .filter((r) => r.kind === "zone")
-            .map((r) => ({
-              value: r.id,
-              label: String(r.data.domain),
-            })),
-          "Select connected zone",
-        )}
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="route-subdomain">Subdomain</Label>
+    <section className="flex flex-col gap-4">
+      <FormField label={<>Connected zone</>} labelProps={{}}>
+        {
+          <SelectControl
+            value={String(data.zoneId || "") || undefined}
+            onValueChange={handleSelectControlValueChange}
+            options={resources
+              .filter((r) => r.kind === "zone")
+              .map((r) => ({
+                value: r.id,
+                label: String(r.data.domain),
+              }))}
+            placeholder={"Select connected zone"}
+            disabled={false}
+            triggerProps={{
+              id: undefined,
+              className: "w-full",
+              "aria-label": "Select connected zone",
+            }}
+          />
+        }
+      </FormField>
+      <FormField
+        label={<>Subdomain</>}
+        labelProps={{ htmlFor: "route-subdomain" }}
+      >
         <InputGroup>
           <InputGroupInput
             id="route-subdomain"
             value={String(data.domain || "")}
-            onChange={(e) => update("domain", e.target.value)}
+            onChange={handleInputGroupInputChange}
             disabled={!zone}
             placeholder="api or *.apps"
           />
@@ -62,12 +81,12 @@ export function RouteFields({
         <p className="text-xs text-muted-foreground">
           Leave blank for the zone itself.
         </p>
-      </div>
+      </FormField>
       {services.error && (
         <Alert variant="destructive">
           <AlertDescription>
-            {errorMessage(services.error)}
-            <Button type="button" onClick={() => void services.refetch()}>
+            {describeError(services.error)}
+            <Button type="button" onClick={handleButtonClick}>
               Retry service discovery
             </Button>
           </AlertDescription>

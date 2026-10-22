@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"shipyard/internal/db"
 	"shipyard/internal/deploy"
 	"shipyard/internal/model"
@@ -306,6 +307,12 @@ func (c *Controller) notify(ctx context.Context, j model.Job) error {
 	return nil
 }
 func (c *Controller) Action(ctx context.Context, app model.Resource, action string) error {
+	if action != "start" && action != "stop" && action != "restart" {
+		return errors.New("unsupported application action")
+	}
+	if action == "stop" {
+		return c.QueueStop(ctx, app)
+	}
 	lock, e := c.Store.Pool.Acquire(ctx)
 	if e != nil {
 		return e
@@ -334,6 +341,16 @@ func (c *Controller) Action(ctx context.Context, app model.Resource, action stri
 	if e != nil {
 		return e
 	}
+	if action == "start" {
+		if e = c.resumeApplication(ctx, app.ID); e != nil {
+			return e
+		}
+	}
+	ctx, stopWatching, watchErr := c.watchApplication(ctx, app.ID)
+	if watchErr != nil {
+		return watchErr
+	}
+	defer stopWatching()
 	client, _, e := c.connect(ctx, r.ServerID)
 	if e != nil {
 		return e
@@ -358,7 +375,7 @@ func (c *Controller) Action(ctx context.Context, app model.Resource, action stri
 	if action == "stop" {
 		status = "stopped"
 	}
-	_, e = c.Store.Pool.Exec(ctx, "UPDATE app_runtime SET status=$2,updated_at=now() WHERE app_id=$1", app.ID, status)
+	_, e = c.Store.Pool.Exec(ctx, "UPDATE app_runtime SET status=$2,updated_at=now() WHERE app_id=$1 AND NOT EXISTS(SELECT 1 FROM application_control WHERE app_id=$1 AND desired_state='stopped')", app.ID, status)
 	if e != nil {
 		return e
 	}
@@ -381,13 +398,27 @@ func ContainerAllowed(r model.Release, id string) bool {
 	return false
 }
 func (c *Controller) Runtime(ctx context.Context, id string) (map[string]any, error) {
+	var desired, controlStatus, controlError string
+	err := c.Store.Pool.QueryRow(ctx, "SELECT desired_state,status,error FROM application_control WHERE app_id=$1", id).Scan(&desired, &controlStatus, &controlError)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return nil, err
+	}
 	r, e := c.Store.Active(ctx, id)
 	if e != nil {
-		return nil, e
+		if !errors.Is(e, pgx.ErrNoRows) {
+			return nil, e
+		}
+		if controlStatus == "" || controlStatus == "running" {
+			controlStatus = "not_deployed"
+		}
+		return map[string]any{"status": controlStatus, "error": controlError, "containers": []string{}, "targets": []model.Target{}}, nil
 	}
 	var status string
 	_ = c.Store.Pool.QueryRow(ctx, "SELECT status FROM app_runtime WHERE app_id=$1", id).Scan(&status)
-	return map[string]any{"releaseId": r.ID, "commit": r.Commit, "status": status, "containers": r.Containers, "targets": r.Targets, "createdAt": r.CreatedAt}, nil
+	if desired == "stopped" {
+		status = controlStatus
+	}
+	return map[string]any{"releaseId": r.ID, "commit": r.Commit, "status": status, "error": controlError, "containers": r.Containers, "targets": r.Targets, "createdAt": r.CreatedAt}, nil
 }
 
 var ErrNotFound = errors.New("not found")

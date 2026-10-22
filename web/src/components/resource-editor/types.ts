@@ -1,9 +1,9 @@
 import type { ResourceFormProps } from "@/components/resource-forms/controller";
-import type {
-  ResourceKind,
-  Field,
-} from "@/components/resource-forms/definitions";
-import type { Options } from "@/components/resource-forms/options";
+import type { Options } from "@/components/resource-forms/Options";
+import type { ResourceKind, Field } from "@/lib/resource-form-definitions";
+export type ResourceFormViewOptions = ResourceFormProps & {
+  kind: ResourceKind;
+};
 export type ResourceFieldProps = {
   kind: ResourceKind;
   resources: ResourceFormProps["resources"];

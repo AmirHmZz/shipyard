@@ -1,13 +1,20 @@
-import { serverDeletionKeys } from "../generics";
-import { useQuery } from "@tanstack/react-query";
-import { getServerDeletionStatus } from "../services";
+import { useApiQuery } from "@/lib/api/use-api-query";
+import { POLL_INTERVALS } from "@/lib/constants";
+import { apiPath } from "@/lib/paths";
+
+import {
+  serverDeletionKeys,
+  serverDeletionStatusResponseSchema,
+} from "../generics";
 
 export function useServerDeletionStatus(id: string, enabled: boolean) {
-  return useQuery({
+  return useApiQuery({
     queryKey: serverDeletionKeys.status(id),
-    queryFn: () => getServerDeletionStatus(id),
+    path: apiPath`/servers/${id}/deletion`,
+    schema: serverDeletionStatusResponseSchema,
     enabled: enabled,
     retry: false,
-    refetchInterval: (q) => (q.state.data?.done ? false : 2000),
+    refetchInterval: (q) =>
+      q.state.data?.done ? false : POLL_INTERVALS.active,
   });
 }

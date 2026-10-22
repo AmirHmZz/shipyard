@@ -1,11 +1,17 @@
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { useResources } from "@/lib/api";
 import { Anchor, ChevronDown } from "lucide-react";
 import { Link, NavLink } from "react-router";
+
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { useResources } from "@/lib/hooks/useResources";
+
 import { navigation } from "../generics";
 
-export function Sidebar({ close }: { close?: () => void }) {
+function navigationLinkClassName({ isActive }: { isActive: boolean }) {
+  return `flex items-center gap-3 rounded-lg px-3 py-2.5 text-[12px] font-medium transition-colors ${isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground"}`;
+}
+export type SidebarProps = { close?: () => void };
+export function Sidebar({ close }: SidebarProps) {
   const projectCount = useResources((resources) =>
     resources.reduce(
       (count, resource) => count + Number(resource.kind === "project"),
@@ -48,23 +54,21 @@ export function Sidebar({ close }: { close?: () => void }) {
           <ChevronDown className="ml-auto size-3.5 text-muted-foreground" />
         </div>
       </div>
-      <nav className="space-y-1 px-3">
+      <nav className="flex flex-col gap-1 px-3">
         {navigation.map((item, i) => (
           <div key={item.path}>
             {i === 3 && (
-              <div className="mt-7 mb-3 px-3 font-mono text-[9px] tracking-[.17em] text-muted-foreground">
+              <div className="mt-6 mb-3 px-3 font-mono text-[9px] tracking-[.17em] text-muted-foreground">
                 INFRASTRUCTURE
               </div>
             )}
-            {i === 7 && <Separator className="my-5" />}
+            {i === 7 && <Separator className="mt-4 mb-5" />}
             <NavLink
               to={item.path}
               prefetch="intent"
               end={item.path === "/"}
               onClick={close}
-              className={({ isActive }) =>
-                `flex items-center gap-3 rounded-lg px-3 py-2.5 text-[12px] font-medium transition-colors ${isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground"}`
-              }
+              className={navigationLinkClassName}
             >
               <item.icon className="size-4" />
               {item.label}

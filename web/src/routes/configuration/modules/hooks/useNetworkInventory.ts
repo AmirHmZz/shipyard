@@ -1,11 +1,14 @@
+import { useApiQuery } from "@/lib/api/use-api-query";
+import { apiPath } from "@/lib/paths";
 import { dockerNetworkKeys } from "@/lib/query-keys";
-import { useQuery } from "@tanstack/react-query";
-import { getNetworkInventory } from "../services";
+
+import { dockerNetworkInventoryResponseSchema } from "../generics";
 
 export function useNetworkInventory(server: string, admin: boolean) {
-  return useQuery({
+  return useApiQuery({
     queryKey: dockerNetworkKeys.server(server),
-    queryFn: () => getNetworkInventory(server),
+    path: apiPath`/servers/${server}/networks`,
+    schema: dockerNetworkInventoryResponseSchema,
     enabled: !!server && !!admin,
     retry: false,
   });

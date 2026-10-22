@@ -1,7 +1,9 @@
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+
+import { expect, test } from "@playwright/test";
 
 async function setup(page: Page, existing = false, admin = true) {
-  const writes: { path: string; body: any }[] = [];
+  const writes: { path: string; body: Record<string, unknown> }[] = [];
   const instance = {
     id: "instance",
     name: "Gitea instance",
@@ -19,7 +21,13 @@ async function setup(page: Page, existing = false, admin = true) {
     if (path.endsWith("/auth/me"))
       return route.fulfill({
         json: {
-          user: { id: "admin", name: "Administrator", admin },
+          user: {
+            email: "user@example.test",
+            totp: false,
+            id: "admin",
+            name: "Administrator",
+            admin,
+          },
           csrf: "csrf",
         },
       });
@@ -28,6 +36,11 @@ async function setup(page: Page, existing = false, admin = true) {
         json: existing
           ? [
               {
+                parentId: "",
+                teamId: "",
+                variables: {},
+                createdAt: "2026-10-19T00:00:00Z",
+                updatedAt: "2026-10-19T00:00:00Z",
                 id: "git",
                 kind: "git",
                 name: "Team code",
@@ -239,7 +252,7 @@ test("GitHub submits the manifest to the provider and returns to integration sta
       },
     }),
   );
-  let manifest: any;
+  let manifest: Record<string, unknown> = {};
   await page.route("https://github.com/settings/apps/new**", async (route) => {
     expect(route.request().method()).toBe("POST");
     manifest = JSON.parse(

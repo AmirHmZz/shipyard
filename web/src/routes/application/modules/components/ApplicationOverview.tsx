@@ -1,26 +1,39 @@
-import { updateApplicationVersion } from "../services";
+import type { FormEvent } from "react";
+import type { useSearchParams } from "react-router";
+
+import { ArrowUpRight } from "lucide-react";
+
+import type { Deployment } from "@/lib/api/types";
+import type { Metric, Resource } from "@/lib/api/types";
+
+import { RepositoryName } from "@/components/repository-name";
+import { Empty, StateBadge } from "@/components/Shared";
+import { TableHeadings } from "@/components/TableHeadings";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import type { Deployment } from "@/lib/api";
-import { RepositoryName } from "@/components/repository-name";
-import { errorMessage, text, type Metric, type Resource } from "@/lib/api";
-import { previewCommitSchema } from "@/lib/validation";
-import { useQueryClient } from "@tanstack/react-query";
-import { ArrowUpRight } from "lucide-react";
-import { useSearchParams } from "react-router";
-import { toast } from "sonner";
-import { Empty, StateBadge } from "@/components/shared";
 import {
   Table,
   TableBody,
   TableCell,
-  TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
 import { TabsContent } from "@/components/ui/tabs";
+import { toastValidationError } from "@/lib/api/toaster";
+import { text } from "@/lib/resource-fields";
 
+import { previewCommitSchema } from "../generics";
+import { useApprovePreview } from "../hooks";
+
+export type ApplicationOverviewProps = {
+  app: Resource;
+  provider: string;
+  server?: Resource;
+  latest?: Deployment;
+  metrics: { data?: Metric[] };
+  setParams: ReturnType<typeof useSearchParams>[1];
+};
 export function ApplicationOverview({
   app,
   provider,
@@ -28,17 +41,31 @@ export function ApplicationOverview({
   latest,
   metrics,
   setParams,
-}: {
-  app: Resource;
-  provider: string;
-  server?: Resource;
-  latest?: Deployment;
-  metrics: { data?: Metric[] };
-  setParams: ReturnType<typeof useSearchParams>[1];
-}) {
+}: ApplicationOverviewProps) {
+  function handleButtonClick() {
+    if (!latest) return;
+    setParams({
+      deployment: latest.id,
+      tab: "deployments",
+    });
+  }
+
   const directCompose = app.data.source === "compose";
-  const id = app.id;
-  const client = useQueryClient();
+  const containers = metrics.data?.at(-1)?.containers ?? [];
+  const updateVersion = useApprovePreview({
+    refreshAll: true,
+    successMessage: "Preview approved and queued",
+  });
+  function approveCommit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const parsed = previewCommitSchema.safeParse({ sha: form.get("sha") });
+    if (!parsed.success) {
+      toastValidationError(parsed.error);
+      return;
+    }
+    updateVersion.mutate({ id: app.id, ...parsed.data });
+  }
   return (
     <TabsContent value="overview">
       <div className="grid gap-5 lg:grid-cols-[1fr_1fr]">
@@ -47,7 +74,7 @@ export function ApplicationOverview({
             <CardTitle className="text-sm">Deployment configuration</CardTitle>
           </CardHeader>
           <CardContent>
-            <dl className="space-y-4 text-sm">
+            <dl className="flex flex-col gap-4 text-sm">
               {(directCompose
                 ? [
                     ["Source", "Direct Compose"],
@@ -106,12 +133,7 @@ export function ApplicationOverview({
                 <Button
                   variant="outline"
                   className="mt-5"
-                  onClick={() => {
-                    setParams({
-                      deployment: latest.id,
-                      tab: "deployments",
-                    });
-                  }}
+                  onClick={handleButtonClick}
                 >
                   View deployment
                   <ArrowUpRight />
@@ -134,17 +156,20 @@ export function ApplicationOverview({
           </p>
         </CardHeader>
         <CardContent className="p-0">
-          {metrics.data?.at(-1)?.containers.length ? (
+          {containers.length ? (
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Container</TableHead>
-                  <TableHead>CPU</TableHead>
-                  <TableHead>Memory</TableHead>
-                </TableRow>
+                <TableHeadings
+                  columns={[
+                    { id: "container", label: <>Container</> },
+                    { id: "cpu", label: <>CPU</> },
+                    { id: "memory", label: <>Memory</> },
+                  ]}
+                  rowProps={{}}
+                />
               </TableHeader>
               <TableBody>
-                {metrics.data.at(-1)!.containers.map((c) => (
+                {containers.map((c) => (
                   <TableRow key={c.id}>
                     <TableCell className="max-w-60 truncate font-mono text-xs">
                       {c.name}
@@ -169,25 +194,7 @@ export function ApplicationOverview({
             <p className="mb-3 text-sm">
               This fork preview needs approval for an exact commit.
             </p>
-            <form
-              className="flex gap-2"
-              onSubmit={async (e) => {
-                e.preventDefault();
-                const form = new FormData(e.currentTarget);
-                try {
-                  await updateApplicationVersion(
-                    id,
-                    previewCommitSchema.parse({
-                      sha: form.get("sha"),
-                    }),
-                  );
-                  toast.success("Preview approved and queued");
-                  void client.invalidateQueries();
-                } catch (err) {
-                  toast.error(errorMessage(err));
-                }
-              }}
-            >
+            <form className="flex gap-2" onSubmit={approveCommit}>
               <Input name="sha" placeholder="Full commit SHA" required />
               <Button disabled={!app.canWrite}>Approve commit</Button>
             </form>

@@ -25,6 +25,8 @@ type Store struct {
 	Vault *secure.Vault
 }
 
+var ErrApplicationStopped = errors.New("deployment cancelled by Stop")
+
 func Open(ctx context.Context, url string, vault *secure.Vault) (*Store, error) {
 	config, err := pgxpool.ParseConfig(url)
 	if err != nil {
@@ -45,6 +47,10 @@ func Open(ctx context.Context, url string, vault *secure.Vault) (*Store, error) 
 		return nil, err
 	}
 	if err = s.checkKey(ctx); err != nil {
+		pool.Close()
+		return nil, err
+	}
+	if err = s.MigrateRegistries(ctx); err != nil {
 		pool.Close()
 		return nil, err
 	}
@@ -235,6 +241,27 @@ func (s *Store) Save(ctx context.Context, id string, in model.ResourceInput) (mo
 			return model.Resource{}, ErrConflict
 		}
 	}
+	if in.Kind == "registry" {
+		spec, e := model.Decode[model.Registry](model.Resource{Data: in.Data})
+		if e != nil {
+			return model.Resource{}, e
+		}
+		spec.Hostname, e = model.RegistryHostname(spec.Hostname)
+		if e != nil {
+			return model.Resource{}, e
+		}
+		in.Data, _ = json.Marshal(spec)
+		if old.ID == "" && in.Secrets["password"] == "" || old.ID != "" && in.Secrets["password"] == "" && secrets["password"] == "" {
+			return model.Resource{}, errors.New("registry password or token is required")
+		}
+		var conflict bool
+		if e = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM resource_grants mine JOIN resource_grants other ON other.team_id=mine.team_id JOIN resources r ON r.id=other.resource_id WHERE mine.resource_id=$1 AND other.resource_id<>$1 AND r.kind='registry' AND r.data->>'hostname'=$2)`, id, spec.Hostname).Scan(&conflict); e != nil {
+			return model.Resource{}, e
+		}
+		if conflict {
+			return model.Resource{}, fmt.Errorf("%w: a registry for this hostname is already granted to the same team", ErrConflict)
+		}
+	}
 	if in.Kind == "route" {
 		var route model.Route
 		_ = json.Unmarshal(in.Data, &route)
@@ -290,6 +317,9 @@ func (s *Store) Save(ctx context.Context, id string, in model.ResourceInput) (mo
 			delete(secrets, k)
 		}
 	}
+	if in.Kind == "registry" && secrets["password"] == "" {
+		return model.Resource{}, errors.New("registry password or token is required")
+	}
 	b, e := json.Marshal(secrets)
 	if e != nil {
 		return model.Resource{}, e
@@ -339,7 +369,7 @@ func (s *Store) Access(ctx context.Context, u model.User, r model.Resource, writ
 	if u.Admin {
 		return true
 	}
-	if r.Kind == "server" || r.Kind == "git" || r.Kind == "dns" || r.Kind == "zone" || r.Kind == "network" {
+	if r.Kind == "server" || r.Kind == "git" || r.Kind == "dns" || r.Kind == "zone" || r.Kind == "network" || r.Kind == "registry" {
 		if write {
 			return false
 		}
@@ -479,7 +509,7 @@ func (s *Store) Deployments(ctx context.Context, id string) ([]model.Deployment,
 	return out, rows.Err()
 }
 func (s *Store) Stage(ctx context.Context, id, state, phase, msg string) error {
-	_, e := s.Pool.Exec(ctx, "UPDATE deployments SET state=$2,phase=$3,error=$4,updated_at=now() WHERE id=$1", id, state, phase, msg)
+	_, e := s.Pool.Exec(ctx, "UPDATE deployments SET state=$2,phase=$3,error=$4,updated_at=now() WHERE id=$1 AND (state<>'cancelled' OR $2='cancelled')", id, state, phase, msg)
 	return e
 }
 func (s *Store) Release(ctx context.Context, id string) (model.Release, error) {
@@ -570,6 +600,16 @@ func (s *Store) Activate(ctx context.Context, r model.Release) error {
 		return e
 	}
 	defer tx.Rollback(ctx)
+	// The same row lock is held by Stop. Activation and stop intent cannot race.
+	var desired string
+	var generation, expected int64
+	err := tx.QueryRow(ctx, "SELECT a.desired_state,a.generation,d.control_generation FROM application_control a JOIN deployments d ON d.app_id=a.app_id WHERE d.id=$1 FOR UPDATE OF a", r.DeploymentID).Scan(&desired, &generation, &expected)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return err
+	}
+	if err == nil && (desired != "running" || generation != expected) {
+		return ErrApplicationStopped
+	}
 	runtime, _ := json.Marshal(map[string]any{"containers": r.Containers, "targets": r.Targets})
 	if _, e = tx.Exec(ctx, "INSERT INTO app_runtime(app_id,release_id,runtime) VALUES($1,$2,$3) ON CONFLICT(app_id) DO UPDATE SET release_id=$2,status='running',runtime=$3,updated_at=now()", r.AppID, r.ID, runtime); e != nil {
 		return e

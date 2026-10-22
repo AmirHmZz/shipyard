@@ -1,33 +1,37 @@
+import { Pencil, Trash2 } from "lucide-react";
+
+import { FlushCard } from "@/components/FlushCard";
+import { TableHeadings } from "@/components/TableHeadings";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import {
   Table,
   TableBody,
   TableCell,
-  TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Pencil, Trash2 } from "lucide-react";
+
 import type { VariableController } from "./variables";
-export function VariableTable({
-  controller,
-}: {
+export type VariableTableProps = {
   controller: VariableController;
-}) {
-  const { resource, keys, secretKeys, ordinary, busy, edit, setRemove } =
-    controller;
+};
+export function VariableTable({ controller }: VariableTableProps) {
+  const { resource, keys, secretKeys, ordinary, busy } = controller.derived;
+  const { handleVariableAction } = controller.handlers;
   return (
-    <Card className="gap-0 overflow-hidden py-0 shadow-none">
+    <FlushCard>
       <Table>
         <TableHeader>
-          <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Value</TableHead>
-            <TableHead />
-          </TableRow>
+          <TableHeadings
+            columns={[
+              { id: "name", label: <>Name</> },
+              { id: "value", label: <>Value</> },
+              { id: "actions", label: <></> },
+            ]}
+            rowProps={{}}
+          />
         </TableHeader>
-        <TableBody>
+        <TableBody onClick={handleVariableAction}>
           {keys.map((name) => (
             <TableRow key={name}>
               <TableCell className="font-mono text-xs">{name}</TableCell>
@@ -36,30 +40,32 @@ export function VariableTable({
                   ? "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
                   : ordinary[name]}
               </TableCell>
-              <TableCell className="text-right whitespace-nowrap">
+              <TableCell className="text-right">
                 <Button
                   variant="ghost"
                   size="icon-sm"
                   aria-label={`Edit ${name}`}
                   disabled={busy || !resource.canWrite}
-                  onClick={() => edit(name)}
+                  data-variable-name={name}
+                  data-variable-action="edit"
                 >
-                  <Pencil className="size-4" />
+                  <Pencil />
                 </Button>
                 <Button
                   variant="ghost"
                   size="icon-sm"
                   aria-label={`Remove ${name}`}
                   disabled={busy || !resource.canWrite}
-                  onClick={() => setRemove(name)}
+                  data-variable-name={name}
+                  data-variable-action="remove"
                 >
-                  <Trash2 className="size-4" />
+                  <Trash2 />
                 </Button>
               </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
-    </Card>
+    </FlushCard>
   );
 }

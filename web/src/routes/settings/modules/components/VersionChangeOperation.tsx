@@ -1,10 +1,20 @@
-import type { Status } from "../generics";
-import { StateBadge } from "@/components/shared";
+import { Download } from "lucide-react";
+
+import { StateBadge } from "@/components/Shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { Download } from "lucide-react";
 
+import type { Status } from "../generics";
+
+export type VersionChangeOperationProps = {
+  operation: NonNullable<Status["operation"]>;
+  active: boolean;
+  busy: boolean;
+  reconnecting: boolean;
+  version: string;
+  download: () => void;
+};
 export function VersionChangeOperation({
   operation,
   active,
@@ -12,16 +22,16 @@ export function VersionChangeOperation({
   reconnecting,
   version,
   download,
-}: {
-  operation: NonNullable<Status["operation"]>;
-  active: boolean;
-  busy: boolean;
-  reconnecting: boolean;
-  version: string;
-  download: () => Promise<void>;
-}) {
+}: VersionChangeOperationProps) {
+  function handleButtonClick() {
+    return void download();
+  }
+  function handleButtonClick2() {
+    return location.reload();
+  }
+
   return (
-    <section className="space-y-3 border-t pt-5">
+    <section className="flex flex-col gap-3 border-t pt-5">
       <div className="flex flex-wrap items-center gap-3">
         <h3 className="font-medium">
           Version change to {operation.plan.target.version}
@@ -47,8 +57,9 @@ export function VersionChangeOperation({
       )}
       {operation.backup && (
         <Button
+          className="self-start"
           variant="outline"
-          onClick={() => void download()}
+          onClick={handleButtonClick}
           disabled={busy || active}
         >
           <Download />
@@ -57,7 +68,9 @@ export function VersionChangeOperation({
       )}
       {operation.state === "succeeded" &&
         version !== operation.plan.target.version && (
-          <Button onClick={() => location.reload()}>Reload dashboard</Button>
+          <Button className="self-start" onClick={handleButtonClick2}>
+            Reload dashboard
+          </Button>
         )}
     </section>
   );

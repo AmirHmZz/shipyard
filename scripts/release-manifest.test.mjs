@@ -1,14 +1,19 @@
-import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { cpSync, mkdtempSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join, resolve, sep } from "node:path";
+import { test } from "node:test";
 
 test("release artifacts pin images, preserve migration checksums and refuse invalid versions", () => {
   const root = resolve("."),
     temp = mkdtempSync(join(tmpdir(), "shipyard-release-"));
+  if (
+    !resolve(temp).startsWith(resolve(tmpdir()) + sep) ||
+    !basename(temp).startsWith("shipyard-release-")
+  )
+    throw Error("Unsafe temporary cleanup path");
   try {
     mkdirSync(join(temp, "internal/db"), { recursive: true });
     cpSync(
@@ -27,12 +32,13 @@ test("release artifacts pin images, preserve migration checksums and refuse inva
       BUILD_DATE: "2026-10-17T00:00:00Z",
       PREVIOUS_VERSION: "",
     };
-    const run = (extra = {}) =>
-      execFileSync(
+    function run(extra = {}) {
+      return execFileSync(
         process.execPath,
         [join(root, "scripts/release-manifest.mjs")],
         { cwd: temp, env: { ...env, ...extra }, stdio: "pipe" },
       );
+    }
     run();
     const dir = join(temp, ".local/release"),
       m = JSON.parse(readFileSync(join(dir, "release.json"), "utf8"));
@@ -68,11 +74,6 @@ test("release artifacts pin images, preserve migration checksums and refuse inva
     assert.throws(() => run({ SOURCE_COMMIT: "unknown" }));
     assert.throws(() => run({ PREVIOUS_VERSION: "0.1.0-preview" }));
   } finally {
-    if (
-      !resolve(temp).startsWith(resolve(tmpdir()) + sep) ||
-      !basename(temp).startsWith("shipyard-release-")
-    )
-      throw Error("Unsafe temporary cleanup path");
     rmSync(temp, { recursive: true, force: true });
   }
 });

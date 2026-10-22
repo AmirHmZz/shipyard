@@ -1,33 +1,53 @@
-import { Button } from "@/components/ui/button";
+import type { Monaco } from "@monaco-editor/react";
+import type { editor as MonacoEditor } from "monaco-editor";
+
 import "@/lib/monaco";
-import Editor, { type OnMount } from "@monaco-editor/react";
+
+import Editor from "@monaco-editor/react";
 import { FileCode2, WandSparkles, WrapText } from "lucide-react";
-import type { editor } from "monaco-editor";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useReducer } from "react";
 import { toast } from "sonner";
+
+import { Button } from "@/components/ui/button";
+import {
+  initialComposeEditorState,
+  composeEditorReducer,
+} from "@/lib/compose-editor-state";
 
 let tabNavigationInitialized = false;
 
-export default function ComposeCodeEditor({
-  value,
-  onChange,
-  disabled = false,
-}: {
+export type ComposeCodeEditorProps = {
   value: string;
   onChange: (value: string) => void;
   disabled?: boolean;
-}) {
+};
+export function ComposeCodeEditor({
+  value,
+  onChange,
+  disabled = false,
+}: ComposeCodeEditorProps) {
+  function handleButtonClick() {
+    return void format();
+  }
+  function handleButtonClick2() {
+    return dispatch({ type: "wrap_toggled" });
+  }
+  function handleEditorChange(value: string | undefined) {
+    return onChange(value ?? "");
+  }
+
   const id = useId();
-  const [instance, setInstance] = useState<editor.IStandaloneCodeEditor | null>(
-    null,
-  );
-  const [wrap, setWrap] = useState(true);
-  const [dark, setDark] = useState(() =>
+  const [{ instance, wrap, dark }, dispatch] = useReducer(
+    composeEditorReducer,
     document.documentElement.classList.contains("dark"),
+    initialComposeEditorState,
   );
   useEffect(() => {
     const observer = new MutationObserver(() =>
-      setDark(document.documentElement.classList.contains("dark")),
+      dispatch({
+        type: "theme_changed",
+        value: document.documentElement.classList.contains("dark"),
+      }),
     );
     observer.observe(document.documentElement, {
       attributes: true,
@@ -35,7 +55,7 @@ export default function ComposeCodeEditor({
     });
     return () => observer.disconnect();
   }, []);
-  const mounted: OnMount = (editor, monaco) => {
+  function mounted(editor: MonacoEditor.IStandaloneCodeEditor, monaco: Monaco) {
     editor.getModel()?.setEOL(monaco.editor.EndOfLineSequence.LF);
     // Enable the global default once. Remounts after saving must preserve it,
     // including any later preference change made by the user with Ctrl+M.
@@ -44,8 +64,8 @@ export default function ComposeCodeEditor({
       tabNavigationInitialized = true;
     }
     editor.getDomNode()?.setAttribute("data-private", "true");
-    setInstance(editor);
-  };
+    dispatch({ type: "mounted", instance: editor });
+  }
   async function format() {
     try {
       await instance?.getAction("editor.action.formatDocument")?.run();
@@ -73,7 +93,7 @@ export default function ComposeCodeEditor({
             variant="ghost"
             size="xs"
             disabled={disabled || !instance}
-            onClick={() => void format()}
+            onClick={handleButtonClick}
           >
             <WandSparkles />
             Format
@@ -86,7 +106,7 @@ export default function ComposeCodeEditor({
             aria-pressed={wrap}
             title="Word wrap"
             disabled={!instance}
-            onClick={() => setWrap((current) => !current)}
+            onClick={handleButtonClick2}
           >
             <WrapText />
           </Button>
@@ -97,7 +117,7 @@ export default function ComposeCodeEditor({
         language="yaml"
         path={`file:///shipyard/${encodeURIComponent(id)}/compose.yaml`}
         value={value}
-        onChange={(value) => onChange(value ?? "")}
+        onChange={handleEditorChange}
         onMount={mounted}
         theme={dark ? "shipyard-dark" : "shipyard-light"}
         saveViewState={false}

@@ -1,12 +1,15 @@
-import { configurationKeys } from "../generics";
-import { useQuery } from "@tanstack/react-query";
-import { getGitSetupStatus } from "../services";
-import type { Resource } from "@/lib/api";
+import type { Resource } from "@/lib/api/types";
+
+import { useApiQuery } from "@/lib/api/use-api-query";
+import { apiPath } from "@/lib/paths";
+
+import { configurationKeys, gitSetupStatusResponseSchema } from "../generics";
 
 export function useGitSetupStatus(existing: Resource | undefined) {
-  return useQuery({
+  return useApiQuery({
     queryKey: configurationKeys.gitSetup(existing?.id),
-    queryFn: () => getGitSetupStatus(existing),
+    path: apiPath`/git/${existing?.id}/setup`,
+    schema: gitSetupStatusResponseSchema,
     enabled: !!existing,
   });
 }

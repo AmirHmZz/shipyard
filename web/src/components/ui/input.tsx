@@ -1,18 +1,35 @@
-import { useConfigurationChanges } from "@/lib/configuration-state";
-import { cn } from "@/lib/utils";
 import { Minus, Plus } from "lucide-react";
 import * as React from "react";
+
+import { useConfigurationChanges } from "@/lib/configuration-state";
+import { cn } from "@/lib/utils";
+
 import { Button } from "./button";
 
-function Input({
-  className,
-  type,
-  ref,
-  ...props
-}: React.ComponentProps<"input">) {
+export type InputProps = React.ComponentProps<"input">;
+function Input({ className, type, ref, ...props }: InputProps) {
+  function handleButtonMouseDown(event: React.MouseEvent<HTMLButtonElement>) {
+    return event.preventDefault();
+  }
+  function handleInputChange(event: React.ChangeEvent<HTMLInputElement>) {
+    changes.change();
+    props.onChange?.(event);
+  }
+  function handleButtonClick() {
+    return step(-1);
+  }
+  function handleButtonClick2() {
+    return step(1);
+  }
+
   const changes = useConfigurationChanges();
   const local = React.useRef<HTMLInputElement | null>(null);
   const numeric = type === "number";
+  function setInputRef(node: HTMLInputElement | null) {
+    local.current = node;
+    if (typeof ref === "function") ref(node);
+    else if (ref) ref.current = node;
+  }
   function step(direction: number) {
     const input = local.current;
     if (!input || input.disabled || input.readOnly) return;
@@ -35,11 +52,7 @@ function Input({
   }
   const input = (
     <input
-      ref={(node) => {
-        local.current = node;
-        if (typeof ref === "function") ref(node);
-        else if (ref) ref.current = node;
-      }}
+      ref={setInputRef}
       type={type}
       data-slot="input"
       className={cn(
@@ -50,10 +63,7 @@ function Input({
         className,
       )}
       {...props}
-      onChange={(event) => {
-        changes.change();
-        props.onChange?.(event);
-      }}
+      onChange={handleInputChange}
     />
   );
   if (!numeric) return input;
@@ -75,8 +85,8 @@ function Input({
               props.min != null &&
               value <= Number(props.min))
           }
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={() => step(-1)}
+          onMouseDown={handleButtonMouseDown}
+          onClick={handleButtonClick}
         >
           <Minus className="size-3" />
         </Button>
@@ -92,8 +102,8 @@ function Input({
               props.max != null &&
               value >= Number(props.max))
           }
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={() => step(1)}
+          onMouseDown={handleButtonMouseDown}
+          onClick={handleButtonClick2}
         >
           <Plus className="size-3" />
         </Button>

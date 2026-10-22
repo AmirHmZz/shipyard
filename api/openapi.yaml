@@ -4340,7 +4340,7 @@
     },
     "/applications/{id}/runtime": {
       "get": {
-        "summary": "Active release, containers and ports",
+        "summary": "Application status, including stopping/stopped/stop_failed without an active release",
         "parameters": [
           {
             "in": "path",
@@ -4357,8 +4357,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true
+                  "$ref": "#/components/schemas/ApplicationRuntime"
                 }
               }
             }
@@ -4548,7 +4547,7 @@
     },
     "/applications/{id}/action": {
       "post": {
-        "summary": "action",
+        "summary": "Start, restart, or durably stop an application. Stop cancels deployment work and pauses automatic deployment until explicit resume.",
         "parameters": [
           {
             "in": "path",
@@ -4567,6 +4566,24 @@
                 "schema": {
                   "type": "object",
                   "additionalProperties": true
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Stop accepted; poll application runtime until stopped or stop_failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
                 }
               }
             }
@@ -5777,6 +5794,55 @@
   },
   "components": {
     "schemas": {
+      "RegistryConfiguration": {
+        "type": "object",
+        "properties": {
+          "hostname": {
+            "type": "string",
+            "description": "Registry hostname and optional port, without scheme or image path. Docker Hub aliases normalize to docker.io."
+          },
+          "username": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "hostname",
+          "username"
+        ]
+      },
+      "ApplicationRuntime": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          },
+          "releaseId": {
+            "type": "string"
+          },
+          "commit": {
+            "type": "string"
+          },
+          "containers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "targets": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
       "HTTPReadinessCheck": {
         "type": "object",
         "properties": {
@@ -6565,7 +6631,7 @@
           "data": {
             "type": "object",
             "additionalProperties": true,
-            "description": "Kind-specific configuration. Application readiness and preview settings use ApplicationChecks. Server resources use ServerConfiguration; connection and daemonId are managed by Shipyard."
+            "description": "Kind-specific configuration. Registry resources use RegistryConfiguration and encrypted secrets.password, with administrator-managed team grants and automatic image authentication. Application readiness and preview settings use ApplicationChecks. Server resources use ServerConfiguration; connection and daemonId are managed by Shipyard."
           },
           "secretKeys": {
             "type": "array",
@@ -6662,7 +6728,8 @@
             "type": "string"
           },
           "state": {
-            "type": "string"
+            "type": "string",
+            "description": "Deployment state, including terminal healthy, failed, recovery_failed and cancelled."
           },
           "phase": {
             "type": "string"

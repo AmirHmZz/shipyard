@@ -1,4 +1,7 @@
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+
+import { expect, test } from "@playwright/test";
+
 import type { components } from "../src/lib/schema";
 
 type Resource = components["schemas"]["Resource"];
@@ -6,9 +9,15 @@ type ResourceInput = components["schemas"]["ResourceInput"];
 
 function resource(id: string, input: ResourceInput): Resource {
   const { secrets, ...details } = input;
+  const variables: Record<string, string> = {};
+  for (const [name, value] of Object.entries(input.variables || {})) {
+    if (value !== null) variables[name] = value;
+  }
   return {
     id,
     ...details,
+    name: input.name || "",
+    variables,
     parentId: input.parentId || "",
     teamId: input.teamId || "",
     secretKeys: Object.keys(secrets || {}),

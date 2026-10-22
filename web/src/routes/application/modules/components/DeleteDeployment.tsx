@@ -1,4 +1,7 @@
-import { useRemoveDeployment } from "../hooks";
+import { Trash2 } from "lucide-react";
+
+import type { Deployment } from "@/lib/api/types";
+
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,41 +13,34 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
-import { errorMessage, type Deployment } from "@/lib/api";
-import { Trash2 } from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
+import { describeError } from "@/lib/api/translate-error";
 
+import { useRemoveDeployment } from "../hooks";
+
+export type DeleteDeploymentProps = {
+  deployment: Deployment;
+  onClose: () => void;
+};
 export function DeleteDeployment({
   deployment,
   onClose,
-}: {
-  deployment: Deployment;
-  onClose: () => void;
-}) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+}: DeleteDeploymentProps) {
+  function handleDialogOpenChange(open: boolean) {
+    if (!open && !busy) onClose();
+  }
+  function handleButtonClick() {
+    return void remove();
+  }
+
   const removeMutation = useRemoveDeployment(deployment.applicationId);
-  async function remove() {
-    setBusy(true);
-    setError("");
-    try {
-      await removeMutation.mutateAsync(deployment.id);
-      toast.success("Deployment cleanup queued");
-      onClose();
-    } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setBusy(false);
-    }
+  const busy = removeMutation.isPending;
+  const error = removeMutation.error ? describeError(removeMutation.error) : "";
+  function remove() {
+    if (busy) return;
+    removeMutation.mutate(deployment.id, { onSuccess: onClose });
   }
   return (
-    <Dialog
-      open
-      onOpenChange={(open) => {
-        if (!open && !busy) onClose();
-      }}
-    >
+    <Dialog open onOpenChange={handleDialogOpenChange}>
       <DialogContent showCloseButton={!busy}>
         <DialogHeader>
           <DialogTitle>Delete deployment?</DialogTitle>
@@ -67,7 +63,7 @@ export function DeleteDeployment({
           <Button
             variant="destructive"
             disabled={busy}
-            onClick={() => void remove()}
+            onClick={handleButtonClick}
           >
             {busy ? <Spinner className="size-4" /> : <Trash2 />}Delete
             deployment

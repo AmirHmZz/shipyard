@@ -1,4 +1,5 @@
 import type { ErrorEvent as SentryErrorEvent } from "@sentry/react";
+import type * as SentryReact from "@sentry/react";
 import type { ErrorInfo } from "react";
 
 export function scrubEvent(event: SentryErrorEvent): SentryErrorEvent {
@@ -29,17 +30,20 @@ export function scrubEvent(event: SentryErrorEvent): SentryErrorEvent {
 
 // Load public configuration from the control plane; credentials are never sent.
 // Monitoring must not prevent the dashboard from opening when it is unavailable.
-type TelemetryClient = typeof import("@sentry/react");
+type TelemetryClient = typeof SentryReact;
 let ready: Promise<TelemetryClient | undefined> = Promise.resolve(undefined);
 
 export function initTelemetry(): Promise<void> {
   const earlyErrors: unknown[] = [];
-  const remember = (error: unknown) => {
+  function remember(error: unknown) {
     if (earlyErrors.length < 20) earlyErrors.push(error);
-  };
-  const onError = (event: ErrorEvent) =>
-    remember(event.error || new Error(event.message));
-  const onRejection = (event: PromiseRejectionEvent) => remember(event.reason);
+  }
+  function onError(event: ErrorEvent) {
+    return remember(event.error || new Error(event.message));
+  }
+  function onRejection(event: PromiseRejectionEvent) {
+    return remember(event.reason);
+  }
   if (typeof window !== "undefined") {
     window.addEventListener("error", onError);
     window.addEventListener("unhandledrejection", onRejection);

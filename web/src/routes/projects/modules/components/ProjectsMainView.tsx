@@ -1,84 +1,29 @@
-import { ProjectVariablesDialog } from "./ProjectVariablesDialog";
-import { DeleteResource, DeletionStatus } from "@/components/delete-resource";
+import { DeleteResource, DeletionStatus } from "@/components/DeleteResource";
 import { ResourceEditor } from "@/components/resource-editor";
-import { Empty, ErrorState, Loading } from "@/components/shared";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useResources, type Resource } from "@/lib/api";
-import { indexResources } from "@/lib/resource-index";
-import { Layers3, MoreHorizontal, Plus, Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router";
-import { ApplicationCards } from "./ApplicationCards";
+import { ErrorState, Loading } from "@/components/Shared";
+
+import { useProjectsPage } from "../hooks";
+import { ProjectContent } from "./ProjectContent";
 import { ProjectsHeader } from "./ProjectsHeader";
 import { ProjectToolbar } from "./ProjectToolbar";
-
-export function ProjectsMainView({ previews = false }: { previews?: boolean }) {
-  const q = useResources();
-  const navigate = useNavigate();
-  const index = useMemo(() => indexResources(q.data || []), [q.data]);
-  const [deleting, setDeleting] = useState<Resource | null>(null);
-  const [filter, setFilter] = useState("");
-  const [editor, setEditor] = useState<{
-    kind: string;
-    existing?: Resource;
-    parentId?: string;
-  } | null>(null);
-  const { id } = useParams();
-  const [params, setParams] = useSearchParams();
-  const activeEnvironment = params.get("environment") || "";
-  const [variables, setVariables] = useState<Resource | null>(null);
-  function openEditor(request: {
-    kind: string;
-    existing?: Resource;
-    parentId?: string;
-  }) {
-    if (["team", "project", "environment"].includes(request.kind)) {
-      setEditor(request);
-      return;
-    }
-    navigate(
-      `/configure/${request.kind}/${request.existing?.id || "new"}?parent=${request.parentId || ""}&return=${encodeURIComponent(location.pathname + location.search)}`,
-    );
-  }
+export type ProjectsMainViewProps = { previews?: boolean };
+export function ProjectsMainView({ previews = false }: ProjectsMainViewProps) {
+  const controller = useProjectsPage(previews);
+  const { state, derived, handlers } = controller;
+  const { deleting, filter, editor } = state;
+  const { q, resources, id, project, environments, currentEnvironment } =
+    derived;
+  const {
+    setFilter,
+    setDeleting,
+    openEditor,
+    retryProjectDeletion,
+    handleEditorOpenChange,
+    closeDeletion,
+    resourceDeleted,
+  } = handlers;
   if (q.isPending) return <Loading />;
   if (q.error) return <ErrorState error={q.error} />;
-  const resources = q.data || [];
-  const project = index.byId.get(id || "");
-  const environments = resources.filter(
-    (r) => r.kind === "environment" && r.parentId === id,
-  );
-  const currentEnvironment =
-    environments.find((e) => e.id === activeEnvironment) || environments[0];
-  const applications = resources.filter(
-    (r) =>
-      r.kind === "application" &&
-      !!r.data.previewOf === previews &&
-      !r.data.previewClosed,
-  );
-  const projects = resources.filter(
-    (r) =>
-      r.kind === "project" &&
-      r.name.toLowerCase().includes(filter.toLowerCase()),
-  );
-  const cards = (apps: Resource[]) => (
-    <ApplicationCards
-      apps={apps}
-      filter={filter}
-      previews={previews}
-      index={index}
-      currentEnvironment={currentEnvironment}
-      openEditor={openEditor}
-    />
-  );
   return (
     <>
       <ProjectsHeader
@@ -99,180 +44,13 @@ export function ProjectsMainView({ previews = false }: { previews?: boolean }) {
         setDeleting={setDeleting}
       />
       {project && (
-        <DeletionStatus
-          resource={project}
-          onRetry={() => setDeleting(project)}
-        />
+        <DeletionStatus resource={project} onRetry={retryProjectDeletion} />
       )}
-      {previews ? (
-        cards(applications)
-      ) : id ? (
-        environments.length ? (
-          <Tabs
-            value={currentEnvironment?.id}
-            onValueChange={(value) =>
-              setParams((current) => {
-                const next = new URLSearchParams(current);
-                next.set("environment", value);
-                return next;
-              })
-            }
-          >
-            <div className="overflow-x-auto overflow-y-hidden p-1 -m-1">
-              <TabsList>
-                {environments.map((env) => (
-                  <TabsTrigger key={env.id} value={env.id}>
-                    <Layers3 aria-hidden="true" />
-                    {env.name}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-            </div>
-            {environments.map((env) => (
-              <TabsContent key={env.id} value={env.id}>
-                <div className="mb-4 flex justify-end">
-                  <Button
-                    disabled={!!env.data.deleting}
-                    variant="ghost"
-                    size="sm"
-                    onClick={() =>
-                      navigate(
-                        `/configure/variables/${env.id}?return=${encodeURIComponent(location.pathname + location.search)}`,
-                      )
-                    }
-                  >
-                    Environment variables
-                  </Button>
-                  <Button
-                    disabled={!env.canWrite || !!env.data.deleting}
-                    variant="ghost"
-                    size="sm"
-                    onClick={() =>
-                      openEditor({ kind: "environment", existing: env })
-                    }
-                  >
-                    Edit environment
-                  </Button>
-                </div>
-                {env.id === currentEnvironment?.id
-                  ? cards(applications.filter((app) => app.parentId === env.id))
-                  : null}
-              </TabsContent>
-            ))}
-          </Tabs>
-        ) : (
-          <Empty
-            title="Create an environment"
-            description="Start with production or staging. Each environment has its own applications and configuration."
-            action={
-              <Button
-                disabled={!project?.canWrite || !!project?.data.deleting}
-                onClick={() =>
-                  openEditor({ kind: "environment", parentId: id })
-                }
-              >
-                <Plus />
-                New environment
-              </Button>
-            }
-          />
-        )
-      ) : projects.length ? (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {projects.map((p) => (
-            <Card
-              key={p.id}
-              className="group relative gap-0 py-0 shadow-none transition-colors hover:border-primary/40 focus-within:border-primary/40"
-            >
-              <CardContent className="p-5">
-                <div className="mb-4 flex items-center justify-between">
-                  <div className="rounded-xl border bg-muted/50 p-3">
-                    <Layers3 className="size-5 text-primary" />
-                  </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label="Project actions"
-                        className="relative z-10"
-                      >
-                        <MoreHorizontal className="size-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                      <DropdownMenuItem
-                        disabled={!p.canWrite || !!p.data.deleting}
-                        onClick={() =>
-                          openEditor({ kind: "project", existing: p })
-                        }
-                      >
-                        Edit project
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        variant="destructive"
-                        disabled={
-                          !p.canWrite ||
-                          (!!p.data.deleting && p.data.deletionRoot !== p.id)
-                        }
-                        onClick={() => setDeleting(p)}
-                      >
-                        <Trash2 />
-                        {p.data.deleting ? "Retry deletion" : "Delete project"}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-                <Link
-                  className="font-medium after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-ring group-hover:text-primary"
-                  to={`/projects/${p.id}`}
-                >
-                  {p.name}
-                </Link>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {index.byId.get(p.teamId || "")?.name}
-                </p>
-                {!!p.data.deleting && (
-                  <Badge variant="secondary" className="mt-2">
-                    {p.data.deletionError ? "Cleanup failed" : "Deleting…"}
-                  </Badge>
-                )}
-                <div className="mt-4 border-t pt-3 text-xs text-muted-foreground">
-                  {
-                    (index.byParent.get(p.id) || []).filter(
-                      (r) => r.kind === "environment",
-                    ).length
-                  }{" "}
-                  environments
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <Empty
-          title="Everything starts with a project"
-          description="Create a team first, then organize your deployments into projects."
-          action={
-            <Button
-              onClick={() =>
-                openEditor({
-                  kind: resources.some((r) => r.kind === "team")
-                    ? "project"
-                    : "team",
-                })
-              }
-            >
-              <Plus />
-              Get started
-            </Button>
-          }
-        />
-      )}
+      <ProjectContent controller={controller} previews={previews} />
       {editor && (
         <ResourceEditor
           open
-          onOpenChange={(v) => !v && setEditor(null)}
+          onOpenChange={handleEditorOpenChange}
           kind={editor.kind}
           existing={editor.existing}
           parentId={editor.parentId}
@@ -282,17 +60,10 @@ export function ProjectsMainView({ previews = false }: { previews?: boolean }) {
       {deleting && (
         <DeleteResource
           resource={resources.find((r) => r.id === deleting.id) || deleting}
-          onClose={() => setDeleting(null)}
-          onDeleted={() => {
-            if (id === deleting.id) navigate("/projects");
-          }}
+          onClose={closeDeletion}
+          onDeleted={resourceDeleted}
         />
       )}
-      <ProjectVariablesDialog
-        variables={variables}
-        setVariables={setVariables}
-        resources={resources}
-      />
     </>
   );
 }

@@ -1,0 +1,70 @@
+import type { QueryKey, UseMutationOptions } from "@tanstack/react-query";
+import type * as z from "zod/mini";
+
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+
+import { callApi, callApiBlob } from "./call";
+import { captureSession } from "./csrf";
+import { ApiException } from "./errors";
+
+export type ApiMutationOptions<
+  S extends z.ZodMiniType,
+  TVariables,
+  TContext,
+> = Omit<
+  UseMutationOptions<z.output<S>, ApiException, TVariables, TContext>,
+  "mutationFn"
+> & {
+  method: string | ((variables: TVariables) => string);
+  path: string | ((variables: TVariables) => string);
+  body?: (variables: TVariables) => unknown;
+  schema: S;
+  responseType?: "json" | "blob";
+  invalidate?: readonly QueryKey[];
+};
+export function useApiMutation<
+  S extends z.ZodMiniType,
+  TVariables = void,
+  TContext = unknown,
+>({
+  method,
+  path,
+  body,
+  schema,
+  responseType = "json",
+  invalidate = [],
+  ...options
+}: ApiMutationOptions<S, TVariables, TContext>) {
+  const client = useQueryClient();
+  return useMutation<z.output<S>, ApiException, TVariables, TContext>({
+    ...options,
+    mutationFn: async (variables) => {
+      const requestMethod =
+        typeof method === "function" ? method(variables) : method;
+      const requestPath = typeof path === "function" ? path(variables) : path;
+      const requestBody = body?.(variables);
+      const result =
+        responseType === "blob"
+          ? await callApiBlob(requestPath, {
+              method: requestMethod,
+              body: requestBody,
+              schema,
+            })
+          : await callApi({
+              method: requestMethod,
+              path: requestPath,
+              body: requestBody,
+              schema,
+            });
+      if (!result.ok) throw new ApiException(result.error);
+      captureSession(requestPath, result.data);
+      return result.data;
+    },
+    onSettled:
+      options.onSettled ??
+      (() =>
+        Promise.all(
+          invalidate.map((queryKey) => client.invalidateQueries({ queryKey })),
+        )),
+  });
+}

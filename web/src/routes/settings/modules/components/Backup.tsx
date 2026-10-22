@@ -1,5 +1,11 @@
-import { downloadBackup } from "../services";
-import { useSetMaintenanceMode } from "../hooks";
+import type * as React from "react";
+import type { FormEvent } from "react";
+
+import { Download } from "lucide-react";
+import { useState } from "react";
+
+import type { Session } from "@/lib/api/types";
+
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,18 +19,46 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
-import { errorMessage, type Session } from "@/lib/api";
-import { passphraseSchema } from "@/lib/validation";
-import { Download } from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
+import { toastValidationError } from "@/lib/api/toaster";
 
-export function Backup({ session }: { session: Session }) {
+import { passphraseSchema } from "../generics";
+import { useSetMaintenanceMode, useDownloadBackup } from "../hooks";
+
+export type BackupProps = { session: Session };
+export function Backup({ session }: BackupProps) {
+  function handleSwitchCheckedChange(enabled: boolean) {
+    return maintenance.mutate(enabled);
+  }
+  function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    return setPassphrase(e.target.value);
+  }
+
   const maintenance = useSetMaintenanceMode();
   const [passphrase, setPassphrase] = useState("");
-  const [busy, setBusy] = useState(false);
+  const backup = useDownloadBackup();
+  const busy = backup.isPending;
+  function exportBackup(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (busy) return;
+    const parsed = passphraseSchema.safeParse({ passphrase });
+    if (!parsed.success) {
+      toastValidationError(parsed.error);
+      return;
+    }
+    backup.mutate(parsed.data, {
+      onSuccess: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = `shipyard-${new Date().toISOString().slice(0, 10)}.sybackup`;
+        anchor.click();
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+        setPassphrase("");
+      },
+    });
+  }
   return (
-    <div className="max-w-2xl space-y-5">
+    <div className="max-w-2xl flex flex-col gap-5">
       <Card className="shadow-none">
         <CardHeader>
           <CardTitle className="text-base">Maintenance mode</CardTitle>
@@ -38,13 +72,7 @@ export function Backup({ session }: { session: Session }) {
           <Switch
             checked={session.maintenance || false}
             disabled={maintenance.isPending}
-            onCheckedChange={async (enabled) => {
-              try {
-                await maintenance.mutateAsync(enabled);
-              } catch (e) {
-                toast.error(errorMessage(e));
-              }
-            }}
+            onCheckedChange={handleSwitchCheckedChange}
           />
         </CardContent>
       </Card>
@@ -58,41 +86,21 @@ export function Backup({ session }: { session: Session }) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form
-            className="space-y-4"
-            onSubmit={async (e) => {
-              e.preventDefault();
-              setBusy(true);
-              try {
-                const blob = await downloadBackup(
-                  passphraseSchema.parse({ passphrase }),
-                );
-                const url = URL.createObjectURL(blob);
-                const anchor = document.createElement("a");
-                anchor.href = url;
-                anchor.download = `shipyard-${new Date().toISOString().slice(0, 10)}.sybackup`;
-                anchor.click();
-                setTimeout(() => URL.revokeObjectURL(url), 10000);
-                setPassphrase("");
-                toast.success("Encrypted backup downloaded");
-              } catch (err) {
-                toast.error(errorMessage(err));
-              } finally {
-                setBusy(false);
-              }
-            }}
-          >
+          <form className="flex flex-col gap-4" onSubmit={exportBackup}>
             <Label htmlFor="passphrase">Backup passphrase</Label>
             <Input
               id="passphrase"
               type="password"
               minLength={12}
               value={passphrase}
-              onChange={(e) => setPassphrase(e.target.value)}
+              onChange={handleInputChange}
               required
             />
-            <Button disabled={busy || !session.maintenance}>
-              {busy ? <Spinner className="size-4 " /> : <Download />}Export
+            <Button
+              className="self-start"
+              disabled={busy || !session.maintenance}
+            >
+              {busy ? <Spinner className="size-4" /> : <Download />}Export
               encrypted backup
             </Button>
           </form>

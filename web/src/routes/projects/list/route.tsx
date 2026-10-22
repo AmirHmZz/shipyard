@@ -4,5 +4,7 @@ export default function ProjectsRoute() {
   return <ProjectsMainView />;
 }
 
-export const meta = () => [{ title: "Projects — Shipyard" }];
+export function meta() {
+  return [{ title: "Projects — Shipyard" }];
+}
 export { ContentErrorBoundary as ErrorBoundary } from "@/components/content-error-boundary";

@@ -1,7 +1,9 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ErrorEvent } from "@sentry/react";
-import { initTelemetry, scrubEvent, reportError } from "./telemetry";
+
 import { init, captureException } from "@sentry/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { initTelemetry, scrubEvent, reportError } from "./telemetry";
 
 vi.mock("@sentry/react", () => ({ init: vi.fn(), captureException: vi.fn() }));
 afterEach(() => {

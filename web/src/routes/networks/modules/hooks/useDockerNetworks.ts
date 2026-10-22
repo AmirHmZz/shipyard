@@ -1,11 +1,14 @@
+import { useApiQuery } from "@/lib/api/use-api-query";
+import { apiPath } from "@/lib/paths";
 import { dockerNetworkKeys } from "@/lib/query-keys";
-import { useQuery } from "@tanstack/react-query";
-import { getDockerNetworks } from "../services";
+
+import { getDockerNetworksResponseSchema } from "../generics";
 
 export function useDockerNetworks(filter: string, enabled: boolean) {
-  return useQuery({
+  return useApiQuery({
     queryKey: dockerNetworkKeys.filter(filter),
-    queryFn: () => getDockerNetworks(filter),
+    path: apiPath`/servers/${filter}/networks`,
+    schema: getDockerNetworksResponseSchema,
     enabled: enabled,
     retry: false,
   });

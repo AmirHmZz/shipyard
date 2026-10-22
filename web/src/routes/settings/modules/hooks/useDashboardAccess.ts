@@ -1,11 +1,12 @@
-import { settingsKeys } from "../generics";
-import { useQuery } from "@tanstack/react-query";
-import { getDashboardAccess } from "../services";
+import { useApiQuery } from "@/lib/api/use-api-query";
+import { POLL_INTERVALS } from "@/lib/constants";
 
+import { settingsKeys, dashboardAccessResponseSchema } from "../generics";
 export function useDashboardAccess() {
-  return useQuery({
+  return useApiQuery({
     queryKey: settingsKeys.dashboardAccess,
-    queryFn: () => getDashboardAccess(),
-    refetchInterval: 3000,
+    path: "/settings/dashboard-access",
+    schema: dashboardAccessResponseSchema,
+    refetchInterval: POLL_INTERVALS.system,
   });
 }

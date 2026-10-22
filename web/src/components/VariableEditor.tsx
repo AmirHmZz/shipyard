@@ -1,6 +1,7 @@
+import { FormField } from "@/components/FormField";
+import { InputField } from "@/components/InputField";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -10,44 +11,30 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+
 import type { VariableController } from "./variables";
-export function VariableEditor({
-  controller,
-}: {
+export type VariableEditorProps = {
   controller: VariableController;
-}) {
+};
+export function VariableEditor({ controller }: VariableEditorProps) {
+  const { key, value, scope, editing } = controller.state;
+  const { secretKeys, isSecret, buildScope, busy } = controller.derived;
   const {
-    key,
-    setKey,
-    value,
-    setValue,
-    scope,
     setScope,
-    secretKeys,
-    isSecret,
     setSecret,
-    buildScope,
-    editing,
-    busy,
-    changes,
-    reset,
-    save,
-  } = controller;
+    submitEditor,
+    changeKey,
+    changeValue,
+    cancelEditor,
+  } = controller.handlers;
   return (
     <Card className="py-0 shadow-none">
       <CardContent className="p-5">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            void save(scope + key, value, isSecret);
-          }}
-          className="space-y-4"
-        >
+        <form onSubmit={submitEditor} className="flex flex-col gap-4">
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="var-scope">Scope</Label>
+            <FormField label={<>Scope</>} labelProps={{ htmlFor: "var-scope" }}>
               <Select
                 value={scope}
                 onValueChange={setScope}
@@ -67,20 +54,21 @@ export function VariableEditor({
                   </SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="var-key">Variable name</Label>
-              <Input
-                id="var-key"
-                className="font-mono"
-                placeholder="API_KEY"
-                pattern="[A-Za-z_][A-Za-z0-9_]*"
-                value={key}
-                onChange={(e) => setKey(e.target.value)}
-                required
-                disabled={busy || !!editing}
-              />
-            </div>
+            </FormField>
+            <InputField
+              label={<>Variable name</>}
+              labelProps={{ htmlFor: "var-key" }}
+              inputProps={{
+                id: "var-key",
+                className: "font-mono",
+                placeholder: "API_KEY",
+                pattern: "[A-Za-z_][A-Za-z0-9_]*",
+                value: key,
+                onChange: changeKey,
+                required: true,
+                disabled: busy || !!editing,
+              }}
+            />
           </div>
           <div className="flex items-center gap-3">
             <Switch
@@ -96,24 +84,28 @@ export function VariableEditor({
               Enter a replacement value. The stored secret is never returned.
             </p>
           )}
-          <div className="space-y-2">
-            <Label htmlFor="var-value">
-              {editing && secretKeys.has(editing)
-                ? "Replacement value"
-                : "Value"}
-            </Label>
+          <FormField
+            label={
+              <>
+                {editing && secretKeys.has(editing)
+                  ? "Replacement value"
+                  : "Value"}
+              </>
+            }
+            labelProps={{ htmlFor: "var-value" }}
+          >
             <Textarea
               id="var-value"
               className="font-mono text-xs"
               value={value}
-              onChange={(e) => setValue(e.target.value)}
+              onChange={changeValue}
               required={isSecret || secretKeys.has(scope + key)}
               disabled={busy}
             />
-          </div>
+          </FormField>
           <div className="flex gap-2">
             <Button disabled={busy}>
-              {busy && <Spinner className="size-4 " />}
+              {busy && <Spinner className="size-4" />}
               {editing ? "Save variable" : "Add / replace variable"}
             </Button>
             {editing && (
@@ -121,10 +113,7 @@ export function VariableEditor({
                 type="button"
                 variant="outline"
                 disabled={busy}
-                onClick={() => {
-                  reset();
-                  changes.saved();
-                }}
+                onClick={cancelEditor}
               >
                 Cancel
               </Button>

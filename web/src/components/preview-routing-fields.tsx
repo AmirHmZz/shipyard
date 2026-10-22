@@ -1,5 +1,10 @@
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import type * as React from "react";
+
+import { useId } from "react";
+
+import type { PreviewRouting } from "@/lib/application-settings";
+
+import { InputField } from "@/components/InputField";
 import {
   Select,
   SelectContent,
@@ -7,34 +12,47 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { PreviewRouting } from "@/lib/application-settings";
-import { useId } from "react";
+import { inputNumberSchema } from "@/lib/schemas/coercion";
 
+export type PreviewRoutingFieldsProps = {
+  value: PreviewRouting;
+  onChange: (value: PreviewRouting) => void;
+  hasRoutes: boolean;
+  disabled?: boolean;
+};
 export function PreviewRoutingFields({
   value,
   onChange,
   hasRoutes,
   disabled = false,
-}: {
-  value: PreviewRouting;
-  onChange: (value: PreviewRouting) => void;
-  hasRoutes: boolean;
-  disabled?: boolean;
-}) {
+}: PreviewRoutingFieldsProps) {
+  function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    if (value.mode !== "target") return;
+    return onChange({ ...value, service: e.target.value });
+  }
+  function handleInputChange2(e: React.ChangeEvent<HTMLInputElement>) {
+    if (value.mode !== "target") return;
+    return onChange({
+      ...value,
+      port: inputNumberSchema.parse(e.target.value),
+    });
+  }
+
   const id = useId();
+  function changeMode(mode: string) {
+    if (mode === "target") {
+      onChange({
+        mode,
+        service: value.mode === "target" ? value.service || "app" : "app",
+        port: value.mode === "target" ? value.port || 0 : 0,
+      });
+      return;
+    }
+    if (mode === "inherit" || mode === "private") onChange({ mode });
+  }
   return (
-    <div className="space-y-3">
-      <Select
-        value={value.mode}
-        disabled={disabled}
-        onValueChange={(mode) =>
-          onChange(
-            mode === "target"
-              ? { mode, service: value.service || "app", port: value.port || 0 }
-              : { mode: mode as "inherit" | "private" },
-          )
-        }
-      >
+    <div className="flex flex-col gap-3">
+      <Select value={value.mode} disabled={disabled} onValueChange={changeMode}>
         <SelectTrigger aria-label="Preview routing">
           <SelectValue />
         </SelectTrigger>
@@ -54,29 +72,31 @@ export function PreviewRoutingFields({
       )}
       {value.mode === "target" && (
         <div className="grid grid-cols-[minmax(0,1fr)_7rem] gap-3">
-          <div className="space-y-1">
-            <Label htmlFor={`${id}-service`}>Preview service</Label>
-            <Input
-              id={`${id}-service`}
-              value={value.service || ""}
-              disabled={disabled}
-              onChange={(e) => onChange({ ...value, service: e.target.value })}
-            />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor={`${id}-port`}>Preview port</Label>
-            <Input
-              id={`${id}-port`}
-              type="number"
-              min={1}
-              max={65535}
-              value={value.port || ""}
-              disabled={disabled}
-              onChange={(e) =>
-                onChange({ ...value, port: Number(e.target.value) })
-              }
-            />
-          </div>
+          <InputField
+            className="flex flex-col gap-1"
+            label={<>Preview service</>}
+            labelProps={{ htmlFor: `${id}-service` }}
+            inputProps={{
+              id: `${id}-service`,
+              value: value.service || "",
+              disabled: disabled,
+              onChange: handleInputChange,
+            }}
+          />
+          <InputField
+            className="flex flex-col gap-1"
+            label={<>Preview port</>}
+            labelProps={{ htmlFor: `${id}-port` }}
+            inputProps={{
+              id: `${id}-port`,
+              type: "number",
+              min: 1,
+              max: 65535,
+              value: value.port || "",
+              disabled: disabled,
+              onChange: handleInputChange2,
+            }}
+          />
         </div>
       )}
       {value.mode === "private" && (

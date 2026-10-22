@@ -1,9 +1,13 @@
 import { useResourceForm } from "@/components/resource-forms/controller";
-import { fields } from "@/components/resource-forms/definitions";
+import { fields } from "@/lib/resource-form-definitions";
+import { previewRoutingDraftSchema } from "@/lib/schemas/application";
+
 import type { ResourceFieldProps } from "../types";
+
 import { COMPOSE_HIDDEN_FIELDS } from "../constants";
 import { ResourceField } from "../fields/ResourceField";
 
+export type ResourceSchemaFieldsProps = Omit<ResourceFieldProps, "f">;
 export function ResourceSchemaFields({
   kind,
   resources,
@@ -11,10 +15,12 @@ export function ResourceSchemaFields({
   services,
   repos,
   branches,
-}: Omit<ResourceFieldProps, "f">) {
+}: ResourceSchemaFieldsProps) {
   const {
     state: { data },
   } = useResourceForm();
+  const preview = previewRoutingDraftSchema.safeParse(data.previewRouting);
+  const privatePreview = preview.success && preview.data.mode === "private";
   return (
     <>
       {(fields[kind] || [])
@@ -49,7 +55,7 @@ export function ResourceSchemaFields({
             !(
               kind === "application" &&
               ["previewDomain", "previewZoneId"].includes(f.key) &&
-              (data.previewRouting as { mode?: string })?.mode === "private"
+              privatePreview
             ),
         )
         .filter(

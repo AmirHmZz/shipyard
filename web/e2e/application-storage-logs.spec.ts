@@ -1,4 +1,12 @@
-import { expect, test, type Page } from "@playwright/test";
+type TestSource = { send(message: string, id?: string): void };
+declare global {
+  interface Window {
+    testSources: TestSource[];
+  }
+}
+import type { Page } from "@playwright/test";
+
+import { expect, test } from "@playwright/test";
 
 async function setup(
   page: Page,
@@ -14,8 +22,8 @@ async function setup(
       readyState = 1;
       handlers = new Map<string, ((event: MessageEvent) => void)[]>();
       constructor(public url: string) {
-        (window as any).testSources ??= [];
-        (window as any).testSources.push(this);
+        window.testSources ??= [];
+        window.testSources.push(this);
       }
       addEventListener(name: string, handler: (event: MessageEvent) => void) {
         this.handlers.set(name, [...(this.handlers.get(name) || []), handler]);
@@ -33,20 +41,24 @@ async function setup(
         this.readyState = 2;
       }
     }
-    window.EventSource = FakeEventSource as any;
+    Object.defineProperty(window, "EventSource", { value: FakeEventSource });
   });
-  const resource = (id: string, kind: string, parentId = "", data = {}) => ({
-    id,
-    kind,
-    parentId,
-    data,
-    name: id,
-    teamId: "team",
-    version: 1,
-    canWrite: writable,
-    secretKeys: [],
-    variables: {},
-  });
+  function resource(id: string, kind: string, parentId = "", data = {}) {
+    return {
+      createdAt: "2026-10-19T00:00:00Z",
+      updatedAt: "2026-10-19T00:00:00Z",
+      id,
+      kind,
+      parentId,
+      data,
+      name: id,
+      teamId: "team",
+      version: 1,
+      canWrite: writable,
+      secretKeys: [],
+      variables: {},
+    };
+  }
   const app = resource("app", "application", "environment", {
     source,
     engine: source === "compose" ? "compose" : "dockerfile",
@@ -82,7 +94,13 @@ async function setup(
     if (path.endsWith("/auth/me"))
       return route.fulfill({
         json: {
-          user: { id: "user", name: "Operator", admin: true },
+          user: {
+            email: "user@example.test",
+            totp: false,
+            id: "user",
+            name: "Operator",
+            admin: true,
+          },
           csrf: "csrf",
         },
       });
@@ -160,7 +178,18 @@ async function setup(
     }
     if (path.includes("/deployments/"))
       return route.fulfill({
-        json: { id: "deploy", applicationId: "app", state: "building" },
+        json: {
+          phase: "",
+          commit: "",
+          error: "",
+          releaseId: "",
+          rollbackId: "",
+          createdAt: "2026-10-19T00:00:00Z",
+          updatedAt: "2026-10-19T00:00:00Z",
+          id: "deploy",
+          applicationId: "app",
+          state: "building",
+        },
       });
     if (
       path.endsWith("/deployments") ||
@@ -202,23 +231,21 @@ test("clear container logs preserves the connection, resets numbering and cancel
   await page.goto("/applications/app?tab=logs");
   await expect(page.getByRole("button", { name: "Clear logs" })).toBeVisible();
   await page.evaluate(() =>
-    (window as any).testSources.at(-1).send("old line"),
+    window.testSources[window.testSources.length - 1].send("old line"),
   );
   await expect(page.locator("pre")).toContainText("old line");
   await page.evaluate(() =>
-    (window as any).testSources.at(-1).send("pending line"),
+    window.testSources[window.testSources.length - 1].send("pending line"),
   );
-  const connections = await page.evaluate(
-    () => (window as any).testSources.length,
-  );
+  const connections = await page.evaluate(() => window.testSources.length);
   await page.getByRole("button", { name: "Clear logs" }).click();
   await expect(page.locator("pre")).not.toContainText("old line");
   await expect(page.locator("pre")).not.toContainText("pending line");
   await page.evaluate(() =>
-    (window as any).testSources.at(-1).send("new line"),
+    window.testSources[window.testSources.length - 1].send("new line"),
   );
   await expect(page.locator("pre")).toContainText("1new line");
-  expect(await page.evaluate(() => (window as any).testSources.length)).toBe(
+  expect(await page.evaluate(() => window.testSources.length)).toBe(
     connections,
   );
 });
@@ -230,7 +257,7 @@ test("deployment logs ignore replayed IDs while retaining identical distinct mes
   await page.goto("/applications/app?tab=deployments&deployment=deploy");
   await expect(page.locator("pre")).toBeVisible();
   await page.evaluate(() => {
-    const stream = (window as any).testSources.at(-1);
+    const stream = window.testSources[window.testSources.length - 1];
     stream.send("Repeated diagnostic", "1");
     stream.send("Repeated diagnostic", "1");
     stream.send("Repeated diagnostic", "2");

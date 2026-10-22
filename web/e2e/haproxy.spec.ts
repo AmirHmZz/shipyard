@@ -1,4 +1,7 @@
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+
+import { expect, test } from "@playwright/test";
+
 import type { components } from "../src/lib/schema";
 type Settings = components["schemas"]["HAProxySettings"];
 type Input = components["schemas"]["HAProxySettingsInput"];
@@ -62,6 +65,7 @@ async function setup(page: Page, admin = true) {
       return route.fulfill({
         json: [
           {
+            variables: {},
             id: "server",
             kind: "server",
             name: "Destination",

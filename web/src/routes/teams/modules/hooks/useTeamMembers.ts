@@ -1,12 +1,15 @@
-import { teamKeys } from "../generics";
-import { useQuery } from "@tanstack/react-query";
-import { getTeamMembers } from "../services";
-import type { Resource } from "@/lib/api";
+import type { Resource } from "@/lib/api/types";
+
+import { useApiQuery } from "@/lib/api/use-api-query";
+import { apiPath } from "@/lib/paths";
+
+import { teamKeys, teamMembersResponseSchema } from "../generics";
 
 export function useTeamMembers(team: Resource | undefined) {
-  return useQuery({
+  return useApiQuery({
     queryKey: teamKeys.members(team?.id),
-    queryFn: () => getTeamMembers(team),
+    path: apiPath`/teams/${team?.id}/members`,
+    schema: teamMembersResponseSchema,
     enabled: !!team,
   });
 }

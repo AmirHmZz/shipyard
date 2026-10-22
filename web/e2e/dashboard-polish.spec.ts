@@ -1,12 +1,20 @@
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+
+import { expect, test } from "@playwright/test";
+
 import type { components } from "../src/lib/schema";
 
 type Resource = components["schemas"]["Resource"];
 type ResourceInput = components["schemas"]["ResourceInput"];
 function resource(id: string, input: ResourceInput): Resource {
+  const variables: Record<string, string> = {};
+  for (const [name, value] of Object.entries(input.variables || {})) {
+    if (value !== null) variables[name] = value;
+  }
   return {
     id,
     ...input,
+    variables,
     name: input.name || String(input.data.domain || id),
     parentId: input.parentId || "",
     teamId: input.teamId || "",
@@ -54,7 +62,8 @@ async function dashboard(page: Page, initial: Resource[] = []) {
       resources.push(saved);
       return route.fulfill({ status: 201, json: saved });
     }
-    if (path === "/api/v1/dns/test") return route.fulfill({ json: { ok: true } });
+    if (path === "/api/v1/dns/test")
+      return route.fulfill({ json: { ok: true } });
     if (path.endsWith("/records"))
       return route.fulfill({
         json: [
@@ -77,7 +86,7 @@ async function dashboard(page: Page, initial: Resource[] = []) {
         ],
       });
     if (path.endsWith("/runtime"))
-      return route.fulfill({ json: { containers: [] } });
+      return route.fulfill({ json: { status: "running", containers: [] } });
     if (path === "/api/v1/deployments" || /\/(metrics|releases)$/.test(path))
       return route.fulfill({ json: [] });
     throw new Error(`Unexpected API request: ${request.method()} ${path}`);
@@ -90,10 +99,11 @@ test("provider names and logos render while saved provider IDs stay unchanged", 
 }) => {
   const writes = await dashboard(page);
   await page.goto("/integrations");
-  const card = (name: string) =>
-    page
+  function card(name: string) {
+    return page
       .locator('[data-slot="card"]')
       .filter({ has: page.getByText(name, { exact: true }) });
+  }
   await card("Source control")
     .getByRole("button", { name: "Add connection" })
     .click();
@@ -140,7 +150,9 @@ test("provider names and logos render while saved provider IDs stay unchanged", 
   await expect(dnsSelect).toHaveText("ArvanCloud");
   await dns.getByLabel("Name", { exact: true }).fill("DNS test");
   await dns.getByLabel("Provider API token").fill("test-token");
-  await expect(dns.getByRole("button", { name: "Save provider" })).toBeDisabled();
+  await expect(
+    dns.getByRole("button", { name: "Save provider" }),
+  ).toBeDisabled();
   await dns.getByRole("button", { name: "Test provider", exact: true }).click();
   await dns.getByRole("button", { name: "Save provider" }).click();
   await expect(page).toHaveURL(/integrations$/);

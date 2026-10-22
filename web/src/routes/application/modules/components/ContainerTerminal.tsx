@@ -1,5 +1,8 @@
+import { Plug, Unplug } from "lucide-react";
+
+import { FlushCard } from "@/components/FlushCard";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -7,98 +10,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getCSRF } from "@/lib/api";
-import { FitAddon } from "@xterm/addon-fit";
-import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
-import { Plug, Unplug } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-export default function ContainerTerminal({
-  applicationId,
-  containers,
-}: {
+
+import { useContainerTerminal } from "../hooks/terminal";
+export type ContainerTerminalProps = {
   applicationId: string;
   containers: string[];
-}) {
-  const [container, setContainer] = useState(containers[0] || "");
-  const [connected, setConnected] = useState(false);
-  const [status, setStatus] = useState("disconnected");
-  const host = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!connected || !host.current || !container) return;
-    const terminal = new Terminal({
-      fontSize: 13,
-      fontFamily: "Consolas,monospace",
-      cursorBlink: true,
-      theme: {
-        background: "#121a15",
-        foreground: "#d1dfc9",
-        cursor: "#a8c98f",
-      },
-      allowProposedApi: false,
-    });
-    const fit = new FitAddon();
-    terminal.loadAddon(fit);
-    terminal.open(host.current);
-    fit.fit();
-    const scheme = location.protocol === "https:" ? "wss" : "ws";
-    const socket = new WebSocket(
-      `${scheme}://${location.host}/api/v1/applications/${applicationId}/terminal?container=${encodeURIComponent(container)}&csrf=${encodeURIComponent(getCSRF())}`,
-    );
-    socket.binaryType = "arraybuffer";
-    socket.onopen = () => {
-      setStatus("connected");
-      socket.send(
-        JSON.stringify({
-          type: "resize",
-          rows: terminal.rows,
-          cols: terminal.cols,
-        }),
-      );
-      terminal.focus();
-    };
-    socket.onmessage = (event) =>
-      terminal.write(
-        typeof event.data === "string"
-          ? event.data
-          : new Uint8Array(event.data as ArrayBuffer),
-      );
-    socket.onclose = (event) => {
-      setStatus("disconnected");
-      terminal.writeln(`\r\n[${event.reason || "Connection closed"}]`);
-    };
-    socket.onerror = () => {
-      setStatus("failed");
-      terminal.writeln(
-        "\r\n[Unable to connect. Check permissions and container status.]",
-      );
-    };
-    const subscription = terminal.onData((data) => {
-      if (socket.readyState === WebSocket.OPEN)
-        socket.send(JSON.stringify({ type: "data", data }));
-    });
-    const observer = new ResizeObserver(() => {
-      fit.fit();
-      if (socket.readyState === WebSocket.OPEN)
-        socket.send(
-          JSON.stringify({
-            type: "resize",
-            rows: terminal.rows,
-            cols: terminal.cols,
-          }),
-        );
-    });
-    observer.observe(host.current);
-    return () => {
-      subscription.dispose();
-      observer.disconnect();
-      socket.close();
-      terminal.dispose();
-    };
-  }, [connected, container, applicationId]);
+};
+export function ContainerTerminal({
+  applicationId,
+  containers,
+}: ContainerTerminalProps) {
+  const { state, derived, handlers } = useContainerTerminal(
+    applicationId,
+    containers,
+  );
+  const { container, connected, status } = state;
+  const { host } = derived;
+  const { selectContainer, toggleConnection } = handlers;
   return (
-    <Card className="gap-0 overflow-hidden py-0 shadow-none">
-      <CardHeader className="flex flex-row items-center justify-between border-b py-4">
+    <FlushCard>
+      <CardHeader className="flex items-center justify-between border-b py-4">
         <div>
           <CardTitle className="text-sm">Container terminal</CardTitle>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -107,13 +39,7 @@ export default function ContainerTerminal({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Select
-            value={container}
-            onValueChange={(v) => {
-              setConnected(false);
-              setContainer(v);
-            }}
-          >
+          <Select value={container} onValueChange={selectContainer}>
             <SelectTrigger className="w-36">
               <SelectValue placeholder="Container" />
             </SelectTrigger>
@@ -128,7 +54,7 @@ export default function ContainerTerminal({
           <Button
             variant={connected ? "outline" : "default"}
             disabled={!container}
-            onClick={() => setConnected((v) => !v)}
+            onClick={toggleConnection}
           >
             {connected ? <Unplug /> : <Plug />}
             {connected ? "Disconnect" : "Connect"}
@@ -146,6 +72,6 @@ export default function ContainerTerminal({
           {status.toUpperCase()}
         </div>
       </CardContent>
-    </Card>
+    </FlushCard>
   );
 }

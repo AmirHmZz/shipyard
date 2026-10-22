@@ -1,10 +1,10 @@
-import { settingsKeys } from "../generics";
-import { useQuery } from "@tanstack/react-query";
-import { getUsers } from "../services";
+import { useApiQuery } from "@/lib/api/use-api-query";
 
+import { settingsKeys, getUsersResponseSchema } from "../generics";
 export function useUsers() {
-  return useQuery({
+  return useApiQuery({
     queryKey: settingsKeys.users,
-    queryFn: () => getUsers(),
+    path: "/users",
+    schema: getUsersResponseSchema,
   });
 }

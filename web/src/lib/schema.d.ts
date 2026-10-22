@@ -5788,7 +5788,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Active release, containers and ports */
+        /** Application status, including stopping/stopped/stop_failed without an active release */
         get: {
             parameters: {
                 query?: never;
@@ -5806,9 +5806,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": {
-                            [key: string]: unknown;
-                        };
+                        "application/json": components["schemas"]["ApplicationRuntime"];
                     };
                 };
                 /** @description Invalid input */
@@ -6056,7 +6054,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** action */
+        /** Start, restart, or durably stop an application. Stop cancels deployment work and pauses automatic deployment until explicit resume. */
         post: {
             parameters: {
                 query?: never;
@@ -6082,6 +6080,17 @@ export interface paths {
                     content: {
                         "application/json": {
                             [key: string]: unknown;
+                        };
+                    };
+                };
+                /** @description Stop accepted; poll application runtime until stopped or stop_failed */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            ok: boolean;
                         };
                     };
                 };
@@ -7775,6 +7784,21 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        RegistryConfiguration: {
+            /** @description Registry hostname and optional port, without scheme or image path. Docker Hub aliases normalize to docker.io. */
+            hostname: string;
+            username: string;
+        };
+        ApplicationRuntime: {
+            status: string;
+            error?: string;
+            releaseId?: string;
+            commit?: string;
+            containers?: string[];
+            targets?: {
+                [key: string]: unknown;
+            }[];
+        };
         HTTPReadinessCheck: {
             service: string;
             port: number;
@@ -7993,7 +8017,7 @@ export interface components {
             name: string;
             teamId: string;
             parentId: string;
-            /** @description Kind-specific configuration. Application readiness and preview settings use ApplicationChecks. Server resources use ServerConfiguration; connection and daemonId are managed by Shipyard. */
+            /** @description Kind-specific configuration. Registry resources use RegistryConfiguration and encrypted secrets.password, with administrator-managed team grants and automatic image authentication. Application readiness and preview settings use ApplicationChecks. Server resources use ServerConfiguration; connection and daemonId are managed by Shipyard. */
             data: {
                 [key: string]: unknown;
             };
@@ -8027,6 +8051,7 @@ export interface components {
         Deployment: {
             id: string;
             applicationId: string;
+            /** @description Deployment state, including terminal healthy, failed, recovery_failed and cancelled. */
             state: string;
             phase: string;
             commit: string;

@@ -1,5 +1,8 @@
-import { expect, test, type APIRequestContext } from "@playwright/test";
+import type { APIRequestContext } from "@playwright/test";
+
+import { expect, test } from "@playwright/test";
 import { readFileSync } from "node:fs";
+
 import type { components } from "../src/lib/schema";
 type Resource = components["schemas"]["Resource"];
 
@@ -51,18 +54,18 @@ test("installation, project configuration, invitations and viewer boundaries", a
   const session = await page.request
     .get("/api/v1/auth/me")
     .then((r) => r.json());
-  const mutate = async (
+  async function mutate(
     client: APIRequestContext,
     path: string,
     data: unknown,
-  ) => {
+  ) {
     const response = await client.post("/api/v1" + path, {
       data,
       headers: { "X-CSRF-Token": session.csrf },
     });
     expect(response.ok(), await response.text()).toBeTruthy();
     return response.json();
-  };
+  }
   const unique = Date.now() + "-" + testInfo.project.name;
   const teamName = "Browser team " + unique;
   await page.goto("/teams");
@@ -197,15 +200,13 @@ test("installation, project configuration, invitations and viewer boundaries", a
       projectId: project.id,
     },
   );
-  const viewerContext = await context
-    .browser()!
-    .newContext({
-      baseURL:
-        (testInfo.project.use.baseURL as string) ||
-        process.env.SHIPYARD_E2E_URL ||
-        "http://127.0.0.1:8788",
-      viewport: { width: 390, height: 844 },
-    });
+  const viewerContext = await context.browser()!.newContext({
+    baseURL:
+      (testInfo.project.use.baseURL as string) ||
+      process.env.SHIPYARD_E2E_URL ||
+      "http://127.0.0.1:8788",
+    viewport: { width: 390, height: 844 },
+  });
   try {
     const viewer = await viewerContext.newPage();
     await viewer.goto(invitation.url);

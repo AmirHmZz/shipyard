@@ -4,5 +4,7 @@ export default function OverviewRoute() {
   return <OverviewMainView />;
 }
 
-export const meta = () => [{ title: "Overview — Shipyard" }];
+export function meta() {
+  return [{ title: "Overview — Shipyard" }];
+}
 export { ContentErrorBoundary as ErrorBoundary } from "@/components/content-error-boundary";

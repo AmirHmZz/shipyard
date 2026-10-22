@@ -1,9 +1,24 @@
-import type { InstanceDraft } from "../generics";
-import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
-import { text, type Resource } from "@/lib/api";
 import { ExternalLink } from "lucide-react";
 
+import type { Resource } from "@/lib/api/types";
+
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import { text } from "@/lib/resource-fields";
+
+import type { InstanceDraft } from "../generics";
+
+export type GitConnectionActionsProps = {
+  onManual: () => void;
+  onClose: () => void;
+  existing?: Resource;
+  provider: string;
+  busy: boolean;
+  name: string;
+  instanceId: string;
+  instanceForm: InstanceDraft | null;
+  connect: () => void;
+};
 export function GitConnectionActions({
   onManual,
   onClose,
@@ -14,17 +29,14 @@ export function GitConnectionActions({
   instanceId,
   instanceForm,
   connect,
-}: {
-  onManual: () => void;
-  onClose: () => void;
-  existing?: Resource;
-  provider: string;
-  busy: boolean;
-  name: string;
-  instanceId: string;
-  instanceForm: InstanceDraft | null;
-  connect: () => Promise<void>;
-}) {
+}: GitConnectionActionsProps) {
+  function handleButtonClick() {
+    return void connect();
+  }
+
+  let connectionLabel =
+    provider === "github" ? "Create GitHub App" : "Authorize Gitea";
+  if (existing) connectionLabel = "Reconnect";
   return (
     <div className="flex flex-wrap justify-between gap-2 border-t pt-4">
       <Button variant="ghost" onClick={onManual}>
@@ -45,14 +57,10 @@ export function GitConnectionActions({
                 (!name.trim() || (provider === "gitea" && !instanceId))) ||
               !!instanceForm
             }
-            onClick={() => void connect()}
+            onClick={handleButtonClick}
           >
-            {busy ? <Spinner className="size-4 " /> : <ExternalLink />}
-            {existing
-              ? "Reconnect"
-              : provider === "github"
-                ? "Create GitHub App"
-                : "Authorize Gitea"}
+            {busy ? <Spinner className="size-4" /> : <ExternalLink />}
+            {connectionLabel}
           </Button>
         )}
       </div>

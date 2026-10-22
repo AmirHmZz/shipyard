@@ -1,6 +1,18 @@
-import { sessionKeys } from "@/lib/query-keys";
-import { logout } from "../services";
-import { Loading } from "@/components/shared";
+import {
+  ChevronDown,
+  LogOut,
+  Menu,
+  Moon,
+  Search,
+  Settings2,
+  Sun,
+} from "lucide-react";
+import { Suspense } from "react";
+import { Link, Outlet } from "react-router";
+
+import type { Session } from "@/lib/api/types";
+
+import { Loading } from "@/components/Shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -27,72 +39,24 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { setCSRF, useResources, type Session } from "@/lib/api";
-import { readTheme, writeTheme } from "@/lib/theme";
-import { useQueryClient } from "@tanstack/react-query";
-import {
-  ChevronDown,
-  LogOut,
-  Menu,
-  Moon,
-  Search,
-  Settings2,
-  Sun,
-} from "lucide-react";
-import { Suspense, useEffect, useState } from "react";
-import {
-  Link,
-  Outlet,
-  useLocation,
-  useNavigate,
-  useMatches,
-} from "react-router";
-import { navigation } from "../generics";
-import { Sidebar } from "./Sidebar";
-import { resolvePageLabel } from "@/lib/route-handle";
-import { WorkspaceSearch } from "./WorkspaceSearch";
 
-export function Shell({ session }: { session: Session }) {
-  const client = useQueryClient();
-  const location = useLocation();
-  const navigate = useNavigate();
-  const resources = useResources();
-  const [search, setSearch] = useState(false);
-  const [mobile, setMobile] = useState(false);
-  const [dark, setDark] = useState(() => readTheme() === "dark");
-  useEffect(() => {
-    writeTheme(dark ? "dark" : "light");
-  }, [dark]);
-  useEffect(() => {
-    const key = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
-        e.preventDefault();
-        setSearch((v) => !v);
-      }
-    };
-    addEventListener("keydown", key);
-    return () => removeEventListener("keydown", key);
-  }, []);
-  const section = navigation.find(
-    (n) => n.path !== "/" && location.pathname.startsWith(n.path),
-  );
-  const matches = useMatches();
-  const page = section?.label || resolvePageLabel(matches) || "Overview";
-  const current = resources.data?.find(
-    (r) =>
-      r.id === location.pathname.split("/")[2] &&
-      ["project", "application", "zone"].includes(r.kind),
-  );
-  const environment = resources.data?.find((r) => r.id === current?.parentId);
-  const project = resources.data?.find((r) => r.id === environment?.parentId);
-  const parentLabel =
-    current?.kind === "application" ? project?.name || "Projects" : page;
-  const parentPath =
-    current?.kind === "application"
-      ? project
-        ? `/projects/${project.id}`
-        : "/projects"
-      : section?.path || "/";
+import { useShellPage } from "../hooks";
+import { Sidebar } from "./Sidebar";
+import { WorkspaceSearch } from "./WorkspaceSearch";
+export type ShellProps = { session: Session };
+export function Shell({ session }: ShellProps) {
+  const { state, derived, handlers } = useShellPage(session);
+  const { search, mobile, dark } = state;
+  const { current, parentPath, parentLabel, page, initials } = derived;
+  const {
+    setSearch,
+    setMobile,
+    toggleTheme,
+    signOut,
+    closeMobile,
+    openSearch,
+    openSettings,
+  } = handlers;
   return (
     <div className="min-h-screen">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 border-r bg-sidebar lg:block">
@@ -113,7 +77,7 @@ export function Shell({ session }: { session: Session }) {
             </SheetTrigger>
             <SheetContent side="left" className="w-64 p-0">
               <SheetTitle className="sr-only">Navigation</SheetTitle>
-              <Sidebar close={() => setMobile(false)} />
+              <Sidebar close={closeMobile} />
             </SheetContent>
           </Sheet>
           <Breadcrumb aria-label="Workspace navigation" className="min-w-0">
@@ -150,8 +114,8 @@ export function Shell({ session }: { session: Session }) {
           </Breadcrumb>
           <Button
             variant="outline"
-            className="ml-auto hidden h-8 w-56 justify-start gap-2 bg-card text-xs font-normal text-muted-foreground sm:flex"
-            onClick={() => setSearch(true)}
+            className="ml-auto hidden h-8 w-56 justify-start bg-card text-xs font-normal text-muted-foreground sm:flex"
+            onClick={openSearch}
           >
             <Search className="size-3.5" />
             Search your workspace
@@ -164,22 +128,17 @@ export function Shell({ session }: { session: Session }) {
             size="icon"
             aria-label={dark ? "Use light theme" : "Use dark theme"}
             className="size-8"
-            onClick={() => setDark((v) => !v)}
+            onClick={toggleTheme}
           >
-            {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
+            {dark ? <Sun /> : <Moon />}
           </Button>
           <Separator orientation="vertical" className="!h-5" />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-auto gap-2 p-1.5">
+              <Button variant="ghost" className="h-auto p-1.5">
                 <Avatar className="size-7">
                   <AvatarFallback className="bg-primary/10 text-[10px] text-primary">
-                    {session.user.name
-                      .split(" ")
-                      .map((s) => s[0])
-                      .slice(0, 2)
-                      .join("")
-                      .toUpperCase()}
+                    {initials}
                   </AvatarFallback>
                 </Avatar>
                 <span className="hidden text-xs md:block">
@@ -193,22 +152,11 @@ export function Shell({ session }: { session: Session }) {
                 {session.user.email}
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => navigate("/settings")}>
+              <DropdownMenuItem onClick={openSettings}>
                 <Settings2 />
                 Account settings
               </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={async () => {
-                  await logout();
-                  await client.cancelQueries();
-                  client.removeQueries({
-                    predicate: (q) => q.queryKey[0] !== "session",
-                  });
-                  client.setQueryData(sessionKeys.all, null);
-                  setCSRF("");
-                  navigate("/", { replace: true });
-                }}
-              >
+              <DropdownMenuItem onClick={signOut}>
                 <LogOut />
                 Sign out
               </DropdownMenuItem>

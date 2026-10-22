@@ -29,6 +29,8 @@ jobs:
       - run: bun run lint
         working-directory: web
       - run: bun install --frozen-lockfile
+        env:
+          HUSKY: "0"
       - run: bun run format:check
       - run: node scripts/openapi.mjs
       - run: node --test scripts/release-manifest.test.mjs
@@ -108,7 +110,7 @@ jobs:
       - name: Real Docker, Compose, HAProxy and protocol integration tests
         run: |
           fixture_ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' shipyard-integration-fixture)
-          docker run --rm --network host -e TEST_DATABASE_URL -e SHIPYARD_INTEGRATION=1 -e SHIPYARD_FIXTURE_HOST="$fixture_ip" -e SHIPYARD_FIXTURE_PRIVATE_KEY_FILE=/src/.local/integration_rsa -v "$PWD:/src" -w /src -v shipyard-go-mod:/go/pkg/mod -v shipyard-go-cache:/root/.cache/go-build shipyard:test-tools go test -race ./internal/control -run TestLinux -v -count=1 -timeout=30m
+          docker run --rm --network host -e TEST_DATABASE_URL -e SHIPYARD_INTEGRATION=1 -e SHIPYARD_FIXTURE_HOST="$fixture_ip" -e SHIPYARD_FIXTURE_PRIVATE_KEY_FILE=/src/.local/integration_rsa -v "$PWD:/src" -w /src -v shipyard-go-mod:/go/pkg/mod -v shipyard-go-cache:/root/.cache/go-build shipyard:test-tools go test -race ./internal/control ./internal/deploy -run TestLinux -v -count=1 -timeout=30m
       - name: Remove disposable deployment host
         if: always()
         run: docker rm -fv shipyard-integration-fixture || true
@@ -208,7 +210,15 @@ jobs:
         run: docker rm -fv shipyard-browser || true
 
   check:
-    needs: [frontend, go, deployment-integration, native-host, server-deletion, browser]
+    needs:
+      [
+        frontend,
+        go,
+        deployment-integration,
+        native-host,
+        server-deletion,
+        browser,
+      ]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 90

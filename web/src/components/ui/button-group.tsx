@@ -1,7 +1,9 @@
 import type { ComponentProps } from "react";
+
 import { cn } from "@/lib/utils";
 
-export function ButtonGroup({ className, ...props }: ComponentProps<"div">) {
+export type ButtonGroupProps = ComponentProps<"div">;
+export function ButtonGroup({ className, ...props }: ButtonGroupProps) {
   return (
     <div
       role="group"

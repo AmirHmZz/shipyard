@@ -1,10 +1,16 @@
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+
+import { expect, test } from "@playwright/test";
 
 async function setup(
   page: Page,
   { admin = true, local = false, deleting = false } = {},
 ) {
   const host = {
+    secretKeys: [],
+    variables: {},
+    createdAt: "2026-10-19T00:00:00Z",
+    updatedAt: "2026-10-19T00:00:00Z",
     id: "host",
     kind: "server",
     name: "Production",
@@ -60,7 +66,7 @@ async function setup(
     ],
     blockers: [],
   };
-  const writes: { path: string; body: any }[] = [];
+  const writes: { path: string; body: Record<string, unknown> }[] = [];
   let conflict = false;
   await page.route("**/api/v1/**", async (route) => {
     const req = route.request(),
@@ -69,7 +75,16 @@ async function setup(
       return route.fulfill({ json: { dsn: "" } });
     if (path.endsWith("/auth/me"))
       return route.fulfill({
-        json: { user: { id: "user", name: "Admin", admin }, csrf: "csrf" },
+        json: {
+          user: {
+            email: "user@example.test",
+            totp: false,
+            id: "user",
+            name: "Admin",
+            admin,
+          },
+          csrf: "csrf",
+        },
       });
     if (path.endsWith("/resources")) return route.fulfill({ json: [host] });
     if (path.endsWith("/deletion-plan")) return route.fulfill({ json: plan });
@@ -90,12 +105,16 @@ async function setup(
           status: 409,
           json: { error: "Inventory changed; review a fresh deletion plan" },
         });
-      if (req.method() === "DELETE")
+      if (req.method() === "DELETE") {
         host.data = {
           ...host.data,
           deleting: true,
           deletionError: "SSH disconnected",
         };
+        return route.fulfill({ status: 202, json: { ok: true, jobId: "job" } });
+      }
+      if (path.endsWith("/connection"))
+        return route.fulfill({ json: { ok: true } });
       return route.fulfill({ status: 202, json: { jobId: "job" } });
     }
     if (path.endsWith("/metrics")) return route.fulfill({ json: [] });
@@ -163,7 +182,9 @@ test("changed inventory requires a fresh review", async ({ page }) => {
     .getByRole("button", { name: "Delete server", exact: true })
     .click();
   await expect(
-    page.getByText("Inventory changed; review a fresh deletion plan"),
+    page
+      .getByRole("alert")
+      .getByText("Inventory changed; review a fresh deletion plan"),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Review cleanup inventory" }),

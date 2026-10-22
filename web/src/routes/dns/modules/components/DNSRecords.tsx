@@ -1,84 +1,37 @@
-import { DNSRecordForm } from "./DNSRecordForm";
-import { dnsKeys } from "../generics";
-import { saveDNSRecord } from "../services";
-import { useDNSRecords, useRemoveDNSRecord } from "../hooks";
+import { Plus, RefreshCw } from "lucide-react";
+
+import type { Resource } from "@/lib/api/types";
+
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/configuration-surface";
-import { Confirm, ErrorState, Loading } from "@/components/shared";
-import { Badge } from "@/components/ui/badge";
+} from "@/components/ConfigurationSurface";
+import { Confirm } from "@/components/Shared";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { errorMessage, text, type DNSRecord, type Resource } from "@/lib/api";
-import { useConfigurationChanges } from "@/lib/configuration-state";
-import { useQueryClient } from "@tanstack/react-query";
-import { Plus, RefreshCw, Trash2 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router";
-import { toast } from "sonner";
-import { dnsRecordFormSchema, jsonText } from "@/lib/validation";
 
-export function DNSRecords({ zone }: { zone: Resource }) {
-  const changes = useConfigurationChanges();
-  const { record: recordId } = useParams();
-  const initializedRecord = useRef("");
-  const navigate = useNavigate();
-  const client = useQueryClient();
-  const q = useDNSRecords(zone);
-  const removeRecord = useRemoveDNSRecord(zone.id);
-  const [edit, setEdit] = useState<DNSRecord | null>(null);
-  const [extra, setExtra] = useState("");
-  useEffect(() => {
-    if (!recordId || initializedRecord.current === recordId) return;
-    const record =
-      recordId === "new"
-        ? {
-            type: "A",
-            name: String(zone.data.domain),
-            content: "",
-            ttl: 120,
-            proxied: false,
-          }
-        : q.data?.find((r) => r.id === recordId);
-    if (record) {
-      initializedRecord.current = recordId;
-      setEdit(record);
-      setExtra(record.data ? JSON.stringify(record.data, null, 2) : "");
-    }
-  }, [recordId, q.data, zone.data.domain]);
-  const [busy, setBusy] = useState(false);
-  const [deleteId, setDeleteId] = useState("");
-  async function save() {
-    if (!edit) return;
-    setBusy(true);
-    try {
-      const data = extra.trim() ? jsonText.parse(extra) : undefined;
-      const record = dnsRecordFormSchema.parse({ ...edit, data });
-      await saveDNSRecord(zone.id, edit, record);
-      await client.invalidateQueries({ queryKey: dnsKeys.records(zone.id) });
-      setEdit(null);
-      changes.saved();
-      navigate(`/dns/${zone.id}`);
-      toast.success("DNS record saved");
-    } catch (e) {
-      toast.error(errorMessage(e));
-    } finally {
-      setBusy(false);
-    }
-  }
+import { useDNSRecordsPage } from "../hooks";
+import { DNSRecordForm } from "./DNSRecordForm";
+import { DNSRecordTable } from "./DNSRecordTable";
+export type DNSRecordsProps = { zone: Resource };
+export function DNSRecords({ zone }: DNSRecordsProps) {
+  const controller = useDNSRecordsPage(zone);
+  const { edit, extra, deleteId } = controller.state;
+  const { q, recordId, saveRecord, removeRecord } = controller.derived;
+  const {
+    setEdit,
+    setExtra,
+    save,
+    navigate,
+    confirmRemoval,
+    addRecord,
+    refreshRecords,
+    handleOpenChange,
+    handleDeleteOpenChange,
+  } = controller.handlers;
   return (
     <>
       {!recordId && (
@@ -87,113 +40,20 @@ export function DNSRecords({ zone }: { zone: Resource }) {
             <Button
               variant="outline"
               disabled={q.isFetching}
-              onClick={() => void q.refetch()}
+              onClick={refreshRecords}
             >
               {q.isFetching ? <Spinner className="size-4" /> : <RefreshCw />}
               Refresh records
             </Button>
-            <Button
-              disabled={!zone.canWrite}
-              onClick={() => {
-                setEdit({
-                  type: "A",
-                  name: text(zone.data, "domain"),
-                  content: "",
-                  ttl: 120,
-                  proxied: false,
-                });
-                setExtra("");
-                navigate(`/dns/${zone.id}/records/new`);
-              }}
-            >
+            <Button disabled={!zone.canWrite} onClick={addRecord}>
               <Plus />
               Add record
             </Button>
           </div>
-          {q.isPending ? (
-            <Loading />
-          ) : q.error ? (
-            <ErrorState error={q.error} />
-          ) : (
-            <Card className="gap-0 overflow-hidden py-0 shadow-none">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Content</TableHead>
-                    <TableHead>TTL</TableHead>
-                    <TableHead>Proxy</TableHead>
-                    <TableHead />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {q.data?.map((record) => (
-                    <TableRow key={record.id}>
-                      <TableCell>
-                        <Badge variant="outline" className="font-mono">
-                          {record.type}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-xs">{record.name}</TableCell>
-                      <TableCell className="max-w-64 truncate font-mono text-xs">
-                        {record.content || JSON.stringify(record.data)}
-                      </TableCell>
-                      <TableCell className="font-mono text-xs">
-                        {record.ttl === 1 ? "Auto" : record.ttl}
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {record.proxied ? "Proxied" : "DNS only"}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          disabled={!zone.canWrite}
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setEdit(record);
-                            navigate(`/dns/${zone.id}/records/${record.id}`);
-                            setExtra(
-                              record.data
-                                ? JSON.stringify(record.data, null, 2)
-                                : "",
-                            );
-                          }}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          disabled={!zone.canWrite}
-                          variant="ghost"
-                          size="icon"
-                          aria-label="Delete DNS record"
-                          onClick={() => setDeleteId(record.id || "")}
-                        >
-                          <Trash2 className="size-3.5" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              {!q.data?.length && (
-                <div className="p-8 text-center text-sm text-muted-foreground">
-                  No records in this zone.
-                </div>
-              )}
-            </Card>
-          )}
+          <DNSRecordTable zone={zone} controller={controller} />
         </>
       )}
-      <Dialog
-        open={!!edit}
-        onOpenChange={(v) => {
-          if (!v) {
-            setEdit(null);
-            navigate(`/dns/${zone.id}`);
-          }
-        }}
-      >
+      <Dialog open={!!edit} onOpenChange={handleOpenChange}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{edit?.id ? "Edit" : "New"} DNS record</DialogTitle>
@@ -208,7 +68,8 @@ export function DNSRecords({ zone }: { zone: Resource }) {
               setEdit={setEdit}
               extra={extra}
               setExtra={setExtra}
-              busy={busy}
+              busy={saveRecord.isPending}
+              pendingRecord={saveRecord.variables}
               save={save}
               navigate={navigate}
               zone={zone}
@@ -218,13 +79,12 @@ export function DNSRecords({ zone }: { zone: Resource }) {
       </Dialog>
       <Confirm
         open={!!deleteId}
-        onOpenChange={(v) => !v && setDeleteId("")}
+        onOpenChange={handleDeleteOpenChange}
         title="Delete this DNS record?"
         description="This removes the record from your DNS provider."
         destructive
-        onConfirm={async () => {
-          await removeRecord.mutateAsync(deleteId);
-        }}
+        pending={removeRecord.isPending}
+        onConfirm={confirmRemoval}
       />
     </>
   );

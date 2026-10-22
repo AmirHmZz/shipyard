@@ -1,7 +1,9 @@
-import { metricsKeys } from "@/lib/query-keys";
-import { checkDockerVersion } from "../services";
-import { useServerMetrics } from "../hooks";
-import { StateBadge } from "@/components/shared";
+import { Check, Server, Settings2, Trash2, Users } from "lucide-react";
+import { lazy, Suspense } from "react";
+
+import type { Resource } from "@/lib/api/types";
+
+import { StateBadge } from "@/components/Shared";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -10,34 +12,24 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { errorMessage, text, useAdmin, type Resource } from "@/lib/api";
-import { useQueryClient } from "@tanstack/react-query";
-import { Check, Server, Settings2, Trash2, Users } from "lucide-react";
-import { lazy, Suspense } from "react";
-import { toast } from "sonner";
+import { text } from "@/lib/resource-fields";
 
-const ServerCPUChart = lazy(() => import("./ServerCPUChart"));
+import { useServerCard } from "../hooks";
 
-export function ServerCard({
-  server,
-  onEdit,
-  onGrants,
-  onHAProxy,
-  onDelete,
-}: {
-  server: Resource;
-  onEdit: () => void;
-  onGrants: () => void;
-  onHAProxy: () => void;
-  onDelete: () => void;
-}) {
-  const admin = useAdmin();
-  const q = useServerMetrics(server);
-  const latest = q.data?.at(-1);
-  const client = useQueryClient();
+const ServerCPUChart = lazy(() =>
+  import("./ServerCPUChart").then((module) => ({
+    default: module.ServerCPUChart,
+  })),
+);
+
+export type ServerCardProps = { server: Resource };
+export function ServerCard({ server }: ServerCardProps) {
+  const { derived, handlers } = useServerCard(server);
+  const { admin, q, latest, status } = derived;
+  const { testConnection } = handlers;
   return (
     <Card className="shadow-none">
-      <CardHeader className="flex flex-row items-start justify-between">
+      <CardHeader className="flex justify-between">
         <div>
           <div className="mb-4 flex size-10 items-center justify-center rounded-xl border bg-muted/50">
             <Server className="size-5 text-primary" />
@@ -49,20 +41,24 @@ export function ServerCard({
               : `${text(server.data, "user")}@${text(server.data, "host")} · SSH`}
           </CardDescription>
         </div>
-        <StateBadge
-          state={latest ? (latest.online ? "online" : "offline") : "pending"}
-        />
+        <StateBadge state={status} />
       </CardHeader>
       <CardContent>
         {server.data.deleting ? (
-          <div className="space-y-3">
+          <div className="flex flex-col gap-3">
             <p className="text-sm text-muted-foreground">
               {server.data.deletionError
                 ? text(server.data, "deletionError")
                 : "Server cleanup in progress."}
             </p>
             {admin && (
-              <Button variant="outline" size="sm" onClick={onDelete}>
+              <Button
+                className="self-start"
+                variant="outline"
+                size="sm"
+                data-server-id={server.id}
+                data-action="delete"
+              >
                 {server.data.deletionError
                   ? "Retry cleanup"
                   : "Cleanup details"}
@@ -107,7 +103,8 @@ export function ServerCard({
                 disabled={!server.canWrite}
                 variant="outline"
                 size="sm"
-                onClick={onEdit}
+                data-server-id={server.id}
+                data-action="edit"
               >
                 Configure
               </Button>
@@ -115,31 +112,27 @@ export function ServerCard({
                 disabled={!server.canWrite}
                 variant="outline"
                 size="sm"
-                onClick={onGrants}
+                data-server-id={server.id}
+                data-action="grants"
               >
                 <Users />
                 Team access
               </Button>
               {server.canWrite && (
-                <Button variant="outline" size="sm" onClick={onHAProxy}>
-                  <Settings2 className="size-4" /> HAProxy settings
+                <Button
+                  variant="outline"
+                  size="sm"
+                  data-server-id={server.id}
+                  data-action="haproxy"
+                >
+                  <Settings2 /> HAProxy settings
                 </Button>
               )}
               <Button
                 disabled={!server.canWrite}
                 variant="ghost"
                 size="sm"
-                onClick={async () => {
-                  try {
-                    const v = await checkDockerVersion(server.id);
-                    toast.success(`Connected · Docker ${v.dockerVersion}`);
-                    void client.invalidateQueries({
-                      queryKey: metricsKeys.all,
-                    });
-                  } catch (e) {
-                    toast.error(errorMessage(e));
-                  }
-                }}
+                onClick={testConnection}
               >
                 <Check />
                 Test
@@ -149,7 +142,8 @@ export function ServerCard({
                   variant="ghost"
                   size="sm"
                   className="text-destructive hover:text-destructive"
-                  onClick={onDelete}
+                  data-server-id={server.id}
+                  data-action="delete"
                 >
                   <Trash2 />
                   Delete server

@@ -1,31 +1,50 @@
 import { useResourceForm } from "@/components/resource-forms/controller";
-import type { ResourceFieldProps } from "../types";
-import { choose } from "../utils";
-import { ResourceFieldSelect } from "../fields/ResourceFieldSelect";
-import { SecretResourceField } from "../fields/SecretResourceField";
-import { ScalarResourceField } from "../fields/ScalarResourceField";
+import { SelectControl } from "@/components/SelectControl";
 
-export function StandardResourceFieldControl(props: ResourceFieldProps) {
+import type { ResourceFieldProps } from "../types";
+
+import { ResourceFieldSelect } from "../fields/ResourceFieldSelect";
+import { ScalarResourceField } from "../fields/ScalarResourceField";
+import { SecretResourceField } from "../fields/SecretResourceField";
+
+export type StandardResourceFieldControlProps = ResourceFieldProps;
+export function StandardResourceFieldControl(
+  props: StandardResourceFieldControlProps,
+) {
+  function handleSelectControlValueChange(v: string) {
+    return update("service", v);
+  }
+
   const { kind, services, f } = props;
 
   const {
     state: { data },
-    actions: { update },
-    meta: { formId },
+    handlers: { update },
+    derived: { formId },
   } = useResourceForm();
   if (f.type === "password" || f.type === "secret")
     return <SecretResourceField {...props} />;
   if (kind === "route" && f.key === "service")
-    return choose(
-      String(data.service || ""),
-      (v) => update("service", v),
-      (services.data || []).map((s) => ({
-        value: s.name,
-        label: s.name,
-      })),
-      services.isFetching ? "Loading services…" : "Select Compose service",
-      !services.data?.length,
-      `${formId}-${f.key}`,
+    return (
+      <SelectControl
+        value={String(data.service || "") || undefined}
+        onValueChange={handleSelectControlValueChange}
+        options={(services.data || []).map((s) => ({
+          value: s.name,
+          label: s.name,
+        }))}
+        placeholder={
+          services.isFetching ? "Loading services…" : "Select Compose service"
+        }
+        disabled={!services.data?.length}
+        triggerProps={{
+          id: `${formId}-${f.key}`,
+          className: "w-full",
+          "aria-label": services.isFetching
+            ? "Loading services…"
+            : "Select Compose service",
+        }}
+      />
     );
   if (f.options || f.resource) return <ResourceFieldSelect {...props} />;
   return <ScalarResourceField {...props} />;

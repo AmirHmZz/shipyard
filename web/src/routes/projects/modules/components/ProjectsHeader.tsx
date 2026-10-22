@@ -1,9 +1,21 @@
-import { PageHeader } from "@/components/shared";
-import { Button } from "@/components/ui/button";
-import { type Resource } from "@/lib/api";
 import { Plus } from "lucide-react";
+
+import type { Resource } from "@/lib/api/types";
+
+import { PageHeader } from "@/components/Shared";
+import { Button } from "@/components/ui/button";
+
 import type { EditorRequest } from "../generics";
 
+export type ProjectsHeaderProps = {
+  id?: string;
+  project?: Resource;
+  previews: boolean;
+  environments: Resource[];
+  currentEnvironment?: Resource;
+  resources: Resource[];
+  openEditor: (request: EditorRequest) => void;
+};
 export function ProjectsHeader({
   id,
   project,
@@ -12,15 +24,26 @@ export function ProjectsHeader({
   currentEnvironment,
   resources,
   openEditor,
-}: {
-  id?: string;
-  project?: Resource;
-  previews: boolean;
-  environments: Resource[];
-  currentEnvironment?: Resource;
-  resources: Resource[];
-  openEditor: (request: EditorRequest) => void;
-}) {
+}: ProjectsHeaderProps) {
+  function handleButtonClick() {
+    return openEditor({ kind: "environment", parentId: id });
+  }
+  function handleButtonClick2() {
+    return openEditor({
+      kind: "application",
+      parentId: currentEnvironment?.id,
+    });
+  }
+  function handleButtonClick3() {
+    return openEditor({ kind: "project" });
+  }
+
+  let description =
+    "A home for your applications and the teams that ship them.";
+  if (id) description = "One project. Separate environments. Clear boundaries.";
+  if (previews)
+    description =
+      "Isolated deployments for work in progress. Production secrets stay separate.";
   return (
     <PageHeader
       eyebrow="Workspace"
@@ -33,13 +56,7 @@ export function ProjectsHeader({
           : undefined
       }
       title={previews ? "Pull request previews" : project?.name || "Projects"}
-      description={
-        previews
-          ? "Isolated deployments for work in progress. Production secrets stay separate."
-          : id
-            ? "One project. Separate environments. Clear boundaries."
-            : "A home for your applications and the teams that ship them."
-      }
+      description={description}
     >
       {!previews &&
         (id ? (
@@ -47,7 +64,7 @@ export function ProjectsHeader({
             <Button
               disabled={!project?.canWrite || !!project?.data.deleting}
               variant="outline"
-              onClick={() => openEditor({ kind: "environment", parentId: id })}
+              onClick={handleButtonClick}
             >
               <Plus />
               Environment
@@ -58,12 +75,7 @@ export function ProjectsHeader({
                 !!project?.data.deleting ||
                 !environments.length
               }
-              onClick={() =>
-                openEditor({
-                  kind: "application",
-                  parentId: currentEnvironment?.id,
-                })
-              }
+              onClick={handleButtonClick2}
             >
               <Plus />
               Application
@@ -72,7 +84,7 @@ export function ProjectsHeader({
         ) : (
           <Button
             disabled={!resources.some((r) => r.kind === "team" && r.canWrite)}
-            onClick={() => openEditor({ kind: "project" })}
+            onClick={handleButtonClick3}
           >
             <Plus />
             New project

@@ -1,7 +1,7 @@
-import { downloadUpdateBackup, checkForUpdates, planUpdate } from "../services";
-import { useSystemUpdates } from "../hooks";
-import type { Plan } from "../generics";
-import { ErrorState, Loading } from "@/components/shared";
+import { RefreshCw } from "lucide-react";
+
+import { FormField } from "@/components/FormField";
+import { ErrorState, Loading } from "@/components/Shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,7 +11,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -20,59 +19,33 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import { errorMessage } from "@/lib/api";
-import { RefreshCw } from "lucide-react";
-import { useState } from "react";
-import { VersionChangeReview } from "./VersionChangeReview";
-import { VersionChangeOperation } from "./VersionChangeOperation";
 
-const terminal = ["succeeded", "rolled_back", "failed", "recovery_required"];
+import { useSystemUpdatesPage } from "../hooks";
+import { VersionChangeOperation } from "./VersionChangeOperation";
+import { VersionChangeReview } from "./VersionChangeReview";
 
 export function SystemUpdates() {
-  const q = useSystemUpdates();
-  const [target, setTarget] = useState(""),
-    [plan, setPlan] = useState<Plan | null>(null),
-    [pass, setPass] = useState(""),
-    [confirm, setConfirm] = useState(""),
-    [approve, setApprove] = useState(false),
-    [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
+  const { state, derived, handlers } = useSystemUpdatesPage();
+  const { target, pass, confirm, approve } = state;
+  const { q, plan, busy, error, operation, active, blocked, available, apply } =
+    derived;
+  const {
+    setTarget,
+    setPass,
+    setConfirm,
+    setApprove,
+    applied,
+    resetErrors,
+    checkUpdates,
+    download,
+    previewVersion,
+  } = handlers;
   if (!q.data) {
     if (q.error) return <ErrorState error={q.error} />;
     return <Loading />;
   }
-  const s = q.data,
-    operation = s.operation,
-    active = !!operation && !terminal.includes(operation.state),
-    blocked = active || operation?.state === "recovery_required";
-  const current = s.installation?.release,
-    available = s.releases.filter(
-      (r) => r.previous === current?.version || current?.previous === r.version,
-    );
-  async function action(fn: () => Promise<unknown>) {
-    setBusy(true);
-    setError("");
-    try {
-      await fn();
-      await q.refetch();
-    } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setBusy(false);
-    }
-  }
-  async function download() {
-    if (!operation) return;
-    await action(async () => {
-      const blob = await downloadUpdateBackup(operation.id);
-      const url = URL.createObjectURL(blob),
-        link = document.createElement("a");
-      link.href = url;
-      link.download = `shipyard-${operation.id}.sybackup`;
-      link.click();
-      URL.revokeObjectURL(url);
-    });
-  }
+  const s = q.data;
+  const current = s.installation?.release;
   return (
     <Card className="w-full">
       <CardHeader>
@@ -82,7 +55,7 @@ export function SystemUpdates() {
           running while the dashboard restarts.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="flex flex-col gap-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="font-medium">
@@ -95,7 +68,7 @@ export function SystemUpdates() {
           <Button
             variant="outline"
             disabled={!s.enabled || busy || blocked}
-            onClick={() => void action(() => checkForUpdates())}
+            onClick={checkUpdates}
           >
             {busy ? <Spinner className="size-4" /> : <RefreshCw />}
             Check for updates
@@ -110,17 +83,14 @@ export function SystemUpdates() {
           </Alert>
         ) : (
           <>
-            <div className="space-y-3">
-              <Label htmlFor="system-version">Target version</Label>
+            <FormField
+              label={<>Target version</>}
+              labelProps={{ htmlFor: "system-version" }}
+              className="flex flex-col gap-3"
+            >
               <Select
                 value={target || undefined}
-                onValueChange={(v) => {
-                  setTarget(v);
-                  setPlan(null);
-                  setPass("");
-                  setApprove(false);
-                  setConfirm("");
-                }}
+                onValueChange={setTarget}
                 disabled={busy || blocked}
               >
                 <SelectTrigger
@@ -147,23 +117,14 @@ export function SystemUpdates() {
                 </p>
               )}
               <Button
+                className="self-start"
                 variant="outline"
                 disabled={!target || busy || blocked}
-                onClick={() =>
-                  void action(async () => {
-                    setPlan(
-                      await planUpdate({
-                        target,
-                      }),
-                    );
-                    setApprove(false);
-                    setConfirm("");
-                  })
-                }
+                onClick={previewVersion}
               >
                 Preview version change
               </Button>
-            </div>
+            </FormField>
             {plan && (
               <VersionChangeReview
                 plan={plan}
@@ -175,8 +136,9 @@ export function SystemUpdates() {
                 setApprove={setApprove}
                 busy={busy}
                 blocked={blocked}
-                action={action}
-                setPlan={setPlan}
+                apply={apply}
+                resetErrors={resetErrors}
+                onApplied={applied}
               />
             )}
           </>

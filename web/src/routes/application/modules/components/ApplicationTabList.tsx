@@ -1,5 +1,3 @@
-import { type Resource } from "@/lib/api";
-import { loadComposeEditor } from "@/lib/feature-loaders";
 import {
   FileCode2,
   HardDrive,
@@ -12,17 +10,23 @@ import {
   ScrollText,
   Terminal,
 } from "lucide-react";
-import { TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+import type { Resource } from "@/lib/api/types";
+
+import { TabScroller } from "@/components/TabScroller";
+import { TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { loadComposeEditor } from "@/lib/feature-loaders";
+
+export type ApplicationTabListProps = {
+  app: Resource;
+  directCompose: boolean;
+};
 export function ApplicationTabList({
   app,
   directCompose,
-}: {
-  app: Resource;
-  directCompose: boolean;
-}) {
+}: ApplicationTabListProps) {
   return (
-    <div className="overflow-x-auto overflow-y-hidden p-1 -m-1">
+    <TabScroller>
       <TabsList>
         {[
           { value: "overview", icon: LayoutDashboard },
@@ -61,6 +65,6 @@ export function ApplicationTabList({
           </TabsTrigger>
         ))}
       </TabsList>
-    </div>
+    </TabScroller>
   );
 }

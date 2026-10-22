@@ -1,48 +1,46 @@
-import { serverDeletionKeys } from "../generics";
-import { resourceKeys } from "@/lib/query-keys";
-import { confirmServerDeletion } from "../services";
+import type * as React from "react";
+import type { FormEvent } from "react";
+
+import { Trash2 } from "lucide-react";
+import { Link } from "react-router";
+
+import { InputField } from "@/components/InputField";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
-import { APIError, errorMessage } from "@/lib/api";
-import { serverDeletionSchema } from "@/lib/validation";
-import { useQueryClient } from "@tanstack/react-query";
-import { Trash2 } from "lucide-react";
-import { Link } from "react-router";
+
 import type { Plan } from "../generics";
+
 import { Inventory } from "./Inventory";
 
-export function ServerDeletionPlanReview({
-  plan,
-  setPlan,
-  name,
-  setName,
-  ack,
-  setAck,
-  busy,
-  setBusy,
-  setError,
-  id,
-  client,
-  review: _review,
-}: {
+export type ServerDeletionPlanReviewProps = {
   plan: Plan | null;
-  setPlan: (value: Plan | null) => void;
   name: string;
   setName: (value: string) => void;
   ack: boolean;
   setAck: (value: boolean) => void;
   busy: boolean;
-  setBusy: (value: boolean) => void;
-  setError: (value: string) => void;
-  id: string;
-  client: ReturnType<typeof useQueryClient>;
-  review: () => Promise<void>;
-}) {
+  submitConfirmation: (event: FormEvent<HTMLFormElement>) => void;
+};
+export function ServerDeletionPlanReview({
+  plan,
+  name,
+  setName,
+  ack,
+  setAck,
+  busy,
+  submitConfirmation,
+}: ServerDeletionPlanReviewProps) {
+  function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    return setName(e.target.value);
+  }
+  function handleCheckboxCheckedChange(v: boolean | "indeterminate") {
+    return setAck(v === true);
+  }
+
   return (
     <>
       {plan && (
@@ -53,7 +51,7 @@ export function ServerDeletionPlanReview({
                 <p className="mb-2 font-medium">
                   Resolve these conflicts before deletion:
                 </p>
-                <ul className="list-disc space-y-1 pl-5">
+                <ul className="list-disc flex flex-col gap-1 pl-5">
                   {plan.blockers.map((b) => (
                     <li key={b}>{b}</li>
                   ))}
@@ -71,53 +69,25 @@ export function ServerDeletionPlanReview({
             </CardHeader>
             <CardContent>
               <form
-                className="space-y-5"
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  setBusy(true);
-                  setError("");
-                  try {
-                    const confirmation = serverDeletionSchema(
-                      plan.serverName,
-                    ).parse({ planId: plan.id, name, deleteVolumes: ack });
-                    await confirmServerDeletion(id, confirmation);
-                    await Promise.all([
-                      client.invalidateQueries({
-                        queryKey: resourceKeys.all,
-                      }),
-                      client.invalidateQueries({
-                        queryKey: serverDeletionKeys.status(id),
-                      }),
-                    ]);
-                  } catch (e) {
-                    setError(errorMessage(e));
-                    if (e instanceof APIError && e.status === 409) {
-                      setPlan(null);
-                      setName("");
-                      setAck(false);
-                    }
-                  } finally {
-                    setBusy(false);
-                  }
-                }}
+                className="flex flex-col gap-5"
+                onSubmit={submitConfirmation}
               >
-                <div className="space-y-2">
-                  <Label htmlFor="delete-server-name">
-                    Type {plan.serverName} to confirm
-                  </Label>
-                  <Input
-                    id="delete-server-name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    autoComplete="off"
-                    disabled={busy}
-                  />
-                </div>
+                <InputField
+                  label={<>Type {plan.serverName} to confirm</>}
+                  labelProps={{ htmlFor: "delete-server-name" }}
+                  inputProps={{
+                    id: "delete-server-name",
+                    value: name,
+                    onChange: handleInputChange,
+                    autoComplete: "off",
+                    disabled: busy,
+                  }}
+                />
                 <div className="flex items-start gap-3">
                   <Checkbox
                     id="delete-server-volumes"
                     checked={ack}
-                    onCheckedChange={(v) => setAck(v === true)}
+                    onCheckedChange={handleCheckboxCheckedChange}
                     disabled={busy}
                   />
                   <Label htmlFor="delete-server-volumes" className="leading-5">
@@ -139,7 +109,7 @@ export function ServerDeletionPlanReview({
                       plan.blockers.length > 0
                     }
                   >
-                    {busy ? <Spinner className="size-4 " /> : <Trash2 />}
+                    {busy ? <Spinner className="size-4" /> : <Trash2 />}
                     Delete server
                   </Button>
                 </div>

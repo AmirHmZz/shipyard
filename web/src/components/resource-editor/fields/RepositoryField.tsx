@@ -1,18 +1,33 @@
+import type * as React from "react";
+import type { ReactNode } from "react";
+
+import { useState } from "react";
+
+import { InputField } from "@/components/InputField";
 import { RepositoryName } from "@/components/repository-name";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useState, type ReactNode } from "react";
 import { useResourceForm } from "@/components/resource-forms/controller";
-import { Loading } from "@/components/shared";
+import { SelectControl } from "@/components/SelectControl";
+import { Loading } from "@/components/Shared";
+
 import type { ResourceFieldProps } from "../types";
-import { choose } from "../utils";
+
 import { RepositoryStatus } from "../fields/RepositoryStatus";
 
-export function RepositoryField({ repos, resources }: ResourceFieldProps) {
+export type RepositoryFieldProps = ResourceFieldProps;
+export function RepositoryField({ repos, resources }: RepositoryFieldProps) {
+  function handleSelectControlValueChange(value: string) {
+    setManualConnection(value === "__other__" ? gitId : null);
+    update("repository", value === "__other__" ? "" : value);
+  }
+
+  function handleInputChange(event: React.ChangeEvent<HTMLInputElement>) {
+    return update("repository", event.target.value);
+  }
+
   const {
     state: { data },
-    actions: { update },
-    meta: { formId },
+    handlers: { update },
+    derived: { formId },
   } = useResourceForm();
   const gitId = String(data.gitId || "");
   const repository = String(data.repository || "");
@@ -37,33 +52,33 @@ export function RepositoryField({ repos, resources }: ResourceFieldProps) {
       {repos.isFetching ? (
         <Loading label="Loading repositories…" id={`${formId}-repository`} />
       ) : (
-        choose(
-          manual ? "__other__" : repository,
-          (value) => {
-            setManualConnection(value === "__other__" ? gitId : null);
-            update("repository", value === "__other__" ? "" : value);
-          },
-          options,
-          "Select repository",
-          !gitId,
-          `${formId}-repository`,
-        )
+        <SelectControl
+          value={(manual ? "__other__" : repository) || undefined}
+          onValueChange={handleSelectControlValueChange}
+          options={options}
+          placeholder={"Select repository"}
+          disabled={!gitId}
+          triggerProps={{
+            id: `${formId}-repository`,
+            className: "w-full",
+            "aria-label": "Select repository",
+          }}
+        />
       )}
       <RepositoryStatus repos={repos} connected={!!gitId} />
       {manual && (
-        <div className="space-y-2">
-          <Label htmlFor={`${formId}-manual-repository`}>
-            Repository owner/name
-          </Label>
-          <Input
-            id={`${formId}-manual-repository`}
-            value={repository}
-            onChange={(event) => update("repository", event.target.value)}
-            placeholder="owner/name"
-            pattern="[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+"
-            required
-          />
-        </div>
+        <InputField
+          label={<>Repository owner/name</>}
+          labelProps={{ htmlFor: `${formId}-manual-repository` }}
+          inputProps={{
+            id: `${formId}-manual-repository`,
+            value: repository,
+            onChange: handleInputChange,
+            placeholder: "owner/name",
+            pattern: "[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+",
+            required: true,
+          }}
+        />
       )}
     </>
   );

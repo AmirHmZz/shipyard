@@ -1,6 +1,5 @@
-import { useHistory } from "../hooks";
-import { ErrorState, Loading, StateBadge } from "@/components/shared";
-import { Card } from "@/components/ui/card";
+import { FlushCard } from "@/components/FlushCard";
+import { ErrorState, Loading, StateBadge } from "@/components/Shared";
 import {
   Table,
   TableBody,
@@ -10,12 +9,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-export function History({ type }: { type: "audit" | "jobs" }) {
+import { useHistory } from "../hooks";
+
+export type HistoryProps = { type: "audit" | "jobs" };
+export function History({ type }: HistoryProps) {
   const q = useHistory(type);
   if (q.isPending) return <Loading />;
   if (q.error) return <ErrorState error={q.error} />;
   return (
-    <Card className="gap-0 overflow-hidden py-0 shadow-none">
+    <FlushCard>
       <Table>
         <TableHeader>
           <TableRow>
@@ -54,6 +56,6 @@ export function History({ type }: { type: "audit" | "jobs" }) {
           No entries yet.
         </p>
       )}
-    </Card>
+    </FlushCard>
   );
 }

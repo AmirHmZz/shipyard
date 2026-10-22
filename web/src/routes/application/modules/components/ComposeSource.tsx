@@ -1,8 +1,7 @@
-import { resourceKeys } from "@/lib/query-keys";
-import { saveComposeSource, deployComposeSource } from "../services";
-import { useComposeSource } from "../hooks";
-import type { Source } from "../generics";
-import { ErrorState, Loading } from "@/components/shared";
+import { Play, Save } from "lucide-react";
+
+import type { Resource } from "@/lib/api/types";
+
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,98 +12,20 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import { errorMessage, type Resource } from "@/lib/api";
-import { useConfigurationChanges } from "@/lib/configuration-state";
-import { loadComposeEditor } from "@/lib/feature-loaders";
-import { composeSourceSchema } from "@/lib/validation";
-import { useQueryClient } from "@tanstack/react-query";
-import { Play, Save } from "lucide-react";
-import { lazy, Suspense, useState } from "react";
 
-const Editor = lazy(loadComposeEditor);
+import { useComposeSourceForm } from "../hooks";
+import { SourceEditor } from "./SourceEditor";
 
-function SourceEditor({
-  pending,
-  error,
-  draft,
-  disabled,
-  onChange,
-}: {
-  pending: boolean;
-  error: unknown;
-  draft: Source | null;
-  disabled: boolean;
-  onChange: (yaml: string) => void;
-}) {
-  if (pending) return <Loading />;
-  if (error) return <ErrorState error={error} />;
-  if (!draft) return null;
-  return (
-    <Suspense fallback={<Loading />}>
-      <Editor value={draft.yaml} disabled={disabled} onChange={onChange} />
-    </Suspense>
-  );
-}
-
-export function ComposeSource({
-  app,
-  onDeploy,
-}: {
+export type ComposeSourceProps = {
   app: Resource;
   onDeploy: (id: string) => void;
-}) {
-  const changes = useConfigurationChanges();
-  const client = useQueryClient();
-  const q = useComposeSource(app);
-  const [editedDraft, setDraft] = useState<Source | null>(null);
-  const draft = editedDraft ?? q.data ?? null;
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [saved, setSaved] = useState(false);
-  async function reload() {
-    try {
-      const result = await q.refetch();
-      if (result.error) throw result.error;
-      if (result.data) {
-        changes.saved();
-        setDraft(result.data);
-        setError("");
-        setSaved(false);
-      }
-    } catch (e) {
-      setError(errorMessage(e));
-    }
-  }
-  async function save(deploy: boolean) {
-    if (!draft) return;
-    setBusy(true);
-    setError("");
-    setSaved(false);
-    try {
-      const result = await saveComposeSource(
-        app.id,
-        composeSourceSchema.parse(draft),
-      );
-      changes.saved();
-      setDraft(result);
-      setSaved(true);
-      const refresh = client.invalidateQueries({ queryKey: resourceKeys.all });
-      if (deploy) {
-        const [d] = await Promise.all([
-          deployComposeSource(app.id, {
-            version: result.version,
-          }),
-          refresh,
-        ]);
-        changes.saved();
-        onDeploy(d.id);
-      } else await refresh;
-    } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setBusy(false);
-    }
-  }
+};
+
+export function ComposeSource({ app, onDeploy }: ComposeSourceProps) {
+  const { state, derived, handlers } = useComposeSourceForm(app, onDeploy);
+  const { draft } = state;
+  const { q, busy, error, saved } = derived;
+  const { changeYaml, reloadSource, saveOnly, saveAndDeploy } = handlers;
   if (!app.canWrite) return null;
   return (
     <Card className="min-w-0 shadow-none">
@@ -116,21 +37,13 @@ export function ComposeSource({
           editor.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="flex flex-col gap-4">
         <SourceEditor
           pending={q.isPending}
           error={q.error}
           draft={draft}
           disabled={busy}
-          onChange={(yaml) => {
-            if (yaml === draft?.yaml) return;
-            changes.change();
-            setDraft((current) => {
-              const source = current ?? draft;
-              return source ? { ...source, yaml } : source;
-            });
-            setSaved(false);
-          }}
+          onChange={changeYaml}
         />
         <p className="text-xs text-muted-foreground">
           Use images or inline Dockerfiles. Referenced host files must have
@@ -158,24 +71,20 @@ export function ComposeSource({
           </p>
         )}
         <div className="flex flex-wrap justify-between gap-2">
-          <Button
-            variant="outline"
-            disabled={busy}
-            onClick={() => void reload()}
-          >
+          <Button variant="outline" disabled={busy} onClick={reloadSource}>
             Reload saved document
           </Button>
           <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
               disabled={busy || !draft?.yaml.trim()}
-              onClick={() => void save(false)}
+              onClick={saveOnly}
             >
-              {busy ? <Spinner className="size-4 " /> : <Save />}Save
+              {busy ? <Spinner className="size-4" /> : <Save />}Save
             </Button>
             <Button
               disabled={busy || !draft?.yaml.trim()}
-              onClick={() => void save(true)}
+              onClick={saveAndDeploy}
             >
               <Play />
               Save &amp; deploy

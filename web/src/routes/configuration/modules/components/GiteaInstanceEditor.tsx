@@ -1,49 +1,54 @@
-import { configurationKeys } from "../generics";
-import { saveGiteaInstance } from "../services";
-import type { InstanceDraft } from "../generics";
-import { CopyButton } from "@/components/shared";
+import { CopyValue } from "@/components/CopyValue";
+import { InputField } from "@/components/InputField";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { giteaInstanceSchema } from "@/lib/validation";
-import { useQueryClient } from "@tanstack/react-query";
-import type { Dispatch, SetStateAction } from "react";
 
+import type { InstanceDraft } from "../generics";
+import type { useSaveGiteaInstance } from "../hooks";
+
+import { useGiteaInstanceEditor } from "../hooks";
+
+export type GiteaInstanceEditorProps = {
+  instanceForm: InstanceDraft;
+  setInstanceForm: (value: InstanceDraft | null) => void;
+  callback: string;
+  busy: boolean;
+  saveInstance: ReturnType<typeof useSaveGiteaInstance>;
+  resetErrors: () => void;
+  setInstanceId: (id: string) => void;
+};
 export function GiteaInstanceEditor({
   instanceForm,
   setInstanceForm,
   callback,
   busy,
-  perform,
+  saveInstance,
+  resetErrors,
   setInstanceId,
-  client,
-}: {
-  instanceForm: InstanceDraft;
-  setInstanceForm: Dispatch<SetStateAction<InstanceDraft | null>>;
-  callback: string;
-  busy: boolean;
-  perform: (action: () => Promise<void>) => Promise<void>;
-  setInstanceId: (id: string) => void;
-  client: ReturnType<typeof useQueryClient>;
-}) {
+}: GiteaInstanceEditorProps) {
+  const { handlers } = useGiteaInstanceEditor({
+    instanceForm,
+    setInstanceForm,
+    busy,
+    saveInstance,
+    resetErrors,
+    setInstanceId,
+  });
+  const { cancel, changeField, save } = handlers;
   return (
     <section
       aria-label="Gitea OAuth application"
-      className="space-y-4 rounded-lg border p-4"
+      className="flex flex-col gap-4 rounded-lg border p-4"
     >
       <p className="text-sm text-muted-foreground">
         Once per Gitea instance, register a confidential OAuth2 application
         under Settings → Applications. Use the callback URL below, then copy its
         client ID and client secret. Gitea 1.23 or newer is required.
       </p>
-      <div className="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:items-center">
-        <code className="w-full min-w-0 break-all text-xs sm:w-auto sm:flex-1">
-          {callback || "Loading callback URL…"}
-        </code>
-        {callback && (
-          <CopyButton label="Copy OAuth callback URL" value={callback} />
-        )}
-      </div>
+      <CopyValue
+        value={callback || ""}
+        label="Copy OAuth callback URL"
+        placeholder="Loading callback URL…"
+      />
       {(
         [
           ["name", "Instance name"],
@@ -52,45 +57,29 @@ export function GiteaInstanceEditor({
           ["clientSecret", "Client secret"],
         ] as const
       ).map(([key, label]) => (
-        <div className="space-y-2" key={key}>
-          <Label htmlFor={`gitea-${key}`}>{label}</Label>
-          <Input
-            id={`gitea-${key}`}
-            type={key === "clientSecret" ? "password" : "text"}
-            autoComplete="off"
-            value={instanceForm[key]}
-            placeholder={
+        <InputField
+          key={key}
+          label={<>{label}</>}
+          labelProps={{ htmlFor: `gitea-${key}` }}
+          inputProps={{
+            id: `gitea-${key}`,
+            type: key === "clientSecret" ? "password" : "text",
+            autoComplete: "off",
+            value: instanceForm[key],
+            placeholder:
               key === "clientSecret" && instanceForm.id
                 ? "Leave empty to keep saved secret"
-                : undefined
-            }
-            onChange={(e) =>
-              setInstanceForm((current) =>
-                current ? { ...current, [key]: e.target.value } : current,
-              )
-            }
-          />
-        </div>
+                : undefined,
+            "data-gitea-field": key,
+            onChange: changeField,
+          }}
+        />
       ))}
       <div className="flex gap-2">
-        <Button
-          disabled={busy}
-          onClick={() =>
-            void perform(async () => {
-              const v = await saveGiteaInstance(
-                giteaInstanceSchema.parse(instanceForm),
-              );
-              setInstanceId(v.id);
-              setInstanceForm(null);
-              await client.invalidateQueries({
-                queryKey: configurationKeys.giteaInstances,
-              });
-            })
-          }
-        >
+        <Button disabled={busy} onClick={save}>
           Save instance
         </Button>
-        <Button variant="outline" onClick={() => setInstanceForm(null)}>
+        <Button variant="outline" onClick={cancel}>
           Cancel
         </Button>
       </div>

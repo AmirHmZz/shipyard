@@ -1,5 +1,4 @@
-// TODO(openapi): add SetupStatusResponse to api/openapi.yaml.
-export type SetupStatusResponse = {
-  setupRequired: boolean;
-  setupEnabled: boolean;
-};
+import type * as z from "zod/mini";
+
+import type { authFormSchema } from "./schema";
+export type AuthValues = z.output<ReturnType<typeof authFormSchema>>;

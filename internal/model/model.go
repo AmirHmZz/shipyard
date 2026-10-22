@@ -106,8 +106,8 @@ type App struct {
 	HealthTimeout   int                          `json:"healthTimeout"`
 	Profiles        []string                     `json:"profiles"`
 	BuildArgs       map[string]string            `json:"buildArgs"`
-	Registry        string                       `json:"registry"`
-	RegistryUser    string                       `json:"registryUser"`
+	Registry        string                       `json:"registry,omitempty"` // Legacy encrypted snapshots only.
+	RegistryUser    string                       `json:"registryUser,omitempty"`
 	PreviewOf       string                       `json:"previewOf,omitempty"`
 	PR              int                          `json:"pr,omitempty"`
 	ApprovedSHA     string                       `json:"approvedSha,omitempty"`
@@ -280,6 +280,17 @@ func Validate(r ResourceInput) error {
 	x := Resource{Data: r.Data}
 	switch r.Kind {
 	case "team", "project", "environment":
+	case "registry":
+		v, e := Decode[Registry](x)
+		if e != nil {
+			return e
+		}
+		if _, e = RegistryHostname(v.Hostname); e != nil {
+			return e
+		}
+		if strings.TrimSpace(v.Username) == "" || strings.ContainsAny(v.Username, "\r\n\x00") {
+			return errors.New("registry username is required")
+		}
 	case "server":
 		for _, key := range []string{"previewDomain", "previewZoneId"} {
 			if _, exists := object[key]; exists {
@@ -336,9 +347,15 @@ func Validate(r ResourceInput) error {
 			return errors.New("provider zone ID is required")
 		}
 	case "application":
+		if r.Secrets["registry_password"] != "" {
+			return errors.New("registry credentials are managed in Integrations")
+		}
 		v, e := Decode[App](x)
 		if e != nil {
 			return e
+		}
+		if v.Registry != "" || v.RegistryUser != "" {
+			return errors.New("registry credentials are managed in Integrations")
 		}
 		if e = ValidateNetworking(v); e != nil {
 			return e

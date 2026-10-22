@@ -1,4 +1,4 @@
-import { Spinner } from "@/components/ui/spinner";
+import type { ToasterProps } from "sonner";
 
 import {
   CircleCheckIcon,
@@ -6,9 +6,11 @@ import {
   OctagonXIcon,
   TriangleAlertIcon,
 } from "lucide-react";
-import { Toaster as Sonner, type ToasterProps } from "sonner";
+import { Toaster as Sonner } from "sonner";
 
-const Toaster = ({ ...props }: ToasterProps) => {
+import { Spinner } from "@/components/ui/spinner";
+
+function Toaster({ ...props }: ToasterProps) {
   const theme = "system";
 
   return (
@@ -33,6 +35,6 @@ const Toaster = ({ ...props }: ToasterProps) => {
       {...props}
     />
   );
-};
+}
 
 export { Toaster };

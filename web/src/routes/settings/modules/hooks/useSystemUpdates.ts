@@ -1,11 +1,12 @@
-import { settingsKeys } from "../generics";
-import { useQuery } from "@tanstack/react-query";
-import { getSystemUpdates } from "../services";
+import { useApiQuery } from "@/lib/api/use-api-query";
+import { POLL_INTERVALS } from "@/lib/constants";
 
+import { settingsKeys, systemUpdatesResponseSchema } from "../generics";
 export function useSystemUpdates() {
-  return useQuery({
+  return useApiQuery({
     queryKey: settingsKeys.systemUpdates,
-    queryFn: () => getSystemUpdates(),
-    refetchInterval: 3000,
+    path: "/settings/updates",
+    schema: systemUpdatesResponseSchema,
+    refetchInterval: POLL_INTERVALS.system,
   });
 }

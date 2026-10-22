@@ -1,16 +1,26 @@
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+
+import { expect, test } from "@playwright/test";
+
+import { jsonObject } from "./json";
 
 async function setup(page: Page, writable = true) {
-  const resource = (id: string, kind: string, parentId = "", data = {}) => ({
-    id,
-    kind,
-    name: id,
-    parentId,
-    teamId: "team",
-    data,
-    version: 1,
-    canWrite: writable,
-  });
+  function resource(id: string, kind: string, parentId = "", data = {}) {
+    return {
+      secretKeys: [],
+      variables: {},
+      createdAt: "2026-10-19T00:00:00Z",
+      updatedAt: "2026-10-19T00:00:00Z",
+      id,
+      kind,
+      name: id,
+      parentId,
+      teamId: "team",
+      data,
+      version: 1,
+      canWrite: writable,
+    };
+  }
   const resources = [
     resource("team", "team"),
     resource("project", "project", "team"),
@@ -25,7 +35,7 @@ async function setup(page: Page, writable = true) {
     }),
   ];
   const deletes: string[] = [];
-  const writes: any[] = [];
+  const writes: Record<string, unknown>[] = [];
   let fail = false;
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -35,7 +45,13 @@ async function setup(page: Page, writable = true) {
     if (path.endsWith("/auth/me"))
       return route.fulfill({
         json: {
-          user: { id: "user", name: "Operator", admin: true },
+          user: {
+            email: "user@example.test",
+            totp: false,
+            id: "user",
+            name: "Operator",
+            admin: true,
+          },
           csrf: "csrf",
         },
       });
@@ -213,7 +229,7 @@ test("container ports use themed steppers and preserve typing, keyboard steps an
   await dialog.getByRole("button", { name: "Save route" }).click();
   await expect(page).toHaveURL(/applications\/app(?:\?tab=domains)?$/);
   await page.getByRole("tab", { name: "domains", exact: true }).click();
-  expect(state.writes[0].data.targetPort).toBe(8081);
+  expect(jsonObject(state.writes[0].data).targetPort).toBe(8081);
   await page.getByRole("button", { name: "Use dark theme" }).click();
   await page.getByRole("button", { name: "Add route", exact: true }).click();
   await page

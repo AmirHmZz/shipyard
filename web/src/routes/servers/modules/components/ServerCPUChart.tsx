@@ -1,12 +1,15 @@
+import { Area, AreaChart } from "recharts";
+
+import type { Metric } from "@/lib/api/types";
+
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import type { Metric } from "@/lib/api";
-import { Area, AreaChart } from "recharts";
 const CONFIG = { cpu: { label: "CPU", color: "var(--primary)" } };
-export default function ServerCPUChart({ data }: { data: Metric[] }) {
+export type ServerCPUChartProps = { data: Metric[] };
+export function ServerCPUChart({ data }: ServerCPUChartProps) {
   return (
     <ChartContainer className="h-full w-full" config={CONFIG}>
       <AreaChart data={data.slice(-60)}>

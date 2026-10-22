@@ -53,7 +53,7 @@ func (c *Controller) QueueDeploymentDeletion(ctx context.Context, id, actor stri
 	if deleting {
 		return "", db.ErrDeleting
 	}
-	if state != "healthy" && state != "failed" && state != "recovery_failed" {
+	if state != "healthy" && state != "failed" && state != "recovery_failed" && state != "cancelled" {
 		return "", fmt.Errorf("%w: wait for the deployment to finish", ErrDeploymentProtected)
 	}
 	var protected bool

@@ -1,30 +1,35 @@
-import type { Settings, Draft } from "../generics";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { draftRow, type DraftRow } from "@/lib/draft-rows";
 import { Plus, Trash2 } from "lucide-react";
 
+import type { DraftRow } from "@/lib/draft-rows";
+
+import { InputField } from "@/components/InputField";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+
+import type { Settings, Draft } from "../generics";
+
+import { useHAProxyFrontend } from "../hooks";
+
+export type HAProxyFrontendProps = {
+  frontend: Settings["frontends"][number];
+  draft: Draft;
+  update: (id: string, values: DraftRow<{ value: string }>[] | null) => void;
+};
 export function HAProxyFrontend({
   frontend,
   draft,
   update,
-}: {
-  frontend: Settings["frontends"][number];
-  draft: Draft;
-  update: (id: string, values: DraftRow<{ value: string }>[] | null) => void;
-}) {
-  const custom = draft.bindings[frontend.id];
-  const defaults = custom === undefined;
-  const values = custom || [];
-  const id = `haproxy-${frontend.id}`;
+}: HAProxyFrontendProps) {
+  const { derived, handlers } = useHAProxyFrontend(frontend, draft, update);
+  const { defaults, values, id } = derived;
+  const { toggleDefaults, addAddress, changeAddress, removeAddress } = handlers;
   return (
     <section
       key={frontend.id}
       aria-labelledby={`${id}-title`}
-      className="space-y-4 rounded-lg border p-4"
+      className="flex flex-col gap-4 rounded-lg border p-4"
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
@@ -45,14 +50,7 @@ export function HAProxyFrontend({
         <Switch
           id={`${id}-defaults`}
           checked={defaults}
-          onCheckedChange={(useDefaults) =>
-            update(
-              frontend.id,
-              useDefaults
-                ? null
-                : frontend.defaultAddresses.map((value) => draftRow({ value })),
-            )
-          }
+          onCheckedChange={toggleDefaults}
         />
       </div>
       {defaults ? (
@@ -60,54 +58,47 @@ export function HAProxyFrontend({
           {frontend.defaultAddresses.join(", ")}
         </p>
       ) : (
-        <div className="space-y-2">
+        <div className="flex flex-col gap-2">
           {values.map((value, index) => (
             <div key={value.rowId} className="flex items-center gap-2">
-              <div className="min-w-0 flex-1">
-                <Label className="sr-only" htmlFor={`${id}-${index}`}>
-                  {frontend.name} IP address {index + 1}
-                </Label>
-                <Input
-                  id={`${id}-${index}`}
-                  value={value.value}
-                  placeholder="0.0.0.0 or ::"
-                  autoComplete="off"
-                  spellCheck={false}
-                  className="font-mono text-sm"
-                  onChange={(event) =>
-                    update(
-                      frontend.id,
-                      values.map((v, i) =>
-                        i === index ? { ...v, value: event.target.value } : v,
-                      ),
-                    )
-                  }
-                />
-              </div>
+              <InputField
+                className="min-w-0 flex-1"
+                label={
+                  <>
+                    {frontend.name} IP address {index + 1}
+                  </>
+                }
+                labelProps={{ className: "sr-only", htmlFor: `${id}-${index}` }}
+                inputProps={{
+                  id: `${id}-${index}`,
+                  value: value.value,
+                  placeholder: "0.0.0.0 or ::",
+                  autoComplete: "off",
+                  spellCheck: false,
+                  className: "font-mono text-sm",
+                  onChange: changeAddress,
+                  "data-address-row": value.rowId,
+                }}
+              />
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
                 aria-label={`Remove ${frontend.name} address ${index + 1}`}
                 disabled={values.length === 1}
-                onClick={() =>
-                  update(
-                    frontend.id,
-                    values.filter((_, i) => i !== index),
-                  )
-                }
+                onClick={removeAddress}
+                data-address-row={value.rowId}
               >
-                <Trash2 className="size-4" />
+                <Trash2 />
               </Button>
             </div>
           ))}
           <Button
+            className="self-start"
             type="button"
             size="sm"
             variant="outline"
-            onClick={() =>
-              update(frontend.id, [...values, draftRow({ value: "" })])
-            }
+            onClick={addAddress}
           >
             <Plus /> Add address
           </Button>

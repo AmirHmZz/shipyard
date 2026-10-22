@@ -1,4 +1,6 @@
-import { test, expect, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+
+import { test, expect } from "@playwright/test";
 async function setup(
   page: Page,
   {
@@ -13,15 +15,57 @@ async function setup(
     previous: "",
     notes,
     schema: 3,
+    coreImage: "shipyard:0.1.0",
+    executorImage: "shipyard-executor:0.1.0",
+    migrations: [],
   };
-  const current = { version: "0.2.0", previous: target.version, schema: 4 };
-  const state: any = {
+  const current = {
+    ...target,
+    version: "0.2.0",
+    previous: target.version,
+    schema: 4,
+    coreImage: "shipyard:0.2.0",
+    executorImage: "shipyard-executor:0.2.0",
+  };
+  const plan = {
+    id: "plan",
+    revision: 1,
+    current,
+    target,
+    expires: new Date(Date.now() + 600000).toISOString(),
+    destructive,
+    migrations: {
+      current: 4,
+      target: 3,
+      steps: destructive
+        ? [
+            {
+              version: 4,
+              direction: "down",
+              checksum: "abc",
+              classification: "destructive",
+              impact: "Discard feature settings",
+            },
+          ]
+        : [],
+    },
+  };
+  const state: {
+    operation?: { state: string; backup?: string; [key: string]: unknown };
+    [key: string]: unknown;
+  } = {
     enabled,
-    version: { version: "0.2.0", commit: "abc123", architecture: "amd64" },
-    installation: { release: current },
+    version: {
+      version: "0.2.0",
+      commit: "abc123",
+      architecture: "amd64",
+      builtAt: "2026-10-19",
+      updaterProtocol: 1,
+    },
+    installation: { revision: 1, release: current },
     releases: [target],
   };
-  const writes: any[] = [];
+  const writes: { path: string; body: Record<string, unknown> }[] = [];
   let disconnected = false;
   await page.route("**/api/v1/**", async (route) => {
     const req = route.request(),
@@ -30,7 +74,16 @@ async function setup(
       return route.fulfill({ json: { dsn: "" } });
     if (path.endsWith("/auth/me"))
       return route.fulfill({
-        json: { user: { id: "admin", name: "Admin", admin }, csrf: "csrf" },
+        json: {
+          user: {
+            email: "user@example.test",
+            totp: false,
+            id: "admin",
+            name: "Admin",
+            admin,
+          },
+          csrf: "csrf",
+        },
       });
     if (path.endsWith("/resources") || path.endsWith("/metrics"))
       return route.fulfill({ json: [] });
@@ -47,37 +100,15 @@ async function setup(
       const body = req.postDataJSON();
       writes.push({ path, body });
       if (path.endsWith("/check")) return route.fulfill({ json: state });
-      if (path.endsWith("/plan"))
-        return route.fulfill({
-          json: {
-            id: "plan",
-            revision: 1,
-            current,
-            target,
-            expires: new Date(Date.now() + 600000).toISOString(),
-            destructive,
-            migrations: {
-              current: 4,
-              target: 3,
-              steps: destructive
-                ? [
-                    {
-                      version: 4,
-                      direction: "down",
-                      checksum: "abc",
-                      classification: "destructive",
-                      impact: "Discard feature settings",
-                    },
-                  ]
-                : [],
-            },
-          },
-        });
+      if (path.endsWith("/plan")) return route.fulfill({ json: plan });
       state.operation = {
         id: "op",
         state: "waiting",
-        plan: { target },
+        plan,
         backup: "",
+        error: "",
+        createdAt: "2026-10-19T00:00:00Z",
+        updatedAt: "2026-10-19T00:00:00Z",
       };
       return route.fulfill({ status: 202, json: state.operation });
     }
@@ -122,7 +153,7 @@ for (const theme of ["light", "dark"]) {
         .click();
       await page.getByLabel("Type 0.1.0 to confirm").fill("0.1.0");
       await apply.click();
-      expect(data.writes.at(-1).body).toEqual({
+      expect(data.writes.at(-1)?.body).toEqual({
         planId: "plan",
         passphrase: "fresh-backup-passphrase",
         confirmation: "0.1.0",
@@ -136,6 +167,8 @@ for (const theme of ["light", "dark"]) {
         timeout: 20000,
       });
       data.disconnect(false);
+      if (!data.state.operation)
+        throw new Error("Expected a pending update operation");
       data.state.operation.state = "succeeded";
       data.state.operation.backup = "backup.sybackup";
       await expect(

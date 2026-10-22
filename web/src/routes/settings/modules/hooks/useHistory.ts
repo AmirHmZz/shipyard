@@ -1,11 +1,12 @@
-import { settingsKeys } from "../generics";
-import { useQuery } from "@tanstack/react-query";
-import { getHistory } from "../services";
+import { useApiQuery } from "@/lib/api/use-api-query";
+import { POLL_INTERVALS } from "@/lib/constants";
 
+import { settingsKeys, historyResponseSchema } from "../generics";
 export function useHistory(type: "audit" | "jobs") {
-  return useQuery({
+  return useApiQuery({
     queryKey: settingsKeys.history(type),
-    queryFn: () => getHistory(type),
-    refetchInterval: 10000,
+    path: `/${type}`,
+    schema: historyResponseSchema,
+    refetchInterval: POLL_INTERVALS.history,
   });
 }

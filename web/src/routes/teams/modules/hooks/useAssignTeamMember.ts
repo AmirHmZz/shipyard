@@ -1,16 +1,16 @@
-import { useMutation } from "@tanstack/react-query";
-import { assignTeamMember } from "../services";
+import { useApiMutation } from "@/lib/api/use-api-mutation";
+import { apiPath } from "@/lib/paths";
+import { okResponseSchema } from "@/lib/schemas/acknowledgements";
 
-type Assignment = Parameters<typeof assignTeamMember>[1];
+import type { AssignTeamMemberVariables } from "../generics";
 
 export function useAssignTeamMember() {
-  return useMutation({
-    mutationFn: ({
-      projectId,
-      assignment,
-    }: {
-      projectId: string;
-      assignment: Assignment;
-    }) => assignTeamMember(projectId, assignment),
+  return useApiMutation({
+    method: "POST",
+    path: ({ projectId }: AssignTeamMemberVariables) =>
+      apiPath`/projects/${projectId}/members`,
+    body: ({ assignment }) => assignment,
+    schema: okResponseSchema,
+    meta: { successMessage: "Project access updated" },
   });
 }

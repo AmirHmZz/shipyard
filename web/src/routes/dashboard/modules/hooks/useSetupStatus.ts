@@ -1,10 +1,11 @@
-import { dashboardKeys } from "../generics";
-import { useQuery } from "@tanstack/react-query";
-import { getSetupStatus } from "../services";
+import { useApiQuery } from "@/lib/api/use-api-query";
+
+import { dashboardKeys, setupStatusResponseSchema } from "../generics";
 
 export function useSetupStatus() {
-  return useQuery({
+  return useApiQuery({
     queryKey: dashboardKeys.setup,
-    queryFn: () => getSetupStatus(),
+    path: "/auth/status",
+    schema: setupStatusResponseSchema,
   });
 }

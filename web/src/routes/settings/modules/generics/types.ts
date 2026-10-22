@@ -1,25 +1,51 @@
-import type { components } from "@/lib/schema";
+import type * as z from "zod/mini";
 
-export type AlertPolicy = components["schemas"]["AlertPolicy"];
+import type { Session } from "@/lib/api/types";
 
-export type Status = components["schemas"]["SystemUpdates"];
+import type {
+  alertPolicyResponseSchema,
+  systemUpdatesResponseSchema,
+  versionChangePlanResponseSchema,
+  dashboardAccessResponseSchema,
+  userResponseSchema,
+  passwordFormSchema,
+  passphraseSchema,
+  totpCodeSchema,
+  totpPasswordSchema,
+  totpDisableSchema,
+  alertPolicySchema,
+  updateFormSchema,
+} from "./schema";
 
-export type Plan = components["schemas"]["VersionChangePlan"];
+export type AlertPolicy = z.infer<typeof alertPolicyResponseSchema>;
+export type MaintenanceSnapshot = { session: Session | null | undefined };
 
-export type State = components["schemas"]["DashboardAccess"];
+export type Status = z.infer<typeof systemUpdatesResponseSchema>;
+
+export type Plan = z.infer<typeof versionChangePlanResponseSchema>;
+
+export type State = z.infer<typeof dashboardAccessResponseSchema>;
 
 // TODO(openapi): add user administration responses to api/openapi.yaml.
-export type User = {
-  id: string;
-  name: string;
-  email: string;
-  admin: boolean;
-  disabled: boolean;
-  totp: boolean;
+export type User = z.infer<typeof userResponseSchema>;
+
+export type PasswordValues = z.infer<typeof passwordFormSchema>;
+export type PassphraseValues = z.infer<typeof passphraseSchema>;
+export type TOTPCodeValues = z.infer<typeof totpCodeSchema>;
+export type TOTPPasswordValues = z.infer<typeof totpPasswordSchema>;
+export type TOTPDisableValues = z.infer<typeof totpDisableSchema>;
+export type AlertPolicyValues = z.infer<typeof alertPolicySchema>;
+export type UpdateValues = z.infer<ReturnType<typeof updateFormSchema>>;
+export type UserAccessVariables = {
+  id: string | undefined;
+  access: { admin: boolean | undefined; disabled: boolean | undefined };
 };
-
-// TODO(openapi): add HistoryResponse to api/openapi.yaml.
-export type HistoryResponse = Record<string, string | number>[];
-
-// TODO(openapi): add TOTPRecoveryResult to api/openapi.yaml.
-export type TOTPRecoveryResult = { recoveryCodes: string[] };
+export type DashboardAccessValues = {
+  retry: boolean;
+  payload: {
+    version: number;
+    domain?: string;
+    acmeEmail?: string;
+    acceptTos?: boolean;
+  };
+};

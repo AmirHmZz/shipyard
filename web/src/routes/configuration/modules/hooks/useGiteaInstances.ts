@@ -1,11 +1,15 @@
-import { configurationKeys } from "../generics";
-import { useQuery } from "@tanstack/react-query";
-import { getGiteaInstances } from "../services";
+import { useApiQuery } from "@/lib/api/use-api-query";
+
+import {
+  configurationKeys,
+  getGiteaInstancesResponseSchema,
+} from "../generics";
 
 export function useGiteaInstances(provider: string) {
-  return useQuery({
+  return useApiQuery({
     queryKey: configurationKeys.giteaInstances,
-    queryFn: () => getGiteaInstances(provider),
+    path: "/git/gitea/instances",
+    schema: getGiteaInstancesResponseSchema,
     enabled: provider === "gitea",
   });
 }

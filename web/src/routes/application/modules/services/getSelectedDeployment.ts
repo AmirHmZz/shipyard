@@ -1,7 +1,0 @@
-import { apiPath } from "@/lib/paths";
-import type { Deployment } from "@/lib/api/types";
-import { api } from "@/lib/api/client";
-
-export async function getSelectedDeployment(selected: string | null) {
-  return api<Deployment>(apiPath`/deployments/${selected}`);
-}

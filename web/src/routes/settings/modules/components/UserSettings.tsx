@@ -1,6 +1,7 @@
-import { useUpdateUser, useUsers } from "../hooks";
-import { Confirm, ErrorState, Loading, StateBadge } from "@/components/shared";
-import { Button } from "@/components/ui/button";
+import type { Session } from "@/lib/api/types";
+
+import { Confirm, ErrorState, Loading } from "@/components/Shared";
+import { TableHeadings } from "@/components/TableHeadings";
 import {
   Card,
   CardContent,
@@ -8,23 +9,16 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { type Session } from "@/lib/api";
-import { useState } from "react";
-import { toast } from "sonner";
-import type { User } from "../generics";
+import { Table, TableBody, TableHeader } from "@/components/ui/table";
 
-export function UserSettings({ session }: { session: Session }) {
-  const q = useUsers();
-  const update = useUpdateUser();
-  const [change, setChange] = useState<User | null>(null);
+import { useUsersPage } from "../hooks";
+import { UserSettingsRow } from "./UserSettingsRow";
+export type UserSettingsProps = { session: Session };
+export function UserSettings({ session }: UserSettingsProps) {
+  const { state, derived, handlers } = useUsersPage();
+  const { change } = state;
+  const { q, update, description } = derived;
+  const { handleOpenChange, confirmChange, handleUserAction } = handlers;
   if (q.isPending) return <Loading />;
   if (q.error) return <ErrorState error={q.error} />;
   return (
@@ -40,53 +34,23 @@ export function UserSettings({ session }: { session: Session }) {
         <CardContent className="p-0">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Access</TableHead>
-                <TableHead>Authenticator</TableHead>
-                <TableHead />
-              </TableRow>
+              <TableHeadings
+                columns={[
+                  { id: "name", label: <>Name</> },
+                  { id: "access", label: <>Access</> },
+                  { id: "authenticator", label: <>Authenticator</> },
+                  { id: "actions", label: <></> },
+                ]}
+                rowProps={{}}
+              />
             </TableHeader>
-            <TableBody>
+            <TableBody onClick={handleUserAction}>
               {q.data?.map((u) => (
-                <TableRow key={u.id}>
-                  <TableCell>
-                    <div>{u.name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {u.email}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <StateBadge
-                      state={
-                        u.disabled
-                          ? "disabled"
-                          : u.admin
-                            ? "administrator"
-                            : "member"
-                      }
-                    />
-                  </TableCell>
-                  <TableCell>{u.totp ? "Enabled" : "Off"}</TableCell>
-                  <TableCell className="space-x-2 text-right">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={u.id === session.user.id}
-                      onClick={() => setChange({ ...u, admin: !u.admin })}
-                    >
-                      {u.admin ? "Remove admin" : "Make admin"}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={u.id === session.user.id}
-                      onClick={() => setChange({ ...u, disabled: !u.disabled })}
-                    >
-                      {u.disabled ? "Enable" : "Disable"}
-                    </Button>
-                  </TableCell>
-                </TableRow>
+                <UserSettingsRow
+                  key={u.id}
+                  user={u}
+                  currentUserId={session.user.id}
+                />
               ))}
             </TableBody>
           </Table>
@@ -94,16 +58,11 @@ export function UserSettings({ session }: { session: Session }) {
       </Card>
       <Confirm
         open={!!change}
-        onOpenChange={(v) => !v && setChange(null)}
+        onOpenChange={handleOpenChange}
         title="Change user access?"
-        description={`${change?.name} will be ${change?.disabled ? "disabled" : change?.admin ? "a platform administrator" : "a regular user"}. Existing sessions will end.`}
-        onConfirm={async () => {
-          await update.mutateAsync({
-            id: change?.id,
-            access: { admin: change?.admin, disabled: change?.disabled },
-          });
-          toast.success("User access updated");
-        }}
+        description={description}
+        pending={update.isPending}
+        onConfirm={confirmChange}
       />
     </>
   );

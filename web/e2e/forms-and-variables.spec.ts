@@ -1,23 +1,31 @@
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+
+import { expect, test } from "@playwright/test";
+
+import { jsonObject } from "./json";
 
 async function fixture(page: Page, writable = true, provider = "gitea") {
-  const resource = (
+  function resource(
     id: string,
     kind: string,
     parentId = "",
     data: Record<string, unknown> = {},
-  ) => ({
-    id,
-    kind,
-    parentId,
-    data,
-    name: id,
-    teamId: "team",
-    version: 1,
-    canWrite: writable,
-    secretKeys: [] as string[],
-    variables: {} as Record<string, string>,
-  });
+  ) {
+    return {
+      createdAt: "2026-10-19T00:00:00Z",
+      updatedAt: "2026-10-19T00:00:00Z",
+      id,
+      kind,
+      parentId,
+      data,
+      name: id,
+      teamId: "team",
+      version: 1,
+      canWrite: writable,
+      secretKeys: [] as string[],
+      variables: {} as Record<string, string>,
+    };
+  }
   const resources = [
     resource("team", "team"),
     resource("project", "project", "team"),
@@ -55,7 +63,7 @@ async function fixture(page: Page, writable = true, provider = "gitea") {
   app.variables = { "env:ORIGIN": "https://readable.example.com" };
   app.secretKeys = ["env:TOKEN"];
   const state = {
-    writes: [] as Record<string, any>[],
+    writes: [] as Record<string, unknown>[],
     branchRequests: [] as string[],
     branchFailure: false,
     repoFailure: false,
@@ -73,7 +81,16 @@ async function fixture(page: Page, writable = true, provider = "gitea") {
       return route.fulfill({ json: { dsn: "" } });
     if (path.endsWith("/auth/me"))
       return route.fulfill({
-        json: { user: { id: "user", name: "User", admin: true }, csrf: "csrf" },
+        json: {
+          user: {
+            email: "user@example.test",
+            totp: false,
+            id: "user",
+            name: "User",
+            admin: true,
+          },
+          csrf: "csrf",
+        },
       });
     if (path.endsWith("/repositories")) {
       if (state.repoGate) await state.repoGate;
@@ -105,7 +122,9 @@ async function fixture(page: Page, writable = true, provider = "gitea") {
       });
     }
     if (path.endsWith("/services"))
-      return route.fulfill({ json: [{ name: "app", replicas: 1 }] });
+      return route.fulfill({
+        json: [{ name: "app", replicas: 1, ignoredPorts: false }],
+      });
     if (path.endsWith("/resources") && request.method() === "GET")
       return route.fulfill({ json: resources });
     if (
@@ -260,7 +279,7 @@ for (const theme of ["light", "dark"]) {
         .getByRole("button", { name: "Save route", exact: true })
         .click();
       await expect.poll(() => state.writes.length).toBe(1);
-      expect(state.writes[0].data.domain).toBe("example.org");
+      expect(jsonObject(state.writes[0].data).domain).toBe("example.org");
       await page.goto("/configure/route/route");
       await expect(page.getByLabel("Subdomain", { exact: true })).toHaveValue(
         "api.dev",
@@ -269,7 +288,9 @@ for (const theme of ["light", "dark"]) {
         .getByRole("button", { name: "Save route", exact: true })
         .click();
       await expect.poll(() => state.writes.length).toBe(2);
-      expect(state.writes[1].data.domain).toBe("api.dev.example.com");
+      expect(jsonObject(state.writes[1].data).domain).toBe(
+        "api.dev.example.com",
+      );
     });
 
     test("ordinary values and secrets can be edited, converted, and removed", async ({

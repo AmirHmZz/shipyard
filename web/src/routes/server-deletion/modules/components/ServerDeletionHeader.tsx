@@ -1,16 +1,20 @@
-import { PageHeader } from "@/components/shared";
-import { Button } from "@/components/ui/button";
-import { type Resource } from "@/lib/api";
 import { Link } from "react-router";
+
+import type { Resource } from "@/lib/api/types";
+
+import { PageHeader } from "@/components/Shared";
+import { Button } from "@/components/ui/button";
+
 import type { Status } from "../generics";
 
+export type ServerDeletionHeaderProps = {
+  server?: Resource;
+  operation?: Status;
+};
 export function ServerDeletionHeader({
   server,
   operation,
-}: {
-  server?: Resource;
-  operation?: Status;
-}) {
+}: ServerDeletionHeaderProps) {
   return (
     <PageHeader
       breadcrumbs={[

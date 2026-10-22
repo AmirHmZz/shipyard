@@ -1,61 +1,42 @@
-import { applicationKeys } from "../generics";
-import { syncRoute } from "../services";
-import { useDomainStatus } from "../hooks";
+import { Pencil, RefreshCw, Trash2 } from "lucide-react";
+
+import type { Resource } from "@/lib/api/types";
+
+import { SectionRow } from "@/components/SectionRow";
+import { Confirm, StateBadge } from "@/components/Shared";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import { errorMessage, number, text, type Resource } from "@/lib/api";
-import { useQueryClient } from "@tanstack/react-query";
-import { Pencil, RefreshCw, Trash2 } from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
-import { Confirm, StateBadge } from "@/components/shared";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { number, text } from "@/lib/resource-fields";
 
-export function RouteCard({
-  route,
-  onEdit,
-  onDelete,
-}: {
-  route: Resource;
-  onEdit: () => void;
-  onDelete: () => void;
-}) {
-  const q = useDomainStatus(route);
-  const client = useQueryClient();
-  const [replace, setReplace] = useState(false);
-  const [syncing, setSyncing] = useState(false);
-  const sync = async (mode: string) => {
-    setSyncing(true);
-    try {
-      await syncRoute(route.id, { mode });
-      toast.success("Domain reconciliation queued");
-      void client.invalidateQueries({
-        queryKey: applicationKeys.domain(route.id),
-      });
-    } catch (e) {
-      toast.error(errorMessage(e));
-    } finally {
-      setSyncing(false);
-    }
-  };
+import { useRouteCard } from "../hooks";
+
+export type RouteCardProps = { route: Resource };
+export function RouteCard({ route }: RouteCardProps) {
+  const { state, derived, handlers } = useRouteCard(route);
+  const { replace } = state;
+  const { q, syncing, protocol } = derived;
+  const {
+    retrySync,
+    adoptRecords,
+    replaceRecords,
+    confirmReplacement,
+    setReplace,
+  } = handlers;
   return (
     <Card className="py-0 shadow-none">
       <CardContent className="p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <SectionRow>
           <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
             <Badge variant="secondary" className="font-mono text-[10px]">
-              {text(route.data, "protocol") === "grpc"
-                ? "gRPC"
-                : text(route.data, "protocol") === "tcp"
-                  ? "TCP"
-                  : "HTTPS"}
+              {protocol}
             </Badge>
             <span className="break-all font-medium">
               {text(route.data, "domain") ||
@@ -74,13 +55,9 @@ export function RouteCard({
                   variant="ghost"
                   size="icon"
                   aria-label="Retry sync"
-                  onClick={() => void sync("")}
+                  onClick={retrySync}
                 >
-                  {syncing ? (
-                    <Spinner className="size-4" />
-                  ) : (
-                    <RefreshCw className="size-4" />
-                  )}
+                  {syncing ? <Spinner className="size-4" /> : <RefreshCw />}
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Retry sync</TooltipContent>
@@ -92,9 +69,10 @@ export function RouteCard({
                   variant="ghost"
                   size="icon"
                   aria-label="Edit route"
-                  onClick={onEdit}
+                  data-route-id={route.id}
+                  data-route-action="edit"
                 >
-                  <Pencil className="size-4" />
+                  <Pencil />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Edit route</TooltipContent>
@@ -104,12 +82,13 @@ export function RouteCard({
               size="icon"
               aria-label="Delete route"
               disabled={!route.canWrite}
-              onClick={onDelete}
+              data-route-id={route.id}
+              data-route-action="delete"
             >
-              <Trash2 className="size-4" />
+              <Trash2 />
             </Button>
           </div>
-        </div>
+        </SectionRow>
         <div className="mt-5 grid gap-3 border-t pt-4 sm:grid-cols-4">
           {["dns", "propagation", "certificate", "routing"].map((key) => (
             <div key={key}>
@@ -131,7 +110,7 @@ export function RouteCard({
               disabled={syncing}
               variant="outline"
               size="sm"
-              onClick={() => void sync("adopt")}
+              onClick={adoptRecords}
             >
               Adopt matching records
             </Button>
@@ -139,7 +118,7 @@ export function RouteCard({
               disabled={syncing}
               variant="destructive"
               size="sm"
-              onClick={() => setReplace(true)}
+              onClick={replaceRecords}
             >
               Replace conflicting records
             </Button>
@@ -152,7 +131,8 @@ export function RouteCard({
         title="Replace conflicting DNS records?"
         description="Existing A, AAAA and CNAME records for this hostname will be replaced with records pointing at the deployment server."
         destructive
-        onConfirm={() => sync("replace")}
+        pending={syncing}
+        onConfirm={confirmReplacement}
       />
     </Card>
   );

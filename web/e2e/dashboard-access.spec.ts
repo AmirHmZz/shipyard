@@ -1,4 +1,6 @@
-import { test, expect, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+
+import { test, expect } from "@playwright/test";
 async function setup(
   page: Page,
   { admin = true, enabled = true, acmeConfigured = true } = {},
@@ -11,15 +13,19 @@ async function setup(
     domain: "panel.example.com",
     candidateOrigin: "https://panel.example.com",
     activeDomain: "panel.example.com",
+    routeId: "dashboard-route",
+    activeRouteId: "dashboard-route",
+    acmeEmail: "",
     status: {
       dns: "manual",
       propagation: "ready",
       certificate: "ready",
       routing: "ready",
+      error: "",
     },
     error: "",
   };
-  const writes: any[] = [];
+  const writes: { path: string; body: Record<string, unknown> }[] = [];
   let fail = false;
   await page.route("**/api/v1/**", async (route) => {
     const req = route.request(),
@@ -28,7 +34,16 @@ async function setup(
       return route.fulfill({ json: { dsn: "" } });
     if (path.endsWith("/auth/me"))
       return route.fulfill({
-        json: { user: { id: "admin", name: "Admin", admin }, csrf: "csrf" },
+        json: {
+          user: {
+            email: "user@example.test",
+            totp: false,
+            id: "admin",
+            name: "Admin",
+            admin,
+          },
+          csrf: "csrf",
+        },
       });
     if (path.endsWith("/resources") || path.endsWith("/metrics"))
       return route.fulfill({ json: [] });

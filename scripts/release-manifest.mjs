@@ -1,19 +1,21 @@
-import { readFile, writeFile, mkdir, readdir } from "node:fs/promises";
 import { createHash } from "node:crypto";
-const hash = (b) => createHash("sha256").update(b).digest("hex");
+import { readFile, writeFile, mkdir, readdir } from "node:fs/promises";
+function hash(b) {
+  return createHash("sha256").update(b).digest("hex");
+}
 const version = (await readFile("VERSION", "utf8")).trim();
 if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(version))
   throw Error("Invalid VERSION");
-const env = (k) => {
+function env(k) {
   if (!process.env[k]) throw Error(`Missing ${k}`);
   return process.env[k];
-};
-const image = (key, repository) => {
+}
+function image(key, repository) {
   const digest = env(key);
   if (!/^sha256:[0-9a-f]{64}$/.test(digest))
     throw Error("Invalid image digest");
   return `${repository}@${digest}`;
-};
+}
 await mkdir(".local/release", { recursive: true });
 const migrations = [];
 for (const name of (await readdir("internal/db/migrations"))
@@ -23,7 +25,9 @@ for (const name of (await readdir("internal/db/migrations"))
     meta = JSON.parse(
       await readFile(`internal/db/migrations/${base}.json`, "utf8"),
     );
-  const text = async (p) => (await readFile(p, "utf8")).replace(/\r\n/g, "\n");
+  async function text(p) {
+    return (await readFile(p, "utf8")).replace(/\r\n/g, "\n");
+  }
   migrations.push({
     ...meta,
     version: Number(base.split("_")[0]),

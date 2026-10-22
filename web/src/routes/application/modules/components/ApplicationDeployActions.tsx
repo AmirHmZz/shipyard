@@ -1,3 +1,13 @@
+import {
+  ChevronDown,
+  Play,
+  RotateCcw,
+  RotateCw,
+  Square,
+  Trash2,
+} from "lucide-react";
+
+import { InputField } from "@/components/InputField";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
@@ -16,60 +26,31 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
-import { errorMessage, type Resource } from "@/lib/api";
-import {
-  ChevronDown,
-  Play,
-  RotateCcw,
-  RotateCw,
-  Square,
-  Trash2,
-} from "lucide-react";
-import { useState } from "react";
 
-export function ApplicationDeployActions({
-  app,
-  runtime,
-  busy,
-  deploy,
-  onAction,
-  onDelete,
-}: {
-  app: Resource;
-  runtime?: { releaseId?: string; status: string };
-  busy: boolean;
-  deploy: (fresh?: boolean, confirmName?: string) => Promise<void>;
-  onAction: (action: string) => void;
-  onDelete: () => void;
-}) {
-  const [freshOpen, setFreshOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [error, setError] = useState("");
-  const canDeploy =
-    app.canWrite &&
-    !app.data.previewClosed &&
-    (!app.data.previewOf || !!app.data.approvedSha);
-  const canControl =
-    app.canWrite && !!runtime?.releaseId && !app.data.previewClosed;
-  const stopped = runtime?.status === "stopped";
+import type { ApplicationDeployActionsOptions } from "../generics";
 
-  async function freshDeploy() {
-    setError("");
-    try {
-      await deploy(true, name);
-      setFreshOpen(false);
-    } catch (e) {
-      setError(errorMessage(e));
-    }
-  }
-
+import { useApplicationDeployActions } from "../hooks";
+export type ApplicationDeployActionsProps = ApplicationDeployActionsOptions;
+export function ApplicationDeployActions(props: ApplicationDeployActionsProps) {
+  const { app, busy, deployError, onDelete } = props;
+  const { state, derived, handlers } = useApplicationDeployActions(props);
+  const { freshOpen, name } = state;
+  const { canDeploy, canControl, canStop, stopped } = derived;
+  const {
+    handleButtonClick,
+    handleDropdownMenuItemSelect,
+    handleDropdownMenuItemSelect2,
+    handleDropdownMenuItemSelect3,
+    handleDialogOpenChange,
+    handleInputChange,
+    handleButtonClick2,
+    handleButtonClick3,
+  } = handlers;
   return (
     <>
       <ButtonGroup aria-label="Deployment actions">
-        <Button disabled={busy || !canDeploy} onClick={() => void deploy()}>
+        <Button disabled={busy || !canDeploy} onClick={handleButtonClick}>
           {busy ? <Spinner className="size-4" /> : <Play />}Deploy
         </Button>
         <DropdownMenu>
@@ -78,7 +59,7 @@ export function ApplicationDeployActions({
               size="icon"
               className="border-l border-primary-foreground/25"
               aria-label="Application actions"
-              disabled={busy || !app.canWrite}
+              disabled={!app.canWrite}
             >
               <ChevronDown />
             </Button>
@@ -86,25 +67,21 @@ export function ApplicationDeployActions({
           <DropdownMenuContent align="end" className="min-w-48">
             <DropdownMenuItem
               disabled={!canDeploy}
-              onSelect={() => {
-                setName("");
-                setError("");
-                setFreshOpen(true);
-              }}
+              onSelect={handleDropdownMenuItemSelect}
             >
               <RotateCw />
               Fresh deploy
             </DropdownMenuItem>
             <DropdownMenuItem
-              disabled={!canControl}
-              onSelect={() => onAction("restart")}
+              disabled={!canControl || stopped}
+              onSelect={handleDropdownMenuItemSelect2}
             >
               <RotateCcw />
               Restart
             </DropdownMenuItem>
             <DropdownMenuItem
-              disabled={!canControl}
-              onSelect={() => onAction(stopped ? "start" : "stop")}
+              disabled={stopped ? !canControl : !canStop}
+              onSelect={handleDropdownMenuItemSelect3}
             >
               {stopped ? <Play /> : <Square />}
               {stopped ? "Start" : "Stop"}
@@ -117,12 +94,7 @@ export function ApplicationDeployActions({
           </DropdownMenuContent>
         </DropdownMenu>
       </ButtonGroup>
-      <Dialog
-        open={freshOpen}
-        onOpenChange={(open) => {
-          if (!busy) setFreshOpen(open);
-        }}
-      >
+      <Dialog open={freshOpen} onOpenChange={handleDialogOpenChange}>
         <DialogContent showCloseButton={!busy}>
           <DialogHeader>
             <DialogTitle>Fresh deploy {app.name}?</DialogTitle>
@@ -134,35 +106,34 @@ export function ApplicationDeployActions({
               stopped. Rolling back cannot restore erased data.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor="fresh-deploy-name">
-              Type {app.name} to confirm
-            </Label>
-            <Input
-              id="fresh-deploy-name"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              autoComplete="off"
-              disabled={busy}
-            />
-          </div>
-          {error && (
+          <InputField
+            label={<>Type {app.name} to confirm</>}
+            labelProps={{ htmlFor: "fresh-deploy-name" }}
+            inputProps={{
+              id: "fresh-deploy-name",
+              value: name,
+              onChange: handleInputChange,
+              autoComplete: "off",
+              disabled: busy,
+            }}
+          />
+          {deployError && (
             <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription>{deployError}</AlertDescription>
             </Alert>
           )}
           <DialogFooter>
             <Button
               variant="outline"
               disabled={busy}
-              onClick={() => setFreshOpen(false)}
+              onClick={handleButtonClick2}
             >
               Cancel
             </Button>
             <Button
               variant="destructive"
               disabled={busy || !canDeploy || name !== app.name}
-              onClick={() => void freshDeploy()}
+              onClick={handleButtonClick3}
             >
               {busy ? <Spinner className="size-4" /> : <RotateCw />}Fresh deploy
             </Button>

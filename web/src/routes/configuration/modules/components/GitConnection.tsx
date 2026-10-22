@@ -1,23 +1,22 @@
-import { followGitSetup } from "../utils";
-import { reconnectGit, startGitSetup } from "../services";
-import {
-  useGiteaInstances,
-  useGitSetupConfig,
-  useGitSetupStatus,
-} from "../hooks";
+import type * as React from "react";
+
+import { Plus, Settings2 } from "lucide-react";
+
+import type { Resource } from "@/lib/api/types";
+
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/configuration-surface";
-import { ProviderName } from "@/components/provider-name";
+} from "@/components/ConfigurationSurface";
+import { FormField } from "@/components/FormField";
+import { InputField } from "@/components/InputField";
+import { ProviderName } from "@/components/ProviderName";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -25,79 +24,72 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { errorMessage, text, type Resource } from "@/lib/api";
-import { useConfigurationChanges } from "@/lib/configuration-state";
-import { gitSetupSchema } from "@/lib/validation";
-import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Settings2 } from "lucide-react";
-import { useState } from "react";
+import { describeError } from "@/lib/api/translate-error";
+import { GIT_PROVIDERS } from "@/lib/enums";
+import { text } from "@/lib/resource-fields";
+
+import { useGitConnectionForm } from "../hooks";
+import { GitConnectionActions } from "./GitConnectionActions";
 import { GiteaInstanceEditor } from "./GiteaInstanceEditor";
 import { GitWebhookConfiguration } from "./GitWebhookConfiguration";
-import { GitConnectionActions } from "./GitConnectionActions";
 
+export type GitConnectionProps = {
+  existing?: Resource;
+  onClose: () => void;
+  onManual: () => void;
+};
 export function GitConnection({
   existing,
   onClose,
   onManual,
-}: {
-  existing?: Resource;
-  onClose: () => void;
-  onManual: () => void;
-}) {
-  const changes = useConfigurationChanges();
-  const client = useQueryClient();
-  const [provider, setProvider] = useState(() =>
-    text(existing?.data || {}, "provider", "github"),
-  );
-  const [name, setName] = useState(existing?.name || "");
-  const [owner, setOwner] = useState("");
-  const [instanceId, setInstanceId] = useState(() =>
-    text(existing?.data || {}, "instanceId"),
-  );
-  const [instanceForm, setInstanceForm] = useState<{
-    id: string;
-    name: string;
-    url: string;
-    clientId: string;
-    clientSecret: string;
-  } | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [secret, setSecret] = useState("");
-  const instances = useGiteaInstances(provider);
-  const config = useGitSetupConfig();
-  const status = useGitSetupStatus(existing);
-  const callback = config.data?.giteaCallback || "";
-  const selected = instances.data?.find((v) => v.id === instanceId);
-  async function perform(action: () => Promise<void>) {
-    setBusy(true);
-    setError("");
-    try {
-      await action();
-    } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setBusy(false);
-    }
+}: GitConnectionProps) {
+  function handleDialogOpenChange(open: boolean) {
+    return !open && onClose();
   }
-  async function connect() {
-    await perform(async () => {
-      const result = existing
-        ? await reconnectGit(existing.id)
-        : await startGitSetup(
-            gitSetupSchema.parse({
-              provider,
-              name,
-              owner,
-              instanceId,
-            }),
-          );
-      changes.saved();
-      followGitSetup(result);
+  function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    return setName(e.target.value);
+  }
+  function handleInputChange2(e: React.ChangeEvent<HTMLInputElement>) {
+    return setOwner(e.target.value);
+  }
+  function handleButtonClick() {
+    return setInstanceForm({
+      id: "",
+      name: "",
+      url: "",
+      clientId: "",
+      clientSecret: "",
     });
   }
+  function handleButtonClick2() {
+    if (selected) setInstanceForm({ ...selected, clientSecret: "" });
+  }
+
+  const { state, derived, handlers } = useGitConnectionForm(existing);
+  const { provider, name, owner, instanceId, instanceForm } = state;
+  const {
+    busy,
+    error,
+    instances,
+    config,
+    status,
+    callback,
+    selected,
+    secret,
+    saveInstance,
+    createWebhook,
+  } = derived;
+  const {
+    resetErrors,
+    setProvider,
+    setName,
+    setOwner,
+    setInstanceId,
+    setInstanceForm,
+    connect,
+  } = handlers;
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
+    <Dialog open onOpenChange={handleDialogOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>
@@ -110,36 +102,32 @@ export function GitConnection({
         </DialogHeader>
         {!existing && (
           <>
-            <div className="space-y-2">
-              <Label htmlFor="git-name">Connection name</Label>
-              <Input
-                id="git-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="git-provider">Provider</Label>
-              <Select
-                value={provider}
-                onValueChange={(v) => {
-                  setProvider(v);
-                  setError("");
-                  setInstanceForm(null);
-                }}
-              >
+            <InputField
+              label={<>Connection name</>}
+              labelProps={{ htmlFor: "git-name" }}
+              inputProps={{
+                id: "git-name",
+                value: name,
+                onChange: handleInputChange,
+              }}
+            />
+            <FormField
+              label={<>Provider</>}
+              labelProps={{ htmlFor: "git-provider" }}
+            >
+              <Select value={provider} onValueChange={setProvider}>
                 <SelectTrigger id="git-provider" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {["github", "gitea"].map((v) => (
+                  {GIT_PROVIDERS.map((v) => (
                     <SelectItem key={v} value={v}>
                       <ProviderName provider={v} />
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </FormField>
           </>
         )}
         {existing && (
@@ -162,22 +150,25 @@ export function GitConnection({
               requests read access, plus push and pull_request events. Approve
               the App, then choose its repositories on GitHub.
             </p>
-            <div className="space-y-2">
-              <Label htmlFor="git-owner">Organization (optional)</Label>
-              <Input
-                id="git-owner"
-                placeholder="Leave empty for your personal account"
-                value={owner}
-                onChange={(e) => setOwner(e.target.value)}
-              />
-            </div>
+            <InputField
+              label={<>Organization (optional)</>}
+              labelProps={{ htmlFor: "git-owner" }}
+              inputProps={{
+                id: "git-owner",
+                placeholder: "Leave empty for your personal account",
+                value: owner,
+                onChange: handleInputChange2,
+              }}
+            />
           </>
         )}
         {provider === "gitea" && (
           <>
             {!existing && (
-              <div className="space-y-2">
-                <Label htmlFor="gitea-instance">Gitea instance</Label>
+              <FormField
+                label={<>Gitea instance</>}
+                labelProps={{ htmlFor: "gitea-instance" }}
+              >
                 <Select
                   value={instanceId || undefined}
                   onValueChange={setInstanceId}
@@ -193,29 +184,17 @@ export function GitConnection({
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
+              </FormField>
             )}
             {instances.error && (
               <Alert variant="destructive">
                 <AlertDescription>
-                  {errorMessage(instances.error)}
+                  {describeError(instances.error)}
                 </AlertDescription>
               </Alert>
             )}
             <div className="flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  setInstanceForm({
-                    id: "",
-                    name: "",
-                    url: "",
-                    clientId: "",
-                    clientSecret: "",
-                  })
-                }
-              >
+              <Button variant="outline" size="sm" onClick={handleButtonClick}>
                 <Plus />
                 Add instance
               </Button>
@@ -223,9 +202,7 @@ export function GitConnection({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() =>
-                    setInstanceForm({ ...selected, clientSecret: "" })
-                  }
+                  onClick={handleButtonClick2}
                 >
                   <Settings2 />
                   Edit instance
@@ -238,9 +215,9 @@ export function GitConnection({
                 setInstanceForm={setInstanceForm}
                 callback={callback}
                 busy={busy}
-                perform={perform}
+                saveInstance={saveInstance}
+                resetErrors={resetErrors}
                 setInstanceId={setInstanceId}
-                client={client}
               />
             )}
             <p className="text-sm text-muted-foreground">
@@ -252,20 +229,18 @@ export function GitConnection({
         )}
         {existing && status.data && (
           <GitWebhookConfiguration
-            existing={existing}
             provider={provider}
-            status={{ data: status.data, refetch: status.refetch }}
+            status={{ data: status.data }}
             busy={busy}
-            perform={perform}
-            setSecret={setSecret}
+            createWebhook={createWebhook}
+            resetErrors={resetErrors}
             secret={secret}
-            client={client}
           />
         )}
         {(error || status.error || config.error) && (
           <Alert variant="destructive">
             <AlertDescription className="break-words">
-              {error || errorMessage(status.error || config.error)}
+              {error || describeError(status.error || config.error)}
             </AlertDescription>
           </Alert>
         )}

@@ -1,8 +1,8 @@
 # Networks
 
-URLs: /networks.
-
-Lists and manages Docker networks.
-
-Endpoints: `/resources`, `/servers/:id/networks`, and network removal.
-Key modules: `NetworksMainView`, `useDockerNetworks`, network services and subnet utilities.
+URL: `/networks`.
+`NetworksMainView` renders inventory through `useNetworksPage`; configuration opens `/configure/network/*`.
+`useDockerNetworks` and `useRemoveNetwork` own endpoints and pass schemas from `generics/schema.ts`.
+Endpoints: `/resources`, `/servers/:id/networks` and network resource removal.
+Removal uses cache optimism and rollback; inventory reconciliation and subnet calculations live in `utils`.
+Hook contracts cover request parity, schema failures and concurrent invalidation.

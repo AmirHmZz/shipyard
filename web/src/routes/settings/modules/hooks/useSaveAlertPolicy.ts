@@ -1,12 +1,15 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { settingsKeys } from "../generics";
-import { saveAlertPolicy } from "../services";
+import { useApiMutation } from "@/lib/api/use-api-mutation";
 
+import type { AlertPolicyValues } from "../generics";
+
+import { alertPolicyResponseSchema, settingsKeys } from "../generics";
 export function useSaveAlertPolicy() {
-  const client = useQueryClient();
-  return useMutation({
-    mutationFn: saveAlertPolicy,
-    onSuccess: () =>
-      client.invalidateQueries({ queryKey: settingsKeys.alertPolicy }),
+  return useApiMutation({
+    method: "PUT",
+    path: "/settings/alerts",
+    body: (values: AlertPolicyValues) => values,
+    schema: alertPolicyResponseSchema,
+    invalidate: [settingsKeys.alertPolicy],
+    meta: { successMessage: "Alert policy saved" },
   });
 }

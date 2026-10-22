@@ -1,8 +1,3 @@
-import { DashboardAccess } from "./DashboardAccess";
-import { PageHeader } from "@/components/shared";
-import { SystemUpdates } from "./SystemUpdates";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { type Session } from "@/lib/api";
 import {
   Bell,
   Download,
@@ -14,14 +9,28 @@ import {
   Users,
 } from "lucide-react";
 import { useSearchParams } from "react-router";
+
+import type { Session } from "@/lib/api/types";
+
+import { PageHeader } from "@/components/Shared";
+import { TabScroller } from "@/components/TabScroller";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 import { AlertSettings } from "./AlertSettings";
-import { UserSettings } from "./UserSettings";
+import { Backup } from "./Backup";
+import { DashboardAccess } from "./DashboardAccess";
+import { History } from "./History";
 import { PasswordSettings } from "./PasswordSettings";
 import { Security } from "./Security";
-import { Backup } from "./Backup";
-import { History } from "./History";
+import { SystemUpdates } from "./SystemUpdates";
+import { UserSettings } from "./UserSettings";
 
-export function SettingsMainView({ session }: { session: Session }) {
+export type SettingsMainViewProps = { session: Session };
+export function SettingsMainView({ session }: SettingsMainViewProps) {
+  function handleTabsValueChange(tab: string) {
+    return setParams({ tab });
+  }
+
   const [params, setParams] = useSearchParams();
   return (
     <>
@@ -32,9 +41,9 @@ export function SettingsMainView({ session }: { session: Session }) {
       />
       <Tabs
         value={params.get("tab") || "security"}
-        onValueChange={(tab) => setParams({ tab })}
+        onValueChange={handleTabsValueChange}
       >
-        <div className="overflow-x-auto overflow-y-hidden p-1 -m-1">
+        <TabScroller>
           <TabsList>
             <TabsTrigger value="security">
               <ShieldCheck aria-hidden="true" />
@@ -73,7 +82,7 @@ export function SettingsMainView({ session }: { session: Session }) {
               Audit log
             </TabsTrigger>
           </TabsList>
-        </div>
+        </TabScroller>
         <TabsContent value="security">
           <Security session={session} />
           <PasswordSettings />

@@ -1,52 +1,52 @@
-import { resourceKeys } from "@/lib/query-keys";
-import { retryServerDeletion } from "../services";
-import { StateBadge } from "@/components/shared";
+import { RefreshCw } from "lucide-react";
+
+import type { Resource } from "@/lib/api/types";
+
+import { SectionRow } from "@/components/SectionRow";
+import { StateBadge } from "@/components/Shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import { errorMessage, type Resource } from "@/lib/api";
-import { useQueryClient } from "@tanstack/react-query";
-import { RefreshCw } from "lucide-react";
-import type { Dispatch, SetStateAction } from "react";
+
 import type { Status } from "../generics";
+
 import { RepairConnection } from "./RepairConnection";
 
+export type ServerDeletionProgressProps = {
+  operation: Status;
+  busy: boolean;
+  retryCleanup: () => void;
+  server?: Resource;
+  repair: boolean;
+  setRepair: (value: boolean) => void;
+};
 export function ServerDeletionProgress({
   operation,
   busy,
-  setBusy,
-  setError,
-  id,
-  status,
+  retryCleanup,
   server,
   repair,
   setRepair,
-  client,
-}: {
-  operation: Status;
-  busy: boolean;
-  setBusy: (value: boolean) => void;
-  setError: (value: string) => void;
-  id: string;
-  status: { refetch: () => Promise<unknown> };
-  server?: Resource;
-  repair: boolean;
-  setRepair: Dispatch<SetStateAction<boolean>>;
-  client: ReturnType<typeof useQueryClient>;
-}) {
+}: ServerDeletionProgressProps) {
+  function handleButtonClick() {
+    return setRepair(!repair);
+  }
+  function handleRepairConnectionSaved() {
+    return setRepair(false);
+  }
+
+  let stage = "queued";
+  if (operation.error) stage = "failed";
+  if (operation.done) stage = "done";
   return (
     <>
       <Card className="shadow-none">
-        <CardContent className="space-y-4 pt-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+        <CardContent className="flex flex-col gap-4 pt-6">
+          <SectionRow>
             <p className="font-medium capitalize">{operation.stage}</p>
-            <StateBadge
-              state={
-                operation.done ? "done" : operation.error ? "failed" : "queued"
-              }
-            />
-          </div>
+            <StateBadge state={stage} />
+          </SectionRow>
           <p className="text-sm text-muted-foreground">
             {operation.done
               ? "Host cleanup completed. The server and its applications have been removed. The audit trail is retained."
@@ -58,29 +58,12 @@ export function ServerDeletionProgress({
                 <AlertDescription>{operation.error}</AlertDescription>
               </Alert>
               <div className="flex flex-wrap gap-3">
-                <Button
-                  disabled={busy}
-                  onClick={async () => {
-                    setBusy(true);
-                    setError("");
-                    try {
-                      await retryServerDeletion(id);
-                      await status.refetch();
-                    } catch (e) {
-                      setError(errorMessage(e));
-                    } finally {
-                      setBusy(false);
-                    }
-                  }}
-                >
+                <Button disabled={busy} onClick={retryCleanup}>
                   {busy ? <Spinner className="size-4" /> : <RefreshCw />}
                   Retry cleanup
                 </Button>
                 {server && (
-                  <Button
-                    variant="outline"
-                    onClick={() => setRepair((current) => !current)}
-                  >
+                  <Button variant="outline" onClick={handleButtonClick}>
                     Repair connection
                   </Button>
                 )}
@@ -92,12 +75,7 @@ export function ServerDeletionProgress({
       {repair && server && (
         <RepairConnection
           server={server}
-          onSaved={() => {
-            setRepair(false);
-            void client.invalidateQueries({
-              queryKey: resourceKeys.all,
-            });
-          }}
+          onSaved={handleRepairConnectionSaved}
         />
       )}
     </>

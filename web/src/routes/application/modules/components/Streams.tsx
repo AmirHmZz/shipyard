@@ -1,7 +1,14 @@
-import { StateBadge } from "@/components/shared";
+import { Copy, Eraser } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+
+import type { LogLine } from "@/lib/log-buffer";
+
+import { FlushCard } from "@/components/FlushCard";
+import { StateBadge } from "@/components/Shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -9,24 +16,37 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { type Deployment } from "@/lib/api";
-import { LogBuffer, type LogLine } from "@/lib/log-buffer";
+import { LogBuffer } from "@/lib/log-buffer";
 import { logText } from "@/lib/log-text";
-import { Copy, Eraser } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { inputNumberSchema } from "@/lib/schemas/coercion";
+
+import { logMessageSchema, logStatusSchema } from "../generics";
+export type LogStreamProps = {
+  deploymentId?: string;
+  applicationId?: string;
+  containers?: string[];
+};
 export function LogStream({
   deploymentId,
   applicationId,
   containers = [],
-}: {
-  deploymentId?: string;
-  applicationId?: string;
-  containers?: string[];
-}) {
-  const [lines, setLines] = useState<LogLine[]>([]);
-  const [state, setState] = useState("connecting");
-  const [error, setError] = useState("");
+}: LogStreamProps) {
+  function handleButtonClick() {
+    return buffer.current?.clear();
+  }
+  async function handleButtonClick2() {
+    try {
+      await navigator.clipboard.writeText(
+        (buffer.current?.snapshot() ?? lines)
+          .map((line) => line.text)
+          .join("\n"),
+      );
+      toast.success("Logs copied");
+    } catch {
+      toast.error("Clipboard is unavailable");
+    }
+  }
+
   const [selected, setSelected] = useState("");
   const scroll = useRef<HTMLPreElement>(null);
   const buffer = useRef<LogBuffer | null>(null);
@@ -36,39 +56,59 @@ export function LogStream({
   const endpoint = deploymentId
     ? `/deployments/${deploymentId}/events`
     : `/applications/${applicationId}/logs?container=${encodeURIComponent(effectiveContainer)}`;
+  const [output, setOutput] = useState({
+    endpoint,
+    lines: new Array<LogLine>(),
+    state: "connecting",
+    error: "",
+  });
+  const { lines, state, error } =
+    output.endpoint === endpoint
+      ? output
+      : { lines: [], state: "connecting", error: "" };
   useEffect(() => {
-    setLines([]);
-    setState("connecting");
-    setError("");
-    const current = new LogBuffer(setLines);
+    function updateOutput(values: Partial<typeof output>) {
+      setOutput((previous) => ({
+        ...(previous.endpoint === endpoint
+          ? previous
+          : { endpoint, lines: [], state: "connecting", error: "" }),
+        ...values,
+      }));
+    }
+    const current = new LogBuffer((lines) => updateOutput({ lines }));
     buffer.current = current;
     const source = new EventSource("/api/v1" + endpoint);
     let lastEventID = 0;
     source.addEventListener("log", (event) => {
+      if (!(event instanceof MessageEvent)) return;
       if (deploymentId) {
-        const id = Number((event as MessageEvent).lastEventId);
-        if (id > 0) {
-          if (id <= lastEventID) return;
-          lastEventID = id;
+        const id = inputNumberSchema.safeParse(event.lastEventId);
+        if (id.success && id.data > 0) {
+          if (id.data <= lastEventID) return;
+          lastEventID = id.data;
         }
       }
 
-      const data = JSON.parse((event as MessageEvent).data) as {
-        message: string;
-      };
-      current.push(logText(data.message));
-      setState("connected");
+      const data = logMessageSchema.safeParse(event.data);
+      if (!data.success) return;
+      current.push(logText(data.data.message));
+      updateOutput({ state: "connected" });
     });
     source.addEventListener("status", (event) => {
-      const d = JSON.parse((event as MessageEvent).data) as Deployment;
-      setState(d.state);
-      setError(d.error || "");
-      if (["healthy", "failed", "recovery_failed"].includes(d.state))
+      if (!(event instanceof MessageEvent)) return;
+      const result = logStatusSchema.safeParse(event.data);
+      if (!result.success) return;
+      const d = result.data;
+      updateOutput({ state: d.state, error: d.error || "" });
+      if (
+        ["healthy", "failed", "recovery_failed", "cancelled"].includes(d.state)
+      )
         source.close();
     });
     source.onerror = () => {
-      if (source.readyState === EventSource.CLOSED) setState("ended");
-      else setState("reconnecting");
+      if (source.readyState === EventSource.CLOSED)
+        updateOutput({ state: "ended" });
+      else updateOutput({ state: "reconnecting" });
     };
     return () => {
       source.close();
@@ -80,9 +120,9 @@ export function LogStream({
     scroll.current?.scrollTo({ top: scroll.current.scrollHeight });
   }, [lines]);
   return (
-    <Card className="gap-0 overflow-hidden py-0 shadow-none">
-      <CardHeader className="flex min-h-14 flex-row flex-wrap items-center justify-between gap-2 border-b px-4 py-2.5 [.border-b]:pb-2.5">
-        <CardTitle className="text-sm font-semibold leading-6">
+    <FlushCard>
+      <CardHeader className="flex min-h-14 flex-wrap items-center justify-between border-b px-4 py-2.5 [.border-b]:pb-2.5">
+        <CardTitle className="text-sm leading-6">
           {deploymentId ? (
             <>
               Deployment{" "}
@@ -116,7 +156,7 @@ export function LogStream({
               className="size-8"
               variant="ghost"
               aria-label="Clear logs"
-              onClick={() => buffer.current?.clear()}
+              onClick={handleButtonClick}
             >
               <Eraser className="size-3.5" />
             </Button>
@@ -126,18 +166,7 @@ export function LogStream({
             className="size-8"
             variant="ghost"
             aria-label="Copy logs"
-            onClick={async () => {
-              try {
-                await navigator.clipboard.writeText(
-                  (buffer.current?.snapshot() ?? lines)
-                    .map((line) => line.text)
-                    .join("\n"),
-                );
-                toast.success("Logs copied");
-              } catch {
-                toast.error("Clipboard is unavailable");
-              }
-            }}
+            onClick={handleButtonClick2}
           >
             <Copy className="size-3.5" />
           </Button>
@@ -177,6 +206,6 @@ export function LogStream({
           )}
         </pre>
       </CardContent>
-    </Card>
+    </FlushCard>
   );
 }
