@@ -13,14 +13,14 @@ import { useSubmitAuth } from "./useSubmitAuth";
 export function useAuthForm() {
   const navigate = useNavigate();
   const status = useSetupStatus();
+  const token = new URLSearchParams(location.search).get("token") || "";
   const [form, setForm] = useState(() => ({
     email: "",
     password: "",
     name: "",
     code: "",
-    token: new URLSearchParams(location.search).get("token") || "",
+    token,
   }));
-  const token = form.token;
   const setup = status.data?.setupRequired && !token;
   let mode: "login" | "setup" | "accept" = "login";
   if (setup) mode = "setup";
