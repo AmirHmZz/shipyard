@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/AmirHmZz/shipyard/compare/v0.6.0...v0.7.0) (2026-10-22)
+
+
+### Features
+
+* align API contracts and add sidebar and readiness controls ([f56913a](https://github.com/AmirHmZz/shipyard/commit/f56913ab5e2ee5cfc37f183aeb9e913fa0b788ed))
+
 ## [0.6.0](https://github.com/AmirHmZz/shipyard/compare/v0.5.0...v0.6.0) (2026-10-22)
 
 
