@@ -21,6 +21,9 @@ import { ApplicationTabList } from "./ApplicationTabList";
 import { ApplicationVolumes } from "./ApplicationVolumes";
 import { ComposeSource } from "./ComposeSource";
 import { DeleteDeployment } from "./DeleteDeployment";
+import { JobOverview } from "./JobOverview";
+import { JobRuns } from "./JobRuns";
+import { JobSchedule } from "./JobSchedule";
 import { LogStream } from "./Streams";
 
 const ContainerTerminal = lazy(() =>
@@ -118,17 +121,33 @@ export function ApplicationMainView() {
             </ConfigurationGuard>
           </TabsContent>
         )}
-        <ApplicationOverview
-          app={app}
-          provider={text(
-            index.byId.get(text(app.data, "gitId"))?.data || {},
-            "provider",
-          )}
-          server={server}
-          latest={latest}
-          metrics={metrics}
-          setParams={setParams}
-        />
+        {app.data.workload === "job" ? (
+          <TabsContent value="overview">
+            <JobOverview app={app} releaseId={runtime.data?.releaseId} />
+          </TabsContent>
+        ) : (
+          <ApplicationOverview
+            app={app}
+            provider={text(
+              index.byId.get(text(app.data, "gitId"))?.data || {},
+              "provider",
+            )}
+            server={server}
+            latest={latest}
+            metrics={metrics}
+            setParams={setParams}
+          />
+        )}
+        {app.data.workload === "job" && (
+          <>
+            <TabsContent value="runs">
+              <JobRuns app={app} prepared={!!runtime.data?.releaseId} />
+            </TabsContent>
+            <TabsContent value="schedule">
+              <JobSchedule key={app.id} app={app} />
+            </TabsContent>
+          </>
+        )}
         <ApplicationDeployments
           app={app}
           rows={rows}

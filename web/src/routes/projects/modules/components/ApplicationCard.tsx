@@ -26,6 +26,11 @@ export function ApplicationCard({ resource: r, index }: ApplicationCardProps) {
             </Badge>
           </div>
           <h3 className="font-medium">{r.name}</h3>
+          {r.data.workload === "job" && (
+            <Badge variant="outline" className="mt-2">
+              Job
+            </Badge>
+          )}
           {!!r.data.deleting && (
             <Badge variant="secondary" className="mt-2">
               {r.data.deletionError ? "Cleanup failed" : "Deleting…"}

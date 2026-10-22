@@ -9,6 +9,8 @@ import {
   SlidersHorizontal,
   ScrollText,
   Terminal,
+  Clock,
+  ListChecks,
 } from "lucide-react";
 
 import type { Resource } from "@/lib/api/types";
@@ -34,15 +36,26 @@ export function ApplicationTabList({
             ? [{ value: "compose", icon: FileCode2 }]
             : []),
           { value: "deployments", icon: History },
-          { value: "domains", icon: Globe2 },
+          ...(app.data.workload === "job"
+            ? [
+                { value: "runs", icon: ListChecks },
+                { value: "schedule", icon: Clock },
+              ]
+            : [{ value: "domains", icon: Globe2 }]),
           { value: "variables", icon: SlidersHorizontal },
           { value: "networking", icon: Network },
           { value: "volumes", icon: HardDrive },
-          ...(!directCompose && !app.data.previewOf
+          ...(!directCompose &&
+          !app.data.previewOf &&
+          app.data.workload !== "job"
             ? [{ value: "previews", icon: GitBranch }]
             : []),
-          { value: "logs", icon: ScrollText },
-          { value: "terminal", icon: Terminal },
+          ...(app.data.workload === "job"
+            ? []
+            : [
+                { value: "logs", icon: ScrollText },
+                { value: "terminal", icon: Terminal },
+              ]),
         ].map(({ value: t, icon: Icon }) => (
           <TabsTrigger
             disabled={t === "terminal" && !app.canWrite}

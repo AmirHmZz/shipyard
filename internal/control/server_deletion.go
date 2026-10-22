@@ -385,6 +385,23 @@ func (c *Controller) inventoryServerDeletion(ctx context.Context, m *serverDelet
 		}
 	}
 	m.Images = map[string]string{}
+	jobRows, jobErr := c.Store.Pool.Query(ctx, "SELECT a.container FROM job_attempts a JOIN job_runs r ON r.id=a.run_id WHERE r.app_id=ANY($1)", m.Apps)
+	if jobErr != nil {
+		return jobErr
+	}
+	for jobRows.Next() {
+		var name string
+		if jobErr = jobRows.Scan(&name); jobErr != nil {
+			jobRows.Close()
+			return jobErr
+		}
+		projects[deploy.JobProject(model.JobAttempt{Container: name})] = true
+	}
+	jobErr = jobRows.Err()
+	jobRows.Close()
+	if jobErr != nil {
+		return jobErr
+	}
 	imageList, err := deploy.Output(ctx, node, "docker", "image", "ls", "--no-trunc", "--format", "{{json .}}")
 	if err != nil {
 		return err
@@ -945,6 +962,11 @@ func (c *Controller) deleteServer(ctx context.Context, job model.Job) (result er
 		return e
 	}
 	defer node.Close()
+	for _, app := range m.Apps {
+		if e = c.cancelApplicationJobs(ctx, app); e != nil {
+			return e
+		}
+	}
 	verify := func() error {
 		id, err := deploy.Output(ctx, node, "docker", "info", "--format", "{{.ID}}")
 		if err == nil && id != m.Plan.DaemonID {

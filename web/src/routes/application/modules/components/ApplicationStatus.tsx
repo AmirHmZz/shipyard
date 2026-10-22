@@ -22,6 +22,7 @@ export function ApplicationStatus({
   return (
     <div className="mb-6 flex flex-wrap items-center gap-5 rounded-xl border bg-card px-5 py-4 text-xs">
       <StateBadge state={runtime.data?.status} />
+      {app.data.workload === "job" && <Badge variant="secondary">Job</Badge>}
       {runtime.data?.status === "stopped" && (
         <span className="text-muted-foreground">
           Automatic deployments paused

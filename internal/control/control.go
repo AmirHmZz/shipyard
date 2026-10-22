@@ -78,6 +78,9 @@ func (c *Controller) queue(ctx context.Context, app model.Resource, ref, rollbac
 	if e != nil {
 		return model.Deployment{}, e
 	}
+	if spec.IsJob() && len(freshMode) > 0 && freshMode[0] {
+		return model.Deployment{}, errors.New("Fresh deploy is unavailable for Jobs")
+	}
 	if app.Kind != "application" {
 		return model.Deployment{}, errors.New("application required")
 	}
@@ -270,12 +273,14 @@ func (c *Controller) Run(ctx context.Context) {
 	ops := []string{"application-stop", "git-event", "domain", "proxy", "proxy-settings", "provision", "prune", "notify", "preview-cleanup", "drain", "resource-delete", "server-delete", "deployment-delete", "network-create", "network-delete", "dashboard-apply", "dashboard-retire"}
 	// Long builds and DNS challenges cannot monopolize metric sampling or all
 	// operational workers. Every lane still uses the same durable job leases.
-	for _, kinds := range [][]string{{"deploy"}, {"deploy"}, ops, ops, {"metrics"}} {
+	for _, kinds := range [][]string{{"deploy"}, {"deploy"}, ops, ops, {"metrics"}, {"job-reconcile"}, {"job-reconcile"}} {
 		wg.Add(1)
 		go func() { defer wg.Done(); c.worker(ctx, uuid.NewString(), kinds) }()
 	}
 	wg.Add(1)
 	go func() { defer wg.Done(); c.scheduler(ctx) }()
+	wg.Add(1)
+	go func() { defer wg.Done(); c.jobScheduler(ctx) }()
 	<-ctx.Done()
 	wg.Wait()
 }
@@ -284,7 +289,7 @@ func (c *Controller) worker(ctx context.Context, worker string, kinds []string) 
 		if ctx.Err() != nil {
 			return
 		}
-		if c.Store.Maintenance(ctx) {
+		if c.Store.Maintenance(ctx) && !(len(kinds) == 1 && kinds[0] == "job-reconcile") {
 			select {
 			case <-ctx.Done():
 				return
@@ -316,7 +321,7 @@ func (c *Controller) worker(ctx context.Context, worker string, kinds []string) 
 func (c *Controller) runJob(parent context.Context, j model.Job, worker string) {
 	// Maintenance may start after the worker's pre-claim check. A late claim
 	// must not begin host mutations after the updater has drained running jobs.
-	if c.Store.Maintenance(parent) {
+	if c.Store.Maintenance(parent) && j.Kind != "job-reconcile" {
 		_, e := c.Store.Pool.Exec(parent, "UPDATE jobs SET state='queued',available_at=now()+interval '3 seconds',worker=NULL,lease_until=NULL WHERE id=$1 AND worker=$2", j.ID, worker)
 		if e != nil {
 			c.Logger.Error("defer claimed job during maintenance", "error", e)
@@ -324,6 +329,10 @@ func (c *Controller) runJob(parent context.Context, j model.Job, worker string) 
 		return
 	}
 	ctx, cancel := context.WithTimeout(parent, 45*time.Minute)
+	if j.Kind == "job-reconcile" {
+		cancel()
+		ctx, cancel = context.WithTimeout(parent, 45*time.Second)
+	}
 	defer cancel()
 	conn, e := c.Store.Pool.Acquire(ctx)
 	if e != nil {
@@ -332,6 +341,16 @@ func (c *Controller) runJob(parent context.Context, j model.Job, worker string) 
 	}
 	defer conn.Release()
 	lock := "application:" + j.ResourceID
+	if j.Kind == "job-reconcile" {
+		var p struct {
+			RunID string `json:"runId"`
+		}
+		if err := json.Unmarshal(j.Payload, &p); err != nil {
+			_ = c.Store.Finish(parent, j, worker, err)
+			return
+		}
+		lock = "job-run:" + p.RunID
+	}
 	if j.Kind == "resource-delete" || j.Kind == "server-delete" {
 		lock = "deletion:" + j.ResourceID
 	}
@@ -366,11 +385,19 @@ func (c *Controller) runJob(parent context.Context, j model.Job, worker string) 
 		}
 	}()
 	resource, lookupErr := c.Store.Resource(ctx, j.ResourceID)
-	if j.Kind != "resource-delete" && j.Kind != "server-delete" && (errors.Is(lookupErr, pgx.ErrNoRows) || (lookupErr == nil && model.IsDeleting(resource))) {
+	if j.Kind != "job-reconcile" && j.Kind != "resource-delete" && j.Kind != "server-delete" && (errors.Is(lookupErr, pgx.ErrNoRows) || (lookupErr == nil && model.IsDeleting(resource))) {
 		_ = c.Store.Finish(context.WithoutCancel(parent), j, worker, nil)
 		return
 	}
 	switch j.Kind {
+	case "job-reconcile":
+		var p struct {
+			RunID string `json:"runId"`
+		}
+		e = json.Unmarshal(j.Payload, &p)
+		if e == nil {
+			e = c.reconcileJob(ctx, j.ResourceID, p.RunID)
+		}
 	case "application-stop":
 		var p struct {
 			Generation int64 `json:"generation"`
@@ -874,6 +901,22 @@ func (c *Controller) deploy(ctx context.Context, id string) (result error) {
 	}
 	if e = c.preflightNetworks(ctx, r); e != nil {
 		return e
+	}
+	if r.App.IsJob() {
+		if len(r.Routes) > 0 {
+			return errors.New("Jobs cannot have public routes")
+		}
+		if e = engine.PrepareJob(ctx, &r); e != nil {
+			return e
+		}
+		if e = c.Store.SaveRelease(ctx, r); e != nil {
+			return e
+		}
+		if e = c.deploymentFence(ctx, id); e != nil {
+			return e
+		}
+		log.emit("Job release prepared; deploy does not execute the task")
+		return c.Store.Activate(ctx, r)
 	}
 	if e = c.deploymentFence(ctx, id); e != nil {
 		return e

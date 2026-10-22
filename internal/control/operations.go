@@ -307,6 +307,10 @@ func (c *Controller) notify(ctx context.Context, j model.Job) error {
 	return nil
 }
 func (c *Controller) Action(ctx context.Context, app model.Resource, action string) error {
+	spec, _ := model.Decode[model.App](app)
+	if spec.IsJob() {
+		return errors.New("use Run now or Cancel for Job applications")
+	}
 	if action != "start" && action != "stop" && action != "restart" {
 		return errors.New("unsupported application action")
 	}

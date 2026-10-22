@@ -59,13 +59,32 @@ export function resourceFormSchema(kind: ResourceKind) {
     shape.username = requiredText("Username");
   }
   const data = z.catchall(z.object(shape), z.unknown());
+  const validatedData =
+    kind === "application"
+      ? data.check(
+          z.check((context) => {
+            if (
+              context.value.workload === "job" &&
+              context.value.engine === "compose" &&
+              (typeof context.value.jobService !== "string" ||
+                !context.value.jobService.trim())
+            )
+              context.issues.push({
+                code: "custom",
+                path: ["jobService"],
+                message: "Enter the Compose service to execute.",
+                input: context.value,
+              });
+          }),
+        )
+      : data;
   return z
     .object({
       kind: z.enum(RESOURCE_KINDS),
       name: kind === "route" ? z.string() : requiredText("Name"),
       parentId: parents[kind] ? requiredText("Parent resource") : z.string(),
       teamId: z.string(),
-      data,
+      data: validatedData,
       secrets: z.record(z.string(), z.string()),
       version: z.coerce.number().check(z.int()).check(z.gte(0)),
     })

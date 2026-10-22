@@ -34,7 +34,7 @@ func Export(ctx context.Context, s *db.Store, databaseURL, dataDir, passphrase s
 }
 func ExportWithFiles(ctx context.Context, s *db.Store, databaseURL, dataDir, passphrase string, extra map[string][]byte) ([]byte, error) {
 	var running int
-	if err := s.Pool.QueryRow(ctx, "SELECT count(*) FROM jobs WHERE state='running'").Scan(&running); err != nil {
+	if err := s.Pool.QueryRow(ctx, "SELECT (SELECT count(*) FROM jobs WHERE state='running')+(SELECT count(*) FROM job_runs WHERE state IN ('queued','running','retry_wait','cancelling') OR cleanup_pending)").Scan(&running); err != nil {
 		return nil, err
 	}
 	if running > 0 {

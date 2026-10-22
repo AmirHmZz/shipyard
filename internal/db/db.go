@@ -203,6 +203,13 @@ func (s *Store) Save(ctx context.Context, id string, in model.ResourceInput) (mo
 	secrets := map[string]string{}
 	old, e := scanResource(tx.QueryRow(ctx, "SELECT "+resourceColumns+" FROM resources WHERE id=$1", id))
 	if e == nil {
+		if old.Kind == "application" {
+			before, _ := model.Decode[model.App](old)
+			after, _ := model.Decode[model.App](model.Resource{Data: in.Data})
+			if before.WorkloadKind() != after.WorkloadKind() {
+				return model.Resource{}, errors.New("application workload cannot be changed; create a new application")
+			}
+		}
 		secrets, e = s.Secrets(old)
 		if e != nil {
 			return model.Resource{}, e
@@ -229,6 +236,25 @@ func (s *Store) Save(ctx context.Context, id string, in model.ResourceInput) (mo
 	}
 	if deleting {
 		return model.Resource{}, ErrDeleting
+	}
+	if in.Kind == "application" {
+		spec, err := model.Decode[model.App](model.Resource{Data: in.Data})
+		if err != nil {
+			return model.Resource{}, err
+		}
+		if err = model.ValidateJobApplication(spec); err != nil {
+			return model.Resource{}, err
+		}
+	}
+	if in.Kind == "route" {
+		var raw []byte
+		if err := tx.QueryRow(ctx, "SELECT data FROM resources WHERE id=$1", in.ParentID).Scan(&raw); err == nil {
+			var parent model.App
+			_ = json.Unmarshal(raw, &parent)
+			if parent.IsJob() {
+				return model.Resource{}, errors.New("Jobs cannot have public routes")
+			}
+		}
 	}
 	if in.Kind == "zone" {
 		var zone model.Zone
@@ -617,9 +643,17 @@ func (s *Store) Activate(ctx context.Context, r model.Release) error {
 	if _, e = tx.Exec(ctx, "UPDATE deployments SET state='healthy',phase='complete',release_id=$2,commit_sha=$3,error='',updated_at=now() WHERE id=$1", r.DeploymentID, r.ID, r.Commit); e != nil {
 		return e
 	}
+	if r.App.IsJob() {
+		if _, e = tx.Exec(ctx, "UPDATE app_runtime SET status='prepared' WHERE app_id=$1", r.AppID); e != nil {
+			return e
+		}
+	}
 	return tx.Commit(ctx)
 }
 func (s *Store) Retention(ctx context.Context) error {
+	if _, err := s.Pool.Exec(ctx, "DELETE FROM job_runs WHERE finished_at<now()-interval '30 days' AND NOT cleanup_pending"); err != nil {
+		return err
+	}
 	if _, e := s.Pool.Exec(ctx, "DELETE FROM settings WHERE starts_with(key,'server-deletion-plan:') AND (value->'plan'->>'expiresAt')::timestamptz < now()"); e != nil {
 		return e
 	}

@@ -164,6 +164,13 @@ func (a *API) Router() http.Handler {
 			r.Get("/routes/{id}/status", a.domainStatus)
 			r.Post("/routes/{id}/sync", a.syncDomain)
 			r.Get("/applications/{id}/runtime", a.runtime)
+			r.Get("/applications/{id}/job-settings", a.jobSettings)
+			r.Put("/applications/{id}/job-settings", a.jobSettings)
+			r.Get("/applications/{id}/runs", a.jobRuns)
+			r.Post("/applications/{id}/runs", a.jobRuns)
+			r.Get("/applications/{id}/runs/{runId}", a.jobRun)
+			r.Post("/applications/{id}/runs/{runId}/cancel", a.jobRun)
+			r.Get("/applications/{id}/runs/{runId}/events", a.jobRunEvents)
 			r.Get("/applications/{id}/volumes", a.applicationVolumes)
 			r.Get("/applications/{id}/services", a.applicationServices)
 			r.Get("/applications/{id}/networking", a.networking)
@@ -265,7 +272,8 @@ func (a *API) headers(next http.Handler) http.Handler {
 				fail(w, 415, "Use application/json")
 				return
 			}
-			if a.Store.Maintenance(r.Context()) && !strings.HasPrefix(r.URL.Path, "/api/v1/settings/updates") && r.URL.Path != "/api/v1/settings/maintenance" && r.URL.Path != "/api/v1/auth/login" && r.URL.Path != "/api/v1/auth/logout" && r.URL.Path != "/api/v1/backup" {
+			jobCancel := r.Method == "POST" && strings.HasPrefix(r.URL.Path, "/api/v1/applications/") && strings.Contains(r.URL.Path, "/runs/") && strings.HasSuffix(r.URL.Path, "/cancel")
+			if a.Store.Maintenance(r.Context()) && !jobCancel && !strings.HasPrefix(r.URL.Path, "/api/v1/settings/updates") && r.URL.Path != "/api/v1/settings/maintenance" && r.URL.Path != "/api/v1/auth/login" && r.URL.Path != "/api/v1/auth/logout" && r.URL.Path != "/api/v1/backup" {
 				fail(w, 503, "Shipyard is in maintenance mode")
 				return
 			}

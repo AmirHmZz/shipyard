@@ -12,6 +12,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.7.6
 	github.com/pquerna/otp v1.5.0
+	github.com/robfig/cron/v3 v3.0.1
 	golang.org/x/crypto v0.54.0
 	golang.org/x/net v0.57.0
 	google.golang.org/grpc v1.75.1

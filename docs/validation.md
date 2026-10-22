@@ -1,5 +1,14 @@
 # Release implementation validation
 
+## Job applications (2026-10-23)
+
+- Added explicit Job applications, schema 7, prepared releases, PostgreSQL scheduling, single-run admission, retries, durable cancellation, attempt history and replayable redacted logs. Existing applications default to Service workloads.
+- The full Go race suite and vet passed against disposable PostgreSQL. Focused tests cover concurrent admission, idempotency, policy snapshots, cron/DST rules, skipped schedules, optimistic settings, authorization/CSRF, log replay, release protection, backup draining, and reconciliation independent of deployment locks.
+- Real SSH/Docker tests passed for direct Compose execution, Git Dockerfile and Compose builds, dependency exclusion, rollback image pinning without checkout/build, lost-start-response recovery, retry version/environment pinning, managed dynamic networks, persistent volumes, cancellation during maintenance, timeout termination, and cleanup.
+- All 525 dashboard unit tests passed. Desktop/mobile browser validation passed 10 Job checks plus 42 existing Compose/deployment-action regression checks. The Job checks include creation, prepared status, single-run controls, cancellation, logs, timezone previews, stale settings and viewer restrictions.
+- Frozen installs, typecheck, zero-warning lint, formatting, API structure/route contracts, generated OpenAPI/types, and production build/prerender passed. The Windows build required serial execution with IPv4-first loopback resolution. React Doctor reported no issues in changed dashboard files; no rules were suppressed.
+- Validation used only disposable fixtures. Existing installations were not migrated, and no commit, deployment, publication or remote CI run was performed. Apply schema 7 explicitly when upgrading; see [Job applications](jobs.md).
+
 ## API contracts, sidebar and optional readiness (2026-10-22)
 
 - Corrected the audited OpenAPI 3.0.3 contracts, including nullable collections, explicit product DTOs, strict request inputs, typed errors, public authentication metadata and query parameters. CI now validates document structure, route coverage, fixed request strictness and generated-file drift. Go-produced fixtures are shared with frontend validators; Go tests reject stale fixtures and validate actual handler responses.

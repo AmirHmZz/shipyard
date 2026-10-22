@@ -128,6 +128,15 @@ export function resourceFormReducer(
       const data = { ...state.data, [key]: value };
       if (
         state.kind === "application" &&
+        key === "workload" &&
+        value === "job"
+      ) {
+        data.previews = false;
+        data.readinessChecks = [];
+        data.readinessMode = "container";
+      }
+      if (
+        state.kind === "application" &&
         key === "gitId" &&
         value !== state.data.gitId
       ) {

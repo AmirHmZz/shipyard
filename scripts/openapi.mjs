@@ -20,6 +20,92 @@ function input(properties, required = Object.keys(properties)) {
   return { ...object(properties, required), additionalProperties: false };
 }
 const schemas = {
+  JobSettings: object({
+    version: { type: "integer", minimum: 0 },
+    enabled: bool,
+    cron: str,
+    timezone: str,
+    timeoutSeconds: { type: "integer", minimum: 60, maximum: 86400 },
+    retries: { type: "integer", minimum: 0, maximum: 5 },
+    retryDelaySeconds: { type: "integer", minimum: 1, maximum: 3600 },
+    nextDue: nullable(str),
+    upcoming: { type: "array", items: str },
+  }),
+  JobSettingsInput: input(
+    {
+      version: { type: "integer", minimum: 0 },
+      enabled: bool,
+      cron: str,
+      timezone: str,
+      timeoutSeconds: { type: "integer", minimum: 60, maximum: 86400 },
+      retries: { type: "integer", minimum: 0, maximum: 5 },
+      retryDelaySeconds: { type: "integer", minimum: 1, maximum: 3600 },
+      nextDue: nullable(str),
+      upcoming: { type: "array", items: str },
+    },
+    [
+      "version",
+      "enabled",
+      "cron",
+      "timezone",
+      "timeoutSeconds",
+      "retries",
+      "retryDelaySeconds",
+    ],
+  ),
+  JobAttempt: object({
+    number: num,
+    container: str,
+    state: str,
+    startedAt: nullable(str),
+    deadline: nullable(str),
+    finishedAt: nullable(str),
+    exitCode: nullable(num),
+    logBytes: num,
+    logLines: num,
+    logsComplete: bool,
+    cleaned: bool,
+  }),
+  JobRun: object({
+    id: str,
+    applicationId: str,
+    releaseId: str,
+    state: {
+      type: "string",
+      enum: [
+        "queued",
+        "running",
+        "retry_wait",
+        "cancelling",
+        "succeeded",
+        "failed",
+        "timed_out",
+        "cancelled",
+        "skipped",
+      ],
+    },
+    trigger: str,
+    actor: str,
+    policy: ref("JobSettings"),
+    createdAt: str,
+    finishedAt: nullable(str),
+    retryAt: nullable(str),
+    error: str,
+    cleanupPending: bool,
+    attempts: { type: "array", items: ref("JobAttempt") },
+  }),
+  JobRunPage: object({
+    items: { type: "array", items: ref("JobRun") },
+    nextCursor: str,
+    activeRun: nullable(ref("JobRun")),
+  }),
+  JobRunEvent: object({
+    id: num,
+    runId: str,
+    attempt: num,
+    message: str,
+    createdAt: str,
+  }),
   Ok: object({ ok: bool }),
   Queued: object({ queued: bool }),
   Accepted: object({ accepted: bool }),
@@ -140,6 +226,17 @@ const schemas = {
   ),
   ApplicationChecks: object(
     {
+      workload: {
+        type: "string",
+        enum: ["service", "job"],
+        description:
+          "Immutable application workload. Omitted values mean service.",
+      },
+      jobService: {
+        type: "string",
+        description:
+          "Deployed target service for Compose Jobs. Dependencies are not started.",
+      },
       readinessChecks: nullable({
         type: "array",
         items: ref("HTTPReadinessCheck"),
@@ -1143,6 +1240,82 @@ add(
   "Application status, including stopping/stopped/stop_failed without an active release",
   ref("ApplicationRuntime"),
 );
+add(
+  "/applications/{id}/job-settings",
+  "get",
+  "Job policy and schedule; optional cron/timezone query previews occurrences",
+  ref("JobSettings"),
+);
+add(
+  "/applications/{id}/job-settings",
+  "put",
+  "Save Job policy with optimistic version checks",
+  ref("JobSettings"),
+  ref("JobSettingsInput"),
+);
+add(
+  "/applications/{id}/runs",
+  "get",
+  "Paginated Job execution history",
+  ref("JobRunPage"),
+);
+add(
+  "/applications/{id}/runs",
+  "post",
+  "Run the latest prepared Job release",
+  ref("JobRun"),
+  input({ idempotencyKey: str }, []),
+);
+paths["/applications/{id}/runs"].post.responses[202] =
+  paths["/applications/{id}/runs"].post.responses[200];
+delete paths["/applications/{id}/runs"].post.responses[200];
+add(
+  "/applications/{id}/runs/{runId}",
+  "get",
+  "Job execution and attempt details",
+  ref("JobRun"),
+);
+add(
+  "/applications/{id}/runs/{runId}/cancel",
+  "post",
+  "Idempotently cancel a Job execution",
+  ref("JobRun"),
+);
+add(
+  "/applications/{id}/runs/{runId}/events",
+  "get",
+  "Replayable SSE Job log and status events",
+  ref("JobRunEvent"),
+);
+paths["/applications/{id}/runs/{runId}/events"].get.responses[200] = {
+  description:
+    "SSE log events carry JobRunEvent; status events carry JobRun. Last-Event-ID resumes logs.",
+  content: { "text/event-stream": { schema: str } },
+};
+for (const [path, name] of [
+  ["/applications/{id}/runs", "before"],
+  ["/applications/{id}/job-settings", "cron"],
+  ["/applications/{id}/job-settings", "timezone"],
+  ["/applications/{id}/runs/{runId}/events", "after"],
+])
+  paths[path].get.parameters.push({
+    in: "query",
+    name,
+    required: false,
+    schema: str,
+  });
+paths["/applications/{id}/runs"].post.parameters.push({
+  in: "header",
+  name: "Idempotency-Key",
+  required: false,
+  schema: { type: "string", maxLength: 200 },
+});
+paths["/applications/{id}/runs/{runId}/events"].get.parameters.push({
+  in: "header",
+  name: "Last-Event-ID",
+  required: false,
+  schema: str,
+});
 for (const action of ["deploy", "rollback", "action", "approve-preview"])
   add(
     `/applications/{id}/${action}`,

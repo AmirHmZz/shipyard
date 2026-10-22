@@ -14,6 +14,8 @@ export function StateBadge({ state, className }: StateBadgeProps) {
     "connected",
     "done",
     "online",
+    "prepared",
+    "succeeded",
   ].includes(state || "");
   const failed = [
     "failed",
@@ -22,6 +24,7 @@ export function StateBadge({ state, className }: StateBadgeProps) {
     "conflict",
     "offline",
     "renewal_failed",
+    "timed_out",
   ].includes(state || "");
   const pending = [
     "queued",
@@ -30,6 +33,8 @@ export function StateBadge({ state, className }: StateBadgeProps) {
     "issuing",
     "pending",
     "stopping",
+    "retry_wait",
+    "cancelling",
   ].includes(state || "");
   let appearance = "bg-muted/60 text-muted-foreground";
   if (failed)

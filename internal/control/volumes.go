@@ -133,7 +133,7 @@ func ownedApplicationVolumes(app, server string, releases []model.Release, conta
 	for _, ctr := range containers {
 		labels := ctr.Config.Labels
 		r, ok := known[labels["shipyard.release"]]
-		if !ok || labels["shipyard.app"] != app || labels["com.docker.compose.project"] != deploy.Project(r) || labels["shipyard.role"] != "" {
+		if !ok || labels["shipyard.app"] != app || !deploy.MatchesProject(r, labels) || labels["shipyard.role"] != "" {
 			continue
 		}
 		owned[ctr.ID] = true

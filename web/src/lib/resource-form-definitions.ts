@@ -79,6 +79,17 @@ export const fields: Record<ResourceKind, Field[]> = {
     { key: "password", label: "Password / token", type: "password" },
   ],
   application: [
+    {
+      key: "workload",
+      label: "Workload",
+      options: ["service", "job"],
+      help: "Jobs run to completion. Deploy prepares a version; execution is manual or scheduled.",
+    },
+    {
+      key: "jobService",
+      label: "Job target service",
+      help: "Only this Compose service runs. Dependencies are not started; keep databases in separate applications.",
+    },
     { key: "source", label: "Source", options: ["git", "compose"] },
     {
       key: "engine",
@@ -174,6 +185,8 @@ export const defaults: Record<string, Record<string, unknown>> = {
   git: { provider: "github" },
   dns: { provider: "cloudflare" },
   application: {
+    workload: "service",
+    jobService: "",
     source: "git",
     engine: "dockerfile",
     branch: "main",

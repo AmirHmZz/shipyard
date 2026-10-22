@@ -1,0 +1,11 @@
+{
+  "name": "Job applications and durable executions",
+  "up": {
+    "classification": "non-destructive",
+    "impact": "Add job schedules, execution history, attempts, and logs. Existing applications remain services."
+  },
+  "down": {
+    "classification": "destructive",
+    "impact": "Discard all Job configuration, execution history and logs. Stop and remove Job applications before downgrading; restore a backup to recover this data."
+  }
+}

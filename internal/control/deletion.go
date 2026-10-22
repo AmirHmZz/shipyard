@@ -217,6 +217,11 @@ func (c *Controller) removeApplication(ctx context.Context, id string, servers m
 	if err != nil {
 		return err
 	}
+	if spec.IsJob() {
+		if err = c.cancelApplicationJobs(ctx, id); err != nil {
+			return err
+		}
+	}
 	routes, err := c.Store.Children(ctx, id, "route")
 	if err != nil {
 		return err

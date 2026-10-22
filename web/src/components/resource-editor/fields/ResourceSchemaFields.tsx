@@ -28,6 +28,26 @@ export function ResourceSchemaFields({
           (f) =>
             !(
               kind === "application" &&
+              ((f.key === "workload" && !!existing) ||
+                (f.key === "jobService" &&
+                  (data.workload !== "job" || data.engine !== "compose")) ||
+                (data.workload === "job" &&
+                  [
+                    "worker",
+                    "readinessMode",
+                    "readinessChecks",
+                    "healthTimeout",
+                    "previews",
+                    "previewRouting",
+                    "previewDomain",
+                    "previewZoneId",
+                  ].includes(f.key)))
+            ),
+        )
+        .filter(
+          (f) =>
+            !(
+              kind === "application" &&
               f.key === "readinessChecks" &&
               data.readinessMode === "container"
             ),

@@ -73,6 +73,9 @@ func (e *Engine) runComposeProgress(ctx context.Context, command string) error {
 	return err
 }
 func Project(r model.Release) string {
+	if r.App.IsJob() {
+		return "sy-" + r.AppID
+	}
 	if r.App.Engine == "dockerfile" {
 		return "sy-" + r.ID
 	}
@@ -199,6 +202,11 @@ func (e *Engine) Build(ctx context.Context, r *model.Release, registries map[str
 		}
 		if r.App.PreviewOf != "" {
 			if err = ValidatePreview(cfg); err != nil {
+				return err
+			}
+		}
+		if r.App.IsJob() {
+			if err := JobCompose(*r, cfg); err != nil {
 				return err
 			}
 		}
@@ -343,7 +351,7 @@ func portsFor(r model.Release, service string) []int {
 	sort.Ints(out)
 	return out
 }
-func (e *Engine) Start(ctx context.Context, r *model.Release) error {
+func (e *Engine) PinImages(ctx context.Context, r model.Release) error {
 	for service, id := range r.Images {
 		if _, err := Output(ctx, e.Remote, "docker", "image", "inspect", id); err != nil {
 			return errors.New("retained release image is missing; rollback will not rebuild it")
@@ -355,6 +363,12 @@ func (e *Engine) Start(ctx context.Context, r *model.Release) error {
 		if err := e.command(ctx, "docker", "tag", id, name+":"+r.ID); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+func (e *Engine) Start(ctx context.Context, r *model.Release) error {
+	if err := e.PinImages(ctx, *r); err != nil {
+		return err
 	}
 	var config map[string]any
 	if err := json.Unmarshal([]byte(r.Compose), &config); err != nil {

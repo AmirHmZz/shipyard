@@ -65,28 +65,32 @@ export function ApplicationDeployActions(props: ApplicationDeployActionsProps) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-48">
-            <DropdownMenuItem
-              disabled={!canDeploy}
-              onSelect={handleDropdownMenuItemSelect}
-            >
-              <RotateCw />
-              Fresh deploy
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={!canControl || stopped}
-              onSelect={handleDropdownMenuItemSelect2}
-            >
-              <RotateCcw />
-              Restart
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={stopped ? !canControl : !canStop}
-              onSelect={handleDropdownMenuItemSelect3}
-            >
-              {stopped ? <Play /> : <Square />}
-              {stopped ? "Start" : "Stop"}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
+            {app.data.workload !== "job" && (
+              <>
+                <DropdownMenuItem
+                  disabled={!canDeploy}
+                  onSelect={handleDropdownMenuItemSelect}
+                >
+                  <RotateCw />
+                  Fresh deploy
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={!canControl || stopped}
+                  onSelect={handleDropdownMenuItemSelect2}
+                >
+                  <RotateCcw />
+                  Restart
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={stopped ? !canControl : !canStop}
+                  onSelect={handleDropdownMenuItemSelect3}
+                >
+                  {stopped ? <Play /> : <Square />}
+                  {stopped ? "Start" : "Stop"}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            )}
             <DropdownMenuItem variant="destructive" onSelect={onDelete}>
               <Trash2 />
               Delete application

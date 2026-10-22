@@ -104,7 +104,7 @@ export function ApplicationNetworking({ app }: ApplicationNetworkingProps) {
         >
           Save networking
         </Button>
-        {account?.admin && (
+        {account?.admin && app.data.workload !== "job" && (
           <ConfigurationScope name="published-ports">
             <PublishedPorts
               services={services}

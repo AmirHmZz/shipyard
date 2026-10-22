@@ -22,11 +22,13 @@ import { inputNumberSchema } from "@/lib/schemas/coercion";
 
 import { logMessageSchema, logStatusSchema } from "../generics";
 export type LogStreamProps = {
+  runId?: string;
   deploymentId?: string;
   applicationId?: string;
   containers?: string[];
 };
 export function LogStream({
+  runId,
   deploymentId,
   applicationId,
   containers = [],
@@ -53,9 +55,11 @@ export function LogStream({
   const effectiveContainer = containers.includes(selected)
     ? selected
     : containers[0] || "";
-  const endpoint = deploymentId
-    ? `/deployments/${deploymentId}/events`
-    : `/applications/${applicationId}/logs?container=${encodeURIComponent(effectiveContainer)}`;
+  const endpoint = runId
+    ? `/applications/${applicationId}/runs/${runId}/events`
+    : deploymentId
+      ? `/deployments/${deploymentId}/events`
+      : `/applications/${applicationId}/logs?container=${encodeURIComponent(effectiveContainer)}`;
   const [output, setOutput] = useState({
     endpoint,
     lines: new Array<LogLine>(),
@@ -81,7 +85,7 @@ export function LogStream({
     let lastEventID = 0;
     source.addEventListener("log", (event) => {
       if (!(event instanceof MessageEvent)) return;
-      if (deploymentId) {
+      if (deploymentId || runId) {
         const id = inputNumberSchema.safeParse(event.lastEventId);
         if (id.success && id.data > 0) {
           if (id.data <= lastEventID) return;
@@ -101,7 +105,16 @@ export function LogStream({
       const d = result.data;
       updateOutput({ state: d.state, error: d.error || "" });
       if (
-        ["healthy", "failed", "recovery_failed", "cancelled"].includes(d.state)
+        [
+          "healthy",
+          "failed",
+          "recovery_failed",
+          "cancelled",
+          "succeeded",
+          "timed_out",
+          "skipped",
+        ].includes(d.state) &&
+        !d.cleanupPending
       )
         source.close();
     });
@@ -115,7 +128,7 @@ export function LogStream({
       current.dispose();
       if (buffer.current === current) buffer.current = null;
     };
-  }, [endpoint, deploymentId]);
+  }, [endpoint, deploymentId, runId]);
   useEffect(() => {
     scroll.current?.scrollTo({ top: scroll.current.scrollHeight });
   }, [lines]);

@@ -64,6 +64,12 @@ func (c *Controller) QueueDeploymentDeletion(ctx context.Context, id, actor stri
 	if protected {
 		return "", fmt.Errorf("%w: this release is active or reserved for rollback", ErrDeploymentProtected)
 	}
+	if err = tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM job_runs WHERE release_id IN (SELECT id FROM releases WHERE deployment_id=$1) AND (state IN "+db.ActiveJobStates+" OR cleanup_pending))", id).Scan(&protected); err != nil {
+		return "", err
+	}
+	if protected {
+		return "", fmt.Errorf("%w: release is reserved by a Job execution", ErrDeploymentProtected)
+	}
 	var raw []byte
 	err = tx.QueryRow(ctx, "SELECT value FROM settings WHERE key=$1", deploymentDeletionKey(id)).Scan(&raw)
 	var op deploymentDeletion

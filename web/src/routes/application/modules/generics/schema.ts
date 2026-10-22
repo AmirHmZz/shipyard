@@ -10,7 +10,11 @@ export const logMessageSchema = z.pipe(
 );
 export const logStatusSchema = z.pipe(
   jsonText,
-  z.object({ state: z.string(), error: z.optional(z.string()) }),
+  z.object({
+    state: z.string(),
+    error: z.optional(z.string()),
+    cleanupPending: z.optional(z.boolean()),
+  }),
 );
 
 import { metricResponseSchema } from "@/lib/schemas/metrics";

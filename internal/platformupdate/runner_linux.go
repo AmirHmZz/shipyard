@@ -288,7 +288,7 @@ func (r *Runner) Run(ctx context.Context, id string) (result error) {
 		}
 		for {
 			var count int
-			if e = r.Store.Pool.QueryRow(ctx, "SELECT count(*) FROM jobs WHERE state='running'").Scan(&count); e != nil {
+			if e = r.Store.Pool.QueryRow(ctx, "SELECT (SELECT count(*) FROM jobs WHERE state='running')+(SELECT count(*) FROM job_runs WHERE state IN ('queued','running','retry_wait','cancelling') OR cleanup_pending)").Scan(&count); e != nil {
 				return e
 			}
 			if count == 0 {

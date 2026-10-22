@@ -88,6 +88,8 @@ type Zone struct {
 	Domain         string `json:"domain"`
 }
 type App struct {
+	Workload        string                       `json:"workload,omitempty"`
+	JobService      string                       `json:"jobService,omitempty"`
 	Source          string                       `json:"source,omitempty"`
 	Engine          string                       `json:"engine"`
 	ServerID        string                       `json:"serverId"`
@@ -353,6 +355,9 @@ func Validate(r ResourceInput) error {
 		}
 		v, e := Decode[App](x)
 		if e != nil {
+			return e
+		}
+		if e = ValidateJobApplication(v); e != nil {
 			return e
 		}
 		if v.Registry != "" || v.RegistryUser != "" {

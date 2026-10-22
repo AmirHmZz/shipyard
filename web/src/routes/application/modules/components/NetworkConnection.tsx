@@ -77,7 +77,10 @@ export function NetworkConnection({
             labelProps={{ htmlFor: `${service.name}-${index}-${family}` }}
             inputProps={{
               id: `${service.name}-${index}-${family}`,
-              disabled: !app.canWrite || service.replicas !== 1,
+              disabled:
+                !app.canWrite ||
+                service.replicas !== 1 ||
+                app.data.workload === "job",
               value: connection[family] || "",
               onChange: changeAddress,
               "data-address-family": family,
