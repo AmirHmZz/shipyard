@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { buildInfoFixture } from "./build-info";
+
 test("maintenance mode updates immediately, restores on failure, and retries against the server", async ({
   page,
 }) => {
@@ -16,6 +18,8 @@ test("maintenance mode updates immediately, restores on failure, and retries aga
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request(),
       path = new URL(request.url()).pathname;
+    if (path.endsWith("/version"))
+      return route.fulfill({ json: buildInfoFixture });
     if (path.endsWith("/telemetry"))
       return route.fulfill({ json: { dsn: "" } });
     if (path.endsWith("/auth/me"))

@@ -3,6 +3,7 @@ WORKDIR /src/web
 COPY web/package.json web/bun.lock ./
 RUN bun install --frozen-lockfile
 COPY web ./
+COPY api/testdata /src/api/testdata
 RUN bun run build
 
 FROM golang:1.26-alpine AS backend

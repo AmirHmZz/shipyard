@@ -3,6 +3,8 @@ import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { createHash } from "node:crypto";
 
+import { buildInfoFixture } from "./build-info";
+
 async function fillCompose(editor: Locator, yaml: string) {
   await editor.focus();
   await editor.press("ControlOrMeta+a");
@@ -55,6 +57,8 @@ async function setup(page: Page, existing = false, canWrite = true) {
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
+    if (path.endsWith("/version"))
+      return route.fulfill({ json: buildInfoFixture });
     if (path.endsWith("/telemetry"))
       return route.fulfill({ json: { dsn: "" } });
     if (path.endsWith("/auth/me"))
@@ -192,6 +196,13 @@ test("create an application from YAML without a Git connection", async ({
     .click();
   const dialog = page.getByRole("main");
   await dialog.getByLabel("Name", { exact: true }).fill("Raw stack");
+  await expect(
+    dialog.getByRole("combobox", {
+      name: "Select Readiness policy",
+      exact: true,
+    }),
+  ).toHaveText("Container status");
+  await expect(dialog.getByLabel("HTTP path", { exact: true })).toHaveCount(0);
   await dialog
     .getByRole("combobox", { name: "Select Source", exact: true })
     .click();

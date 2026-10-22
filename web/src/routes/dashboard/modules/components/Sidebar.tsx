@@ -1,17 +1,28 @@
-import { Anchor, ChevronDown } from "lucide-react";
+import { Anchor, ChevronDown, Info } from "lucide-react";
 import { Link, NavLink } from "react-router";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { useBuildInfo } from "@/lib/hooks/useBuildInfo";
 import { useResources } from "@/lib/hooks/useResources";
+import { formatBuildVersion } from "@/lib/sidebar";
+import { cn } from "@/lib/utils";
 
 import { navigation } from "../generics";
 
-function navigationLinkClassName({ isActive }: { isActive: boolean }) {
-  return `flex items-center gap-3 rounded-lg px-3 py-2.5 text-[12px] font-medium transition-colors ${isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground"}`;
-}
-export type SidebarProps = { close?: () => void };
-export function Sidebar({ close }: SidebarProps) {
+export type SidebarProps = { close?: () => void; collapsed?: boolean };
+export function Sidebar({ close, collapsed = false }: SidebarProps) {
+  const build = useBuildInfo();
+  const version = formatBuildVersion(
+    build.error ? undefined : build.data?.version,
+  );
+  const versionLabel = version ? `SHIPYARD ${version}` : "SHIPYARD";
   const projectCount = useResources((resources) =>
     resources.reduce(
       (count, resource) => count + Number(resource.kind === "project"),
@@ -19,26 +30,41 @@ export function Sidebar({ close }: SidebarProps) {
     ),
   );
   return (
-    <div className="flex h-full flex-col">
+    <div
+      className="group/sidebar flex h-full flex-col"
+      data-collapsed={collapsed}
+    >
       <Link
         to="/"
         onClick={close}
-        className="my-6 flex shrink-0 items-center gap-2.5 px-6"
+        aria-label="Shipyard overview"
+        className={cn(
+          "my-6 flex shrink-0 items-center gap-2.5",
+          collapsed ? "justify-center px-0" : "px-6",
+        )}
       >
         <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
           <Anchor className="size-5" />
         </div>
-        <span className="text-xl font-semibold tracking-tight text-foreground">
+        <span
+          className={cn(
+            "text-xl font-semibold tracking-tight text-foreground",
+            collapsed && "sr-only",
+          )}
+        >
           shipyard<span className="text-primary">.</span>
         </span>
         <Badge
           variant="outline"
-          className="ml-auto px-1.5 font-mono text-[9px] font-normal text-muted-foreground"
+          className={cn(
+            "ml-auto px-1.5 font-mono text-[9px] font-normal text-muted-foreground",
+            collapsed && "hidden",
+          )}
         >
           BETA
         </Badge>
       </Link>
-      <div className="px-4">
+      <div className={cn("px-4", collapsed && "hidden")}>
         <div className="mb-7 flex items-center gap-2.5 rounded-lg border bg-card/70 p-3">
           <div className="flex size-7 items-center justify-center rounded-md bg-muted text-xs font-medium text-primary">
             S
@@ -54,41 +80,74 @@ export function Sidebar({ close }: SidebarProps) {
           <ChevronDown className="ml-auto size-3.5 text-muted-foreground" />
         </div>
       </div>
-      <nav className="flex flex-col gap-1 px-3">
+      <nav
+        aria-label="Main navigation"
+        className={cn("flex flex-col gap-1", collapsed ? "px-2" : "px-3")}
+      >
         {navigation.map((item, i) => (
           <div key={item.path}>
             {i === 3 && (
-              <div className="mt-6 mb-3 px-3 font-mono text-[9px] tracking-[.17em] text-muted-foreground">
+              <div
+                className={cn(
+                  "mt-6 mb-3 px-3 font-mono text-[9px] tracking-[.17em] text-muted-foreground",
+                  collapsed && "sr-only",
+                )}
+              >
                 INFRASTRUCTURE
               </div>
             )}
             {i === 7 && <Separator className="mt-4 mb-5" />}
-            <NavLink
-              to={item.path}
-              prefetch="intent"
-              end={item.path === "/"}
-              onClick={close}
-              className={navigationLinkClassName}
-            >
-              <item.icon className="size-4" />
-              {item.label}
-              {item.label === "Projects" && (
-                <span className="ml-auto rounded bg-background/60 px-1.5 py-0.5 font-mono text-[9px]">
-                  {projectCount.data || 0}
-                </span>
-              )}
-            </NavLink>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <NavLink
+                  to={item.path}
+                  prefetch="intent"
+                  end={item.path === "/"}
+                  onClick={close}
+                  className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground aria-[current=page]:bg-primary/10 aria-[current=page]:text-primary aria-[current=page]:hover:bg-primary/10 aria-[current=page]:hover:text-primary group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:px-0"
+                >
+                  <item.icon className="size-4 shrink-0" />
+                  <span className={collapsed ? "sr-only" : undefined}>
+                    {item.label}
+                  </span>
+                  {item.label === "Projects" && !collapsed && (
+                    <span className="ml-auto rounded bg-background/60 px-1.5 py-0.5 font-mono text-[9px]">
+                      {projectCount.data || 0}
+                    </span>
+                  )}
+                </NavLink>
+              </TooltipTrigger>
+              <TooltipContent
+                side="right"
+                className={collapsed ? undefined : "hidden"}
+              >
+                {item.label}
+              </TooltipContent>
+            </Tooltip>
           </div>
         ))}
       </nav>
-      <div className="mt-auto p-4">
-        <div className="flex items-center justify-between px-1 text-[9px] text-muted-foreground">
-          <span className="font-mono">SHIPYARD v0.1</span>
-          <span className="flex items-center gap-1.5">
-            <span className="size-1 rounded-full bg-primary" />
-            CONTROL PLANE
-          </span>
-        </div>
+      <div
+        className={cn("mt-auto", collapsed ? "flex justify-center p-2" : "p-4")}
+      >
+        {collapsed ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" aria-label={versionLabel}>
+                <Info className="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">{versionLabel}</TooltipContent>
+          </Tooltip>
+        ) : (
+          <div className="flex items-center justify-between px-1 text-[9px] text-muted-foreground">
+            <span className="font-mono">{versionLabel}</span>
+            <span className="flex items-center gap-1.5">
+              <span className="size-1 rounded-full bg-primary" />
+              CONTROL PLANE
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

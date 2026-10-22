@@ -1,3 +1,4 @@
+import { buildInfoFixture } from "./build-info";
 type TestSource = { send(message: string, id?: string): void };
 declare global {
   interface Window {
@@ -89,6 +90,8 @@ async function setup(
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request(),
       path = new URL(request.url()).pathname;
+    if (path.endsWith("/version"))
+      return route.fulfill({ json: buildInfoFixture });
     if (path.endsWith("/telemetry"))
       return route.fulfill({ json: { dsn: "" } });
     if (path.endsWith("/auth/me"))
@@ -303,6 +306,42 @@ for (const source of ["git", "compose"])
       },
     ]);
   });
+
+for (const source of ["git", "compose"]) {
+  test(`${source} readiness can be disabled without losing saved checks or the startup deadline`, async ({
+    page,
+  }) => {
+    const state = await setup(page, source);
+    await page.goto("/configure/application/app");
+    await expect(
+      page.getByRole("combobox", {
+        name: "Select Readiness policy",
+        exact: true,
+      }),
+    ).toHaveText("Additional readiness checks");
+    await page.getByLabel("Readiness deadline (seconds)").fill("300");
+    // Incomplete edits to disabled checks must not prevent saving the policy.
+    await page.getByLabel("HTTP path", { exact: true }).fill("");
+    await page
+      .getByRole("combobox", { name: "Select Readiness policy", exact: true })
+      .click();
+    await page
+      .getByRole("option", { name: "Container status", exact: true })
+      .click();
+    await expect(page.getByLabel("HTTP path", { exact: true })).toHaveCount(0);
+    await page
+      .getByRole("button", { name: "Save application", exact: true })
+      .click();
+    await expect.poll(() => state.writes.length).toBe(1);
+    expect(state.writes[0]).toMatchObject({
+      data: {
+        readinessMode: "container",
+        healthTimeout: 300,
+        readinessChecks: [{ service: "app", port: 8080, path: "/ready" }],
+      },
+    });
+  });
+}
 
 test("private previews can be enabled without routes or DNS settings", async ({
   page,

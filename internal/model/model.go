@@ -102,6 +102,7 @@ type App struct {
 	Previews        bool                         `json:"previews"`
 	HealthPath      string                       `json:"healthPath,omitempty"` // Legacy snapshots only.
 	ReadinessChecks []HTTPReadinessCheck         `json:"readinessChecks"`
+	ReadinessMode   string                       `json:"readinessMode,omitempty"`
 	PreviewRouting  *PreviewRouting              `json:"previewRouting,omitempty"`
 	HealthTimeout   int                          `json:"healthTimeout"`
 	Profiles        []string                     `json:"profiles"`

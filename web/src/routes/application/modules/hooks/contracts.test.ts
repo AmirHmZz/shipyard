@@ -219,7 +219,17 @@ describe.each([
     {
       name: `domain status ${id}`,
       request: [`/routes/${encoded}/status`],
-      response: { dns: "ready", certificate: "ready", routing: "ready" },
+      response: {
+        routeId: id,
+        domain: "app.example.com",
+        dns: "ready",
+        propagation: "ready",
+        certificate: "ready",
+        routing: "ready",
+        error: "",
+        expiresAt: null,
+        records: [],
+      },
       run: async (client) => {
         const { result } = renderHook(
           () => useDomainStatus({ ...resource, id: id }),

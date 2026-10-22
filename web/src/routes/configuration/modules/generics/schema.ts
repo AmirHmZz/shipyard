@@ -134,7 +134,6 @@ export const haProxySettingsResponseSchema = z.object({
   ]),
 });
 
-// TODO(openapi): document setup config, HAProxy update, network inventory and webhook secret responses.
 export const gitSetupConfigResponseSchema = z.object({
   origin: z.string(),
   giteaCallback: z.string(),

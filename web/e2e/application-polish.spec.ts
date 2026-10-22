@@ -2,6 +2,8 @@ import type { Page } from "@playwright/test";
 
 import { expect, test } from "@playwright/test";
 
+import { buildInfoFixture } from "./build-info";
+
 async function setup(page: Page, { admin = true, writable = true } = {}) {
   function resource(id: string, kind: string, parentId = "", data = {}) {
     return {
@@ -56,6 +58,8 @@ async function setup(page: Page, { admin = true, writable = true } = {}) {
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request(),
       path = new URL(request.url()).pathname;
+    if (path.endsWith("/version"))
+      return route.fulfill({ json: buildInfoFixture });
     if (path.endsWith("/telemetry"))
       return route.fulfill({ json: { dsn: "" } });
     if (path.endsWith("/auth/me"))
@@ -99,6 +103,11 @@ async function setup(page: Page, { admin = true, writable = true } = {}) {
       return route.fulfill({
         json: {
           dns: "ready",
+          routeId: "route",
+          domain: "app.example.com",
+          error: "",
+          expiresAt: null,
+          records: [],
           propagation: "ready",
           certificate: "ready",
           routing: "ready",

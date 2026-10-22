@@ -105,6 +105,9 @@ volumes:
 		t.Fatal("initial image-only deployment", got)
 	}
 	source = strings.Replace(source, "VERSION: first", "VERSION: second", 1)
+	// Changing the application policy must not rewrite a retained legacy release.
+	spec.ReadinessMode = "container"
+	app.Data, _ = json.Marshal(spec)
 	app, err = c.Store.Save(ctx, app.ID, model.ResourceInput{Kind: app.Kind, Name: app.Name, Data: app.Data, Version: app.Version, Secrets: map[string]string{"compose": source}})
 	if err != nil {
 		t.Fatal(err)
@@ -124,6 +127,10 @@ volumes:
 	if got := get(); got != "second/first" {
 		t.Fatal("mutable queue source or lost volume", got)
 	}
+	secondRelease, err := c.Store.Active(ctx, app.ID)
+	if err != nil || secondRelease.App.ReadinessMode != "container" {
+		t.Fatal("queued policy was not retained", err)
+	}
 	run(first.ReleaseID)
 	if got := get(); got != "first/first" {
 		t.Fatal("rollback changed source or volume", got)
@@ -135,6 +142,9 @@ volumes:
 	active, err := c.Store.Active(ctx, app.ID)
 	if err != nil || active.Images["web"] != firstRelease.Images["web"] {
 		t.Fatal("rollback did not restore exact image", err)
+	}
+	if active.App.ReadinessMode != "" || !active.App.CheckedReadiness() {
+		t.Fatal("rollback did not restore legacy readiness policy")
 	}
 	inline := func(version string) string {
 		return fmt.Sprintf(`services:

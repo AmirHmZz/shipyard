@@ -6,7 +6,6 @@ import type {
   invitationFormSchema,
   projectAssignmentSchema,
 } from "./schema";
-// TODO(openapi): add TeamMembersResponse to api/openapi.yaml.
 export type TeamMembersResponse = z.infer<typeof teamMembersResponseSchema>;
 
 export type Invitation = z.infer<typeof invitationFormSchema>;

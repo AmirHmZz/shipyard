@@ -106,6 +106,12 @@ export const fields: Record<ResourceKind, Field[]> = {
       type: "switch",
     },
     {
+      key: "readinessMode",
+      label: "Readiness policy",
+      options: ["container", "checks"],
+      help: "Container status confirms process startup; the service may accept traffic later. Additional checks wait for Docker health, routed ports, and optional HTTP checks.",
+    },
+    {
       key: "readinessChecks",
       label: "HTTP readiness checks (optional)",
       type: "readiness",
@@ -173,6 +179,7 @@ export const defaults: Record<string, Record<string, unknown>> = {
     branch: "main",
     context: ".",
     file: "Dockerfile",
+    readinessMode: "container",
     readinessChecks: [],
     previewRouting: { mode: "inherit" },
     healthTimeout: 120,

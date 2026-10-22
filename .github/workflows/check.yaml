@@ -33,6 +33,7 @@ jobs:
           HUSKY: "0"
       - run: bun run format:check
       - run: node scripts/openapi.mjs
+      - run: bun run api:check
       - run: node --test scripts/release-manifest.test.mjs
       - name: Installer artifact and resumption checks
         run: docker run --rm -v "$PWD:/src" -w /src docker:29-cli sh tests/installer.sh

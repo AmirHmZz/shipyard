@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { buildInfoFixture } from "./build-info";
+
 test("browser errors use the runtime DSN without session or URL tokens", async ({
   page,
   baseURL,
@@ -17,6 +19,8 @@ test("browser errors use the runtime DSN without session or URL tokens", async (
   });
   await page.route("**/api/v1/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/version"))
+      return route.fulfill({ json: buildInfoFixture });
     if (path.endsWith("/telemetry"))
       return route.fulfill({
         json: {

@@ -407,6 +407,7 @@ func (a *API) saveResource(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	creating := id == ""
 	previousServerID := ""
+	previousReadinessMode := ""
 	if creating {
 		id = uuid.NewString()
 	} else {
@@ -435,6 +436,7 @@ func (a *API) saveResource(w http.ResponseWriter, r *http.Request) {
 		in.TeamID = old.TeamID
 		if old.Kind == "application" {
 			previous, _ := model.Decode[model.App](old)
+			previousReadinessMode = previous.ReadinessMode
 			next, _ := model.Decode[model.App](model.Resource{Data: in.Data})
 			if previous.PreviewOf != "" {
 				fail(w, 409, "Preview configuration is managed from the source application")
@@ -456,6 +458,27 @@ func (a *API) saveResource(w http.ResponseWriter, r *http.Request) {
 			if previous.Domain != next.Domain || previous.ZoneID != next.ZoneID {
 				fail(w, 409, "Remove and recreate the route to change its domain or DNS zone safely")
 				return
+			}
+		}
+	}
+	if in.Kind == "application" {
+		var data map[string]json.RawMessage
+		if json.Unmarshal(in.Data, &data) == nil && data != nil {
+			if raw, exists := data["readinessMode"]; exists {
+				var policy string
+				if json.Unmarshal(raw, &policy) != nil || (policy != "container" && policy != "checks") {
+					fail(w, 400, "readiness mode must be container or checks")
+					return
+				}
+			} else {
+				policy := previousReadinessMode
+				if creating {
+					policy = "container"
+				}
+				if policy != "" {
+					data["readinessMode"], _ = json.Marshal(policy)
+					in.Data, _ = json.Marshal(data)
+				}
 			}
 		}
 	}
@@ -539,9 +562,12 @@ func (a *API) saveResource(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, "Use the server network creation interface")
 		return
 	}
-	if in.Kind=="registry" {
-		password,provided:=in.Secrets["password"]
-		if (creating || provided) && password=="" { fail(w,400,"Registry password or token is required");return }
+	if in.Kind == "registry" {
+		password, provided := in.Secrets["password"]
+		if (creating || provided) && password == "" {
+			fail(w, 400, "Registry password or token is required")
+			return
+		}
 	}
 	if in.Kind == "route" {
 		if err := model.Validate(in); err != nil {
@@ -1069,11 +1095,7 @@ func (a *API) domainStatus(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	state, e := a.Control.DomainState(r.Context(), v.ID)
-	if errors.Is(e, pgx.ErrNoRows) {
-		respond(w, 200, map[string]string{"dns": "unmanaged", "certificate": "off", "routing": "pending"})
-		return
-	}
+	state, e := a.Control.RouteStatus(r.Context(), v)
 	if e != nil {
 		a.err(w, e)
 		return

@@ -154,6 +154,7 @@ export function useResourceFormController({
               (resource) =>
                 resource.kind === "route" && resource.parentId === existing?.id,
             ),
+            existing?.data,
           )
         : { ...data };
     if (kind === "application") {

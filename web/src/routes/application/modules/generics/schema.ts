@@ -167,7 +167,6 @@ export const networkServiceResponseSchema = z.object({
   ),
 });
 
-// TODO(openapi): document networking, releases, services, route status and deployment creation responses.
 export const applicationNetworkingResponseSchema = z.object({
   version: z.number(),
   services: z.record(z.string(), networkServiceResponseSchema),
@@ -208,7 +207,7 @@ export const applicationServicesResponseSchema = z.array(
   }),
 );
 
-export const domainStatusResponseSchema = z.record(z.string(), z.string());
+export { domainStatusResponseSchema } from "@/lib/schemas/domains";
 
 export const deploymentCreationResultResponseSchema = z.object({
   id: z.string(),

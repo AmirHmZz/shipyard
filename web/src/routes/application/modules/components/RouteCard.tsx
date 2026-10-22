@@ -19,16 +19,18 @@ import { number, text } from "@/lib/resource-fields";
 import { useRouteCard } from "../hooks";
 
 export type RouteCardProps = { route: Resource };
+const statusKeys = ["dns", "propagation", "certificate", "routing"] as const;
 export function RouteCard({ route }: RouteCardProps) {
   const { state, derived, handlers } = useRouteCard(route);
   const { replace } = state;
-  const { q, syncing, protocol } = derived;
+  const { q, syncing, protocol, statusError } = derived;
   const {
     retrySync,
     adoptRecords,
     replaceRecords,
     confirmReplacement,
     setReplace,
+    retryStatus,
   } = handlers;
   return (
     <Card className="py-0 shadow-none">
@@ -89,16 +91,39 @@ export function RouteCard({ route }: RouteCardProps) {
             </Button>
           </div>
         </SectionRow>
-        <div className="mt-5 grid gap-3 border-t pt-4 sm:grid-cols-4">
-          {["dns", "propagation", "certificate", "routing"].map((key) => (
-            <div key={key}>
-              <p className="mb-2 text-[10px] uppercase tracking-wider text-muted-foreground">
-                {key}
-              </p>
-              <StateBadge state={q.data?.[key] || "pending"} />
-            </div>
-          ))}
-        </div>
+        {q.isPending && (
+          <p role="status" className="mt-5 text-sm text-muted-foreground">
+            Loading route status…
+          </p>
+        )}
+        {statusError && (
+          <Alert className="mt-4" variant="destructive">
+            <AlertDescription>
+              Could not refresh route status. {statusError}
+              {q.data && <p>Showing the last known status.</p>}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={retryStatus}
+                disabled={q.isFetching}
+              >
+                Retry status
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+        {q.data && (
+          <div className="mt-5 grid gap-3 border-t pt-4 sm:grid-cols-4">
+            {statusKeys.map((key) => (
+              <div key={key}>
+                <p className="mb-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+                  {key}
+                </p>
+                <StateBadge state={q.data?.[key] || "pending"} />
+              </div>
+            ))}
+          </div>
+        )}
         {q.data?.error && (
           <Alert className="mt-4" variant="destructive">
             <AlertDescription>{q.data.error}</AlertDescription>

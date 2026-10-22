@@ -2,11 +2,15 @@ import { useState } from "react";
 
 import type { Resource } from "@/lib/api/types";
 
+import { describeError } from "@/lib/api/translate-error";
 import { text } from "@/lib/resource-fields";
 
 import { useDomainStatus } from "./useDomainStatus";
 import { useSyncRoute } from "./useSyncRoute";
 export function useRouteCard(route: Resource) {
+  function retryStatus() {
+    void q.refetch();
+  }
   function retrySync() {
     return void sync("");
   }
@@ -34,13 +38,19 @@ export function useRouteCard(route: Resource) {
   if (text(route.data, "protocol") === "grpc") protocol = "gRPC";
   return {
     state: { replace },
-    derived: { q, syncing, protocol },
+    derived: {
+      q,
+      syncing,
+      protocol,
+      statusError: q.error ? describeError(q.error) : "",
+    },
     handlers: {
       retrySync,
       adoptRecords,
       replaceRecords,
       confirmReplacement,
       setReplace,
+      retryStatus,
     },
   };
 }

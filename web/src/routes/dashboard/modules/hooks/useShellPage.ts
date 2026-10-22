@@ -14,8 +14,8 @@ export function useShellPage(session: Session) {
   const navigate = useNavigate();
   const resources = useResources();
   const { state, handlers } = useShellState();
-  const { search, mobile, dark } = state;
-  const { setSearch, setMobile, toggleTheme } = handlers;
+  const { search, mobile, dark, collapsed } = state;
+  const { setSearch, setMobile, toggleTheme, toggleSidebar } = handlers;
   function signOut() {
     if (logout.isPending) return;
     logout.mutate(undefined, {
@@ -56,12 +56,13 @@ export function useShellPage(session: Session) {
     navigate("/settings");
   }
   return {
-    state: { search, mobile, dark },
+    state: { search, mobile, dark, collapsed },
     derived: { current, parentPath, parentLabel, page, initials },
     handlers: {
       setSearch,
       setMobile,
       toggleTheme,
+      toggleSidebar,
       signOut,
       closeMobile,
       openSearch,

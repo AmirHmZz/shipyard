@@ -26,6 +26,13 @@ type DomainState struct {
 	Error       string        `json:"error"`
 	ExpiresAt   *time.Time    `json:"expiresAt"`
 	Records     []ownedRecord `json:"records"`
+	Sync        *DomainSync   `json:"sync,omitempty"`
+}
+type DomainSync struct {
+	ID       string `json:"id"`
+	State    string `json:"state"`
+	Attempts int    `json:"attempts"`
+	Error    string `json:"error"`
 }
 type ownedRecord struct {
 	ID      string `json:"id"`
@@ -88,6 +95,25 @@ func (c *Controller) domain(ctx context.Context, id, mode string) (result error)
 	if e != nil {
 		return e
 	}
+	// Record intent before provider, host, and lock setup can fail or wait.
+	dnsState, certificateState := "pending", "pending"
+	if route.ZoneID == "" {
+		dnsState = "unmanaged"
+	}
+	if route.TLS != "terminate" {
+		certificateState = "off"
+	}
+	_, e = c.Store.Pool.Exec(ctx, `INSERT INTO domain_state(route_id,zone_id,domain,dns_state,propagation_state,certificate_state) VALUES($1,NULLIF($2,''),$3,$4,$4,$5) ON CONFLICT(route_id) DO NOTHING`, id, route.ZoneID, route.Domain, dnsState, certificateState)
+	if e != nil {
+		return e
+	}
+	phase := "dns"
+	defer func() {
+		if result != nil {
+			_, _ = c.Store.Pool.Exec(context.WithoutCancel(ctx), "UPDATE domain_state SET last_error=$2,updated_at=now() WHERE route_id=$1", id, result.Error())
+			_ = c.Emit(context.WithoutCancel(ctx), phase+".failed", rr.TeamID, rr.ID, map[string]string{"error": result.Error()})
+		}
+	}()
 	if route.ZoneID == "" {
 		app, e := c.Store.Resource(ctx, rr.ParentID)
 		if e != nil {
@@ -135,21 +161,10 @@ func (c *Controller) domain(ctx context.Context, id, mode string) (result error)
 		return e
 	}
 	defer unlock()
-	_, e = c.Store.Pool.Exec(ctx, `INSERT INTO domain_state(route_id,zone_id,domain) VALUES($1,$2,$3) ON CONFLICT(route_id) DO NOTHING`, id, route.ZoneID, name)
-	if e != nil {
-		return e
-	}
 	_, e = c.Store.Pool.Exec(ctx, "UPDATE domain_state SET certificate_domain=$2 WHERE route_id=$1", id, certificateName)
 	if e != nil {
 		return e
 	}
-	phase := "dns"
-	defer func() {
-		if result != nil {
-			_, _ = c.Store.Pool.Exec(context.WithoutCancel(ctx), "UPDATE domain_state SET last_error=$2,updated_at=now() WHERE route_id=$1", id, result.Error())
-			_ = c.Emit(context.WithoutCancel(ctx), phase+".failed", app.TeamID, rr.ID, map[string]string{"error": result.Error()})
-		}
-	}()
 	var stored []byte
 	if e = c.Store.Pool.QueryRow(ctx, "SELECT records FROM domain_state WHERE route_id=$1", id).Scan(&stored); e != nil {
 		return e
@@ -318,8 +333,49 @@ func (c *Controller) DomainState(ctx context.Context, id string) (DomainState, e
 	e := c.Store.Pool.QueryRow(ctx, "SELECT route_id,domain,dns_state,propagation_state,certificate_state,routing_state,last_error,expires_at,records FROM domain_state WHERE route_id=$1", id).Scan(&d.RouteID, &d.Domain, &d.DNS, &d.Propagation, &d.Certificate, &d.Routing, &d.Error, &d.ExpiresAt, &b)
 	if e == nil {
 		e = json.Unmarshal(b, &d.Records)
+		if d.Records == nil {
+			d.Records = []ownedRecord{}
+		}
 	}
 	return d, e
+}
+
+// RouteStatus exposes initialization and job failures without changing persisted
+// DomainState reads used by certificate and deletion reconciliation.
+func (c *Controller) RouteStatus(ctx context.Context, resource model.Resource) (DomainState, error) {
+	d, err := c.DomainState(ctx, resource.ID)
+	missing := errors.Is(err, pgx.ErrNoRows)
+	if err != nil && !missing {
+		return d, err
+	}
+	if missing {
+		route, e := model.Decode[model.Route](resource)
+		if e != nil {
+			return d, e
+		}
+		d = DomainState{RouteID: resource.ID, Domain: route.Domain, DNS: "pending", Propagation: "pending", Certificate: "pending", Routing: "pending", Records: []ownedRecord{}}
+		if route.ZoneID == "" {
+			d.DNS, d.Propagation = "unmanaged", "unmanaged"
+		}
+		if route.TLS != "terminate" {
+			d.Certificate = "off"
+		}
+	}
+	var sync DomainSync
+	err = c.Store.Pool.QueryRow(ctx, `SELECT id,state,attempts,last_error FROM jobs WHERE resource_id=$1 AND kind='domain' ORDER BY created_at DESC,id DESC LIMIT 1`, resource.ID).Scan(&sync.ID, &sync.State, &sync.Attempts, &sync.Error)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return d, err
+	}
+	if err == nil && sync.State != "done" {
+		d.Sync = &sync
+		if missing && sync.Error != "" {
+			d.Error = sync.Error
+		}
+		if missing && sync.State == "failed" && d.DNS != "unmanaged" {
+			d.DNS = "failed"
+		}
+	}
+	return d, nil
 }
 func (c *Controller) DeleteDomain(ctx context.Context, id string) error {
 	state, e := c.DomainState(ctx, id)

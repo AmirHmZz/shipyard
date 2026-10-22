@@ -1,0 +1,275 @@
+[
+  {
+    "name": "legacy-application-policy",
+    "schema": "ApplicationChecks",
+    "body": {
+      "engine": "",
+      "serverId": "",
+      "gitId": "",
+      "repository": "",
+      "branch": "",
+      "context": "",
+      "file": "",
+      "worker": false,
+      "autoDeploy": false,
+      "previews": false,
+      "readinessChecks": null,
+      "healthTimeout": 0,
+      "profiles": null,
+      "buildArgs": null
+    }
+  },
+  {
+    "name": "container-application-policy",
+    "schema": "ApplicationChecks",
+    "body": {
+      "engine": "",
+      "serverId": "",
+      "gitId": "",
+      "repository": "",
+      "branch": "",
+      "context": "",
+      "file": "",
+      "worker": false,
+      "autoDeploy": false,
+      "previews": false,
+      "readinessChecks": [
+        {
+          "service": "worker",
+          "port": 8080,
+          "path": "/ready"
+        }
+      ],
+      "readinessMode": "container",
+      "healthTimeout": 300,
+      "profiles": null,
+      "buildArgs": null
+    }
+  },
+  {
+    "name": "route-ready",
+    "schema": "DomainState",
+    "body": {
+      "routeId": "route-1",
+      "domain": "app.example.com",
+      "dns": "ready",
+      "propagation": "ready",
+      "certificate": "ready",
+      "routing": "ready",
+      "error": "",
+      "expiresAt": "2026-10-22T00:00:00Z",
+      "records": [
+        {
+          "id": "record-1",
+          "type": "A",
+          "name": "app.example.com",
+          "content": "192.0.2.1",
+          "owned": true
+        }
+      ]
+    }
+  },
+  {
+    "name": "route-pending",
+    "schema": "DomainState",
+    "body": {
+      "routeId": "route-1",
+      "domain": "app.example.com",
+      "dns": "pending",
+      "propagation": "pending",
+      "certificate": "pending",
+      "routing": "pending",
+      "error": "",
+      "expiresAt": null,
+      "records": [
+        {
+          "id": "record-1",
+          "type": "A",
+          "name": "app.example.com",
+          "content": "192.0.2.1",
+          "owned": true
+        }
+      ]
+    }
+  },
+  {
+    "name": "route-conflict",
+    "schema": "DomainState",
+    "body": {
+      "routeId": "route-1",
+      "domain": "app.example.com",
+      "dns": "conflict",
+      "propagation": "pending",
+      "certificate": "pending",
+      "routing": "pending",
+      "error": "DNS record conflict",
+      "expiresAt": null,
+      "records": [
+        {
+          "id": "record-1",
+          "type": "A",
+          "name": "app.example.com",
+          "content": "192.0.2.1",
+          "owned": true
+        }
+      ]
+    }
+  },
+  {
+    "name": "route-sync-failed",
+    "schema": "DomainState",
+    "body": {
+      "routeId": "route-1",
+      "domain": "app.example.com",
+      "dns": "pending",
+      "propagation": "pending",
+      "certificate": "pending",
+      "routing": "pending",
+      "error": "server not found",
+      "expiresAt": null,
+      "records": [
+        {
+          "id": "record-1",
+          "type": "A",
+          "name": "app.example.com",
+          "content": "192.0.2.1",
+          "owned": true
+        }
+      ],
+      "sync": {
+        "id": "job-1",
+        "state": "failed",
+        "attempts": 6,
+        "error": "server not found"
+      }
+    }
+  },
+  {
+    "name": "networking-before-deploy",
+    "schema": "ApplicationNetworking",
+    "body": {
+      "applied": {},
+      "endpoints": null,
+      "pending": false,
+      "services": {},
+      "version": 1
+    }
+  },
+  {
+    "name": "networking-docker-assigned",
+    "schema": "ApplicationNetworking",
+    "body": {
+      "applied": {},
+      "endpoints": [
+        {
+          "service": "app",
+          "replica": 1,
+          "networkId": "network-1",
+          "dockerName": "bridge",
+          "ingress": false
+        }
+      ],
+      "pending": true,
+      "services": {
+        "app": {
+          "connections": null
+        }
+      },
+      "version": 1
+    }
+  },
+  {
+    "name": "runtime-private",
+    "schema": "ApplicationRuntime",
+    "body": {
+      "containers": [
+        "app"
+      ],
+      "status": "running",
+      "targets": null
+    }
+  },
+  {
+    "name": "docker-network-empty",
+    "schema": "DockerNetwork",
+    "body": {
+      "Id": "network-1",
+      "Name": "bridge",
+      "Driver": "bridge",
+      "EnableIPv6": false,
+      "Labels": null,
+      "IPAM": {
+        "Config": null
+      },
+      "Containers": null
+    }
+  },
+  {
+    "name": "updates-unavailable",
+    "schema": "SystemUpdates",
+    "body": {
+      "enabled": false,
+      "reason": "System updates require the release installer",
+      "version": {
+        "version": "",
+        "commit": "",
+        "builtAt": "",
+        "architecture": "",
+        "updaterProtocol": 0
+      },
+      "releases": null
+    }
+  },
+  {
+    "name": "network-deletion",
+    "schema": "DeletionResult",
+    "body": {
+      "ok": true
+    }
+  },
+  {
+    "name": "asynchronous-deletion",
+    "schema": "DeletionResult",
+    "body": {
+      "jobId": "cleanup-job",
+      "ok": true
+    }
+  },
+  {
+    "name": "published-ports-empty",
+    "schema": "PublishedPorts",
+    "body": {
+      "services": null,
+      "version": 1
+    }
+  },
+  {
+    "name": "build-release",
+    "schema": "BuildInfo",
+    "body": {
+      "version": "9.8.7",
+      "commit": "contract",
+      "builtAt": "test",
+      "architecture": "amd64",
+      "updaterProtocol": 1
+    }
+  },
+  {
+    "name": "build-dev",
+    "schema": "BuildInfo",
+    "body": {
+      "version": "dev",
+      "commit": "unknown",
+      "builtAt": "unknown",
+      "architecture": "amd64",
+      "updaterProtocol": 1
+    }
+  },
+  {
+    "name": "http-error",
+    "schema": "Error",
+    "body": {
+      "error": "DNS provider unavailable"
+    }
+  }
+]

@@ -10,7 +10,7 @@ import { ResourceFieldInput } from "./ResourceFieldInput";
 
 const sections: Record<string, string> = {
   source: "Source",
-  readinessChecks: "Readiness",
+  readinessMode: "Readiness",
   previews: "Pull request previews",
   profiles: "Build",
 };

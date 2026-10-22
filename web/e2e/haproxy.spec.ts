@@ -3,6 +3,8 @@ import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
 import type { components } from "../src/lib/schema";
+
+import { buildInfoFixture } from "./build-info";
 type Settings = components["schemas"]["HAProxySettings"];
 type Input = components["schemas"]["HAProxySettingsInput"];
 
@@ -46,6 +48,8 @@ async function setup(page: Page, admin = true) {
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
+    if (path.endsWith("/version"))
+      return route.fulfill({ json: buildInfoFixture });
     if (path.endsWith("/telemetry"))
       return route.fulfill({ json: { dsn: "" } });
     if (path.endsWith("/auth/me"))

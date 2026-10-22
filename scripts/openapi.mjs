@@ -13,7 +13,98 @@ function object(properties, required = Object.keys(properties)) {
     required,
   };
 }
+function nullable(schema) {
+  return { ...schema, nullable: true };
+}
+function input(properties, required = Object.keys(properties)) {
+  return { ...object(properties, required), additionalProperties: false };
+}
 const schemas = {
+  Ok: object({ ok: bool }),
+  Queued: object({ queued: bool }),
+  Accepted: object({ accepted: bool }),
+  DeletionResult: object({ ok: bool, jobId: str }, ["ok"]),
+  SetupStatus: object({ setupRequired: bool, setupEnabled: bool }),
+  FingerprintResult: object({ fingerprint: str }),
+  DockerVersionResult: object(
+    { dockerVersion: str, status: str, connection: str },
+    ["dockerVersion"],
+  ),
+  ProviderZone: object({ id: str, name: str }),
+  RepositoryOption: object({ full_name: str }),
+  BranchOption: object({ name: str }),
+  TeamMember: object({ id: str, email: str, name: str, role: str }),
+  InvitationResult: object({ url: str }),
+  TOTPStart: object({ secret: str, url: str }),
+  TOTPRecovery: object({ recoveryCodes: { type: "array", items: str } }),
+  DomainRecord: object({
+    id: str,
+    type: str,
+    name: str,
+    content: str,
+    owned: bool,
+  }),
+  DomainSync: object({
+    id: str,
+    state: str,
+    attempts: { type: "integer" },
+    error: str,
+  }),
+  DomainState: object(
+    {
+      routeId: str,
+      domain: str,
+      dns: str,
+      propagation: str,
+      certificate: str,
+      routing: str,
+      error: str,
+      expiresAt: nullable({ type: "string", format: "date-time" }),
+      records: { type: "array", items: ref("DomainRecord") },
+      sync: ref("DomainSync"),
+    },
+    [
+      "routeId",
+      "domain",
+      "dns",
+      "propagation",
+      "certificate",
+      "routing",
+      "error",
+      "expiresAt",
+      "records",
+    ],
+  ),
+  RuntimeTarget: object({
+    service: str,
+    container: str,
+    port: { type: "integer" },
+    address: str,
+    networkId: str,
+  }),
+  ApplicationRelease: object({
+    id: str,
+    commit: str,
+    createdAt: str,
+    images: nullable({ type: "object", additionalProperties: str }),
+  }),
+  AuditEntry: object({
+    id: { type: "integer" },
+    userId: str,
+    action: str,
+    resourceId: str,
+    teamId: str,
+    at: str,
+  }),
+  Job: object({
+    id: str,
+    kind: str,
+    resourceId: str,
+    state: str,
+    attempts: { type: "integer" },
+    error: str,
+    createdAt: str,
+  }),
   RegistryConfiguration: object({
     hostname: {
       type: "string",
@@ -28,8 +119,9 @@ const schemas = {
       error: str,
       releaseId: str,
       commit: str,
-      containers: { type: "array", items: str },
-      targets: { type: "array", items: obj },
+      containers: nullable({ type: "array", items: str }),
+      targets: nullable({ type: "array", items: ref("RuntimeTarget") }),
+      createdAt: str,
     },
     ["status"],
   ),
@@ -48,7 +140,18 @@ const schemas = {
   ),
   ApplicationChecks: object(
     {
-      readinessChecks: { type: "array", items: ref("HTTPReadinessCheck") },
+      readinessChecks: nullable({
+        type: "array",
+        items: ref("HTTPReadinessCheck"),
+        description:
+          "Null or omitted preserves legacy HTTP readiness; an empty array disables HTTP probes.",
+      }),
+      readinessMode: {
+        type: "string",
+        enum: ["container", "checks"],
+        description:
+          "New applications default to container. Omitted on existing applications or retained releases preserves checked readiness.",
+      },
       previewRouting: ref("PreviewRouting"),
       healthTimeout: { type: "integer" },
     },
@@ -64,8 +167,8 @@ const schemas = {
     createdAt: str,
     mounts: { type: "array", items: ref("VolumeMount") },
     inUse: bool,
-    sizeBytes: { type: ["integer", "null"], minimum: 0 },
-    measuredAt: { type: ["string", "null"], format: "date-time" },
+    sizeBytes: nullable({ type: "integer", minimum: 0 }),
+    measuredAt: nullable({ type: "string", format: "date-time" }),
   }),
   ApplicationVolumes: object({
     volumes: { type: "array", items: ref("ApplicationVolume") },
@@ -131,7 +234,7 @@ const schemas = {
   ServiceNetworking: object(
     {
       hostname: str,
-      connections: { type: "array", items: ref("NetworkAttachment") },
+      connections: nullable({ type: "array", items: ref("NetworkAttachment") }),
     },
     ["connections"],
   ),
@@ -148,29 +251,35 @@ const schemas = {
         type: "object",
         additionalProperties: ref("ServiceNetworking"),
       },
-      applied: obj,
-      endpoints: {
-        type: "array",
-        items: object({
-          service: str,
-          replica: { type: "integer" },
-          networkId: str,
-          dockerName: str,
-          ipv4: str,
-          ipv6: str,
-          ingress: bool,
-        }),
+      applied: {
+        type: "object",
+        additionalProperties: ref("ServiceNetworking"),
       },
+      endpoints: nullable({
+        type: "array",
+        items: object(
+          {
+            service: str,
+            replica: { type: "integer" },
+            networkId: str,
+            dockerName: str,
+            ipv4: str,
+            ipv6: str,
+            ingress: bool,
+          },
+          ["service", "replica", "networkId", "dockerName", "ingress"],
+        ),
+      }),
       pending: bool,
     },
-    ["version", "services"],
+    ["version", "services", "applied", "endpoints", "pending"],
   ),
   PublishedPorts: object({
     version: { type: "integer" },
-    services: {
+    services: nullable({
       type: "object",
       additionalProperties: { type: "array", items: ref("PublishedPort") },
-    },
+    }),
   }),
   ComposeService: object({
     name: str,
@@ -194,9 +303,9 @@ const schemas = {
     Name: str,
     Driver: str,
     EnableIPv6: bool,
-    Labels: { type: "object", additionalProperties: str },
+    Labels: nullable({ type: "object", additionalProperties: str }),
     IPAM: obj,
-    Containers: obj,
+    Containers: nullable(obj),
   }),
   ComposeSource: object({
     yaml: { type: "string", maxLength: 1048576 },
@@ -218,7 +327,7 @@ const schemas = {
     account: str,
     webhookUrl: str,
     signingSecretConfigured: bool,
-    lastDelivery: { type: ["string", "null"], format: "date-time" },
+    lastDelivery: nullable({ type: "string", format: "date-time" }),
   }),
   TelemetryConfig: object({ dsn: str, environment: str, release: str }),
   User: object({ id: str, email: str, name: str, admin: bool, totp: bool }),
@@ -258,7 +367,7 @@ const schemas = {
       secrets: { type: "object", additionalProperties: str },
       variables: {
         type: "object",
-        additionalProperties: { type: ["string", "null"] },
+        additionalProperties: nullable(str),
         description:
           "Scoped runtime values. Omitted keys are unchanged; null deletes a value. Secrets must be supplied through secrets.",
       },
@@ -322,9 +431,9 @@ const schemas = {
     hasCertificate: bool,
     issuer: str,
     names: { type: "array", items: str },
-    validFrom: { type: ["string", "null"], format: "date-time" },
-    expiresAt: { type: ["string", "null"], format: "date-time" },
-    renewalAt: { type: ["string", "null"], format: "date-time" },
+    validFrom: nullable({ type: "string", format: "date-time" }),
+    expiresAt: nullable({ type: "string", format: "date-time" }),
+    renewalAt: nullable({ type: "string", format: "date-time" }),
     serialNumber: str,
     fingerprint: str,
     authority: str,
@@ -375,13 +484,7 @@ schemas.DashboardAccess = object(
     activeRouteId: str,
     acmeConfigured: bool,
     acmeEmail: str,
-    status: object({
-      dns: str,
-      propagation: str,
-      certificate: str,
-      routing: str,
-      error: str,
-    }),
+    status: ref("DomainState"),
     error: str,
   },
   [
@@ -486,7 +589,7 @@ schemas.SystemUpdates = object(
       revision: { type: "integer" },
       release: ref("ReleaseManifest"),
     }),
-    releases: { type: "array", items: ref("ReleaseManifest") },
+    releases: nullable({ type: "array", items: ref("ReleaseManifest") }),
     operation: ref("VersionChangeOperation"),
   },
   ["enabled", "version", "releases"],
@@ -512,14 +615,49 @@ schemas.HAProxySettings = object({
   version: { type: "integer" },
   bindings: bindingMap,
   lastJobId: str,
-  appliedAt: { type: ["string", "null"], format: "date-time" },
+  appliedAt: nullable({ type: "string", format: "date-time" }),
   image: str,
   frontends: { type: "array", items: ref("HAProxyFrontend") },
-  apply: {
-    ...object({ id: str, state: str, error: str }),
-    type: ["object", "null"],
-  },
+  apply: nullable(object({ id: str, state: str, error: str })),
 });
+schemas.UserAccess = object({ ...schemas.User.properties, disabled: bool });
+schemas.NetworkingInput = input(
+  {
+    version: { type: "integer" },
+    services: nullable({
+      type: "object",
+      additionalProperties: ref("ServiceNetworking"),
+    }),
+  },
+  ["version"],
+);
+schemas.PublishedPortsInput = input(schemas.PublishedPorts.properties, [
+  "version",
+]);
+schemas.DNSRecordInput = input(
+  { ...schemas.DNSRecord.properties, priority: nullable({ type: "integer" }) },
+  ["type", "name"],
+);
+schemas.AlertPolicyInput = input(schemas.AlertPolicy.properties);
+schemas.SetupInput = input(schemas.Login.properties, [
+  "email",
+  "password",
+  "name",
+  "token",
+]);
+schemas.LoginInput = input(schemas.Login.properties, ["email", "password"]);
+schemas.AcceptInvitationInput = input(schemas.Login.properties, [
+  "password",
+  "token",
+]);
+schemas.AcceptInvitationInput.description =
+  "Email is taken from the invitation. Name is required when creating a new account; existing accounts use their password and optional authenticator code.";
+schemas.TOTPStartInput = input(schemas.Login.properties, ["password"]);
+schemas.TOTPConfirmInput = input(schemas.Login.properties, ["code"]);
+schemas.TOTPDisableInput = input(schemas.Login.properties, [
+  "password",
+  "code",
+]);
 function add(path, method, summary, response = obj, body) {
   const parameters = [...path.matchAll(/\{(\w+)\}/g)].map((m) => ({
     in: "path",
@@ -675,7 +813,7 @@ add(
   "put",
   "Save networking for the next deployment",
   ref("Resource"),
-  ref("ApplicationNetworking"),
+  ref("NetworkingInput"),
 );
 add(
   "/applications/{id}/published-ports",
@@ -688,12 +826,12 @@ add(
   "put",
   "Administrator-only host-port configuration",
   ref("Resource"),
-  ref("PublishedPorts"),
+  ref("PublishedPortsInput"),
 );
 function array(s) {
   return { type: "array", items: s };
 }
-add("/auth/status", "get", "Installation status");
+add("/auth/status", "get", "Installation status", ref("SetupStatus"));
 add(
   "/applications/{id}/compose",
   "get",
@@ -756,14 +894,12 @@ add(
   "post",
   "Reconnect Gitea OAuth or resume a GitHub App installation",
   ref("GitSetupStart"),
-  obj,
 );
 add(
   "/git/{id}/webhook-secret",
   "post",
   "Replace Gitea signing secret and reveal it once",
   object({ secret: str }),
-  obj,
 );
 for (const path of [
   "/git/setup/{provider}/callback",
@@ -788,10 +924,14 @@ add(
   "Public browser error reporting configuration",
   ref("TelemetryConfig"),
 );
-for (const action of ["setup", "login", "accept"])
-  add(`/auth/${action}`, "post", action, ref("Session"), ref("Login"));
+for (const [action, schema] of [
+  ["setup", "SetupInput"],
+  ["login", "LoginInput"],
+  ["accept", "AcceptInvitationInput"],
+])
+  add(`/auth/${action}`, "post", action, ref("Session"), ref(schema));
 add("/auth/me", "get", "Current user and CSRF token", ref("Session"));
-add("/auth/logout", "post", "End session", obj, obj);
+add("/auth/logout", "post", "End session", ref("Ok"));
 add(
   "/auth/password",
   "post",
@@ -799,16 +939,26 @@ add(
   ref("Session"),
   object({ current: str, password: str, code: str }, ["current", "password"]),
 );
-add("/users", "get", "Platform users", array(obj));
+add("/users", "get", "Platform users", array(ref("UserAccess")));
 add(
   "/users/{id}",
   "put",
   "Change user administrator or disabled status",
-  obj,
+  ref("Ok"),
   object({ admin: bool, disabled: bool }),
 );
-for (const action of ["start", "confirm", "disable"])
-  add(`/auth/totp/${action}`, "post", `TOTP ${action}`, obj, obj);
+for (const [action, response, body] of [
+  ["start", "TOTPStart", "TOTPStartInput"],
+  ["confirm", "TOTPRecovery", "TOTPConfirmInput"],
+  ["disable", "Ok", "TOTPDisableInput"],
+])
+  add(
+    `/auth/totp/${action}`,
+    "post",
+    `TOTP ${action}`,
+    ref(response),
+    ref(body),
+  );
 add("/resources", "get", "List authorized resources", array(ref("Resource")));
 add(
   "/resources",
@@ -817,43 +967,51 @@ add(
   ref("Resource"),
   ref("ResourceInput"),
 );
+schemas.ResourceUpdateInput = {
+  ...schemas.ResourceInput,
+  required: ["data"],
+};
 add("/resources/{id}", "get", "Get resource", ref("Resource"));
 add(
   "/resources/{id}",
   "put",
   "Update resource with optimistic version check",
   ref("Resource"),
-  ref("ResourceInput"),
+  ref("ResourceUpdateInput"),
 );
 add(
   "/resources/{id}",
   "delete",
   "Delete infrastructure or queue cleanup. Servers require ServerDeletionInput and remove owned application volumes; project/application deletion preserves volumes",
-  obj,
-  obj,
+  ref("DeletionResult"),
 );
 paths["/resources/{id}"].delete.responses[202] = {
   description:
     "Project/application deletion queued; resources expose deleting, deletionRoot and deletionError until cleanup completes",
-  content: { "application/json": { schema: object({ ok: bool, jobId: str }) } },
+  content: { "application/json": { schema: ref("DeletionResult") } },
 };
 add("/resources/{id}/grants", "get", "List infrastructure grants", array(str));
 add(
   "/resources/{id}/grants",
   "post",
   "Grant infrastructure to a team",
-  obj,
+  ref("Ok"),
   object({ teamId: str, granted: bool }),
 );
 add(
   "/servers/fingerprint",
   "post",
   "Probe an SSH host key without authenticating",
-  obj,
+  ref("FingerprintResult"),
   object({ host: str, port: num }),
 );
 for (const action of ["provision", "test"])
-  add(`/servers/{id}/${action}`, "post", action, obj, obj);
+  add(
+    `/servers/{id}/${action}`,
+    "post",
+    action,
+    ref(action === "provision" ? "Queued" : "DockerVersionResult"),
+  );
 add(
   "/servers/{id}/deletion-plan",
   "post",
@@ -864,7 +1022,7 @@ add(
   "/servers/{id}",
   "delete",
   "Administrator cleanup using a reviewed plan, exact name and permanent volume acknowledgement",
-  object({ jobId: str }),
+  object({ ok: bool, jobId: str }),
   ref("ServerDeletionInput"),
 );
 add(
@@ -903,9 +1061,14 @@ add(
   "/git/{id}/repositories",
   "get",
   "Accessible provider repositories",
-  array(obj),
+  array(ref("RepositoryOption")),
 );
-add("/git/{id}/branches", "get", "Repository branches", array(obj));
+add(
+  "/git/{id}/branches",
+  "get",
+  "Repository branches",
+  array(ref("BranchOption")),
+);
 paths["/git/{id}/branches"].get.parameters.push({
   name: "repository",
   in: "query",
@@ -922,7 +1085,7 @@ add(
     token: str,
   }),
 );
-add("/dns/{id}/zones", "get", "Provider zones", array(obj));
+add("/dns/{id}/zones", "get", "Provider zones", array(ref("ProviderZone")));
 add(
   "/servers/{id}/haproxy",
   "get",
@@ -951,27 +1114,28 @@ add(
   "post",
   "Create DNS record",
   ref("DNSRecord"),
-  ref("DNSRecord"),
+  ref("DNSRecordInput"),
 );
 add(
   "/zones/{id}/records/{record}",
   "put",
   "Update DNS record",
   ref("DNSRecord"),
-  ref("DNSRecord"),
+  ref("DNSRecordInput"),
 );
-add("/zones/{id}/records/{record}", "delete", "Delete DNS record", obj, obj);
+add("/zones/{id}/records/{record}", "delete", "Delete DNS record", ref("Ok"));
 add(
   "/routes/{id}/status",
   "get",
   "DNS, propagation, certificate and route status",
+  ref("DomainState"),
 );
 add(
   "/routes/{id}/sync",
   "post",
   "Reconcile route DNS and certificate",
-  obj,
-  obj,
+  ref("Queued"),
+  input({ mode: { type: "string", enum: ["", "adopt", "replace"] } }, []),
 );
 add(
   "/applications/{id}/runtime",
@@ -984,7 +1148,9 @@ for (const action of ["deploy", "rollback", "action", "approve-preview"])
     `/applications/{id}/${action}`,
     "post",
     action,
-    action === "deploy" || action === "rollback" ? ref("Deployment") : obj,
+    action === "deploy" || action === "rollback"
+      ? ref("Deployment")
+      : ref(action === "action" ? "Ok" : "Queued"),
     action === "deploy"
       ? object(
           {
@@ -1007,9 +1173,25 @@ for (const action of ["deploy", "rollback", "action", "approve-preview"])
           },
           [],
         )
-      : obj,
+      : action === "rollback"
+        ? input({ releaseId: str })
+        : action === "action"
+          ? input({
+              action: { type: "string", enum: ["start", "restart", "stop"] },
+            })
+          : input({
+              sha: {
+                type: "string",
+                pattern: "^[a-fA-F0-9]{40,64}$",
+              },
+            }),
   );
-add("/applications/{id}/releases", "get", "Retained releases", array(obj));
+add(
+  "/applications/{id}/releases",
+  "get",
+  "Retained releases",
+  array(ref("ApplicationRelease")),
+);
 paths["/applications/{id}/action"].post.summary =
   "Start, restart, or durably stop an application. Stop cancels deployment work and pauses automatic deployment until explicit resume.";
 paths["/applications/{id}/action"].post.responses[202] = {
@@ -1056,17 +1238,42 @@ delete paths["/deployments/{id}"].delete.responses[200];
 paths["/deployments/{id}"].delete.responses[404] = {
   description: "Deployment not found",
 };
-add("/teams/{id}/members", "get", "Team members", array(obj));
-add("/teams/{id}/invitations", "post", "Create invitation link", obj, obj);
-add("/projects/{id}/members", "post", "Assign project role", obj, obj);
-add("/teams/{id}/members/{user}", "delete", "Remove team member", obj, obj);
-for (const path of ["/audit", "/jobs"])
-  add(path, "get", path.slice(1), array(obj));
+add("/teams/{id}/members", "get", "Team members", array(ref("TeamMember")));
+add(
+  "/teams/{id}/invitations",
+  "post",
+  "Create invitation link",
+  ref("InvitationResult"),
+  input(
+    {
+      email: str,
+      role: { type: "string", enum: ["owner", "member", "operator", "viewer"] },
+      projectId: str,
+    },
+    ["email", "role"],
+  ),
+);
+add(
+  "/projects/{id}/members",
+  "post",
+  "Assign project role",
+  ref("Ok"),
+  input({
+    userId: str,
+    role: { type: "string", enum: ["owner", "operator", "viewer", "remove"] },
+  }),
+);
+add("/teams/{id}/members/{user}", "delete", "Remove team member", ref("Ok"));
+for (const [path, schema] of [
+  ["/audit", "AuditEntry"],
+  ["/jobs", "Job"],
+])
+  add(path, "get", path.slice(1), array(ref(schema)));
 add(
   "/settings/maintenance",
   "post",
   "Set maintenance mode",
-  obj,
+  object({ enabled: bool }),
   object({ enabled: bool }),
 );
 add(
@@ -1080,7 +1287,7 @@ add(
   "put",
   "Update alert policy",
   ref("AlertPolicy"),
-  ref("AlertPolicy"),
+  ref("AlertPolicyInput"),
 );
 add(
   "/backup",
@@ -1092,8 +1299,15 @@ add(
 paths["/backup"].post.responses[200].content = {
   "application/octet-stream": { schema: { type: "string", format: "binary" } },
 };
-add("/hooks/{id}", "post", "Receive signed GitHub/Gitea webhook", obj, obj);
+add(
+  "/hooks/{id}",
+  "post",
+  "Receive signed GitHub/Gitea webhook",
+  ref("Accepted"),
+  obj,
+);
 const publicPaths = new Set([
+  "/version",
   "/telemetry",
   "/auth/status",
   "/auth/setup",
@@ -1101,15 +1315,58 @@ const publicPaths = new Set([
   "/auth/accept",
   "/hooks/{id}",
 ]);
+for (const [path, name, location, schema] of [
+  ["/resources", "kind", "query", str],
+  ["/deployments", "applicationId", "query", str],
+  [
+    "/deployments/{id}/events",
+    "after",
+    "query",
+    { type: "integer", minimum: 0 },
+  ],
+  ["/deployments/{id}/events", "Last-Event-ID", "header", str],
+  ["/applications/{id}/logs", "container", "query", str],
+  ["/applications/{id}/terminal", "shell", "query", str],
+])
+  paths[path].get.parameters.push({ name, in: location, schema });
+// The non-server delete branches ignore request bodies; the server alias uses
+// the same reviewed input as DELETE /servers/{id}.
+paths["/resources/{id}"].delete.requestBody = {
+  required: false,
+  content: { "application/json": { schema: ref("ServerDeletionInput") } },
+};
+for (const name of [
+  "ResourceInput",
+  "ResourceUpdateInput",
+  "ServerDeletionInput",
+  "DeletionConnectionInput",
+  "NetworkInput",
+  "HAProxySettingsInput",
+  "DashboardAccessInput",
+  "ComposeSource",
+  "HTTPReadinessCheck",
+  "NetworkAttachment",
+  "ServiceNetworking",
+  "PublishedPort",
+]) {
+  schemas[name].additionalProperties = false;
+}
+const errorResponse = {
+  description: "Request failed",
+  content: { "application/json": { schema: ref("Error") } },
+};
 for (const [path, operations] of Object.entries(paths)) {
   for (const [method, operation] of Object.entries(operations)) {
     if (publicPaths.has(path)) operation.security = [];
     else if (["post", "put", "delete"].includes(method))
       operation.security = [{ session: [], csrf: [] }];
-    operation.responses[404] = { description: "Resource not found" };
-    operation.responses[503] = {
-      description: "Maintenance mode or dependency unavailable",
-    };
+    for (const status of [
+      400, 401, 403, 404, 409, 413, 415, 422, 429, 500, 502, 503,
+    ]) {
+      operation.responses[status] = { $ref: "#/components/responses/Error" };
+    }
+    const body = operation.requestBody?.content?.["application/json"]?.schema;
+    if (body?.properties) body.additionalProperties = false;
   }
 }
 for (const path of [
@@ -1150,6 +1407,7 @@ await writeFile(
       paths,
       components: {
         schemas,
+        responses: { Error: errorResponse },
         securitySchemes: {
           session: { type: "apiKey", in: "cookie", name: "shipyard_session" },
           csrf: { type: "apiKey", in: "header", name: "X-CSRF-Token" },

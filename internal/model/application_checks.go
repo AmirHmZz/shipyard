@@ -18,8 +18,14 @@ type PreviewRouting struct {
 	Port    int    `json:"port,omitempty"`
 }
 
+// Missing policy belongs to older applications and retained release snapshots.
+func (a App) CheckedReadiness() bool { return a.ReadinessMode != "container" }
+
 // A non-nil empty list explicitly disables legacy HTTP readiness.
 func (a App) EffectiveReadiness(routes []Resource) []HTTPReadinessCheck {
+	if !a.CheckedReadiness() {
+		return []HTTPReadinessCheck{}
+	}
 	if a.ReadinessChecks != nil {
 		return a.ReadinessChecks
 	}
@@ -62,8 +68,14 @@ func (a App) EffectivePreviewRouting(routes []Resource) PreviewRouting {
 }
 
 func ValidateApplicationChecks(a App) error {
+	if a.ReadinessMode != "" && a.ReadinessMode != "container" && a.ReadinessMode != "checks" {
+		return errors.New("readiness mode must be container or checks")
+	}
 	seen := map[HTTPReadinessCheck]bool{}
 	for _, check := range a.ReadinessChecks {
+		if !a.CheckedReadiness() {
+			break
+		}
 		if check.Service == "" || strings.ContainsAny(check.Service, " \t\r\n") || check.Port < 1 || check.Port > 65535 || !strings.HasPrefix(check.Path, "/") || strings.ContainsAny(check.Path, "\r\n") {
 			return errors.New("HTTP readiness requires a service, port 1–65535 and path beginning with /")
 		}

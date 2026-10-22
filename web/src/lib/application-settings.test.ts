@@ -44,7 +44,11 @@ describe("application configuration compatibility", () => {
         },
         [route("app", 3000)],
       ),
-    ).toEqual({ readinessChecks: [], previewRouting: { mode: "private" } });
+    ).toEqual({
+      readinessMode: "checks",
+      readinessChecks: [],
+      previewRouting: { mode: "private" },
+    });
     expect(
       normalizeApplicationSettings({ port: 3000 }, []).previewRouting,
     ).toEqual({ mode: "target", service: "app", port: 3000 });

@@ -17,7 +17,6 @@ export function authFormSchema(mode: "login" | "setup" | "accept") {
   });
 }
 
-// TODO(openapi): document the setup status response.
 export const setupStatusResponseSchema = z.object({
   setupRequired: z.boolean(),
   setupEnabled: z.boolean(),

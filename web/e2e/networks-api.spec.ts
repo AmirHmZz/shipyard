@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { buildInfoFixture } from "./build-info";
+
 test("network removal is immediate, rolls back on failure, and preserves external Docker networks", async ({
   page,
 }) => {
@@ -43,6 +45,8 @@ test("network removal is immediate, rolls back on failure, and preserves externa
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
+    if (path.endsWith("/version"))
+      return route.fulfill({ json: buildInfoFixture });
     if (path.endsWith("/telemetry"))
       return route.fulfill({ json: { dsn: "" } });
     if (path.endsWith("/auth/me"))

@@ -1,11 +1,15 @@
 import { expect, test } from "@playwright/test";
 
+import { buildInfoFixture } from "./build-info";
+
 test("sign-in API errors are visible in the provider toaster", async ({
   page,
 }) => {
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
+    if (path.endsWith("/version"))
+      return route.fulfill({ json: buildInfoFixture });
     if (path.endsWith("/telemetry"))
       return route.fulfill({ json: { dsn: "" } });
     if (path.endsWith("/auth/me"))

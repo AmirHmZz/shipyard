@@ -4,6 +4,8 @@ import { expect, test } from "@playwright/test";
 
 import type { components } from "../src/lib/schema";
 
+import { buildInfoFixture } from "./build-info";
+
 type Resource = components["schemas"]["Resource"];
 type Input = components["schemas"]["ResourceInput"];
 type Certificate = components["schemas"]["CertificateSummary"];
@@ -93,6 +95,8 @@ async function mock(page: Page) {
             "https://shipyard.test/api/v1/git/setup/gitea/callback",
         },
       });
+    if (path.endsWith("/version"))
+      return route.fulfill({ json: buildInfoFixture });
     if (path.endsWith("/telemetry"))
       return route.fulfill({ json: { dsn: "" } });
     requests.push(path);

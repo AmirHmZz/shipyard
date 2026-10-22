@@ -31,7 +31,6 @@ export const teamMembersResponseSchema = z.array(
   }),
 );
 
-// TODO(openapi): document the invitation creation response.
 export const invitationResultResponseSchema = z.object({ url: z.string() });
 
 export const projectAssignmentSchema = z.object({

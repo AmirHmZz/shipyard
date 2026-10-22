@@ -1,4 +1,5 @@
 export const resourceKeys = { all: ["resources"] as const };
+export const buildInfoKeys = { all: ["build-info"] as const };
 export const sessionKeys = { all: ["session"] as const };
 export const deploymentKeys = {
   all: ["deployments"] as const,

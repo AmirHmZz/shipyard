@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { buildInfoFixture } from "./build-info";
+
 test("registry integrations save encrypted credentials and support team grants", async ({
   page,
 }) => {
@@ -26,6 +28,8 @@ test("registry integrations save encrypted credentials and support team grants",
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname.replace("/api/v1", "");
+    if (path.endsWith("/version"))
+      return route.fulfill({ json: buildInfoFixture });
     if (path === "/telemetry") return route.fulfill({ json: { dsn: "" } });
     if (path === "/auth/me")
       return route.fulfill({

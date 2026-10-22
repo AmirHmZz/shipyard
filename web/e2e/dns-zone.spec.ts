@@ -4,6 +4,8 @@ import { expect, test } from "@playwright/test";
 
 import type { components } from "../src/lib/schema";
 
+import { buildInfoFixture } from "./build-info";
+
 type Resource = components["schemas"]["Resource"];
 type ResourceInput = components["schemas"]["ResourceInput"];
 
@@ -35,6 +37,8 @@ async function mockAPI(page: Page, initial: Resource[] = []) {
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
+    if (path.endsWith("/version"))
+      return route.fulfill({ json: buildInfoFixture });
     if (path.endsWith("/telemetry"))
       return route.fulfill({ json: { dsn: "" } });
     if (path === "/api/v1/auth/me") {

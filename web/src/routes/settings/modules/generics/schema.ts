@@ -1,7 +1,10 @@
 import * as z from "zod/mini";
 
+import { buildInfoResponseSchema } from "@/lib/schemas/build-info";
+import { domainStatusResponseSchema } from "@/lib/schemas/domains";
 import { requiredText } from "@/lib/schemas/form-rules";
 import { blobResponseSchema } from "@/lib/schemas/responses";
+export { buildInfoResponseSchema } from "@/lib/schemas/build-info";
 
 export const passwordFormSchema = z.object({
   current: z.string().check(z.minLength(1, "Current password is required.")),
@@ -101,14 +104,6 @@ export const alertPolicyResponseSchema = z.object({
 
 export const maintenanceResponseSchema = z.object({ enabled: z.boolean() });
 
-export const buildInfoResponseSchema = z.object({
-  version: z.string(),
-  commit: z.string(),
-  builtAt: z.string(),
-  architecture: z.string(),
-  updaterProtocol: z.number(),
-});
-
 export const dashboardAccessResponseSchema = z.object({
   version: z.number(),
   enabled: z.boolean(),
@@ -120,15 +115,7 @@ export const dashboardAccessResponseSchema = z.object({
   activeRouteId: z.string(),
   acmeConfigured: z.boolean(),
   acmeEmail: z.string(),
-  status: z.optional(
-    z.object({
-      dns: z.string(),
-      propagation: z.string(),
-      certificate: z.string(),
-      routing: z.string(),
-      error: z.string(),
-    }),
-  ),
+  status: z.optional(domainStatusResponseSchema),
   error: z.optional(z.string()),
 });
 
@@ -227,7 +214,6 @@ export const userResponseSchema = z.object({
   totp: z.boolean(),
 });
 
-// TODO(openapi): document history category and TOTP recovery responses.
 export const historyResponseSchema = z.array(
   z.record(z.string(), z.union([z.string(), z.number()])),
 );

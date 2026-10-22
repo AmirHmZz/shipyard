@@ -6,6 +6,8 @@ import {
   Search,
   Settings2,
   Sun,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import { Suspense } from "react";
 import { Link, Outlet } from "react-router";
@@ -39,6 +41,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { cn } from "@/lib/utils";
 
 import { useShellPage } from "../hooks";
 import { Sidebar } from "./Sidebar";
@@ -46,7 +49,7 @@ import { WorkspaceSearch } from "./WorkspaceSearch";
 export type ShellProps = { session: Session };
 export function Shell({ session }: ShellProps) {
   const { state, derived, handlers } = useShellPage(session);
-  const { search, mobile, dark } = state;
+  const { search, mobile, dark, collapsed } = state;
   const { current, parentPath, parentLabel, page, initials } = derived;
   const {
     setSearch,
@@ -56,14 +59,32 @@ export function Shell({ session }: ShellProps) {
     closeMobile,
     openSearch,
     openSettings,
+    toggleSidebar,
   } = handlers;
   return (
     <div className="min-h-screen">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 border-r bg-sidebar lg:block">
-        <Sidebar />
+      <aside
+        id="desktop-sidebar"
+        className={cn(
+          "fixed inset-y-0 left-0 z-30 hidden border-r bg-sidebar lg:block",
+          collapsed ? "w-16" : "w-60",
+        )}
+      >
+        <Sidebar collapsed={collapsed} />
       </aside>
-      <div className="lg:ml-60">
+      <div className={collapsed ? "lg:ml-16" : "lg:ml-60"}>
         <header className="sticky top-0 z-20 flex h-16 items-center gap-4 border-b bg-background/95 px-5 backdrop-blur md:px-9">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="hidden lg:inline-flex"
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-expanded={!collapsed}
+            aria-controls="desktop-sidebar"
+            onClick={toggleSidebar}
+          >
+            {collapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
+          </Button>
           <Sheet open={mobile} onOpenChange={setMobile}>
             <SheetTrigger asChild>
               <Button

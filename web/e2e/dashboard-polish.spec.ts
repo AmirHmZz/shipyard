@@ -4,6 +4,8 @@ import { expect, test } from "@playwright/test";
 
 import type { components } from "../src/lib/schema";
 
+import { buildInfoFixture } from "./build-info";
+
 type Resource = components["schemas"]["Resource"];
 type ResourceInput = components["schemas"]["ResourceInput"];
 function resource(id: string, input: ResourceInput): Resource {
@@ -39,6 +41,8 @@ async function dashboard(page: Page, initial: Resource[] = []) {
             "https://shipyard.test/api/v1/git/setup/gitea/callback",
         },
       });
+    if (path.endsWith("/version"))
+      return route.fulfill({ json: buildInfoFixture });
     if (path.endsWith("/telemetry"))
       return route.fulfill({ json: { dsn: "" } });
     if (path === "/api/v1/auth/me")

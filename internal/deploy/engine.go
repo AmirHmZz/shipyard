@@ -531,6 +531,12 @@ func (e *Engine) Healthy(ctx context.Context, r model.Release) error {
 			last = err
 		}
 		checks := r.App.EffectiveReadiness(r.Routes)
+		if err == nil {
+			if err = requiredContainers(r, containers); err != nil {
+				healthy = false
+				last = err
+			}
+		}
 		for _, c := range containers {
 			requiresHTTP := false
 			for _, check := range checks {
@@ -541,7 +547,7 @@ func (e *Engine) Healthy(ctx context.Context, r model.Release) error {
 			if !requiresHTTP && r.App.Engine == "compose" && c.State.Status == "exited" && c.State.ExitCode == 0 && len(portsFor(r, c.Config.Labels["com.docker.compose.service"])) == 0 {
 				continue
 			}
-			if c.State.Status != "running" || c.State.Health != nil && c.State.Health.Status != "healthy" {
+			if c.State.Status != "running" || r.App.CheckedReadiness() && c.State.Health != nil && c.State.Health.Status != "healthy" {
 				healthy = false
 				message := fmt.Sprintf("%sstate=%s exit=%d restarts=%d OOM=%t", containerLabel(c), c.State.Status, c.State.ExitCode, c.RestartCount, c.State.OOMKilled)
 				if c.State.Health != nil {
@@ -550,7 +556,7 @@ func (e *Engine) Healthy(ctx context.Context, r model.Release) error {
 				last = errors.New(message)
 			}
 		}
-		if healthy && e.Dial != nil {
+		if healthy && r.App.CheckedReadiness() && e.Dial != nil {
 			probes := make([]readinessProbe, 0, len(r.Targets))
 			for _, t := range r.Targets {
 				probes = append(probes, readinessProbe{Target: t})

@@ -27,6 +27,14 @@ export function ResourceSchemaFields({
         .filter(
           (f) =>
             !(
+              kind === "application" &&
+              f.key === "readinessChecks" &&
+              data.readinessMode === "container"
+            ),
+        )
+        .filter(
+          (f) =>
+            !(
               kind === "server" &&
               data.connection === "local" &&
               [

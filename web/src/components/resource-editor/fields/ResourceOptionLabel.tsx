@@ -16,6 +16,10 @@ export function ResourceOptionLabel({
     return value === "terminate" ? "TLS termination" : "TLS passthrough";
   if (field === "source")
     return value === "compose" ? "Direct Compose" : "Git repository";
+  if (field === "readinessMode")
+    return value === "container"
+      ? "Container status"
+      : "Additional readiness checks";
   if (field === "authMethod")
     return value === "private_key" ? "Private key (recommended)" : "Password";
   if (field === "provider") return <ProviderName provider={value} />;

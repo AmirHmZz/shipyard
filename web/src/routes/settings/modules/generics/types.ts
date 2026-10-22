@@ -26,7 +26,6 @@ export type Plan = z.infer<typeof versionChangePlanResponseSchema>;
 
 export type State = z.infer<typeof dashboardAccessResponseSchema>;
 
-// TODO(openapi): add user administration responses to api/openapi.yaml.
 export type User = z.infer<typeof userResponseSchema>;
 
 export type PasswordValues = z.infer<typeof passwordFormSchema>;

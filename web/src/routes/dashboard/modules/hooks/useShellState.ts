@@ -1,11 +1,17 @@
 import { useEffect, useReducer } from "react";
 
+import { readSidebarCollapsed, writeSidebarCollapsed } from "@/lib/sidebar";
 import { readTheme, writeTheme } from "@/lib/theme";
 
 import { shellReducer } from "../generics";
 
 function initialShellState() {
-  return { search: false, mobile: false, dark: readTheme() === "dark" };
+  return {
+    search: false,
+    mobile: false,
+    dark: readTheme() === "dark",
+    collapsed: readSidebarCollapsed(),
+  };
 }
 export function useShellState() {
   const [state, dispatch] = useReducer(
@@ -16,6 +22,9 @@ export function useShellState() {
   useEffect(() => {
     writeTheme(state.dark ? "dark" : "light");
   }, [state.dark]);
+  useEffect(() => {
+    writeSidebarCollapsed(state.collapsed);
+  }, [state.collapsed]);
   useEffect(() => {
     function key(event: KeyboardEvent) {
       if ((event.ctrlKey || event.metaKey) && event.key === "k") {
@@ -35,5 +44,11 @@ export function useShellState() {
   function toggleTheme() {
     dispatch({ type: "theme_toggled" });
   }
-  return { state, handlers: { setSearch, setMobile, toggleTheme } };
+  function toggleSidebar() {
+    dispatch({ type: "sidebar_toggled" });
+  }
+  return {
+    state,
+    handlers: { setSearch, setMobile, toggleTheme, toggleSidebar },
+  };
 }
