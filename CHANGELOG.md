@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/AmirHmZz/shipyard/compare/v0.5.0...v0.6.0) (2026-10-22)
+
+
+### Features
+
+* add registry auth and reliable deployment controls ([40a33ee](https://github.com/AmirHmZz/shipyard/commit/40a33ee4bbb08592db041d8c456f9c0722f214f0))
+
 ## [0.5.0](https://github.com/AmirHmZz/shipyard/compare/v0.4.0...v0.5.0) (2026-10-19)
 
 
