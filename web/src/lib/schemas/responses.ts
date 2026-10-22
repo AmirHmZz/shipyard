@@ -16,4 +16,3 @@ export const blobResponseSchema = z.custom<Blob>(
     "size" in value &&
     typeof value.size === "number",
 );
-
