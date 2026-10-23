@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/AmirHmZz/shipyard/compare/v0.7.0...v0.8.0) (2026-10-23)
+
+
+### Features
+
+* add job applications with scheduled execution ([0555101](https://github.com/AmirHmZz/shipyard/commit/0555101980d5a794c39918ca7e1e5482530d1f33))
+
 ## [0.7.0](https://github.com/AmirHmZz/shipyard/compare/v0.6.0...v0.7.0) (2026-10-22)
 
 
