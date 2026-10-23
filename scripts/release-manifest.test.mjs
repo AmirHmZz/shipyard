@@ -6,6 +6,21 @@ import { tmpdir } from "node:os";
 import { basename, join, resolve, sep } from "node:path";
 import { test } from "node:test";
 
+test("repository release metadata stays synchronized", () => {
+  const root = resolve("."),
+    version = readFileSync(join(root, "VERSION"), "utf8").trim(),
+    packageVersion = JSON.parse(
+      readFileSync(join(root, "web/package.json"), "utf8"),
+    ).version,
+    changelog = readFileSync(join(root, "CHANGELOG.md"), "utf8");
+  assert.match(version, /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/);
+  assert.equal(packageVersion, version);
+  assert.ok(
+    changelog.split(/\r?\n/).some((line) => line.startsWith(`## [${version}]`)),
+    `CHANGELOG.md is missing a ${version} heading`,
+  );
+});
+
 test("release artifacts pin images, preserve migration checksums and refuse invalid versions", () => {
   const root = resolve("."),
     temp = mkdtempSync(join(tmpdir(), "shipyard-release-"));

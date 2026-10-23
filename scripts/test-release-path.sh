@@ -17,7 +17,12 @@ new_image=$(jq -r .coreImage "$manifest")
 for image in "$old_image" "$new_image";do printf '%s' "$image" | grep -Eq '^ghcr.io/amirhmzz/shipyard@sha256:[a-f0-9]{64}$';docker pull "$image";done
 docker network create "$network" >/dev/null
 docker run -d --name "$network-db" --network "$network" -e POSTGRES_PASSWORD=release-test -e POSTGRES_DB=shipyard postgres:18-alpine >/dev/null
-for attempt in $(seq 1 60);do if docker exec "$network-db" pg_isready -U postgres >/dev/null 2>&1;then break;fi;sleep 1;done
+ready=false
+for attempt in $(seq 1 60);do
+ if docker run --rm --network "$network" postgres:18-alpine pg_isready -h "$network-db" -U postgres -d shipyard >/dev/null 2>&1;then ready=true;break;fi
+ sleep 1
+done
+if [ "$ready" != true ];then docker logs "$network-db" >&2;echo 'PostgreSQL did not become reachable over the release-test network' >&2;exit 1;fi
 db="postgres://postgres:release-test@$network-db:5432/shipyard?sslmode=disable"
 old_schema=$(jq -r .schema "$tmp/release.json")
 new_schema=$(jq -r .schema "$manifest")

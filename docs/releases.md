@@ -6,15 +6,17 @@
 
 Public releases belong to `AmirHmZz/shipyard`; images are `ghcr.io/amirhmzz/shipyard` and `ghcr.io/amirhmzz/shipyard-executor`. Publication requires repository access and a successful GitHub Actions run. Local development does not publish a release.
 
-Enable Actions permission to create pull requests. The workflow uses only `GITHUB_TOKEN`: contents/pull requests/issues write for Release Please, actions write for explicit validation dispatch, and packages write for image publication. Set both GHCR packages to **public** and allow repository Actions access. Publication requires anonymous pulls of both image digests.
+The release workflow uses only `GITHUB_TOKEN` with contents write access for release assets and packages write access for image publication. Set both GHCR packages to **public** and allow repository Actions access. Publication requires anonymous pulls of both image digests.
 
-Use squash merges with Conventional Commit titles: `fix: ...` increments patch, `feat: ...` increments minor. `feat!: ...` or a `BREAKING CHANGE:` footer increments minor before 1.0 and major afterward. Preserve generated release PR titles/labels. The manifest's initial `0.0.0` is Release Please's unreleased sentinel; `initial-version` selects 0.1.0.
+Conventional Commit titles remain required for development history, but they do not select or update the release version. The release operator chooses the version and manually keeps `VERSION`, `web/package.json` and the matching `CHANGELOG.md` heading synchronized in a direct commit on `main`. Wait for the main validation workflow to pass before tagging.
 
-The reusable validation workflow covers Go race/static checks, frontend checks/builds, contract drift, browser behavior and Linux Docker/Compose/HAProxy integration. Release Please creates one repository-wide version/changelog PR. Generated release branches are explicitly dispatched for validation because token-generated events do not trigger normal follow-up workflows. Merging the release PR creates a draft release/tag; publication runs from the release workflow itself.
+Create and push an immutable `vX.Y.Z` tag at that validated commit. In GitHub, create a draft release that selects the existing tag and supply its release notes. Then run **Release** from the `main` branch with the tag as its required input. There is no release PR and the workflow never creates or moves a tag.
+
+The workflow first requires the tag to be reachable from `main`, the GitHub release to still be a non-prerelease draft, and the tag, product version, frontend version and changelog heading to agree. It then runs the complete reusable validation workflow against the tag. Product images and release contents always come from the tag; publication scripts come from the validated `main` revision so a broken gate can be repaired without moving the tag.
 
 Both AMD64/ARM64 images carry exact version tags, OCI metadata, SBOMs and provenance. Assets include `install.sh`, production `compose.host.yaml` with no source builds, `SHA256SUMS`, and `release.json`. The manifest records image digests, source commit, schema, migration checksums/impacts, supported predecessor, updater protocol, architectures and runtime requirements. Production PostgreSQL is pinned by digest too.
 
-Releases remain draft until validation, image publication, anonymous pulls, artifact checks and preceding-release migration checks succeed. Published releases are not overwritten. To retry failed publication, run **Release** manually with the existing draft `vX.Y.Z` tag. Validation checks that tag's source; draft assets can be retried, while a published target is refused. Review both architecture manifests before distributing the installer.
+Releases remain draft until validation, image publication, anonymous pulls, artifact checks and preceding-release migration checks succeed. The workflow uploads the required assets only after those gates, then publishes the draft and marks it latest. To retry failed publication, rerun **Release** with the same draft tag. Published releases are refused and never overwritten. Review both architecture manifests before distributing the installer.
 
 ## Administrator workflow
 
@@ -47,4 +49,4 @@ Supply `DATABASE_URL` securely. `--allow-data-loss` explicitly acknowledges dest
 
 Docker Desktop keeps `compose.yaml` and source builds. System updates is disabled without a native release installation manifest. No existing installation, connection, application or data is automatically converted/reset.
 
-References: [Release Please](https://github.com/googleapis/release-please-action), [GitHub workflow triggers](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow), [HTTP-01 requirements](https://letsencrypt.org/docs/challenge-types/#http-01-challenge).
+References: [GitHub workflow triggers](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow), [HTTP-01 requirements](https://letsencrypt.org/docs/challenge-types/#http-01-challenge).

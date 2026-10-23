@@ -1,12 +1,10 @@
 name: Release
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing draft release tag to resume (vX.Y.Z)
-        required: false
+        description: Existing tag with a matching draft release (vX.Y.Z)
+        required: true
         type: string
 permissions:
   contents: read
@@ -14,51 +12,46 @@ concurrency:
   group: shipyard-release
   cancel-in-progress: false
 jobs:
-  validate:
-    uses: ./.github/workflows/check.yaml
-    with:
-      ref: ${{ inputs.tag || github.sha }}
-  release:
-    needs: validate
+  select:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-      issues: write
-      actions: write
     outputs:
       tag: ${{ steps.select.outputs.tag }}
+      tooling_sha: ${{ steps.select.outputs.tooling_sha }}
     steps:
-      - uses: googleapis/release-please-action@v4
-        if: inputs.tag == ''
-        id: release
+      - uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Validate generated release branches
-        if: steps.release.outputs.prs_created == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
-          RELEASE_PRS: ${{ steps.release.outputs.prs }}
-        run: |
-          printf '%s' "$RELEASE_PRS" | jq -r '.[].headBranchName' | while read -r branch; do
-            test -n "$branch"
-            gh workflow run check.yaml --ref "$branch"
-          done
+          ref: main
+          fetch-depth: 0
       - id: select
         env:
-          TAG: ${{ inputs.tag || steps.release.outputs.tag_name }}
-          CREATED: ${{ steps.release.outputs.release_created }}
+          TAG: ${{ inputs.tag }}
+          DISPATCH_REF: ${{ github.ref }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
         run: |
-          if [ -z "$TAG" ]; then exit 0; fi
+          test "$DISPATCH_REF" = 'refs/heads/main'
           printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'
-          test "$(gh release view "$TAG" --json isDraft -q .isDraft)" = true
+          git show-ref --verify --quiet "refs/tags/$TAG"
+          tag_commit=$(git rev-parse "refs/tags/$TAG^{commit}")
+          git merge-base --is-ancestor "$tag_commit" HEAD
+          release=$(gh release view "$TAG" --json tagName,isDraft,isPrerelease)
+          test "$(printf '%s' "$release" | jq -r .tagName)" = "$TAG"
+          test "$(printf '%s' "$release" | jq -r .isDraft)" = true
+          test "$(printf '%s' "$release" | jq -r .isPrerelease)" = false
+          git worktree add --detach /tmp/shipyard-release-source "$TAG"
+          version=$(cat /tmp/shipyard-release-source/VERSION)
+          test "$TAG" = "v$version"
+          test "$(jq -r .version /tmp/shipyard-release-source/web/package.json)" = "$version"
+          grep -Fq "## [$version]" /tmp/shipyard-release-source/CHANGELOG.md
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "tooling_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+  validate:
+    needs: select
+    uses: ./.github/workflows/check.yaml
+    with:
+      ref: ${{ needs.select.outputs.tag }}
   publish:
-    needs: [validate, release]
-    if: needs.release.outputs.tag != ''
+    needs: [select, validate]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -66,7 +59,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ needs.release.outputs.tag }}
+          ref: ${{ needs.select.outputs.tag }}
+          path: source
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.select.outputs.tooling_sha }}
+          path: tooling
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
@@ -75,8 +73,9 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - id: metadata
+        working-directory: source
         env:
-          TAG: ${{ needs.release.outputs.tag }}
+          TAG: ${{ needs.select.outputs.tag }}
         run: |
           test "$TAG" = "v$(cat VERSION)"
           {
@@ -87,7 +86,7 @@ jobs:
       - uses: docker/build-push-action@v6
         id: core
         with:
-          context: .
+          context: source
           push: true
           platforms: linux/amd64,linux/arm64
           tags: ghcr.io/amirhmzz/shipyard:${{ steps.metadata.outputs.version }}
@@ -100,7 +99,7 @@ jobs:
       - uses: docker/build-push-action@v6
         id: executor
         with:
-          context: .
+          context: source
           target: host-executor
           push: true
           platforms: linux/amd64,linux/arm64
@@ -132,6 +131,7 @@ jobs:
             done
           done
       - name: Generate immutable installation artifacts
+        working-directory: source
         env:
           CORE_DIGEST: ${{ steps.core.outputs.digest }}
           EXECUTOR_DIGEST: ${{ steps.executor.outputs.digest }}
@@ -144,13 +144,15 @@ jobs:
           POSTGRES_IMAGE=$(docker inspect postgres:18-alpine --format '{{index .RepoDigests 0}}')
           PREVIOUS_VERSION=$(gh release list --exclude-drafts --exclude-pre-releases --json tagName --jq '.[0].tagName // ""' | sed 's/^v//')
           export POSTGRES_IMAGE PREVIOUS_VERSION
-          node scripts/release-manifest.mjs
+          node ../tooling/scripts/release-manifest.mjs
           cd .local/release && sha256sum -c SHA256SUMS
       - name: Test the preceding published schema in both directions
-        run: sh scripts/test-release-path.sh .local/release/release.json
+        working-directory: source
+        run: sh ../tooling/scripts/test-release-path.sh .local/release/release.json
       - name: Publish completed release
+        working-directory: source
         env:
-          TAG: ${{ needs.release.outputs.tag }}
+          TAG: ${{ needs.select.outputs.tag }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
         run: |
