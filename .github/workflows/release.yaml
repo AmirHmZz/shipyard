@@ -1,9 +1,13 @@
 name: Release
 on:
+  workflow_run:
+    workflows: [Validate]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing tag with a matching draft release (vX.Y.Z)
+        description: Existing release tag to validate and publish (vX.Y.Z)
         required: true
         type: string
 permissions:
@@ -13,10 +17,17 @@ concurrency:
   cancel-in-progress: false
 jobs:
   select:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
     outputs:
+      release: ${{ steps.select.outputs.release }}
       tag: ${{ steps.select.outputs.tag }}
+      source_sha: ${{ steps.select.outputs.source_sha }}
       tooling_sha: ${{ steps.select.outputs.tooling_sha }}
+      validate: ${{ steps.select.outputs.validate }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -24,33 +35,84 @@ jobs:
           fetch-depth: 0
       - id: select
         env:
-          TAG: ${{ inputs.tag }}
           DISPATCH_REF: ${{ github.ref }}
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+          WORKFLOW_RUN_SHA: ${{ github.event.workflow_run.head_sha }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
         run: |
-          test "$DISPATCH_REF" = 'refs/heads/main'
-          printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'
-          git show-ref --verify --quiet "refs/tags/$TAG"
-          tag_commit=$(git rev-parse "refs/tags/$TAG^{commit}")
-          git merge-base --is-ancestor "$tag_commit" HEAD
-          release=$(gh release view "$TAG" --json tagName,isDraft,isPrerelease)
-          test "$(printf '%s' "$release" | jq -r .tagName)" = "$TAG"
-          test "$(printf '%s' "$release" | jq -r .isDraft)" = true
-          test "$(printf '%s' "$release" | jq -r .isPrerelease)" = false
-          git worktree add --detach /tmp/shipyard-release-source "$TAG"
-          version=$(cat /tmp/shipyard-release-source/VERSION)
-          test "$TAG" = "v$version"
-          test "$(jq -r .version /tmp/shipyard-release-source/web/package.json)" = "$version"
-          grep -Fq "## [$version]" /tmp/shipyard-release-source/CHANGELOG.md
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "tooling_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          tooling_sha=$(git rev-parse HEAD)
+          if test "$EVENT_NAME" = workflow_dispatch; then
+            test "$DISPATCH_REF" = refs/heads/main
+            mode=manual
+            tag="$INPUT_TAG"
+            printf '%s' "$tag" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'
+            git show-ref --verify --quiet "refs/tags/$tag"
+            source_sha=$(git rev-parse "refs/tags/$tag^{commit}")
+            validate=true
+          else
+            mode=automatic
+            source_sha="$WORKFLOW_RUN_SHA"
+            tooling_sha="$source_sha"
+            validate=false
+          fi
+
+          git cat-file -e "$source_sha^{commit}"
+          if test "$mode" = automatic; then
+            git merge-base --is-ancestor "$source_sha" HEAD
+          fi
+          git worktree add --detach /tmp/shipyard-release-source "$source_sha"
+          subject=$(git show -s --format=%s "$source_sha")
+          selection=$(node scripts/release-selection.mjs \
+            --mode "$mode" --source /tmp/shipyard-release-source \
+            --subject "$subject" --tag "${tag:-}")
+          release=$(printf '%s' "$selection" | jq -r .release)
+          echo "release=$release" >> "$GITHUB_OUTPUT"
+          if test "$release" != true; then
+            echo "Commit is not a release commit; nothing to publish."
+            exit 0
+          fi
+
+          tag=$(printf '%s' "$selection" | jq -r .tag)
+          tag_commit=
+          if git show-ref --verify --quiet "refs/tags/$tag"; then
+            tag_commit=$(git rev-parse "refs/tags/$tag^{commit}")
+          elif test "$mode" = manual; then
+            echo "Manual recovery requires an existing $tag tag." >&2
+            exit 1
+          fi
+
+          if release_json=$(gh api "repos/$GH_REPO/releases/tags/$tag" 2>/tmp/shipyard-release-error); then
+            :
+          else
+            release_json=
+            grep -q 'HTTP 404' /tmp/shipyard-release-error || {
+              cat /tmp/shipyard-release-error >&2
+              exit 1
+            }
+          fi
+          node scripts/release-selection.mjs --mode state \
+            --expected-commit "$source_sha" --expected-tag "$tag" \
+            --tag-commit "$tag_commit" --release "$release_json" >/dev/null
+
+          {
+            echo "tag=$tag"
+            echo "source_sha=$source_sha"
+            echo "tooling_sha=$tooling_sha"
+            echo "validate=$validate"
+          } >> "$GITHUB_OUTPUT"
   validate:
+    if: needs.select.outputs.validate == 'true'
     needs: select
     uses: ./.github/workflows/check.yaml
     with:
-      ref: ${{ needs.select.outputs.tag }}
+      ref: ${{ needs.select.outputs.source_sha }}
   publish:
+    if: >-
+      always() && needs.select.result == 'success' &&
+      needs.select.outputs.release == 'true' &&
+      (needs.validate.result == 'success' || needs.validate.result == 'skipped')
     needs: [select, validate]
     runs-on: ubuntu-latest
     permissions:
@@ -59,7 +121,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ needs.select.outputs.tag }}
+          ref: ${{ needs.select.outputs.source_sha }}
           path: source
       - uses: actions/checkout@v4
         with:
@@ -76,11 +138,13 @@ jobs:
         working-directory: source
         env:
           TAG: ${{ needs.select.outputs.tag }}
+          SOURCE_SHA: ${{ needs.select.outputs.source_sha }}
         run: |
           test "$TAG" = "v$(cat VERSION)"
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
           {
             echo "version=$(cat VERSION)"
-            echo "commit=$(git rev-parse HEAD)"
+            echo "commit=$SOURCE_SHA"
             echo "date=$(git show -s --format=%cI HEAD)"
           } >> "$GITHUB_OUTPUT"
       - uses: docker/build-push-action@v6
@@ -149,13 +213,74 @@ jobs:
       - name: Test the preceding published schema in both directions
         working-directory: source
         run: sh ../tooling/scripts/test-release-path.sh .local/release/release.json
-      - name: Publish completed release
+      - name: Create tag and publish completed release
         working-directory: source
         env:
           TAG: ${{ needs.select.outputs.tag }}
+          SOURCE_COMMIT: ${{ needs.select.outputs.source_sha }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
         run: |
-          test "$(gh release view "$TAG" --json isDraft -q .isDraft)" = true
-          gh release upload "$TAG" .local/release/* --clobber
-          gh release edit "$TAG" --draft=false --latest
+          remote_tag_commit() {
+            if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+              git fetch --force origin "refs/tags/$TAG:refs/tags/$TAG"
+              git rev-parse "refs/tags/$TAG^{commit}"
+            fi
+          }
+
+          tag_commit=$(remote_tag_commit)
+          if test -n "$tag_commit"; then
+            test "$tag_commit" = "$SOURCE_COMMIT"
+          else
+            if gh api --method POST "repos/$GH_REPO/git/refs" \
+              -f ref="refs/tags/$TAG" -f sha="$SOURCE_COMMIT" >/dev/null; then
+              tag_commit="$SOURCE_COMMIT"
+            else
+              tag_commit=$(remote_tag_commit)
+              test "$tag_commit" = "$SOURCE_COMMIT"
+            fi
+          fi
+
+          state=missing
+          if release_json=$(gh api "repos/$GH_REPO/releases/tags/$TAG" 2>/tmp/shipyard-release-error); then
+            state=draft
+          else
+            release_json=
+            grep -q 'HTTP 404' /tmp/shipyard-release-error || {
+              cat /tmp/shipyard-release-error >&2
+              exit 1
+            }
+          fi
+          node ../tooling/scripts/release-selection.mjs --mode state \
+            --expected-commit "$SOURCE_COMMIT" --expected-tag "$TAG" \
+            --tag-commit "$tag_commit" --release "$release_json" >/dev/null
+
+          previous_tag=$(gh release list --exclude-drafts --exclude-pre-releases \
+            --limit 100 --json tagName,publishedAt \
+            --jq 'sort_by(.publishedAt) | reverse | .[0].tagName // ""')
+          if test -n "$previous_tag"; then
+            jq -n --arg tag "$TAG" --arg commit "$SOURCE_COMMIT" \
+              --arg previous "$previous_tag" \
+              '{tag_name:$tag,target_commitish:$commit,previous_tag_name:$previous}' \
+              > /tmp/shipyard-generate-notes.json
+          else
+            jq -n --arg tag "$TAG" --arg commit "$SOURCE_COMMIT" \
+              '{tag_name:$tag,target_commitish:$commit}' \
+              > /tmp/shipyard-generate-notes.json
+          fi
+          gh api --method POST "repos/$GH_REPO/releases/generate-notes" \
+            --input /tmp/shipyard-generate-notes.json \
+            > /tmp/shipyard-release-notes.json
+          jq -r .body /tmp/shipyard-release-notes.json > /tmp/shipyard-release-notes.md
+          title=$(jq -r .name /tmp/shipyard-release-notes.json)
+
+          if test "$state" = draft; then
+            gh release edit "$TAG" --title "$title" \
+              --notes-file /tmp/shipyard-release-notes.md
+            gh release upload "$TAG" .local/release/* --clobber
+            test "$(gh release view "$TAG" --json isDraft -q .isDraft)" = true
+            gh release edit "$TAG" --draft=false --latest
+          else
+            gh release create "$TAG" .local/release/* --verify-tag --latest \
+              --title "$title" --notes-file /tmp/shipyard-release-notes.md
+          fi
