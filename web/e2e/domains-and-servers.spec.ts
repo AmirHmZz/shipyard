@@ -171,6 +171,8 @@ async function mock(page: Page) {
           }),
         ],
       });
+    if (path === "/api/v1/notifications/webhook/delivery")
+      return route.fulfill({ json: { state: "none", error: "", at: null } });
     if (path.endsWith("/metrics")) return route.fulfill({ json: [] });
     throw new Error(`Unexpected request ${request.method()} ${path}`);
   });
@@ -366,7 +368,7 @@ test("integrations are grouped with leading provider logos and sidebar spacing",
   });
   const dns = page.getByRole("region", { name: "DNS providers", exact: true });
   const alerts = page.getByRole("region", {
-    name: "Notification webhooks",
+    name: "Notifications",
     exact: true,
   });
   await expect(

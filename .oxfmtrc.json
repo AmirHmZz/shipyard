@@ -21,6 +21,7 @@
     "web/src/lib/schema.d.ts",
     "internal/db/query/**",
     "api/openapi.yaml",
+    "api/testdata/contracts.json",
     "web/.react-router/**",
     "web/build/**"
   ]

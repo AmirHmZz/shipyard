@@ -182,7 +182,9 @@
     "name": "runtime-private",
     "schema": "ApplicationRuntime",
     "body": {
-      "containers": ["app"],
+      "containers": [
+        "app"
+      ],
       "status": "running",
       "targets": null
     }

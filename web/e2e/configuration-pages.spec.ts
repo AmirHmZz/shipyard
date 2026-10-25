@@ -480,7 +480,11 @@ test("new DNS providers require a successful test of the current credentials", a
   await expect(save).toBeEnabled();
   await save.click();
   await expect.poll(() => state.writes.length).toBe(1);
-  expect(probes.at(-1)).toEqual({ provider: "arvancloud", token: "changed" });
+  expect(probes.at(-1)).toEqual({
+    provider: "arvancloud",
+    token: "changed",
+    proxyId: "",
+  });
   expect(jsonObject(state.writes[0].body.secrets).token).toBe("changed");
 });
 
