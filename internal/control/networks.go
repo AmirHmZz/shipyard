@@ -251,6 +251,13 @@ func (c *Controller) DeleteNetwork(ctx context.Context, r model.Resource) error 
 	if e = c.mutableResource(ctx, r.ID); e != nil {
 		return e
 	}
+	selections, e := c.controlNetworkSelections(ctx)
+	if e != nil {
+		return e
+	}
+	if selections[r.ID].Desired {
+		return errors.New("detach Shipyard from this network before deleting or unregistering it")
+	}
 	apps, e := c.Store.Resources(ctx, "application")
 	if e != nil {
 		return e
@@ -329,6 +336,9 @@ func (c *Controller) removeNetwork(ctx context.Context, r model.Resource, s mode
 	}
 	defer tx.Rollback(ctx)
 	if _, e = tx.Exec(ctx, "DELETE FROM settings WHERE starts_with(key,$1)", "network-lease:"+r.ID+":"); e != nil {
+		return e
+	}
+	if _, e = tx.Exec(ctx, "DELETE FROM settings WHERE key=$1", controlNetworkPrefix+r.ID); e != nil {
 		return e
 	}
 	if _, e = tx.Exec(ctx, "DELETE FROM resources WHERE id=$1", r.ID); e != nil {

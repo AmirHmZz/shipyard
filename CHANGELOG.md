@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Features
+
+- Let administrators attach the control plane to shared Docker bridges on Local host from Networks, with persistent selections, automatic restoration, observed status and retry controls for private services such as SOCKS proxies.
+
 ## [0.9.0](https://github.com/AmirHmZz/shipyard/compare/v0.8.0...v0.9.0) (2026-10-25)
 
 ### Features

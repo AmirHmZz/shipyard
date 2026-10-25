@@ -8,19 +8,25 @@ import { TableCell, TableRow } from "@/components/ui/table";
 import { text } from "@/lib/resource-fields";
 
 import type { DockerNetwork } from "../generics";
+import type { ControlPlaneAttachmentProps } from "./ControlPlaneAttachment";
 
 import { subnets } from "../utils";
+import { ControlPlaneAttachment } from "./ControlPlaneAttachment";
 export type RegisteredNetworkRowProps = {
   resource: Resource;
   docker: DockerNetwork | undefined;
   byId: Map<string, Resource>;
   canManage: boolean;
+  controlNetwork: ControlPlaneAttachmentProps["network"];
+  attachmentPending: boolean;
 };
 export function RegisteredNetworkRow({
   resource: r,
   docker,
   byId,
   canManage,
+  controlNetwork,
+  attachmentPending,
 }: RegisteredNetworkRowProps) {
   const addresses = subnets(docker);
   let kindLabel = "External · attach only";
@@ -55,6 +61,13 @@ export function RegisteredNetworkRow({
         {text(r.data, "status")}
         <p className="text-xs text-destructive">{text(r.data, "error")}</p>
       </TableCell>
+      <TableCell>
+        <ControlPlaneAttachment
+          network={controlNetwork}
+          pending={attachmentPending}
+          ready={r.data.status === "ready"}
+        />
+      </TableCell>
       <TableCell className="text-right">
         {!r.data.ingressApp && (
           <>
@@ -75,7 +88,16 @@ export function RegisteredNetworkRow({
               aria-label={
                 r.data.managed ? "Delete network" : "Unregister network"
               }
-              disabled={!canManage}
+              disabled={
+                !canManage ||
+                !!controlNetwork?.desired ||
+                !!controlNetwork?.attached
+              }
+              title={
+                controlNetwork?.desired || controlNetwork?.attached
+                  ? "Detach Shipyard before removing this network"
+                  : undefined
+              }
               data-network-id={r.id}
             >
               <Trash2 />

@@ -11,8 +11,10 @@ import { setCSRF } from "@/lib/api/csrf";
 import { reportError } from "@/lib/telemetry";
 import { createTestClient, renderWithClient } from "@/test/renderWithClient";
 
+import { useControlPlaneNetworks } from "./useControlPlaneNetworks";
 import { useDockerNetworks } from "./useDockerNetworks";
 import { useRemoveNetwork } from "./useRemoveNetwork";
+import { useSaveControlPlaneNetwork } from "./useSaveControlPlaneNetwork";
 
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 vi.mock("@/lib/telemetry", () => ({ reportError: vi.fn() }));
@@ -24,6 +26,50 @@ type Contract = {
 };
 // Literal requests retained from the removed service contract table.
 const cases: Contract[] = [
+  {
+    name: "control-plane attachments",
+    run: async (client) => {
+      const { result } = renderHook(
+        () => useControlPlaneNetworks(true),
+        renderWithClient(client),
+      );
+      await waitFor(() =>
+        expect(result.current.isSuccess || result.current.isError).toBe(true),
+      );
+      return result.current.error;
+    },
+    request: ["/settings/control-plane-networks"],
+    response: {
+      available: true,
+      networks: [
+        {
+          networkId: "bridge",
+          desired: true,
+          attached: false,
+          error: "temporary failure",
+        },
+      ],
+    },
+  },
+  {
+    name: "attach control-plane special id",
+    run: async (client) => {
+      const { result } = renderHook(
+        () => useSaveControlPlaneNetwork(),
+        renderWithClient(client),
+      );
+      act(() => result.current.mutate({ networkId: "a/b?c", attached: true }));
+      await waitFor(() =>
+        expect(result.current.isSuccess || result.current.isError).toBe(true),
+      );
+      return result.current.error;
+    },
+    request: [
+      "/networks/a%2Fb%3Fc/control-plane",
+      { method: "PUT", body: '{"attached":true}' },
+    ],
+    response: { networkId: "a/b?c", desired: true, attached: true, error: "" },
+  },
   {
     name: "inventory special id",
     run: async (client) => {
@@ -131,6 +177,12 @@ describe("networks surface request contracts", () => {
       renderWithClient(client),
     );
     expect(result.current.fetchStatus).toBe("idle");
+    expect(fetch).not.toHaveBeenCalled();
+  });
+  it("does not fetch control-plane attachments without local administrator access", () => {
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    renderHook(() => useControlPlaneNetworks(false), renderWithClient(client));
     expect(fetch).not.toHaveBeenCalled();
   });
 });

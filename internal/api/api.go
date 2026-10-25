@@ -179,6 +179,8 @@ func (a *API) Router() http.Handler {
 			r.Put("/applications/{id}/published-ports", a.publishedPorts)
 			r.Get("/servers/{id}/networks", a.networks)
 			r.Post("/servers/{id}/networks", a.networks)
+			r.Get("/settings/control-plane-networks", a.controlPlaneNetworks)
+			r.Put("/networks/{id}/control-plane", a.controlPlaneNetwork)
 			r.Get("/applications/{id}/compose", a.composeSource)
 			r.Put("/applications/{id}/compose", a.composeSource)
 			r.Get("/applications/{id}/metrics", a.metrics)

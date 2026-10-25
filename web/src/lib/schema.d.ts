@@ -577,6 +577,110 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/settings/control-plane-networks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Administrator control-plane network attachments */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ControlPlaneNetworks"];
+                    };
+                };
+                400: components["responses"]["Error"];
+                401: components["responses"]["Error"];
+                403: components["responses"]["Error"];
+                404: components["responses"]["Error"];
+                409: components["responses"]["Error"];
+                413: components["responses"]["Error"];
+                415: components["responses"]["Error"];
+                422: components["responses"]["Error"];
+                429: components["responses"]["Error"];
+                500: components["responses"]["Error"];
+                502: components["responses"]["Error"];
+                503: components["responses"]["Error"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/networks/{id}/control-plane": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Persist and apply a control-plane attachment to a local shared bridge */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        attached: boolean;
+                    };
+                };
+            };
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ControlPlaneNetwork"];
+                    };
+                };
+                400: components["responses"]["Error"];
+                401: components["responses"]["Error"];
+                403: components["responses"]["Error"];
+                404: components["responses"]["Error"];
+                409: components["responses"]["Error"];
+                413: components["responses"]["Error"];
+                415: components["responses"]["Error"];
+                422: components["responses"]["Error"];
+                429: components["responses"]["Error"];
+                500: components["responses"]["Error"];
+                502: components["responses"]["Error"];
+                503: components["responses"]["Error"];
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/applications/{id}/volumes": {
         parameters: {
             query?: never;
@@ -5572,6 +5676,16 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        ControlPlaneNetwork: {
+            networkId: string;
+            desired: boolean;
+            attached: boolean;
+            error: string;
+        };
+        ControlPlaneNetworks: {
+            available: boolean;
+            networks: components["schemas"]["ControlPlaneNetwork"][];
+        };
         JobSettings: {
             version: number;
             enabled: boolean;

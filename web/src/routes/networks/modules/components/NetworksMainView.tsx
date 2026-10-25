@@ -19,6 +19,7 @@ export function NetworksMainView() {
     removeMutation,
     removalTitle,
     showInventoryError,
+    controlNetworks,
   } = controller.derived;
   const {
     setFilter,
@@ -26,6 +27,7 @@ export function NetworksMainView() {
     handleRemovalOpenChange,
     addNetwork,
     refreshNetworks,
+    refreshControlNetworks,
   } = controller.handlers;
   if (q.isPending) return <Loading />;
   if (q.error) return <ErrorState error={q.error} />;
@@ -63,6 +65,29 @@ export function NetworksMainView() {
         </Alert>
       )}
       <NetworkTable controller={controller} />
+      {controlNetworks.data?.available && (
+        <p className="mt-3 text-sm text-muted-foreground">
+          Attach Shipyard to a shared network on Local host to reach private
+          services, such as SOCKS proxies, by their network hostname.
+          Attachments apply immediately and are restored after restarts and
+          updates.
+        </p>
+      )}
+      {controlNetworks.error && (
+        <Alert variant="destructive" className="mt-3">
+          <AlertDescription>
+            Could not load Shipyard network attachments:{" "}
+            {describeError(controlNetworks.error)}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={refreshControlNetworks}
+            >
+              Retry
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
       <Confirm
         open={!!remove}
         onOpenChange={handleRemovalOpenChange}

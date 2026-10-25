@@ -10,9 +10,12 @@ import { useResources } from "@/lib/hooks/useResources";
 import { indexResources } from "@/lib/resource-index";
 import { useAccount } from "@/lib/session";
 
+import { attachmentInputSchema } from "../generics";
 import { networkRows } from "../utils";
+import { useControlPlaneNetworks } from "./useControlPlaneNetworks";
 import { useDockerNetworks } from "./useDockerNetworks";
 import { useRemoveNetwork } from "./useRemoveNetwork";
+import { useSaveControlPlaneNetwork } from "./useSaveControlPlaneNetwork";
 
 export function useNetworksPage() {
   const changes = useConfigurationChanges();
@@ -24,6 +27,20 @@ export function useNetworksPage() {
   const [filter, setFilter] = useState("");
   const inventory = useDockerNetworks(filter, !!filter && !!account?.admin);
   const resources = q.data || [];
+  const hasLocalHost = resources.some(
+    (resource) =>
+      resource.kind === "server" && resource.data.connection === "local",
+  );
+  const controlNetworks = useControlPlaneNetworks(
+    !!account?.admin && hasLocalHost,
+  );
+  const saveControlNetwork = useSaveControlPlaneNetwork();
+  const controlById = new Map(
+    controlNetworks.data?.networks.map((network) => [
+      network.networkId,
+      network,
+    ]),
+  );
   const { byId } = indexResources(resources);
   const { rows, unregistered } = networkRows(
     resources,
@@ -53,6 +70,23 @@ export function useNetworksPage() {
   }
   function handleNetworkAction(event: MouseEvent<HTMLTableSectionElement>) {
     if (!(event.target instanceof Element)) return;
+    const attachment = event.target.closest<HTMLButtonElement>(
+      "button[data-control-plane-network-id]",
+    );
+    if (
+      attachment &&
+      !attachment.disabled &&
+      event.currentTarget.contains(attachment)
+    ) {
+      const networkId = attachment.dataset.controlPlaneNetworkId;
+      const attached = attachmentInputSchema.safeParse(
+        attachment.dataset.attached,
+      );
+      if (networkId && attached.success && !saveControlNetwork.isPending) {
+        saveControlNetwork.mutate({ networkId, attached: attached.data });
+      }
+      return;
+    }
     const button = event.target.closest<HTMLButtonElement>(
       "button[data-network-id]",
     );
@@ -68,6 +102,9 @@ export function useNetworksPage() {
   }
   function refreshNetworks() {
     void inventory.refetch();
+  }
+  function refreshControlNetworks() {
+    void controlNetworks.refetch();
   }
   return {
     state: { remove, filter },
@@ -85,6 +122,9 @@ export function useNetworksPage() {
       removalTitle,
       emptyTitle,
       removeMutation,
+      controlNetworks,
+      controlById,
+      saveControlNetwork,
     },
     handlers: {
       setFilter,
@@ -93,6 +133,7 @@ export function useNetworksPage() {
       handleNetworkAction,
       addNetwork,
       refreshNetworks,
+      refreshControlNetworks,
     },
   };
 }

@@ -250,6 +250,9 @@ func (c *Controller) Run(ctx context.Context) {
 		for {
 			err := c.InitializeLocal(ctx)
 			if err == nil {
+				if e := c.ReconcileControlPlaneNetworks(ctx); e != nil {
+					c.Logger.Error("restore control-plane networks", "error", e)
+				}
 				if state, e := c.dashboardSettings(ctx); e != nil {
 					err = e
 				} else if state.Domain == "" && c.InitialDomain != "" {
@@ -269,6 +272,10 @@ func (c *Controller) Run(ctx context.Context) {
 			case <-time.After(10 * time.Second):
 			}
 		}
+	}
+	if c.Local != nil {
+		wg.Add(1)
+		go func() { defer wg.Done(); c.controlNetworkLoop(ctx) }()
 	}
 	ops := []string{"application-stop", "git-event", "domain", "proxy", "proxy-settings", "provision", "prune", "notify", "preview-cleanup", "drain", "resource-delete", "server-delete", "deployment-delete", "network-create", "network-delete", "dashboard-apply", "dashboard-retire"}
 	// Long builds and DNS challenges cannot monopolize metric sampling or all

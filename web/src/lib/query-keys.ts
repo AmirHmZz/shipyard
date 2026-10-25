@@ -14,6 +14,9 @@ export const dockerNetworkKeys = {
   filter: (filter: string) => ["docker-networks", filter] as const,
   server: (server: string) => ["docker-networks", server] as const,
 };
+export const controlPlaneNetworkKeys = {
+  all: ["control-plane-networks"] as const,
+};
 export const applicationServiceKeys = {
   parent: (parent: string) => ["application-services", parent] as const,
   version: (applicationId: string, version: number) =>

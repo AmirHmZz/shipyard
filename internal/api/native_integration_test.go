@@ -282,6 +282,42 @@ func TestLinuxNativeHostBootstrapDeployAndRecovery(t *testing.T) {
 		return r
 	}
 	first := deploy("")
+	// The ACME worker runs in this control-plane container. A shared network
+	// must give it Docker DNS access to private applications without host ports.
+	attachmentPath := "/networks/" + network.ID + "/control-plane"
+	if status, body := request(secureClient, "https://shipyard.example.com", "PUT", attachmentPath, `{"attached":true}`); status != 200 || !bytes.Contains(body, []byte(`"attached":true`)) {
+		t.Fatalf("attach control plane: %d %s", status, body)
+	}
+	privateClient := &http.Client{Timeout: 10 * time.Second, Transport: &http.Transport{Proxy: nil}}
+	privateResponse, err := privateClient.Get("http://native-web:8080/")
+	if err != nil {
+		t.Fatal("control plane cannot reach the application hostname", err)
+	}
+	privateBody, err := io.ReadAll(privateResponse.Body)
+	privateResponse.Body.Close()
+	if err != nil || strings.TrimSpace(string(privateBody)) != "first" {
+		t.Fatal("private application response", string(privateBody), err)
+	}
+	registered, err := a.Store.Resource(ctx, network.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	networkSpec, err := model.Decode[model.Network](registered)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Local.API(ctx, "POST", "/networks/"+networkSpec.DockerID+"/disconnect", map[string]string{"Container": c.SelfContainer}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.ReconcileControlPlaneNetworks(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if status, body := request(secureClient, "https://shipyard.example.com", "GET", "/settings/control-plane-networks", ""); status != 200 || !bytes.Contains(body, []byte(`"attached":true`)) {
+		t.Fatalf("restore control-plane attachment: %d %s", status, body)
+	}
+	if status, body := request(secureClient, "https://shipyard.example.com", "PUT", attachmentPath, `{"attached":false}`); status != 200 || !bytes.Contains(body, []byte(`"attached":false`)) {
+		t.Fatalf("detach control plane: %d %s", status, body)
+	}
 	getApp := func() string {
 		t.Helper()
 		res, e := secureClient.Get("https://app.example.com/")

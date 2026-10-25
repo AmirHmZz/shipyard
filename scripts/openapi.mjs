@@ -20,6 +20,16 @@ function input(properties, required = Object.keys(properties)) {
   return { ...object(properties, required), additionalProperties: false };
 }
 const schemas = {
+  ControlPlaneNetwork: object({
+    networkId: str,
+    desired: bool,
+    attached: bool,
+    error: str,
+  }),
+  ControlPlaneNetworks: object({
+    available: bool,
+    networks: { type: "array", items: ref("ControlPlaneNetwork") },
+  }),
   JobSettings: object({
     version: { type: "integer", minimum: 0 },
     enabled: bool,
@@ -948,6 +958,19 @@ add("/servers/{id}/networks", "get", "Administrator Docker network inventory", {
   type: "array",
   items: ref("DockerNetwork"),
 });
+add(
+  "/settings/control-plane-networks",
+  "get",
+  "Administrator control-plane network attachments",
+  ref("ControlPlaneNetworks"),
+);
+add(
+  "/networks/{id}/control-plane",
+  "put",
+  "Persist and apply a control-plane attachment to a local shared bridge",
+  ref("ControlPlaneNetwork"),
+  input({ attached: bool }),
+);
 add(
   "/servers/{id}/networks",
   "post",

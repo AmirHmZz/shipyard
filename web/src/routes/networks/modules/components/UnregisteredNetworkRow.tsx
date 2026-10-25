@@ -40,6 +40,7 @@ export function UnregisteredNetworkRow({
         ))}
       </TableCell>
       <TableCell>Available</TableCell>
+      <TableCell className="text-muted-foreground">—</TableCell>
       <TableCell className="text-right">
         {register && (
           <Button variant="outline" size="sm" asChild>

@@ -89,4 +89,6 @@ Platform administrators can use **Monitoring** to inspect servers and applicatio
 
 Add reusable **SOCKS5/SOCKS5H** connections in **Integrations**, then select a connection (or Direct) independently for DNS providers, notification integrations, and **Settings > Certificates**. SOCKS5 resolves destination names locally; SOCKS5H resolves through the proxy. Direct bypasses proxy environment variables. Git/OAuth and registry traffic do not use these settings.
 
+For a proxy deployed as a Shipyard application on **Local host**, attach its service to a shared bridge in the application's **Networking** tab, then use **Networks → Attach Shipyard** on that bridge. Set a service network hostname and use it with the SOCKS container port in the integration. Shipyard saves its own attachments and restores them after restarts and updates; no Compose installation edits are required.
+
 Notification integrations support generic signed webhooks, Telegram, and Bale. Messenger connections require a bot token and chat ID/channel username. Monitoring policies explicitly select destinations; existing event and team filters still apply. Saving a connection sends nothing; **Send test notification** queues an explicit delivery. Messenger and proxy credentials remain encrypted and write-only.

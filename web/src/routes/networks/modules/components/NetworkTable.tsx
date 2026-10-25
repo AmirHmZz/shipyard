@@ -20,6 +20,7 @@ export function NetworkTable({ controller }: NetworkTableProps) {
   const { rows, unregistered, byId, account, hasRows, showEmpty, emptyTitle } =
     controller.derived;
   const { handleNetworkAction } = controller.handlers;
+  const { controlById, saveControlNetwork } = controller.derived;
   if (!hasRows) {
     if (!showEmpty) return null;
     return (
@@ -34,9 +35,11 @@ export function NetworkTable({ controller }: NetworkTableProps) {
       <Table>
         <TableHeader>
           <TableRow>
-            {["Network", "Server", "Addresses", "Status", ""].map((value) => (
-              <TableHead key={value}>{value}</TableHead>
-            ))}
+            {["Network", "Server", "Addresses", "Status", "Shipyard", ""].map(
+              (value) => (
+                <TableHead key={value}>{value}</TableHead>
+              ),
+            )}
           </TableRow>
         </TableHeader>
         <TableBody onClick={handleNetworkAction}>
@@ -47,6 +50,10 @@ export function NetworkTable({ controller }: NetworkTableProps) {
               docker={docker}
               byId={byId}
               canManage={!!account?.admin}
+              controlNetwork={
+                account?.admin ? controlById.get(resource.id) : undefined
+              }
+              attachmentPending={saveControlNetwork.isPending}
             />
           ))}
           {unregistered.map((network) => (
