@@ -1,10 +1,17 @@
 # Changelog
 
-## Unreleased
+## [0.10.0](https://github.com/AmirHmZz/shipyard/compare/v0.9.0...v0.10.0) (2026-10-25)
 
 ### Features
 
-- Let administrators attach the control plane to shared Docker bridges on Local host from Networks, with persistent selections, automatic restoration, observed status and retry controls for private services such as SOCKS proxies.
+- Add administrator-only **Attach Shipyard** and **Detach Shipyard** controls for shared Docker bridges on Local host. The control plane can reach private applications, including SOCKS proxies, using their network hostnames and container ports.
+- Persist attachment choices in the database and restore them at startup and every 15 seconds, including after container recreation and system updates. Show observed connection status, errors and retry controls; pending attachments can be cancelled.
+- Protect Shipyard's installation and dashboard ingress networks, verify Docker host and network ownership before changing connections, and prevent removal of networks still used by the control plane.
+
+### Upgrade Notes
+
+- No database migration or installation Compose changes are required. Existing installations retain their current network attachments until an administrator selects a shared network.
+- Control-plane attachments require a native Linux installation with Local host enabled. Attach the application's service to the same shared network in its **Networking** tab before using its network hostname in an integration.
 
 ## [0.9.0](https://github.com/AmirHmZz/shipyard/compare/v0.8.0...v0.9.0) (2026-10-25)
 
