@@ -332,6 +332,34 @@ func (s *Store) Save(ctx context.Context, id string, in model.ResourceInput) (mo
 			delete(old.Variables, k)
 		}
 	}
+	if in.Kind == "proxy" {
+		for _, key := range []string{"username", "password"} {
+			if len(secrets[key]) > 255 {
+				return model.Resource{}, errors.New("proxy credentials exceed 255 bytes")
+			}
+		}
+	}
+	if in.Kind == "dns" || in.Kind == "webhook" {
+		var network struct {
+			ProxyID  string `json:"proxyId"`
+			Provider string `json:"provider"`
+		}
+		if e = json.Unmarshal(in.Data, &network); e != nil {
+			return model.Resource{}, e
+		}
+		if network.ProxyID != "" {
+			var exists bool
+			if e = tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM resources WHERE id=$1 AND kind='proxy')", network.ProxyID).Scan(&exists); e != nil {
+				return model.Resource{}, e
+			}
+			if !exists {
+				return model.Resource{}, errors.New("selected proxy is unavailable")
+			}
+		}
+		if in.Kind == "webhook" && (network.Provider == "telegram" || network.Provider == "bale") && secrets["token"] == "" {
+			return model.Resource{}, errors.New("messenger bot token is required")
+		}
+	}
 	if old.Variables == nil {
 		old.Variables = map[string]string{}
 	}
@@ -466,6 +494,14 @@ func (s *Store) Finish(ctx context.Context, j model.Job, worker string, err erro
 		if j.Kind != "deploy" && j.Kind != "proxy-settings" && j.Attempts < 6 {
 			state = "queued"
 			delay = 1 << j.Attempts
+		}
+		var limited interface{ RetryAfter() time.Duration }
+		if j.Kind == "notify" && errors.As(err, &limited) && j.Attempts < 6 {
+			state = "queued"
+			delay = int(limited.RetryAfter().Seconds())
+			if delay < 1 {
+				delay = 1
+			}
 		}
 		if j.Kind == "deploy" {
 			var resume bool
@@ -663,7 +699,7 @@ func (s *Store) Retention(ctx context.Context) error {
 	if _, err := s.Pool.Exec(ctx, "DELETE FROM jobs WHERE state IN ('done','failed') AND created_at<now()-interval '30 days' AND NOT(kind IN ('resource-delete','server-delete') AND EXISTS(SELECT 1 FROM resources WHERE id=jobs.resource_id AND data->>'deleting'='true')) AND NOT(kind='deployment-delete' AND EXISTS(SELECT 1 FROM settings WHERE key='deployment-deletion:'||(jobs.payload->>'deploymentId')))"); err != nil {
 		return err
 	}
-	for _, q := range []string{"DELETE FROM metrics WHERE created_at<now()-interval '7 days'", "DELETE FROM events WHERE created_at<now()-interval '30 days'", "DELETE FROM audit WHERE created_at<now()-interval '90 days'", "DELETE FROM sessions WHERE expires_at<now()", "DELETE FROM invitations WHERE expires_at<now()", "DELETE FROM webhook_deliveries WHERE created_at<now()-interval '30 days'"} {
+	for _, q := range []string{"DELETE FROM monitoring_incidents WHERE state='resolved' AND resolved_at<now()-interval '30 days'", "DELETE FROM metrics WHERE created_at<now()-interval '30 days'", "DELETE FROM events WHERE created_at<now()-interval '30 days'", "DELETE FROM audit WHERE created_at<now()-interval '90 days'", "DELETE FROM sessions WHERE expires_at<now()", "DELETE FROM invitations WHERE expires_at<now()", "DELETE FROM webhook_deliveries WHERE created_at<now()-interval '30 days'"} {
 		if _, e := s.Pool.Exec(ctx, q); e != nil {
 			return e
 		}

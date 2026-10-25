@@ -12,6 +12,7 @@ function Input({ className, type, ref, ...props }: InputProps) {
     return event.preventDefault();
   }
   function handleInputChange(event: React.ChangeEvent<HTMLInputElement>) {
+    if (numeric) setUncontrolledValue(event.currentTarget.value);
     changes.change();
     props.onChange?.(event);
   }
@@ -25,6 +26,9 @@ function Input({ className, type, ref, ...props }: InputProps) {
   const changes = useConfigurationChanges();
   const local = React.useRef<HTMLInputElement | null>(null);
   const numeric = type === "number";
+  const [uncontrolledValue, setUncontrolledValue] = React.useState(
+    String(props.defaultValue ?? ""),
+  );
   function setInputRef(node: HTMLInputElement | null) {
     local.current = node;
     if (typeof ref === "function") ref(node);
@@ -67,8 +71,10 @@ function Input({ className, type, ref, ...props }: InputProps) {
     />
   );
   if (!numeric) return input;
+  const currentValue =
+    props.value === undefined ? uncontrolledValue : props.value;
   const value =
-    props.value === "" || props.value == null ? NaN : Number(props.value);
+    currentValue === "" || currentValue == null ? NaN : Number(currentValue);
   return (
     <div className="relative min-w-0 w-full" data-slot="number-input">
       {input}

@@ -561,6 +561,77 @@ schemas.AlertPolicy = object({
   sustainedSeconds: { type: "integer" },
   offlineSeconds: { type: "integer" },
 });
+schemas.IORate = object({
+  name: str,
+  read: nullable(num),
+  write: nullable(num),
+});
+Object.assign(schemas.Metric.properties, {
+  status: str,
+  valid: bool,
+  cpuValid: bool,
+  memoryBytes: num,
+  memoryTotalBytes: num,
+  network: array(ref("IORate")),
+  devices: array(ref("IORate")),
+  networkRx: nullable(num),
+  networkTx: nullable(num),
+  diskRead: nullable(num),
+  diskWrite: nullable(num),
+  peakCpu: num,
+  peakMemory: num,
+  peakDisk: num,
+  availability: num,
+  samples: num,
+});
+Object.assign(schemas.Metric.properties.containers.items.properties, {
+  valid: bool,
+  cpuValid: bool,
+  memoryBytes: num,
+  networkRx: nullable(num),
+  networkTx: nullable(num),
+  diskRead: nullable(num),
+  diskWrite: nullable(num),
+});
+schemas.CertificateNetwork = input({ proxyId: str });
+schemas.MonitoringPolicy = input({
+  ...schemas.AlertPolicy.properties,
+  enabled: bool,
+  destinations: array(str),
+});
+schemas.MonitoringDefaults = input({
+  server: ref("MonitoringPolicy"),
+  application: ref("MonitoringPolicy"),
+});
+schemas.MonitoringPolicyState = input({
+  mode: { type: "string", enum: ["inherit", "override", "disabled"] },
+  policy: ref("MonitoringPolicy"),
+});
+schemas.MonitoringResource = object({
+  id: str,
+  kind: { type: "string", enum: ["server", "application"] },
+  name: str,
+  serverId: str,
+  status: str,
+  latest: nullable(schemas.Metric),
+});
+schemas.MonitoringIncident = object({
+  id: str,
+  resourceId: str,
+  kind: str,
+  state: { type: "string", enum: ["pending", "firing", "resolved"] },
+  since: str,
+  firedAt: nullable(str),
+  resolvedAt: nullable(str),
+  destinations: array(str),
+  data: ref("Metric"),
+});
+schemas.NotificationDelivery = object({
+  state: str,
+  error: str,
+  at: nullable(str),
+});
+
 const paths = {};
 schemas.BuildInfo = object({
   version: str,
@@ -1479,6 +1550,102 @@ add(
   ref("Accepted"),
   obj,
 );
+add(
+  "/settings/certificates",
+  "get",
+  "Administrator certificate proxy selection",
+  ref("CertificateNetwork"),
+);
+add(
+  "/settings/certificates",
+  "put",
+  "Select direct connection or a saved SOCKS proxy for ACME",
+  ref("CertificateNetwork"),
+  ref("CertificateNetwork"),
+);
+add(
+  "/monitoring/resources",
+  "get",
+  "Administrator resource monitoring summaries",
+  array(ref("MonitoringResource")),
+);
+add(
+  "/monitoring/defaults",
+  "get",
+  "Administrator server and application alert defaults",
+  ref("MonitoringDefaults"),
+);
+add(
+  "/monitoring/defaults",
+  "put",
+  "Update default alert policies and destinations",
+  ref("MonitoringDefaults"),
+  ref("MonitoringDefaults"),
+);
+add(
+  "/monitoring/resources/{id}/policy",
+  "get",
+  "Read effective resource monitoring policy",
+  ref("MonitoringPolicyState"),
+);
+add(
+  "/monitoring/resources/{id}/policy",
+  "put",
+  "Override or disable resource monitoring policy",
+  ref("MonitoringPolicyState"),
+  ref("MonitoringPolicyState"),
+);
+add(
+  "/monitoring/resources/{id}/policy",
+  "delete",
+  "Restore inherited monitoring policy",
+  ref("MonitoringPolicyState"),
+);
+add(
+  "/monitoring/incidents",
+  "get",
+  "Administrator monitoring incident history",
+  array(ref("MonitoringIncident")),
+);
+add(
+  "/notifications/{id}/test",
+  "post",
+  "Explicitly queue a test notification",
+  object({ jobId: str }),
+  input({}),
+);
+paths["/notifications/{id}/test"].post.responses[202] =
+  paths["/notifications/{id}/test"].post.responses[200];
+delete paths["/notifications/{id}/test"].post.responses[200];
+add(
+  "/notifications/{id}/delivery",
+  "get",
+  "Latest administrator notification delivery status",
+  ref("NotificationDelivery"),
+);
+for (const path of ["/servers/{id}/metrics", "/applications/{id}/metrics"]) {
+  paths[path].get.summary =
+    "Administrator resource metrics with bounded history";
+  paths[path].get.parameters.push({
+    name: "range",
+    in: "query",
+    schema: {
+      type: "string",
+      enum: ["1h", "6h", "24h", "7d", "30d"],
+      default: "24h",
+    },
+  });
+}
+for (const name of ["resourceId", "state"])
+  paths["/monitoring/incidents"].get.parameters.push({
+    name,
+    in: "query",
+    schema: str,
+  });
+paths["/dns/test"].post.requestBody.content[
+  "application/json"
+].schema.properties.proxyId = str;
+
 const publicPaths = new Set([
   "/version",
   "/telemetry",

@@ -10,6 +10,7 @@ import { useDeployments } from "@/lib/hooks/useDeployments";
 import { useResources } from "@/lib/hooks/useResources";
 import { text } from "@/lib/resource-fields";
 import { indexResources } from "@/lib/resource-index";
+import { useAdmin } from "@/lib/session";
 
 import { freshDeploySchema } from "../generics";
 import { useApplicationDialogs } from "./useApplicationDialogs";
@@ -19,6 +20,7 @@ import { useApplicationRuntime } from "./useApplicationRuntime";
 import { useCreateDeployment } from "./useCreateDeployment";
 import { useSelectedDeployment } from "./useSelectedDeployment";
 export function useApplicationPage() {
+  const admin = useAdmin();
   const navigate = useNavigate();
   const { state, handlers } = useApplicationDialogs();
   const { deleting, confirmAction, deleteDeployment } = state;
@@ -34,7 +36,7 @@ export function useApplicationPage() {
 
   const deployments = useDeployments(id);
   const runtime = useApplicationRuntime(id);
-  const metrics = useApplicationMetrics(id, tab === "overview");
+  const metrics = useApplicationMetrics(id, admin && tab === "overview");
   const releases = useApplicationReleases(id, tab === "deployments");
   function setTab(value: string) {
     return setParams((previous) => {

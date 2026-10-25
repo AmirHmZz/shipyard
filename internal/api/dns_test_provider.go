@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"shipyard/internal/providers"
+	"shipyard/internal/model"
 )
 
 // testDNSProvider verifies unsaved credentials without persisting them or changing DNS records.
@@ -17,6 +17,7 @@ func (a *API) testDNSProvider(w http.ResponseWriter, r *http.Request) {
 	var in struct {
 		Provider string `json:"provider"`
 		Token    string `json:"token"`
+		ProxyID  string `json:"proxyId"`
 	}
 	if !decode(w, r, &in) {
 		return
@@ -25,9 +26,10 @@ func (a *API) testDNSProvider(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, "Select a supported DNS provider and enter an API token")
 		return
 	}
-	var provider providers.DNSProvider = providers.NewDNS(in.Provider, in.Token)
-	if a.Control.DNSFactory != nil {
-		provider = a.Control.DNSFactory(in.Provider, in.Token)
+	provider, err := a.Control.DNSConnection(r.Context(), model.DNS{Provider: in.Provider, ProxyID: in.ProxyID}, in.Token)
+	if err != nil {
+		fail(w, 400, err.Error())
+		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()

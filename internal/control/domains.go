@@ -12,6 +12,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"shipyard/internal/model"
+	"shipyard/internal/outbound"
 	"shipyard/internal/providers"
 	"shipyard/internal/proxy"
 )
@@ -70,11 +71,21 @@ func (c *Controller) DNS(ctx context.Context, zoneID string) (providers.DNSProvi
 	if e != nil {
 		return nil, z, d, e
 	}
-	var provider providers.DNSProvider = providers.NewDNS(d.Provider, secrets["token"])
+	provider, e := c.DNSConnection(ctx, d, secrets["token"])
+	return provider, z, d, e
+}
+
+func (c *Controller) DNSConnection(ctx context.Context, d model.DNS, token string) (providers.DNSProvider, error) {
 	if c.DNSFactory != nil {
-		provider = c.DNSFactory(d.Provider, secrets["token"])
+		return c.DNSFactory(d.Provider, token), nil
 	}
-	return provider, z, d, nil
+	client, e := outbound.Client(ctx, c.Store, d.ProxyID)
+	if e != nil {
+		return nil, e
+	}
+	p := providers.NewDNS(d.Provider, token)
+	p.HTTP = client
+	return p, nil
 }
 func (c *Controller) domain(ctx context.Context, id, mode string) (result error) {
 	rr, e := c.Store.Resource(ctx, id)
@@ -303,7 +314,13 @@ func (c *Controller) domain(ctx context.Context, id, mode string) (result error)
 				if se != nil {
 					return se
 				}
-				pemBytes, until, e = c.Issuer.Obtain(ctx, certificateName, providerSpec.Provider, secrets["token"])
+				if issuer, ok := c.Issuer.(interface {
+					ObtainDNS(context.Context, string, string, string, string) ([]byte, time.Time, error)
+				}); ok {
+					pemBytes, until, e = issuer.ObtainDNS(ctx, certificateName, providerSpec.Provider, secrets["token"], providerSpec.ProxyID)
+				} else {
+					pemBytes, until, e = c.Issuer.Obtain(ctx, certificateName, providerSpec.Provider, secrets["token"])
+				}
 			}
 			if e != nil {
 				_, _ = c.Store.Pool.Exec(ctx, "UPDATE domain_state SET certificate_state=CASE WHEN certificate IS NULL THEN 'failed' ELSE 'renewal_failed' END WHERE route_id=$1", id)

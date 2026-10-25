@@ -255,14 +255,26 @@ test("number steppers respect lower and upper bounds", async ({ page }) => {
     sustainedSeconds: 60,
     offlineSeconds: 60,
   };
-  await page.route("**/api/v1/settings/alerts", async (route) => {
+  await page.route("**/api/v1/monitoring/resources", (route) =>
+    route.fulfill({ json: [] }),
+  );
+  await page.route("**/api/v1/monitoring/defaults", async (route) => {
     if (route.request().method() === "PUT")
-      policy = route.request().postDataJSON();
-    return route.fulfill({ json: policy });
+      policy = route.request().postDataJSON().server;
+    return route.fulfill({
+      json: {
+        server: { ...policy, enabled: true, destinations: [] },
+        application: { ...policy, enabled: false, destinations: [] },
+      },
+    });
   });
   await page.goto("/settings");
   await page.getByRole("tab", { name: "Alerts", exact: true }).click();
-  const cpu = page.getByLabel("CPU threshold (%)", { exact: true });
+  await expect(page).toHaveURL(/monitoring\?view=defaults/);
+  const defaults = page
+    .locator('[data-slot="card"]')
+    .filter({ has: page.getByText("Server defaults", { exact: true }) });
+  const cpu = defaults.getByLabel("CPU threshold (%)", { exact: true });
   const control = cpu.locator("..");
   await control.getByRole("button", { name: "Increase value" }).click();
   await expect(cpu).toHaveValue("100");
@@ -275,6 +287,6 @@ test("number steppers respect lower and upper bounds", async ({ page }) => {
   ).toBeDisabled();
   await control.getByRole("button", { name: "Increase value" }).click();
   await expect(cpu).toHaveValue("2");
-  await page.getByRole("button", { name: "Save alert policy" }).click();
+  await defaults.getByRole("button", { name: "Save policy" }).click();
   await expect.poll(() => policy.cpu).toBe(2);
 });

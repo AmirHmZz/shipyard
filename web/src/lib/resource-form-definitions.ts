@@ -60,6 +60,13 @@ export const fields: Record<ResourceKind, Field[]> = {
       help: "Use the same secret in your GitHub App / Gitea webhook configuration.",
     },
   ],
+  proxy: [
+    { key: "scheme", label: "Proxy type", options: ["socks5", "socks5h"] },
+    { key: "host", label: "Proxy hostname or IP" },
+    { key: "port", label: "Proxy port", type: "number" },
+    { key: "username", label: "Proxy username (optional)", type: "secret" },
+    { key: "password", label: "Proxy password (optional)", type: "password" },
+  ],
   dns: [
     {
       key: "provider",
@@ -67,6 +74,7 @@ export const fields: Record<ResourceKind, Field[]> = {
       options: DNS_PROVIDERS,
     },
     { key: "token", label: "Provider API token", type: "secret" },
+    { key: "proxyId", label: "Connection proxy", resource: "proxy" },
   ],
   zone: [],
   registry: [
@@ -167,6 +175,14 @@ export const fields: Record<ResourceKind, Field[]> = {
     { key: "listenPort", label: "Public TCP port (TCP only)", type: "number" },
   ],
   webhook: [
+    {
+      key: "provider",
+      label: "Notification provider",
+      options: ["webhook", "telegram", "bale"],
+    },
+    { key: "chatId", label: "Chat ID or channel username" },
+    { key: "token", label: "Bot token", type: "secret" },
+    { key: "proxyId", label: "Connection proxy", resource: "proxy" },
     { key: "url", label: "Webhook HTTPS URL" },
     {
       key: "events",
@@ -181,6 +197,8 @@ export const fields: Record<ResourceKind, Field[]> = {
   ],
 };
 export const defaults: Record<string, Record<string, unknown>> = {
+  proxy: { scheme: "socks5h", port: 1080 },
+  webhook: { provider: "webhook", events: [] },
   server: { port: 22, user: "root", authMethod: "private_key" },
   git: { provider: "github" },
   dns: { provider: "cloudflare" },

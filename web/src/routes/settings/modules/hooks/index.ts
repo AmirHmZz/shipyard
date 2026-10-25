@@ -23,3 +23,6 @@ export { useSystemUpdatesPage } from "./useSystemUpdatesPage";
 export { useUsersPage } from "./useUsersPage";
 export { useAlertPolicyForm } from "./useAlertPolicyForm";
 export { useSecurityForm } from "./useSecurityForm";
+
+export { useCertificateNetwork } from "./useCertificateNetwork";
+export { useSaveCertificateNetwork } from "./useSaveCertificateNetwork";

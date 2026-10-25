@@ -1,6 +1,7 @@
 import { useResourceForm } from "@/components/resource-forms/controller";
 import { fields } from "@/lib/resource-form-definitions";
 import { previewRoutingDraftSchema } from "@/lib/schemas/application";
+import { useAdmin } from "@/lib/session";
 
 import type { ResourceFieldProps } from "../types";
 
@@ -19,11 +20,30 @@ export function ResourceSchemaFields({
   const {
     state: { data },
   } = useResourceForm();
+  const admin = useAdmin();
+  const messenger = data.provider === "telegram" || data.provider === "bale";
   const preview = previewRoutingDraftSchema.safeParse(data.previewRouting);
   const privatePreview = preview.success && preview.data.mode === "private";
   return (
     <>
       {(fields[kind] || [])
+        .filter(
+          (f) =>
+            !(
+              (f.key === "proxyId" ||
+                (kind === "webhook" && f.key === "provider")) &&
+              !admin
+            ),
+        )
+        .filter(
+          (f) =>
+            !(
+              kind === "webhook" &&
+              (messenger
+                ? ["url", "signing_secret"].includes(f.key)
+                : ["chatId", "token"].includes(f.key))
+            ),
+        )
         .filter(
           (f) =>
             !(

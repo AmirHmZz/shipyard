@@ -82,6 +82,7 @@ type Git struct {
 }
 type DNS struct {
 	Provider string `json:"provider"`
+	ProxyID  string `json:"proxyId,omitempty"`
 }
 type Zone struct {
 	ProviderZoneID string `json:"providerZoneId"`
@@ -131,9 +132,31 @@ type Route struct {
 	ZoneID     string `json:"zoneId"`
 }
 type Webhook struct {
-	URL    string   `json:"url"`
-	Events []string `json:"events"`
+	URL      string   `json:"url"`
+	Events   []string `json:"events"`
+	Provider string   `json:"provider,omitempty"`
+	ChatID   string   `json:"chatId,omitempty"`
+	ProxyID  string   `json:"proxyId,omitempty"`
 }
+
+func (w Webhook) Messenger() bool { return w.Provider == "telegram" || w.Provider == "bale" }
+
+type OutboundProxy struct {
+	Scheme string `json:"scheme"`
+	Host   string `json:"host"`
+	Port   int    `json:"port"`
+}
+
+func (p OutboundProxy) Validate() error {
+	if (p.Scheme != "socks5" && p.Scheme != "socks5h") || p.Port < 1 || p.Port > 65535 || p.Host == "" || strings.ContainsAny(p.Host, " /\\@?#\r\n\t") {
+		return errors.New("proxy requires SOCKS5 or SOCKS5H, a hostname or IP, and port 1–65535")
+	}
+	if strings.Contains(p.Host, ":") && net.ParseIP(p.Host) == nil {
+		return errors.New("invalid proxy host")
+	}
+	return nil
+}
+
 type Target struct {
 	Service   string `json:"service"`
 	Container string `json:"container"`
@@ -281,6 +304,17 @@ func Validate(r ResourceInput) error {
 		}
 	}
 	x := Resource{Data: r.Data}
+	if r.Kind == "proxy" || r.Kind == "webhook" {
+		keys := []string{"token", "password", "signing_secret"}
+		if r.Kind == "proxy" {
+			keys = append(keys, "username")
+		}
+		for _, key := range keys {
+			if _, exists := object[key]; exists {
+				return errors.New("credentials must be supplied as encrypted secrets")
+			}
+		}
+	}
 	switch r.Kind {
 	case "team", "project", "environment":
 	case "registry":
@@ -474,12 +508,24 @@ func Validate(r ResourceInput) error {
 				}
 			}
 		}
+	case "proxy":
+		v, e := Decode[OutboundProxy](x)
+		if e != nil {
+			return e
+		}
+		return v.Validate()
 	case "webhook":
 		v, e := Decode[Webhook](x)
 		if e != nil {
 			return e
 		}
-		if !HTTPS(v.URL) {
+		if v.Messenger() {
+			if v.ChatID == "" || len(v.ChatID) > 128 || strings.ContainsAny(v.ChatID, "\r\n /\\") {
+				return errors.New("enter a chat ID or channel username")
+			}
+		} else if v.Provider != "" && v.Provider != "webhook" {
+			return errors.New("unsupported notification provider")
+		} else if !HTTPS(v.URL) {
 			return errors.New("notification endpoint requires HTTPS")
 		}
 	default:

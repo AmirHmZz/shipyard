@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"reflect"
 	"shipyard/internal/model"
-	"shipyard/internal/providers"
 )
 
 func (a *API) networks(w http.ResponseWriter, r *http.Request) {
@@ -186,9 +185,9 @@ func (a *API) validateZoneSelection(r *http.Request, in *model.ResourceInput) er
 	if e != nil {
 		return e
 	}
-	var provider providers.DNSProvider = providers.NewDNS(dns.Provider, secrets["token"])
-	if a.Control.DNSFactory != nil {
-		provider = a.Control.DNSFactory(dns.Provider, secrets["token"])
+	provider, e := a.Control.DNSConnection(r.Context(), dns, secrets["token"])
+	if e != nil {
+		return e
 	}
 	choices, e := provider.Zones(r.Context())
 	if e != nil {

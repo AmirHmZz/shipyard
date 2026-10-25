@@ -1,16 +1,12 @@
 package control
 
 import (
-	"bytes"
 	"context"
-	"crypto/hmac"
 	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -20,24 +16,46 @@ import (
 	"shipyard/internal/db"
 	"shipyard/internal/deploy"
 	"shipyard/internal/model"
-	"shipyard/internal/providers"
 	"shipyard/internal/remote"
 )
 
 type Metric struct {
-	ResourceID string            `json:"resourceId"`
-	CPU        float64           `json:"cpu"`
-	Memory     float64           `json:"memory"`
-	Disk       float64           `json:"disk"`
-	Online     bool              `json:"online"`
-	Containers []ContainerMetric `json:"containers"`
-	At         time.Time         `json:"at"`
+	ResourceID       string            `json:"resourceId"`
+	CPU              float64           `json:"cpu"`
+	Memory           float64           `json:"memory"`
+	Disk             float64           `json:"disk"`
+	Online           bool              `json:"online"`
+	At               time.Time         `json:"at"`
+	Containers       []ContainerMetric `json:"containers"`
+	Status           string            `json:"status,omitempty"`
+	Valid            bool              `json:"valid"`
+	CPUValid         bool              `json:"cpuValid"`
+	MemoryBytes      uint64            `json:"memoryBytes"`
+	MemoryTotalBytes uint64            `json:"memoryTotalBytes"`
+	Network          []IORate          `json:"network"`
+	Devices          []IORate          `json:"devices"`
+	NetworkRx        *float64          `json:"networkRx"`
+	NetworkTx        *float64          `json:"networkTx"`
+	DiskRead         *float64          `json:"diskRead"`
+	DiskWrite        *float64          `json:"diskWrite"`
+	PeakCPU          *float64          `json:"peakCpu,omitempty"`
+	PeakMemory       *float64          `json:"peakMemory,omitempty"`
+	PeakDisk         *float64          `json:"peakDisk,omitempty"`
+	Availability     *float64          `json:"availability,omitempty"`
+	Samples          int               `json:"samples,omitempty"`
 }
 type ContainerMetric struct {
-	ID     string  `json:"id"`
-	Name   string  `json:"name"`
-	CPU    float64 `json:"cpu"`
-	Memory float64 `json:"memory"`
+	ID          string   `json:"id"`
+	Name        string   `json:"name"`
+	CPU         float64  `json:"cpu"`
+	Memory      float64  `json:"memory"`
+	Valid       bool     `json:"valid"`
+	CPUValid    bool     `json:"cpuValid"`
+	MemoryBytes uint64   `json:"memoryBytes"`
+	NetworkRx   *float64 `json:"networkRx"`
+	NetworkTx   *float64 `json:"networkTx"`
+	DiskRead    *float64 `json:"diskRead"`
+	DiskWrite   *float64 `json:"diskWrite"`
 }
 
 func percent(v string) float64 {
@@ -45,157 +63,116 @@ func percent(v string) float64 {
 	return f
 }
 func (c *Controller) metrics(ctx context.Context, id string) error {
-	m := Metric{ResourceID: id, At: time.Now(), Containers: []ContainerMetric{}}
-	client, _, e := c.connect(ctx, id)
-	if e == nil {
+	m, client := c.collectMetrics(ctx, id)
+	if client != nil {
 		defer client.Close()
-		m.Online = true
-		script := `set -eu
-awk '/^cpu /{print $2+$4, $2+$3+$4+$5+$6+$7+$8}' /proc/stat
-awk '/MemTotal/{total=$2} /MemAvailable/{avail=$2} END{print (total-avail)/total*100}' /proc/meminfo
-df -P /var/lib/docker | awk 'NR==2 {print $5}'
-docker stats --no-stream --format '{{json .}}'
-`
-		var b bytes.Buffer
-		if id == LocalServerID {
-			script = strings.ReplaceAll(script, "df -P /var/lib/docker", "df -P /host/docker-root")
-		}
-		e = client.Run(ctx, remote.Command("sh", "-c", script), nil, &b)
-		if e == nil {
-			lines := strings.Split(strings.TrimSpace(b.String()), "\n")
-			if len(lines) >= 3 {
-				var used, total float64
-				_, _ = fmt.Sscan(lines[0], &used, &total)
-				if total > 0 {
-					m.CPU = used / total * 100
-				}
-				m.Memory = percent(lines[1])
-				m.Disk = percent(lines[2])
-				for _, line := range lines[3:] {
-					var stat struct {
-						ID      string
-						Name    string
-						CPUPerc string
-						MemPerc string
-					}
-					if json.Unmarshal([]byte(line), &stat) == nil {
-						m.Containers = append(m.Containers, ContainerMetric{stat.ID, stat.Name, percent(stat.CPUPerc), percent(stat.MemPerc)})
-					}
-				}
-			}
-		} else {
-			m.Online = false
-		}
 	}
-	// Convert host CPU counters to an interval percentage instead of lifetime utilization.
-	if m.Online {
-		var counter string
-		counter, e = deploy.Output(ctx, client, "sh", "-c", `awk '/^cpu /{print $2+$3+$4+$6+$7+$8,$2+$3+$4+$5+$6+$7+$8}' /proc/stat`)
-		if e == nil {
-			var used, total float64
-			_, _ = fmt.Sscan(counter, &used, &total)
-			var prev struct {
-				Used  float64 `json:"used"`
-				Total float64 `json:"total"`
-			}
-			var raw []byte
-			_ = c.Store.Pool.QueryRow(ctx, "SELECT value FROM settings WHERE key=$1", "cpu:"+id).Scan(&raw)
-			_ = json.Unmarshal(raw, &prev)
-			if total > prev.Total && prev.Total > 0 {
-				m.CPU = (used - prev.Used) / (total - prev.Total) * 100
-			}
-			raw, _ = json.Marshal(map[string]float64{"used": used, "total": total})
-			_, _ = c.Store.Pool.Exec(ctx, "INSERT INTO settings(key,value) VALUES($1,$2) ON CONFLICT(key) DO UPDATE SET value=$2", "cpu:"+id, raw)
-		}
-	}
-	b, _ := json.Marshal(m)
-	if _, err := c.Store.Pool.Exec(ctx, "INSERT INTO metrics(resource_id,data) VALUES($1,$2)", id, b); err != nil {
+	if _, err := c.Store.Pool.Exec(ctx, "INSERT INTO metrics(resource_id,data) VALUES($1,$2)", id, metricJSON(m)); err != nil {
 		return err
 	}
-	rows, err := c.Store.Pool.Query(ctx, "SELECT r.id FROM resources r JOIN app_runtime a ON a.app_id=r.id WHERE r.kind='application' AND r.data->>'serverId'=$1 AND a.status<>'removed'", id)
+	server, err := c.Store.Resource(ctx, id)
 	if err != nil {
 		return err
 	}
-	apps := []string{}
-	for rows.Next() {
-		var app string
-		if rows.Scan(&app) == nil {
-			apps = append(apps, app)
-		}
+	if err = c.evaluateMonitoring(ctx, server, m); err != nil {
+		return err
 	}
-	rows.Close()
-	for _, app := range apps {
+	apps, err := c.Store.Resources(ctx, "application")
+	if err != nil {
+		return err
+	}
+	for _, resource := range apps {
+		spec, err := model.Decode[model.App](resource)
+		if err != nil {
+			return err
+		}
+		if spec.ServerID != id || model.IsDeleting(resource) {
+			continue
+		}
 		err = func() error {
-			unlock, acquired, lockErr := c.tryLock(ctx, "application:"+app)
-			if lockErr != nil {
-				return lockErr
-			}
-			if !acquired {
-				return nil
-			}
-			defer unlock()
-			release, err := c.Store.Active(ctx, app)
-			if err != nil {
+			unlock, acquired, err := c.tryLock(ctx, "application:"+resource.ID)
+			if err != nil || !acquired {
 				return err
 			}
-			if m.Online && client != nil {
-				var status string
-				_ = c.Store.Pool.QueryRow(ctx, "SELECT status FROM app_runtime WHERE app_id=$1", app).Scan(&status)
-				if status == "running" || status == "network_error" {
-					before, _ := json.Marshal(release.Targets)
-					engine := deploy.Engine{Remote: client, Log: io.Discard}
-					if err = engine.Discover(ctx, &release); err != nil {
-						_, _ = c.Store.Pool.Exec(ctx, "UPDATE app_runtime SET status='network_error' WHERE app_id=$1", app)
-						if status != "network_error" {
-							_ = c.Store.Enqueue(ctx, "proxy", id, "network-error:"+db.NowID(), nil)
-						}
-					} else {
-						after, _ := json.Marshal(release.Targets)
-						if string(before) != string(after) || status == "network_error" {
-							if err = c.Store.UpdateRuntime(ctx, release); err != nil {
-								return err
+			defer unlock()
+			status := "not_deployed"
+			ids := []string{}
+			if spec.IsJob() {
+				status = "idle"
+				rows, err := c.Store.Pool.Query(ctx, "SELECT a.container FROM job_attempts a JOIN job_runs r ON r.id=a.run_id WHERE r.app_id=$1 AND r.state='running' AND a.state='running' AND NOT a.cleaned", resource.ID)
+				if err != nil {
+					return err
+				}
+				for rows.Next() {
+					var container string
+					if err = rows.Scan(&container); err != nil {
+						rows.Close()
+						return err
+					}
+					ids = append(ids, container)
+				}
+				err = rows.Err()
+				rows.Close()
+				if err != nil {
+					return err
+				}
+				if len(ids) > 0 {
+					status = "running"
+				}
+			} else {
+				release, err := c.Store.Active(ctx, resource.ID)
+				if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+					return err
+				}
+				if err == nil {
+					ids = release.Containers
+					if err = c.Store.Pool.QueryRow(ctx, "SELECT status FROM app_runtime WHERE app_id=$1", resource.ID).Scan(&status); err != nil {
+						return err
+					}
+					var desired string
+					_ = c.Store.Pool.QueryRow(ctx, "SELECT desired_state FROM application_control WHERE app_id=$1", resource.ID).Scan(&desired)
+					if desired == "stopped" {
+						status = "stopped"
+					}
+					if m.Online && client != nil && (status == "running" || status == "network_error") {
+						before, _ := json.Marshal(release.Targets)
+						engine := deploy.Engine{Remote: client, Log: io.Discard}
+						if err = engine.Discover(ctx, &release); err != nil {
+							_, _ = c.Store.Pool.Exec(ctx, "UPDATE app_runtime SET status='network_error' WHERE app_id=$1", resource.ID)
+							if status != "network_error" {
+								_ = c.Store.Enqueue(ctx, "proxy", id, "network-error:"+db.NowID(), nil)
 							}
-							_, _ = c.Store.Pool.Exec(ctx, "UPDATE app_runtime SET status='running' WHERE app_id=$1", app)
-							_ = c.Store.Enqueue(ctx, "proxy", id, "network-reconciled:"+db.NowID(), nil)
+							status = "network_error"
+						} else {
+							after, _ := json.Marshal(release.Targets)
+							if string(before) != string(after) || status == "network_error" {
+								if err = c.Store.UpdateRuntime(ctx, release); err != nil {
+									return err
+								}
+								_, _ = c.Store.Pool.Exec(ctx, "UPDATE app_runtime SET status='running' WHERE app_id=$1", resource.ID)
+								_ = c.Store.Enqueue(ctx, "proxy", id, "network-reconciled:"+db.NowID(), nil)
+							}
+							status = "running"
 						}
 					}
 				}
 			}
-			point := applicationMetric(m, release)
-			raw, _ := json.Marshal(point)
-			if _, err = c.Store.Pool.Exec(ctx, "INSERT INTO metrics(resource_id,data) VALUES($1,$2)", app, raw); err != nil {
+			point := aggregateApplication(m, ids, resource.ID, status)
+			if _, err = c.Store.Pool.Exec(ctx, "INSERT INTO metrics(resource_id,data) VALUES($1,$2)", resource.ID, metricJSON(point)); err != nil {
 				return err
 			}
-			return nil
+			return c.evaluateMonitoring(ctx, resource, point)
 		}()
 		if err != nil {
 			return err
 		}
 	}
-	policy := c.AlertPolicy(ctx)
-	_ = c.alert(ctx, id, "server.offline", !m.Online, time.Duration(policy.OfflineSeconds)*time.Second, map[string]any{"serverId": id})
-	if m.Online {
-		_ = c.alert(ctx, id, "resource.high", m.CPU >= policy.CPU || m.Memory >= policy.Memory || m.Disk >= policy.Disk, policy.sustained(), m)
-	}
 	return nil
 }
 
+// Retained helper also protects legacy metric contract fixtures.
 func applicationMetric(server Metric, release model.Release) Metric {
-	point := Metric{ResourceID: release.AppID, At: server.At, Online: server.Online, Containers: []ContainerMetric{}}
-	for _, stat := range server.Containers {
-		for _, id := range release.Containers {
-			if len(stat.ID) >= 12 && strings.HasPrefix(id, stat.ID) {
-				point.Containers = append(point.Containers, stat)
-				point.CPU += stat.CPU
-				point.Memory += stat.Memory
-				break
-			}
-		}
-	}
-	if len(point.Containers) > 0 {
-		point.Memory /= float64(len(point.Containers))
-	}
-	return point
+	return aggregateApplication(server, release.Containers, release.AppID, "running")
 }
 func (c *Controller) alert(ctx context.Context, id, kind string, active bool, duration time.Duration, data any) error {
 	var current bool
@@ -253,57 +230,6 @@ func (c *Controller) emit(ctx context.Context, event, team, id string, data any,
 			return e
 		}
 	}
-	return nil
-}
-func (c *Controller) notify(ctx context.Context, j model.Job) error {
-	var payload map[string]any
-	if e := json.Unmarshal(j.Payload, &payload); e != nil {
-		return e
-	}
-	if payload["marker"] == true {
-		return nil
-	}
-	hookID, _ := payload["hookId"].(string)
-	hook, e := c.Store.Resource(ctx, hookID)
-	if e != nil {
-		return e
-	}
-	spec, e := model.Decode[model.Webhook](hook)
-	if e != nil {
-		return e
-	}
-	secrets, e := c.Store.Secrets(hook)
-	if e != nil {
-		return e
-	}
-	delete(payload, "hookId")
-	body, e := json.Marshal(payload)
-	if e != nil {
-		return e
-	}
-	req, e := http.NewRequestWithContext(ctx, "POST", spec.URL, bytes.NewReader(body))
-	if e != nil {
-		return e
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "Shipyard/0.1")
-	if secret := secrets["signing_secret"]; secret != "" {
-		h := hmac.New(sha256.New, []byte(secret))
-		h.Write(body)
-		req.Header.Set("X-Shipyard-Signature", "sha256="+hex.EncodeToString(h.Sum(nil)))
-	}
-	if id, ok := payload["id"].(string); ok {
-		req.Header.Set("X-Shipyard-Delivery", id)
-	}
-	res, e := providers.HTTPClient().Do(req)
-	if e != nil {
-		return e
-	}
-	defer res.Body.Close()
-	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		return fmt.Errorf("notification endpoint returned HTTP %d", res.StatusCode)
-	}
-	_, _ = io.Copy(io.Discard, io.LimitReader(res.Body, 1<<20))
 	return nil
 }
 func (c *Controller) Action(ctx context.Context, app model.Resource, action string) error {

@@ -12,7 +12,7 @@ export function ResourceFieldSelect(props: ResourceFieldSelectProps) {
     return update(f.key, v);
   }
   function handleSelectControlValueChange2(v: string) {
-    return update(f.key, v);
+    return update(f.key, v === "__direct__" ? "" : v);
   }
 
   const { resources, f } = props;
@@ -24,7 +24,10 @@ export function ResourceFieldSelect(props: ResourceFieldSelectProps) {
   if (f.options)
     return (
       <SelectControl
-        value={String(data[f.key] || "") || undefined}
+        value={
+          String(data[f.key] || "") ||
+          (f.resource === "proxy" ? "__direct__" : undefined)
+        }
         onValueChange={handleSelectControlValueChange}
         options={f.options.map((v) => ({
           value: v,
@@ -42,22 +45,30 @@ export function ResourceFieldSelect(props: ResourceFieldSelectProps) {
   if (f.resource)
     return (
       <SelectControl
-        value={String(data[f.key] || "") || undefined}
+        value={
+          String(data[f.key] || "") ||
+          (f.resource === "proxy" ? "__direct__" : undefined)
+        }
         onValueChange={handleSelectControlValueChange2}
-        options={resources
-          .filter((r) => r.kind === f.resource)
-          .map((r) => ({
-            value: r.id,
-            label:
-              f.resource === "git" ? (
-                <span className="inline-flex min-w-0 items-center gap-2">
-                  <ProviderLogo provider={String(r.data.provider || "")} />
-                  <span className="truncate">{r.name}</span>
-                </span>
-              ) : (
-                r.name
-              ),
-          }))}
+        options={[
+          ...(f.resource === "proxy"
+            ? [{ value: "__direct__", label: "Direct connection" }]
+            : []),
+          ...resources
+            .filter((r) => r.kind === f.resource)
+            .map((r) => ({
+              value: r.id,
+              label:
+                f.resource === "git" ? (
+                  <span className="inline-flex min-w-0 items-center gap-2">
+                    <ProviderLogo provider={String(r.data.provider || "")} />
+                    <span className="truncate">{r.name}</span>
+                  </span>
+                ) : (
+                  r.name
+                ),
+            })),
+        ]}
         placeholder={`Select ${f.resource}`}
         disabled={false}
         triggerProps={{

@@ -67,36 +67,40 @@ export function ServerCard({ server }: ServerCardProps) {
           </div>
         ) : (
           <>
-            <div className="mb-5 grid grid-cols-3 gap-3">
-              {[
-                ["CPU", latest?.cpu],
-                ["Memory", latest?.memory],
-                ["Disk", latest?.disk],
-              ].map(([label, v]) => (
-                <div key={label}>
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                    {label}
-                  </p>
-                  <p className="mt-2 font-mono text-lg">
-                    {typeof v === "number" ? `${v.toFixed(1)}%` : "—"}
-                  </p>
+            {admin && (
+              <>
+                <div className="mb-5 grid grid-cols-3 gap-3">
+                  {[
+                    ["CPU", latest?.cpu],
+                    ["Memory", latest?.memory],
+                    ["Disk", latest?.disk],
+                  ].map(([label, v]) => (
+                    <div key={label}>
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                        {label}
+                      </p>
+                      <p className="mt-2 font-mono text-lg">
+                        {typeof v === "number" ? `${v.toFixed(1)}%` : "—"}
+                      </p>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            {q.data && q.data.length > 1 ? (
-              <div className="mb-5 h-20">
-                <Suspense
-                  fallback={
-                    <div className="h-full animate-pulse rounded bg-muted" />
-                  }
-                >
-                  <ServerCPUChart data={q.data} />
-                </Suspense>
-              </div>
-            ) : (
-              <p className="mb-5 text-xs text-muted-foreground">
-                Metrics appear after the next 30-second poll.
-              </p>
+                {q.data && q.data.length > 1 ? (
+                  <div className="mb-5 h-20">
+                    <Suspense
+                      fallback={
+                        <div className="h-full animate-pulse rounded bg-muted" />
+                      }
+                    >
+                      <ServerCPUChart data={q.data} />
+                    </Suspense>
+                  </div>
+                ) : (
+                  <p className="mb-5 text-xs text-muted-foreground">
+                    Metrics appear after the next 30-second poll.
+                  </p>
+                )}
+              </>
             )}
             <div className="flex flex-wrap gap-2 border-t pt-4">
               <Button

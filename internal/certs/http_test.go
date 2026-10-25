@@ -14,8 +14,10 @@ import (
 	"os"
 	"path/filepath"
 	"shipyard/internal/db"
+	"shipyard/internal/model"
 	"shipyard/internal/secure"
 	"shipyard/internal/testdb"
+	"shipyard/internal/testproxy"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -175,12 +177,28 @@ func TestHTTP01IssuanceAgainstFakeACME(t *testing.T) {
 	}
 	t.Setenv("LEGO_CA_CERTIFICATES", ca)
 	issuer := &ACME{Store: s, Directory: base + "/directory", AcceptTOS: true}
+	proxySpec, requests := testproxy.Start(t)
+	rawProxy, _ := json.Marshal(proxySpec)
+	connection, e := s.Save(ctx, "", model.ResourceInput{Kind: "proxy", Name: "ACME proxy", Data: rawProxy})
+	if e != nil {
+		t.Fatal(e)
+	}
+	if e = s.SetCertificateNetwork(ctx, db.CertificateNetwork{ProxyID: connection.ID}); e != nil {
+		t.Fatal(e)
+	}
 	bundle, expires, e := issuer.ObtainHTTP(ctx, "panel.example.com")
 	if e != nil {
 		t.Fatal(e)
 	}
 	if !validated.Load() || expires.Before(time.Now().Add(80*24*time.Hour)) || !strings.Contains(string(bundle), "PRIVATE KEY") {
 		t.Fatal("issuance result invalid")
+	}
+	if requests.Load() == 0 {
+		t.Fatal("ACME requests bypassed selected SOCKS proxy")
+	}
+	proxiedCount := requests.Load()
+	if e = s.SetCertificateNetwork(ctx, db.CertificateNetwork{}); e != nil {
+		t.Fatal(e)
 	}
 	var count int
 	s.Pool.QueryRow(ctx, "SELECT count(*) FROM settings WHERE key LIKE 'http01:%'").Scan(&count)
@@ -192,6 +210,9 @@ func TestHTTP01IssuanceAgainstFakeACME(t *testing.T) {
 	fail.Store(true)
 	if _, _, e = issuer.ObtainHTTP(ctx, "panel.example.com"); e == nil {
 		t.Fatal("failed validation accepted")
+	}
+	if requests.Load() != proxiedCount {
+		t.Fatal("Direct ACME request used saved proxy")
 	}
 	s.Pool.QueryRow(ctx, "SELECT count(*) FROM settings WHERE key LIKE 'http01:%'").Scan(&count)
 	if count != 0 {

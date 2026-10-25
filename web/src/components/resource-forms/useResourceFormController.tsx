@@ -80,13 +80,18 @@ export function useResourceFormController({
   const dnsTesting = testCredentials.isPending;
   const failure = saveResource.error ?? testCredentials.error;
   const error = failure ? describeError(failure) : "";
-  const dnsCredentials = JSON.stringify([data.provider, secrets.token]);
+  const dnsCredentials = JSON.stringify([
+    data.provider,
+    secrets.token,
+    data.proxyId || "",
+  ]);
   const needsDNSTest = kind === "dns" && !existing;
   const dnsVerified =
     testCredentials.isSuccess &&
     JSON.stringify([
       testCredentials.variables?.provider,
       testCredentials.variables?.token,
+      testCredentials.variables?.proxyId || "",
     ]) === dnsCredentials;
   const needsComposeDocument =
     kind === "application" &&
@@ -127,6 +132,7 @@ export function useResourceFormController({
     const parsed = dnsCredentialSchema.safeParse({
       provider: data.provider,
       token: secrets.token,
+      proxyId: String(data.proxyId || ""),
     });
     if (!parsed.success) {
       toastValidationError(parsed.error);

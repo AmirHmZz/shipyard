@@ -182,9 +182,7 @@
     "name": "runtime-private",
     "schema": "ApplicationRuntime",
     "body": {
-      "containers": [
-        "app"
-      ],
+      "containers": ["app"],
       "status": "running",
       "targets": null
     }
@@ -263,6 +261,42 @@
       "builtAt": "unknown",
       "architecture": "amd64",
       "updaterProtocol": 1
+    }
+  },
+  {
+    "name": "metric-empty",
+    "schema": "Metric",
+    "body": {
+      "resourceId": "server",
+      "cpu": 0,
+      "memory": 0,
+      "disk": 0,
+      "online": false,
+      "at": "2026-10-22T00:00:00Z",
+      "containers": [],
+      "valid": false,
+      "cpuValid": false,
+      "memoryBytes": 0,
+      "memoryTotalBytes": 0,
+      "network": [],
+      "devices": [],
+      "networkRx": null,
+      "networkTx": null,
+      "diskRead": null,
+      "diskWrite": null
+    }
+  },
+  {
+    "name": "monitoring-policy",
+    "schema": "MonitoringPolicy",
+    "body": {
+      "enabled": true,
+      "cpu": 90,
+      "memory": 90,
+      "disk": 90,
+      "sustainedSeconds": 300,
+      "offlineSeconds": 60,
+      "destinations": []
     }
   },
   {

@@ -8,23 +8,16 @@ import type { Metric, Resource } from "@/lib/api/types";
 
 import { RepositoryName } from "@/components/repository-name";
 import { Empty, StateBadge } from "@/components/Shared";
-import { TableHeadings } from "@/components/TableHeadings";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { TabsContent } from "@/components/ui/tabs";
 import { toastValidationError } from "@/lib/api/toaster";
 import { text } from "@/lib/resource-fields";
 
 import { previewCommitSchema } from "../generics";
 import { useApprovePreview } from "../hooks";
+import { ApplicationContainerMetrics } from "./ApplicationContainerMetrics";
 
 export type ApplicationOverviewProps = {
   app: Resource;
@@ -51,7 +44,6 @@ export function ApplicationOverview({
   }
 
   const directCompose = app.data.source === "compose";
-  const containers = metrics.data?.at(-1)?.containers ?? [];
   const updateVersion = useApprovePreview({
     refreshAll: true,
     successMessage: "Preview approved and queued",
@@ -148,46 +140,7 @@ export function ApplicationOverview({
           </CardContent>
         </Card>
       </div>
-      <Card className="mt-5 overflow-hidden pb-0 shadow-none">
-        <CardHeader>
-          <CardTitle className="text-sm">Container resources</CardTitle>
-          <p className="text-xs text-muted-foreground">
-            Sampled every 30 seconds. CPU may exceed 100% across multiple cores.
-          </p>
-        </CardHeader>
-        <CardContent className="p-0">
-          {containers.length ? (
-            <Table>
-              <TableHeader>
-                <TableHeadings
-                  columns={[
-                    { id: "container", label: <>Container</> },
-                    { id: "cpu", label: <>CPU</> },
-                    { id: "memory", label: <>Memory</> },
-                  ]}
-                  rowProps={{}}
-                />
-              </TableHeader>
-              <TableBody>
-                {containers.map((c) => (
-                  <TableRow key={c.id}>
-                    <TableCell className="max-w-60 truncate font-mono text-xs">
-                      {c.name}
-                    </TableCell>
-                    <TableCell>{c.cpu.toFixed(1)}%</TableCell>
-                    <TableCell>{c.memory.toFixed(1)}%</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <p className="px-6 pb-6 text-sm text-muted-foreground">
-              Container metrics appear after deployment and the next metrics
-              poll.
-            </p>
-          )}
-        </CardContent>
-      </Card>
+      <ApplicationContainerMetrics metrics={metrics.data} />
       {text(app.data, "previewOf") && !text(app.data, "approvedSha") && (
         <Card className="mt-5 py-0">
           <CardContent className="p-5">

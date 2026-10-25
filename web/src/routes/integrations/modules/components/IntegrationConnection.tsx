@@ -6,10 +6,14 @@ import { ProviderLogo } from "@/components/ProviderName";
 import { Button } from "@/components/ui/button";
 import { providerName } from "@/lib/providers";
 import { text } from "@/lib/resource-fields";
+import { useAdmin } from "@/lib/session";
+
+import { NotificationDelivery } from "./NotificationDelivery";
 export type IntegrationConnectionProps = { resource: Resource };
 export function IntegrationConnection({
   resource,
 }: IntegrationConnectionProps) {
+  const admin = useAdmin();
   return (
     <div className="flex flex-wrap items-center justify-between gap-4 border-t px-6 py-5">
       <div className="flex min-w-0 items-center gap-4">
@@ -35,7 +39,10 @@ export function IntegrationConnection({
           </p>
         </div>
       </div>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        {admin && resource.kind === "webhook" && (
+          <NotificationDelivery id={resource.id} />
+        )}
         {(resource.kind === "git" || resource.kind === "registry") && (
           <Button
             disabled={!resource.canWrite}
@@ -57,7 +64,7 @@ export function IntegrationConnection({
         >
           Configure
         </Button>
-        {resource.kind === "registry" && (
+        {["registry", "proxy", "webhook"].includes(resource.kind) && (
           <Button
             disabled={!resource.canWrite}
             variant="outline"

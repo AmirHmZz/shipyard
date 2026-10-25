@@ -206,6 +206,17 @@ func (a *API) Router() http.Handler {
 			r.Post("/settings/updates", a.executeUpdate)
 			r.Get("/settings/updates/{id}", a.updateOperation)
 			r.Get("/settings/updates/{id}/backup", a.updateBackup)
+			r.Get("/settings/certificates", a.certificateSettings)
+			r.Put("/settings/certificates", a.certificateSettings)
+			r.Get("/monitoring/resources", a.monitoringResources)
+			r.Get("/monitoring/defaults", a.monitoringDefaults)
+			r.Put("/monitoring/defaults", a.monitoringDefaults)
+			r.Get("/monitoring/resources/{id}/policy", a.monitoringPolicy)
+			r.Put("/monitoring/resources/{id}/policy", a.monitoringPolicy)
+			r.Delete("/monitoring/resources/{id}/policy", a.monitoringPolicy)
+			r.Get("/monitoring/incidents", a.monitoringIncidents)
+			r.Post("/notifications/{id}/test", a.testNotification)
+			r.Get("/notifications/{id}/delivery", a.notificationDelivery)
 			r.Get("/settings/alerts", a.alertSettings)
 			r.Get("/settings/dashboard-access", a.dashboardAccess)
 			r.Put("/settings/dashboard-access", a.dashboardAccess)
@@ -327,6 +338,38 @@ func (a *API) resources(w http.ResponseWriter, r *http.Request) {
 	respond(w, 200, out)
 }
 func (a *API) validateParent(ctx context.Context, u model.User, in *model.ResourceInput, id string) error {
+	if in.Kind == "proxy" {
+		if !u.Admin {
+			return errors.New("platform administrator required")
+		}
+		in.TeamID = ""
+		in.ParentID = ""
+		return nil
+	}
+	if in.Kind == "webhook" {
+		spec, err := model.Decode[model.Webhook](model.Resource{Data: in.Data})
+		if err != nil {
+			return err
+		}
+		if spec.Messenger() {
+			if !u.Admin {
+				return errors.New("platform administrator required")
+			}
+			in.TeamID = ""
+			in.ParentID = ""
+			return nil
+		}
+		if spec.ProxyID != "" && !u.Admin {
+			previous, err := a.Store.Resource(ctx, id)
+			if err != nil {
+				return errors.New("only administrators may select saved proxies")
+			}
+			before, err := model.Decode[model.Webhook](previous)
+			if err != nil || before.ProxyID != spec.ProxyID {
+				return errors.New("only administrators may select saved proxies")
+			}
+		}
+	}
 	global := in.Kind == "server" || in.Kind == "git" || in.Kind == "dns" || in.Kind == "zone" || in.Kind == "team" || in.Kind == "registry"
 	if global {
 		if !u.Admin {
@@ -752,6 +795,19 @@ func (a *API) deleteResource(w http.ResponseWriter, r *http.Request) {
 		fail(w, 409, db.ErrDeleting.Error())
 		return
 	}
+	if v.Kind == "proxy" || v.Kind == "webhook" {
+		if e := a.Store.DeleteIntegration(r.Context(), v.ID); e != nil {
+			if errors.Is(e, db.ErrConflict) {
+				fail(w, 409, e.Error())
+			} else {
+				a.err(w, e)
+			}
+			return
+		}
+		_ = a.Store.Audit(r.Context(), user(r).ID, "resource.deleted", v.ID, v.TeamID, nil)
+		respond(w, 200, map[string]bool{"ok": true})
+		return
+	}
 	children, e := a.Store.Children(r.Context(), v.ID, "")
 	if e != nil {
 		a.err(w, e)
@@ -945,22 +1001,32 @@ func (a *API) testServer(w http.ResponseWriter, r *http.Request) {
 	respond(w, 200, map[string]string{"dockerVersion": out, "status": "connected"})
 }
 func (a *API) metrics(w http.ResponseWriter, r *http.Request) {
+	if !a.admin(w, r) {
+		return
+	}
 	v, ok := a.get(w, r, false)
 	if !ok {
 		return
 	}
-	rows, e := a.Store.Pool.Query(r.Context(), "SELECT data FROM (SELECT data,created_at FROM metrics WHERE resource_id=$1 ORDER BY created_at DESC LIMIT 2880) m ORDER BY created_at", v.ID)
-	if e != nil {
-		a.err(w, e)
+	kind := "application"
+	if strings.Contains(r.URL.Path, "/servers/") {
+		kind = "server"
+	}
+	if v.Kind != kind {
+		fail(w, 400, kind+" required")
 		return
 	}
-	defer rows.Close()
-	out := []json.RawMessage{}
-	for rows.Next() {
-		var b []byte
-		if rows.Scan(&b) == nil {
-			out = append(out, b)
-		}
+	value := r.URL.Query().Get("range")
+	switch value {
+	case "", "1h", "6h", "24h", "7d", "30d":
+	default:
+		fail(w, 400, "invalid metrics range")
+		return
+	}
+	out, err := a.Control.MetricHistory(r.Context(), v.ID, value)
+	if err != nil {
+		a.err(w, err)
+		return
 	}
 	respond(w, 200, out)
 }
@@ -1018,9 +1084,10 @@ func (a *API) providerZones(w http.ResponseWriter, r *http.Request) {
 		a.err(w, e)
 		return
 	}
-	var provider providers.DNSProvider = providers.NewDNS(spec.Provider, s["token"])
-	if a.Control.DNSFactory != nil {
-		provider = a.Control.DNSFactory(spec.Provider, s["token"])
+	provider, e := a.Control.DNSConnection(r.Context(), spec, s["token"])
+	if e != nil {
+		fail(w, 400, e.Error())
+		return
 	}
 	zones, e := provider.Zones(r.Context())
 	if e != nil {

@@ -10,6 +10,7 @@ export const RESOURCE_KINDS = [
   "application",
   "route",
   "webhook",
+  "proxy",
 ] as const;
 export const PROJECT_ROLES = ["owner", "operator", "viewer"] as const;
 export const ASSIGNMENT_ROLES = [...PROJECT_ROLES, "remove"] as const;

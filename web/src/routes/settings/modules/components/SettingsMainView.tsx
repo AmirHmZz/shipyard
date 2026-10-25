@@ -8,7 +8,7 @@ import {
   ShieldCheck,
   Users,
 } from "lucide-react";
-import { useSearchParams } from "react-router";
+import { Navigate, useSearchParams } from "react-router";
 
 import type { Session } from "@/lib/api/types";
 
@@ -16,8 +16,8 @@ import { PageHeader } from "@/components/Shared";
 import { TabScroller } from "@/components/TabScroller";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-import { AlertSettings } from "./AlertSettings";
 import { Backup } from "./Backup";
+import { CertificateNetwork } from "./CertificateNetwork";
 import { DashboardAccess } from "./DashboardAccess";
 import { History } from "./History";
 import { PasswordSettings } from "./PasswordSettings";
@@ -32,6 +32,8 @@ export function SettingsMainView({ session }: SettingsMainViewProps) {
   }
 
   const [params, setParams] = useSearchParams();
+  if (session.user.admin && params.get("tab") === "alerts")
+    return <Navigate replace to="/monitoring?view=defaults" />;
   return (
     <>
       <PageHeader
@@ -58,6 +60,10 @@ export function SettingsMainView({ session }: SettingsMainViewProps) {
                 <TabsTrigger value="dashboard">
                   <LockKeyhole aria-hidden="true" />
                   Dashboard access
+                </TabsTrigger>
+                <TabsTrigger value="certificates">
+                  <LockKeyhole aria-hidden="true" />
+                  Certificates
                 </TabsTrigger>
                 <TabsTrigger value="backup">
                   <Download aria-hidden="true" />
@@ -95,6 +101,9 @@ export function SettingsMainView({ session }: SettingsMainViewProps) {
             <TabsContent value="dashboard">
               <DashboardAccess />
             </TabsContent>
+            <TabsContent value="certificates">
+              <CertificateNetwork />
+            </TabsContent>
             <TabsContent value="backup">
               <Backup session={session} />
             </TabsContent>
@@ -102,7 +111,7 @@ export function SettingsMainView({ session }: SettingsMainViewProps) {
               <History type="jobs" />
             </TabsContent>
             <TabsContent value="alerts">
-              <AlertSettings />
+              <Navigate replace to="/monitoring?view=defaults" />
             </TabsContent>
             <TabsContent value="users">
               <UserSettings session={session} />

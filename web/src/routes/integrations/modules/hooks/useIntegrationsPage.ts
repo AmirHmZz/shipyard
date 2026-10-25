@@ -16,7 +16,9 @@ export function useIntegrationsPage() {
   const [params] = useSearchParams();
   const resources = q.data || [];
   const deletingRegistry = resources.find(
-    (resource) => resource.id === deleting && resource.kind === "registry",
+    (resource) =>
+      resource.id === deleting &&
+      ["registry", "proxy", "webhook"].includes(resource.kind),
   );
   function closeDeletion(open: boolean) {
     if (!open && !deletion.isPending) setDeleting("");
@@ -46,7 +48,8 @@ export function useIntegrationsPage() {
     );
     if (
       button.dataset.action === "delete" &&
-      resource?.kind === "registry" &&
+      resource &&
+      ["registry", "proxy", "webhook"].includes(resource.kind) &&
       resource.canWrite
     ) {
       setDeleting(resource.id);

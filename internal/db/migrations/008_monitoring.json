@@ -1,0 +1,11 @@
+{
+  "name": "Shared SOCKS proxies and administrator monitoring",
+  "up": {
+    "classification": "non-destructive",
+    "impact": "Add monitoring policies, incidents and counter baselines; preserve server alert defaults and existing notification connections."
+  },
+  "down": {
+    "classification": "destructive",
+    "impact": "Discard monitoring policies, incidents, baselines, saved proxies, Telegram/Bale connections and certificate network settings. Restore a backup to recover removed data."
+  }
+}

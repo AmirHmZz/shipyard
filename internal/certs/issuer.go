@@ -23,6 +23,7 @@ import (
 	"github.com/go-acme/lego/v4/registration"
 	"github.com/jackc/pgx/v5"
 	"shipyard/internal/db"
+	"shipyard/internal/outbound"
 	"shipyard/internal/providers"
 	"shipyard/internal/secure"
 )
@@ -91,12 +92,15 @@ func (a *ACME) DirectoryURL() string {
 	return "https://acme-v02.api.letsencrypt.org/directory"
 }
 func (original *ACME) Obtain(ctx context.Context, domain, provider, token string) ([]byte, time.Time, error) {
-	return original.obtain(ctx, domain, provider, token, false)
+	return original.obtain(ctx, domain, provider, token, false, "")
+}
+func (original *ACME) ObtainDNS(ctx context.Context, domain, provider, token, proxyID string) ([]byte, time.Time, error) {
+	return original.obtain(ctx, domain, provider, token, false, proxyID)
 }
 func (original *ACME) ObtainHTTP(ctx context.Context, domain string) ([]byte, time.Time, error) {
-	return original.obtain(ctx, domain, "", "", true)
+	return original.obtain(ctx, domain, "", "", true, "")
 }
-func (original *ACME) obtain(ctx context.Context, domain, provider, token string, httpChallenge bool) ([]byte, time.Time, error) {
+func (original *ACME) obtain(ctx context.Context, domain, provider, token string, httpChallenge bool, dnsProxyID string) ([]byte, time.Time, error) {
 	resolved := *original
 	a := &resolved
 	configuration, err := a.Configuration(ctx)
@@ -147,11 +151,21 @@ func (original *ACME) obtain(ctx context.Context, domain, provider, token string
 		user.Key = x509.MarshalPKCS1PrivateKey(key)
 	}
 	config := lego.NewConfig(&user)
-	base := config.HTTPClient.Transport
-	if base == nil {
-		base = http.DefaultTransport
+	network, err := a.Store.CertificateNetwork(ctx)
+	if err != nil {
+		return nil, time.Time{}, err
+	}
+	acmeHTTP, err := outbound.Client(ctx, a.Store, network.ProxyID)
+	if err != nil {
+		return nil, time.Time{}, err
+	}
+	defer acmeHTTP.CloseIdleConnections()
+	base := acmeHTTP.Transport.(*http.Transport)
+	if original, ok := config.HTTPClient.Transport.(*http.Transport); ok {
+		base.TLSClientConfig = original.TLSClientConfig
 	}
 	config.HTTPClient.Transport = contextTransport{ctx, base}
+	config.HTTPClient.CheckRedirect = acmeHTTP.CheckRedirect
 	if a.Directory != "" {
 		config.CADirURL = a.Directory
 	}
@@ -179,10 +193,17 @@ func (original *ACME) obtain(ctx context.Context, domain, provider, token string
 	if httpChallenge {
 		err = client.Challenge.SetHTTP01Provider(&httpProvider{Store: a.Store, Context: ctx})
 	} else {
+		dnsHTTP, e := outbound.Client(ctx, a.Store, dnsProxyID)
+		if e != nil {
+			return nil, time.Time{}, e
+		}
+		dnsHTTP.Transport = contextTransport{ctx, dnsHTTP.Transport}
+		defer dnsHTTP.CloseIdleConnections()
 		switch provider {
 		case "cloudflare":
 			cfg := cloudflare.NewDefaultConfig()
 			cfg.AuthToken = token
+			cfg.HTTPClient = dnsHTTP
 			p, e := cloudflare.NewDNSProviderConfig(cfg)
 			if e != nil {
 				return nil, time.Time{}, e
@@ -191,6 +212,7 @@ func (original *ACME) obtain(ctx context.Context, domain, provider, token string
 		case "arvancloud":
 			cfg := arvancloud.NewDefaultConfig()
 			cfg.APIKey = providers.ArvanAuthorization(token)
+			cfg.HTTPClient = dnsHTTP
 			p, e := arvancloud.NewDNSProviderConfig(cfg)
 			if e != nil {
 				return nil, time.Time{}, e
@@ -222,6 +244,12 @@ func (original *ACME) obtain(ctx context.Context, domain, provider, token string
 type contextTransport struct {
 	ctx  context.Context
 	base http.RoundTripper
+}
+
+func (t contextTransport) CloseIdleConnections() {
+	if closer, ok := t.base.(interface{ CloseIdleConnections() }); ok {
+		closer.CloseIdleConnections()
+	}
 }
 
 func (t contextTransport) RoundTrip(r *http.Request) (*http.Response, error) {

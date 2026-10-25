@@ -10,6 +10,6 @@ export function useDeleteRegistry() {
     body: () => ({}),
     schema: okResponseSchema,
     invalidate: [resourceKeys.all],
-    meta: { successMessage: "Registry integration deleted" },
+    meta: { successMessage: "Integration deleted" },
   });
 }

@@ -12,7 +12,7 @@ func TestMigrationsRoundTripHistoryAndApproval(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	if len(catalog) != 7 {
+	if len(catalog) != 8 {
 		t.Fatal("update this test with the new schema")
 	}
 	if _, e = s.Pool.Exec(ctx, "INSERT INTO users(id,email,name,password,disabled) VALUES('retained','retained@example.com','Retained','hash',true)"); e != nil {
@@ -22,7 +22,7 @@ func TestMigrationsRoundTripHistoryAndApproval(t *testing.T) {
 		t.Fatal("destructive downgrade accepted without approval")
 	}
 	state, e := MigrationState(ctx, s.Pool)
-	if e != nil || state.Current != 7 {
+	if e != nil || state.Current != 8 {
 		t.Fatal(state, e)
 	}
 	if e = ApplyMigrations(ctx, s.Pool, 1, true); e != nil {
@@ -35,7 +35,7 @@ func TestMigrationsRoundTripHistoryAndApproval(t *testing.T) {
 	if _, e = Open(ctx, testURLForPool(t, s), s.Vault); e == nil {
 		t.Fatal("older schema was silently upgraded")
 	}
-	if e = ApplyMigrations(ctx, s.Pool, 7, true); e != nil {
+	if e = ApplyMigrations(ctx, s.Pool, 8, true); e != nil {
 		t.Fatal(e)
 	}
 	var disabled bool

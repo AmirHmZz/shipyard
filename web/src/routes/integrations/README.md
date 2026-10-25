@@ -7,3 +7,4 @@ Provider configuration navigates to `/configure/*`; this feature needs no duplic
 Mapped provider actions use data attributes and a named container handler.
 Provider setup and grant writes wait for successful server responses.
 Registry connections use automatic team-scoped authentication; their local deletion hook removes credentials after confirmation.
+Admins manage shared SOCKS proxies, Telegram/Bale connections and explicit test deliveries.

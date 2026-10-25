@@ -9,7 +9,7 @@ import { useServerMetrics } from "./useServerMetrics";
 
 export function useServerCard(server: Resource) {
   const admin = useAdmin();
-  const q = useServerMetrics(server);
+  const q = useServerMetrics(server, admin);
   const latest = q.data?.at(-1);
   const checkVersion = useCheckDockerVersion(server.id);
   let status = "pending";

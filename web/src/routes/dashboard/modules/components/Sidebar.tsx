@@ -16,8 +16,12 @@ import { cn } from "@/lib/utils";
 
 import { navigation } from "../generics";
 
-export type SidebarProps = { close?: () => void; collapsed?: boolean };
-export function Sidebar({ close, collapsed = false }: SidebarProps) {
+export type SidebarProps = {
+  close?: () => void;
+  collapsed?: boolean;
+  admin: boolean;
+};
+export function Sidebar({ close, collapsed = false, admin }: SidebarProps) {
   const build = useBuildInfo();
   const version = formatBuildVersion(
     build.error ? undefined : build.data?.version,
@@ -84,48 +88,50 @@ export function Sidebar({ close, collapsed = false }: SidebarProps) {
         aria-label="Main navigation"
         className={cn("flex flex-col gap-1", collapsed ? "px-2" : "px-3")}
       >
-        {navigation.map((item, i) => (
-          <div key={item.path}>
-            {i === 3 && (
-              <div
-                className={cn(
-                  "mt-6 mb-3 px-3 font-mono text-[9px] tracking-[.17em] text-muted-foreground",
-                  collapsed && "sr-only",
-                )}
-              >
-                INFRASTRUCTURE
-              </div>
-            )}
-            {i === 7 && <Separator className="mt-4 mb-5" />}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <NavLink
-                  to={item.path}
-                  prefetch="intent"
-                  end={item.path === "/"}
-                  onClick={close}
-                  className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground aria-[current=page]:bg-primary/10 aria-[current=page]:text-primary aria-[current=page]:hover:bg-primary/10 aria-[current=page]:hover:text-primary group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:px-0"
-                >
-                  <item.icon className="size-4 shrink-0" />
-                  <span className={collapsed ? "sr-only" : undefined}>
-                    {item.label}
-                  </span>
-                  {item.label === "Projects" && !collapsed && (
-                    <span className="ml-auto rounded bg-background/60 px-1.5 py-0.5 font-mono text-[9px]">
-                      {projectCount.data || 0}
-                    </span>
+        {navigation
+          .filter((item) => !item.adminOnly || admin)
+          .map((item, i) => (
+            <div key={item.path}>
+              {i === 3 && (
+                <div
+                  className={cn(
+                    "mt-6 mb-3 px-3 font-mono text-[9px] tracking-[.17em] text-muted-foreground",
+                    collapsed && "sr-only",
                   )}
-                </NavLink>
-              </TooltipTrigger>
-              <TooltipContent
-                side="right"
-                className={collapsed ? undefined : "hidden"}
-              >
-                {item.label}
-              </TooltipContent>
-            </Tooltip>
-          </div>
-        ))}
+                >
+                  INFRASTRUCTURE
+                </div>
+              )}
+              {item.path === "/teams" && <Separator className="mt-4 mb-5" />}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <NavLink
+                    to={item.path}
+                    prefetch="intent"
+                    end={item.path === "/"}
+                    onClick={close}
+                    className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground aria-[current=page]:bg-primary/10 aria-[current=page]:text-primary aria-[current=page]:hover:bg-primary/10 aria-[current=page]:hover:text-primary group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:px-0"
+                  >
+                    <item.icon className="size-4 shrink-0" />
+                    <span className={collapsed ? "sr-only" : undefined}>
+                      {item.label}
+                    </span>
+                    {item.label === "Projects" && !collapsed && (
+                      <span className="ml-auto rounded bg-background/60 px-1.5 py-0.5 font-mono text-[9px]">
+                        {projectCount.data || 0}
+                      </span>
+                    )}
+                  </NavLink>
+                </TooltipTrigger>
+                <TooltipContent
+                  side="right"
+                  className={collapsed ? undefined : "hidden"}
+                >
+                  {item.label}
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          ))}
       </nav>
       <div
         className={cn("mt-auto", collapsed ? "flex justify-center p-2" : "p-4")}

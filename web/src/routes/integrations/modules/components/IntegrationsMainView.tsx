@@ -13,6 +13,12 @@ import { useIntegrationsPage } from "../hooks";
 import { IntegrationSection } from "./IntegrationSection";
 const sections = [
   {
+    kind: "proxy",
+    title: "SOCKS proxies",
+    desc: "Reusable SOCKS5 and SOCKS5H connections for certificates, DNS and notifications.",
+    icon: ShieldCheck,
+  },
+  {
     kind: "registry",
     title: "Container registries",
     desc: "Credentials are matched automatically to image hosts for granted teams.",
@@ -32,8 +38,8 @@ const sections = [
   },
   {
     kind: "webhook",
-    title: "Notification webhooks",
-    desc: "Signed events to your preferred service.",
+    title: "Notifications",
+    desc: "Telegram, Bale and signed notification webhooks.",
     icon: Activity,
   },
 ];
@@ -60,20 +66,22 @@ export function IntegrationsMainView() {
         description="Connect the services between your repository and your domain."
       />
       <div className="flex flex-col gap-6" onClick={handleIntegrationAction}>
-        {sections.map((item) => (
-          <IntegrationSection
-            key={item.kind}
-            item={item}
-            resources={resources}
-            admin={!!account?.admin}
-          />
-        ))}
+        {sections
+          .filter((item) => item.kind !== "proxy" || account?.admin)
+          .map((item) => (
+            <IntegrationSection
+              key={item.kind}
+              item={item}
+              resources={resources}
+              admin={!!account?.admin}
+            />
+          ))}
       </div>
       <Confirm
         open={!!deletingRegistry}
         onOpenChange={closeDeletion}
-        title="Delete registry integration?"
-        description={`Remove ${deletingRegistry?.name || "this registry"} and its stored credentials. Future deployments may require another registry integration.`}
+        title="Delete integration?"
+        description={`Remove ${deletingRegistry?.name || "this connection"} and its stored credentials. Referenced connections must be removed from their consumers first.`}
         pending={deletionPending}
         destructive
         onConfirm={confirmDeletion}

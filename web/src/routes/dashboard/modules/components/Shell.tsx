@@ -70,7 +70,7 @@ export function Shell({ session }: ShellProps) {
           collapsed ? "w-16" : "w-60",
         )}
       >
-        <Sidebar collapsed={collapsed} />
+        <Sidebar collapsed={collapsed} admin={session.user.admin} />
       </aside>
       <div className={collapsed ? "lg:ml-16" : "lg:ml-60"}>
         <header className="sticky top-0 z-20 flex h-16 items-center gap-4 border-b bg-background/95 px-5 backdrop-blur md:px-9">
@@ -98,7 +98,7 @@ export function Shell({ session }: ShellProps) {
             </SheetTrigger>
             <SheetContent side="left" className="w-64 p-0">
               <SheetTitle className="sr-only">Navigation</SheetTitle>
-              <Sidebar close={closeMobile} />
+              <Sidebar close={closeMobile} admin={session.user.admin} />
             </SheetContent>
           </Sheet>
           <Breadcrumb aria-label="Workspace navigation" className="min-w-0">

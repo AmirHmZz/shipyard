@@ -90,6 +90,8 @@ func TestContractFixtures(t *testing.T) {
 		{"published-ports-empty", "PublishedPorts", map[string]any{"version": 1, "services": map[string][]model.PublishedPort(nil)}},
 		{"build-release", "BuildInfo", buildinfo.Info{Version: "9.8.7", Commit: "contract", BuiltAt: "test", Architecture: "amd64", UpdaterProtocol: 1}},
 		{"build-dev", "BuildInfo", buildinfo.Info{Version: "dev", Commit: "unknown", BuiltAt: "unknown", Architecture: "amd64", UpdaterProtocol: 1}},
+		{"metric-empty", "Metric", control.Metric{ResourceID: "server", At: now, Containers: []control.ContainerMetric{}, Network: []control.IORate{}, Devices: []control.IORate{}}},
+		{"monitoring-policy", "MonitoringPolicy", control.MonitoringPolicy{Enabled: true, CPU: 90, Memory: 90, Disk: 90, SustainedSeconds: 300, OfflineSeconds: 60, Destinations: []string{}}},
 		{"http-error", "Error", map[string]string{"error": "DNS provider unavailable"}},
 	}
 	doc := testcontract.Document(t)

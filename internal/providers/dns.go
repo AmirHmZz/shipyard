@@ -47,6 +47,7 @@ func ArvanAuthorization(token string) string {
 	return "Apikey " + token
 }
 func (d *DNSClient) request(ctx context.Context, method, path string, payload, out any) error {
+	defer d.HTTP.CloseIdleConnections()
 	var b bytes.Buffer
 	if payload != nil {
 		if e := json.NewEncoder(&b).Encode(payload); e != nil {

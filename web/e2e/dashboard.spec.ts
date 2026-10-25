@@ -161,9 +161,15 @@ test("installation, project configuration, invitations and viewer boundaries", a
   if (testInfo.project.name === "desktop") {
     await page.goto("/settings");
     await page.getByRole("tab", { name: "Alerts", exact: true }).click();
-    await page.getByLabel("CPU threshold (%)").fill("85");
-    await page.getByRole("button", { name: "Save alert policy" }).click();
-    await expect(page.getByLabel("CPU threshold (%)")).toHaveValue("85");
+    await expect(page).toHaveURL(/monitoring\?view=defaults/);
+    const defaults = page
+      .locator('[data-slot="card"]')
+      .filter({ has: page.getByText("Server defaults", { exact: true }) });
+    await defaults.getByLabel("CPU threshold (%)", { exact: true }).fill("85");
+    await defaults.getByRole("button", { name: "Save policy" }).click();
+    await expect(
+      defaults.getByLabel("CPU threshold (%)", { exact: true }),
+    ).toHaveValue("85");
   }
   await page.goto("/projects/" + project.id);
   if (testInfo.project.name === "mobile") {

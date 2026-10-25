@@ -159,27 +159,29 @@ export function ResourceFormContent(props: ResourceFormContentProps) {
             {kind === "route" && (
               <RouteFields resources={resources} services={services} />
             )}
-            {kind === "webhook" && (
-              <FormField
-                label={<>Team (optional for platform-wide alerts)</>}
-                labelProps={{}}
-              >
-                {
-                  <SelectControl
-                    value={team || undefined}
-                    onValueChange={setTeam}
-                    options={teamOptions}
-                    placeholder={"Platform-wide"}
-                    disabled={false}
-                    triggerProps={{
-                      id: undefined,
-                      className: "w-full",
-                      "aria-label": "Platform-wide",
-                    }}
-                  />
-                }
-              </FormField>
-            )}
+            {kind === "webhook" &&
+              data.provider !== "telegram" &&
+              data.provider !== "bale" && (
+                <FormField
+                  label={<>Team (optional for platform-wide alerts)</>}
+                  labelProps={{}}
+                >
+                  {
+                    <SelectControl
+                      value={team || undefined}
+                      onValueChange={setTeam}
+                      options={teamOptions}
+                      placeholder={"Platform-wide"}
+                      disabled={false}
+                      triggerProps={{
+                        id: undefined,
+                        className: "w-full",
+                        "aria-label": "Platform-wide",
+                      }}
+                    />
+                  }
+                </FormField>
+              )}
             <Separator />
             {kind === "server" && data.connection === "local" && (
               <Alert>

@@ -4048,7 +4048,7 @@
     },
     "/servers/{id}/metrics": {
       "get": {
-        "summary": "Server and container metric history",
+        "summary": "Administrator resource metrics with bounded history",
         "parameters": [
           {
             "in": "path",
@@ -4056,6 +4056,21 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "range",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1h",
+                "6h",
+                "24h",
+                "7d",
+                "30d"
+              ],
+              "default": "24h"
             }
           }
         ],
@@ -4327,6 +4342,9 @@
                     ]
                   },
                   "token": {
+                    "type": "string"
+                  },
+                  "proxyId": {
                     "type": "string"
                   }
                 },
@@ -6158,7 +6176,7 @@
     },
     "/applications/{id}/metrics": {
       "get": {
-        "summary": "Application-scoped container metric history",
+        "summary": "Administrator resource metrics with bounded history",
         "parameters": [
           {
             "in": "path",
@@ -6166,6 +6184,21 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "range",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1h",
+                "6h",
+                "24h",
+                "7d",
+                "30d"
+              ],
+              "default": "24h"
             }
           }
         ],
@@ -7470,6 +7503,739 @@
           }
         },
         "security": []
+      }
+    },
+    "/settings/certificates": {
+      "get": {
+        "summary": "Administrator certificate proxy selection",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CertificateNetwork"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "put": {
+        "summary": "Select direct connection or a saved SOCKS proxy for ACME",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CertificateNetwork"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CertificateNetwork"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": [],
+            "csrf": []
+          }
+        ]
+      }
+    },
+    "/monitoring/resources": {
+      "get": {
+        "summary": "Administrator resource monitoring summaries",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MonitoringResource"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/monitoring/defaults": {
+      "get": {
+        "summary": "Administrator server and application alert defaults",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonitoringDefaults"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update default alert policies and destinations",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonitoringDefaults"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MonitoringDefaults"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": [],
+            "csrf": []
+          }
+        ]
+      }
+    },
+    "/monitoring/resources/{id}/policy": {
+      "get": {
+        "summary": "Read effective resource monitoring policy",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonitoringPolicyState"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "put": {
+        "summary": "Override or disable resource monitoring policy",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonitoringPolicyState"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MonitoringPolicyState"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": [],
+            "csrf": []
+          }
+        ]
+      },
+      "delete": {
+        "summary": "Restore inherited monitoring policy",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonitoringPolicyState"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "session": [],
+            "csrf": []
+          }
+        ]
+      }
+    },
+    "/monitoring/incidents": {
+      "get": {
+        "summary": "Administrator monitoring incident history",
+        "parameters": [
+          {
+            "name": "resourceId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MonitoringIncident"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/notifications/{id}/test": {
+      "post": {
+        "summary": "Explicitly queue a test notification",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "jobId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "jobId"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "required": [],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": [],
+            "csrf": []
+          }
+        ]
+      }
+    },
+    "/notifications/{id}/delivery": {
+      "get": {
+        "summary": "Latest administrator notification delivery status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationDelivery"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
       }
     }
   },
@@ -9342,6 +10108,31 @@
                 },
                 "memory": {
                   "type": "number"
+                },
+                "valid": {
+                  "type": "boolean"
+                },
+                "cpuValid": {
+                  "type": "boolean"
+                },
+                "memoryBytes": {
+                  "type": "number"
+                },
+                "networkRx": {
+                  "type": "number",
+                  "nullable": true
+                },
+                "networkTx": {
+                  "type": "number",
+                  "nullable": true
+                },
+                "diskRead": {
+                  "type": "number",
+                  "nullable": true
+                },
+                "diskWrite": {
+                  "type": "number",
+                  "nullable": true
                 }
               },
               "required": [
@@ -9351,6 +10142,64 @@
                 "memory"
               ]
             }
+          },
+          "status": {
+            "type": "string"
+          },
+          "valid": {
+            "type": "boolean"
+          },
+          "cpuValid": {
+            "type": "boolean"
+          },
+          "memoryBytes": {
+            "type": "number"
+          },
+          "memoryTotalBytes": {
+            "type": "number"
+          },
+          "network": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IORate"
+            }
+          },
+          "devices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IORate"
+            }
+          },
+          "networkRx": {
+            "type": "number",
+            "nullable": true
+          },
+          "networkTx": {
+            "type": "number",
+            "nullable": true
+          },
+          "diskRead": {
+            "type": "number",
+            "nullable": true
+          },
+          "diskWrite": {
+            "type": "number",
+            "nullable": true
+          },
+          "peakCpu": {
+            "type": "number"
+          },
+          "peakMemory": {
+            "type": "number"
+          },
+          "peakDisk": {
+            "type": "number"
+          },
+          "availability": {
+            "type": "number"
+          },
+          "samples": {
+            "type": "number"
           }
         },
         "required": [
@@ -9423,6 +10272,362 @@
           "disk",
           "sustainedSeconds",
           "offlineSeconds"
+        ]
+      },
+      "IORate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "read": {
+            "type": "number",
+            "nullable": true
+          },
+          "write": {
+            "type": "number",
+            "nullable": true
+          }
+        },
+        "required": [
+          "name",
+          "read",
+          "write"
+        ]
+      },
+      "CertificateNetwork": {
+        "type": "object",
+        "properties": {
+          "proxyId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "proxyId"
+        ],
+        "additionalProperties": false
+      },
+      "MonitoringPolicy": {
+        "type": "object",
+        "properties": {
+          "cpu": {
+            "type": "number"
+          },
+          "memory": {
+            "type": "number"
+          },
+          "disk": {
+            "type": "number"
+          },
+          "sustainedSeconds": {
+            "type": "integer"
+          },
+          "offlineSeconds": {
+            "type": "integer"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "destinations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "cpu",
+          "memory",
+          "disk",
+          "sustainedSeconds",
+          "offlineSeconds",
+          "enabled",
+          "destinations"
+        ],
+        "additionalProperties": false
+      },
+      "MonitoringDefaults": {
+        "type": "object",
+        "properties": {
+          "server": {
+            "$ref": "#/components/schemas/MonitoringPolicy"
+          },
+          "application": {
+            "$ref": "#/components/schemas/MonitoringPolicy"
+          }
+        },
+        "required": [
+          "server",
+          "application"
+        ],
+        "additionalProperties": false
+      },
+      "MonitoringPolicyState": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "inherit",
+              "override",
+              "disabled"
+            ]
+          },
+          "policy": {
+            "$ref": "#/components/schemas/MonitoringPolicy"
+          }
+        },
+        "required": [
+          "mode",
+          "policy"
+        ],
+        "additionalProperties": false
+      },
+      "MonitoringResource": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "server",
+              "application"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "serverId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "latest": {
+            "type": "object",
+            "properties": {
+              "resourceId": {
+                "type": "string"
+              },
+              "cpu": {
+                "type": "number"
+              },
+              "memory": {
+                "type": "number"
+              },
+              "disk": {
+                "type": "number"
+              },
+              "online": {
+                "type": "boolean"
+              },
+              "at": {
+                "type": "string"
+              },
+              "containers": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "cpu": {
+                      "type": "number"
+                    },
+                    "memory": {
+                      "type": "number"
+                    },
+                    "valid": {
+                      "type": "boolean"
+                    },
+                    "cpuValid": {
+                      "type": "boolean"
+                    },
+                    "memoryBytes": {
+                      "type": "number"
+                    },
+                    "networkRx": {
+                      "type": "number",
+                      "nullable": true
+                    },
+                    "networkTx": {
+                      "type": "number",
+                      "nullable": true
+                    },
+                    "diskRead": {
+                      "type": "number",
+                      "nullable": true
+                    },
+                    "diskWrite": {
+                      "type": "number",
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "cpu",
+                    "memory"
+                  ]
+                }
+              },
+              "status": {
+                "type": "string"
+              },
+              "valid": {
+                "type": "boolean"
+              },
+              "cpuValid": {
+                "type": "boolean"
+              },
+              "memoryBytes": {
+                "type": "number"
+              },
+              "memoryTotalBytes": {
+                "type": "number"
+              },
+              "network": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/IORate"
+                }
+              },
+              "devices": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/IORate"
+                }
+              },
+              "networkRx": {
+                "type": "number",
+                "nullable": true
+              },
+              "networkTx": {
+                "type": "number",
+                "nullable": true
+              },
+              "diskRead": {
+                "type": "number",
+                "nullable": true
+              },
+              "diskWrite": {
+                "type": "number",
+                "nullable": true
+              },
+              "peakCpu": {
+                "type": "number"
+              },
+              "peakMemory": {
+                "type": "number"
+              },
+              "peakDisk": {
+                "type": "number"
+              },
+              "availability": {
+                "type": "number"
+              },
+              "samples": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "resourceId",
+              "cpu",
+              "memory",
+              "disk",
+              "online",
+              "at",
+              "containers"
+            ],
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "serverId",
+          "status",
+          "latest"
+        ]
+      },
+      "MonitoringIncident": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "resourceId": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "firing",
+              "resolved"
+            ]
+          },
+          "since": {
+            "type": "string"
+          },
+          "firedAt": {
+            "type": "string",
+            "nullable": true
+          },
+          "resolvedAt": {
+            "type": "string",
+            "nullable": true
+          },
+          "destinations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "data": {
+            "$ref": "#/components/schemas/Metric"
+          }
+        },
+        "required": [
+          "id",
+          "resourceId",
+          "kind",
+          "state",
+          "since",
+          "firedAt",
+          "resolvedAt",
+          "destinations",
+          "data"
+        ]
+      },
+      "NotificationDelivery": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          },
+          "at": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "state",
+          "error",
+          "at"
         ]
       },
       "BuildInfo": {

@@ -15,6 +15,7 @@ export const navigation = [
   { label: "Projects", path: "/projects", icon: Layers3 },
   { label: "Deployments", path: "/deployments", icon: GitBranch },
 
+  { label: "Monitoring", path: "/monitoring", icon: Activity, adminOnly: true },
   { label: "Servers", path: "/servers", icon: Server },
   { label: "Networks", path: "/networks", icon: Box },
   { label: "DNS & domains", path: "/dns", icon: Globe2 },

@@ -4,6 +4,7 @@ import { DNS_PROVIDERS } from "@/lib/enums";
 
 export const dnsCredentialSchema = z.object({
   provider: z.enum(DNS_PROVIDERS),
+  proxyId: z.optional(z.string()),
   token: z
     .string()
     .check(

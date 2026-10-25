@@ -11,6 +11,7 @@ export default [
     route("projects/:id", "./routes/projects/detail/route.tsx"),
     route("applications/:id", "./routes/application/route.tsx"),
     route("deployments", "./routes/deployments/route.tsx"),
+    route("monitoring", "./routes/monitoring/route.tsx"),
     route("servers", "./routes/servers/route.tsx"),
     route("servers/:id/delete", "./routes/server-deletion/route.tsx"),
     route("dns", "./routes/dns/list/route.tsx"),
