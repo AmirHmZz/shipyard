@@ -17,3 +17,22 @@ func TestDirectComposeValidation(t *testing.T) {
 		}
 	}
 }
+
+func TestGitInlineComposeValidation(t *testing.T) {
+	app := App{Source: "git", Engine: "compose", ComposeMode: "inline"}
+	source := "services:\n  web:\n    build: .\n    env_file: ./settings.env\n"
+	if !app.InlineCompose() {
+		t.Fatal("Git inline mode not recognized")
+	}
+	if err := app.ValidateCompose(source); err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidateComposeSource(source); err == nil {
+		t.Fatal("standalone restrictions bypassed")
+	}
+	for _, invalid := range []string{"", "services: []", "services: {web: 42}", "services: {web: {}}\n---\nservices: {}"} {
+		if err := app.ValidateCompose(invalid); err == nil {
+			t.Fatal("invalid inline YAML accepted", invalid)
+		}
+	}
+}

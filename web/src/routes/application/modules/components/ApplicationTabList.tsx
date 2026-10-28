@@ -17,6 +17,7 @@ import type { Resource } from "@/lib/api/types";
 
 import { TabScroller } from "@/components/TabScroller";
 import { TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { usesInlineCompose } from "@/lib/compose-source";
 import { loadComposeEditor } from "@/lib/feature-loaders";
 
 export type ApplicationTabListProps = {
@@ -32,7 +33,7 @@ export function ApplicationTabList({
       <TabsList>
         {[
           { value: "overview", icon: LayoutDashboard },
-          ...(directCompose && app.canWrite
+          ...(usesInlineCompose(app.data) && app.canWrite
             ? [{ value: "compose", icon: FileCode2 }]
             : []),
           { value: "deployments", icon: History },

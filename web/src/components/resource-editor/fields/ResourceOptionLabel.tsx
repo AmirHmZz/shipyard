@@ -5,6 +5,10 @@ const fieldLabels: Record<string, Record<string, string>> = {
   workload: { job: "Job" },
   tls: { terminate: "TLS termination" },
   source: { compose: "Direct Compose" },
+  composeMode: {
+    repository: "Repository file",
+    inline: "Write compose in Shipyard",
+  },
   readinessMode: { container: "Container status" },
   authMethod: { private_key: "Private key (recommended)" },
 };

@@ -236,6 +236,12 @@ const schemas = {
   ),
   ApplicationChecks: object(
     {
+      composeMode: {
+        type: "string",
+        enum: ["repository", "inline"],
+        description:
+          "Git Compose document source. Omitted means repository. Inline YAML is encrypted in secrets.compose and edited through /applications/{id}/compose.",
+      },
       workload: {
         type: "string",
         enum: ["service", "job"],
@@ -1026,13 +1032,13 @@ add("/auth/status", "get", "Installation status", ref("SetupStatus"));
 add(
   "/applications/{id}/compose",
   "get",
-  "Operator-only saved Direct Compose YAML",
+  "Operator-only saved inline Compose YAML (standalone or Git checkout)",
   ref("ComposeSource"),
 );
 add(
   "/applications/{id}/compose",
   "put",
-  "Save encrypted Direct Compose YAML for the next deployment",
+  "Save encrypted inline Compose YAML for the next deployment",
   ref("ComposeSource"),
   ref("ComposeSource"),
 );

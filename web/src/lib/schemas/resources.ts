@@ -1,8 +1,21 @@
 import * as z from "zod/mini";
 
+export function normalizeConfirmationName(name: string) {
+  return name.normalize("NFC").trim().replace(/\s+/gu, " ");
+}
+
 export function resourceDeletionSchema(name: string) {
   return z.object({
-    name: z.literal(name, { error: "Type the resource name to confirm." }),
+    name: z
+      .string()
+      .check(
+        z.refine(
+          (value) =>
+            normalizeConfirmationName(value) ===
+            normalizeConfirmationName(name),
+          "Type the resource name to confirm.",
+        ),
+      ),
   });
 }
 

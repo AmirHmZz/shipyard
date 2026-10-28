@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
+import { usesInlineCompose } from "@/lib/compose-source";
 import { loadComposeEditor } from "@/lib/feature-loaders";
 
 import type { ResourceFormViewOptions } from "./types";
@@ -200,8 +201,9 @@ export function ResourceFormContent(props: ResourceFormContentProps) {
               branches={branches}
             />
             {kind === "application" &&
-              data.source === "compose" &&
-              existing?.data.source === "compose" && (
+              usesInlineCompose(data) &&
+              existing &&
+              usesInlineCompose(existing.data) && (
                 <section className="flex flex-col gap-3 border-t pt-5">
                   <p className="text-sm text-muted-foreground">
                     Manage the saved Docker Compose document in the
@@ -221,9 +223,10 @@ export function ResourceFormContent(props: ResourceFormContentProps) {
               >
                 <Label>Compose YAML</Label>
                 <p className="text-xs text-muted-foreground">
-                  Paste one Compose document. Use images or dockerfile_inline
-                  builds; referenced host files need absolute paths. The
-                  document is encrypted and visible only to operators.
+                  Write one Compose document. With Git, build contexts and files
+                  come from the selected repository and build context. Without
+                  Git, use images or inline Dockerfiles and absolute host paths.
+                  The document is encrypted and visible only to operators.
                 </p>
                 <Suspense fallback={<p>Loading editor…</p>}>
                   <ComposeEditor

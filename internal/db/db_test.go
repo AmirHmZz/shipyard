@@ -201,3 +201,19 @@ func TestRouteIdentityUsesDomainWithoutStoredName(t *testing.T) {
 		t.Fatal(route, err)
 	}
 }
+
+func TestStaleUpdateCannotRecreateDeletedResource(t *testing.T) {
+	s := testStore(t)
+	ctx := context.Background()
+	r, err := s.Save(ctx, "", model.ResourceInput{Kind: "application", Name: "Backend", Data: json.RawMessage(`{}`)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.Pool.Exec(ctx, "DELETE FROM resources WHERE id=$1", r.ID); err != nil {
+		t.Fatal(err)
+	}
+	_, err = s.Save(ctx, r.ID, model.ResourceInput{Kind: r.Kind, Name: "Backend 2", Data: r.Data, Version: r.Version})
+	if !errors.Is(err, pgx.ErrNoRows) {
+		t.Fatal("deleted resource recreated by stale update", err)
+	}
+}

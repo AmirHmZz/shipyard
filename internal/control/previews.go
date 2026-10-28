@@ -168,7 +168,7 @@ func (c *Controller) preview(ctx context.Context, app model.Resource, spec model
 		return err
 	}
 	for k, v := range values {
-		if k == "registry_password" {
+		if k == "registry_password" || (k == "compose" && spec.InlineCompose()) {
 			secrets[k] = v
 		}
 		if strings.HasPrefix(k, "preview-env:") {

@@ -16,17 +16,34 @@ export function useResourceDeletionForm(
   onDeleted: () => void,
 ) {
   const deletion = useDeleteResource();
-  const [name, setName] = useState("");
+  const [confirmation, setConfirmation] = useState({
+    id: resource.id,
+    name: resource.name,
+    value: "",
+  });
+  const sameTarget =
+    confirmation.id === resource.id && confirmation.name === resource.name;
+  if (!sameTarget) {
+    setConfirmation({ id: resource.id, name: resource.name, value: "" });
+  }
+  const name = sameTarget ? confirmation.value : "";
+  const confirmed = resourceDeletionSchema(resource.name).safeParse({
+    name,
+  }).success;
   const busy = deletion.isPending;
   const error = deletion.error ? describeError(deletion.error) : "";
   function handleOpenChange(open: boolean) {
     if (!open && !busy) onClose();
   }
   function changeName(event: ChangeEvent<HTMLInputElement>) {
-    setName(event.currentTarget.value);
+    setConfirmation({
+      id: resource.id,
+      name: resource.name,
+      value: event.currentTarget.value,
+    });
   }
   function remove() {
-    if (busy) return;
+    if (busy || !resource.canWrite) return;
     const parsed = resourceDeletionSchema(resource.name).safeParse({ name });
     if (!parsed.success) {
       toastValidationError(parsed.error);
@@ -41,7 +58,7 @@ export function useResourceDeletionForm(
   }
   return {
     state: { name },
-    derived: { busy, error },
+    derived: { busy, error, confirmed },
     handlers: { handleOpenChange, changeName, remove },
   };
 }

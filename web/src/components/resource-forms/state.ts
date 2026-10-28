@@ -115,6 +115,7 @@ export function resourceFormReducer(
           data: {
             ...state.data,
             source: "compose",
+            composeMode: undefined,
             engine: "compose",
             gitId: "",
             repository: "",
@@ -149,8 +150,10 @@ export function resourceFormReducer(
         value !== state.data.repository
       )
         data.branch = "";
-      if (key === "engine")
+      if (key === "engine") {
         data.file = value === "compose" ? "compose.yaml" : "Dockerfile";
+        if (value !== "compose") delete data.composeMode;
+      }
       return {
         ...state,
         data,

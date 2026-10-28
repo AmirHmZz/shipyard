@@ -14,6 +14,14 @@ import (
 )
 
 func TestDirectComposePermissionsEncryptionAndRevisions(t *testing.T) {
+	testInlineComposePermissions(t, false)
+}
+
+func TestGitInlineComposePermissionsEncryptionAndRevisions(t *testing.T) {
+	testInlineComposePermissions(t, true)
+}
+
+func testInlineComposePermissions(t *testing.T, gitInline bool) {
 	a, server := testAPI(t)
 	ctx := context.Background()
 	save := func(kind, parent, team string, data any) model.Resource {
@@ -56,6 +64,12 @@ func TestDirectComposePermissionsEncryptionAndRevisions(t *testing.T) {
 	}
 	source := "services:\n  web:\n    image: nginx:alpine\n    environment:\n      PASSWORD: private-compose-value\n"
 	input := map[string]any{"kind": "application", "name": "Raw Compose", "parentId": environment.ID, "data": map[string]any{"source": "compose", "engine": "compose", "serverId": host.ID}, "secrets": map[string]string{"compose": source}}
+	if gitInline {
+		git := save("git", "", "", model.Git{Provider: "gitea", URL: "https://git.example.test"})
+		_, _ = a.Store.Pool.Exec(ctx, "INSERT INTO resource_grants(resource_id,team_id) VALUES($1,$2)", git.ID, team.ID)
+		input["data"] = model.App{Source: "git", ComposeMode: "inline", Engine: "compose", ServerID: host.ID, GitID: git.ID, Repository: "owner/app", Branch: "main", Context: ".", ReadinessMode: "container"}
+		input["secrets"] = map[string]string{"compose": source + "    env_file: ./settings.env\n"}
+	}
 	code, body := request("POST", "/resources", input, operator, "csrf")
 	if code != 200 {
 		t.Fatal(code, string(body))

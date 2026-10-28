@@ -35,6 +35,30 @@ func composeDocument(source string) (map[string]any, error) {
 	return cfg, nil
 }
 
+func (a App) InlineCompose() bool {
+	return a.Source == "compose" || (a.Engine == "compose" && a.ComposeMode == "inline")
+}
+
+func (a App) ValidateCompose(source string) error {
+	if a.Source == "compose" {
+		return ValidateComposeSource(source)
+	}
+	cfg, err := composeDocument(source)
+	if err != nil {
+		return err
+	}
+	services, ok := cfg["services"].(map[string]any)
+	if !ok || len(services) == 0 {
+		return errors.New("Compose must contain at least one service")
+	}
+	for name, raw := range services {
+		if _, ok := raw.(map[string]any); !ok {
+			return fmt.Errorf("service %s must be a mapping", name)
+		}
+	}
+	return nil
+}
+
 // Direct Compose has no checked-out workspace. Host files must use explicit
 // absolute paths; build inputs must be contained in dockerfile_inline.
 func ValidateComposeSource(source string) error {

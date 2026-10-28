@@ -9,6 +9,7 @@ import { ProviderLogo } from "@/components/ProviderName";
 import { toastValidationError } from "@/lib/api/toaster";
 import { describeError } from "@/lib/api/translate-error";
 import { normalizeApplicationSettings } from "@/lib/application-settings";
+import { usesInlineCompose } from "@/lib/compose-source";
 import { useConfigurationChanges } from "@/lib/configuration-state";
 import {
   useSaveResource,
@@ -95,8 +96,8 @@ export function useResourceFormController({
     ]) === dnsCredentials;
   const needsComposeDocument =
     kind === "application" &&
-    data.source === "compose" &&
-    existing?.data.source !== "compose";
+    usesInlineCompose(data) &&
+    !usesInlineCompose(existing?.data ?? {});
   const parentKind = parents[kind];
   let parentLabel = "";
   if (parentKind)

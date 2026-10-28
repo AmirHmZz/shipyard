@@ -26,7 +26,12 @@ function composeLines(page: Page) {
 }
 
 const initialYAML = "services:\n  web:\n    image: nginx:alpine\n";
-async function setup(page: Page, existing = false, canWrite = true) {
+async function setup(
+  page: Page,
+  existing = false,
+  canWrite = true,
+  gitInline = false,
+) {
   const writes: { path: string; body: Record<string, unknown> }[] = [];
   let document = { yaml: initialYAML, version: 1 };
   let conflict = false;
@@ -48,7 +53,11 @@ async function setup(page: Page, existing = false, canWrite = true) {
     };
   }
   const app = resource("app", "application", "environment", {
-    source: "compose",
+    source: gitInline ? "git" : "compose",
+    composeMode: gitInline ? "inline" : undefined,
+    gitId: gitInline ? "git" : "",
+    repository: gitInline ? "owner/app" : "",
+    branch: gitInline ? "main" : "",
     engine: "compose",
     serverId: "server",
     context: ".",
@@ -86,9 +95,19 @@ async function setup(page: Page, existing = false, canWrite = true) {
           resource("project", "project", "team"),
           resource("environment", "environment", "project"),
           resource("server", "server"),
+          resource("git", "git", "", { provider: "gitea" }),
           ...(existing ? [{ ...app, version: document.version }] : []),
         ],
       });
+    }
+    if (path.endsWith("/repositories"))
+      return route.fulfill({ json: [{ full_name: "owner/app" }] });
+    if (path.endsWith("/branches"))
+      return route.fulfill({ json: [{ name: "main" }] });
+    if (path.endsWith("/resources/app") && request.method() === "DELETE") {
+      writes.push({ path, body: {} });
+      existing = false;
+      return route.fulfill({ json: { ok: true, jobId: "delete-job" } });
     }
     if (path.endsWith("/compose")) {
       if (request.method() === "GET") {
@@ -447,4 +466,120 @@ test("Compose edits survive cancelled navigation and can be explicitly discarded
   await confirm.getByRole("button", { name: "Confirm", exact: true }).click();
   await expect(page).toHaveURL(/tab=overview/);
   await expect(editor).toHaveCount(0);
+});
+
+test("renaming Backend to Backend 2 permits deletion immediately without refreshing", async ({
+  page,
+}) => {
+  const state = await setup(page, true);
+  await page.goto("/configure/application/app?return=/applications/app");
+  await page.getByLabel("Name", { exact: true }).fill("Backend");
+  await page
+    .getByRole("button", { name: "Save application", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Configure", exact: true }).click();
+  await page.getByLabel("Name", { exact: true }).fill("Backend 2");
+  await page
+    .getByRole("button", { name: "Save application", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Application actions", exact: true })
+    .click();
+  await page.getByRole("menuitem", { name: "Delete application" }).click();
+  const dialog = page.getByRole("dialog");
+  const remove = dialog.getByRole("button", {
+    name: "Delete application",
+    exact: true,
+  });
+  await dialog.getByLabel("Type Backend 2 to confirm").fill("Backend");
+  await expect(remove).toBeDisabled();
+  await dialog.getByLabel("Type Backend 2 to confirm").fill("Backend 2");
+  await expect(remove).toBeEnabled();
+  await remove.click();
+  await expect
+    .poll(() => state.writes.at(-1)?.path)
+    .toBe("/api/v1/resources/app");
+  await expect(dialog).toHaveCount(0);
+});
+
+test("Git inline compose keeps repository settings and exposes its saved editor", async ({
+  page,
+}) => {
+  const state = await setup(page, true, true, true);
+  await page.goto("/configure/application/app?return=/applications/app");
+  await expect(
+    page.getByRole("combobox", { name: "Select git", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Build context", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Compose file", { exact: true })).toHaveCount(0);
+  await page.getByRole("link", { name: "Open Compose editor" }).click();
+  await expect(composeLines(page)).toContainText("nginx:alpine");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect.poll(() => state.writes.length).toBe(1);
+  expect(state.writes[0].body.yaml).toBe(initialYAML);
+});
+
+test("create a Git application with inline compose and switch document modes", async ({
+  page,
+}) => {
+  const state = await setup(page, false, true, true);
+  await page.goto("/configure/application/new?parent=environment");
+  await page.getByLabel("Name", { exact: true }).fill("Git inline stack");
+  await page
+    .getByRole("combobox", { name: "Select server", exact: true })
+    .click();
+  await page.getByRole("option", { name: "server", exact: true }).click();
+  await page.getByRole("combobox", { name: "Select git", exact: true }).click();
+  await page.getByRole("option", { name: "git", exact: true }).click();
+  await page
+    .getByRole("combobox", { name: "Select repository", exact: true })
+    .click();
+  await page.getByRole("option", { name: "owner/app", exact: true }).click();
+  await page
+    .getByRole("combobox", { name: "Select branch", exact: true })
+    .click();
+  await page.getByRole("option", { name: "main", exact: true }).click();
+  await page
+    .getByRole("combobox", { name: "Select Deployment type", exact: true })
+    .click();
+  await page.getByRole("option", { name: "compose", exact: true }).click();
+  const mode = page.getByRole("combobox", {
+    name: "Select Compose document",
+    exact: true,
+  });
+  await mode.click();
+  await page
+    .getByRole("option", { name: "Write compose in Shipyard", exact: true })
+    .click();
+  const editor = page.getByRole("textbox", {
+    name: "Compose YAML",
+    exact: true,
+  });
+  const yaml = "services:\n  web:\n    build: .\n";
+  await fillCompose(editor, yaml);
+  await mode.click();
+  await page
+    .getByRole("option", { name: "Repository file", exact: true })
+    .click();
+  await expect(page.getByLabel("Compose file", { exact: true })).toBeVisible();
+  await mode.click();
+  await page
+    .getByRole("option", { name: "Write compose in Shipyard", exact: true })
+    .click();
+  await expect(composeLines(page)).toContainText("build: .");
+  await page
+    .getByRole("button", { name: "Save application", exact: true })
+    .click();
+  await expect.poll(() => state.writes.length).toBe(1);
+  expect(state.writes[0].body).toMatchObject({
+    data: {
+      source: "git",
+      composeMode: "inline",
+      gitId: "git",
+      repository: "owner/app",
+      branch: "main",
+      engine: "compose",
+    },
+    secrets: { compose: yaml },
+  });
 });

@@ -104,6 +104,11 @@ export const fields: Record<ResourceKind, Field[]> = {
       label: "Deployment type",
       options: ["dockerfile", "compose"],
     },
+    {
+      key: "composeMode",
+      label: "Compose document",
+      options: ["repository", "inline"],
+    },
     { key: "serverId", label: "Target server", resource: "server" },
     { key: "gitId", label: "Git connection", resource: "git" },
     {

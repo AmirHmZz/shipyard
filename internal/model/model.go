@@ -92,6 +92,7 @@ type App struct {
 	Workload        string                       `json:"workload,omitempty"`
 	JobService      string                       `json:"jobService,omitempty"`
 	Source          string                       `json:"source,omitempty"`
+	ComposeMode     string                       `json:"composeMode,omitempty"`
 	Engine          string                       `json:"engine"`
 	ServerID        string                       `json:"serverId"`
 	GitID           string                       `json:"gitId"`
@@ -411,6 +412,12 @@ func Validate(r ResourceInput) error {
 		if v.Source != "" && v.Source != "git" && v.Source != "compose" {
 			return errors.New("source must be git or compose")
 		}
+		if v.ComposeMode != "" && v.ComposeMode != "repository" && v.ComposeMode != "inline" {
+			return errors.New("composeMode must be repository or inline")
+		}
+		if v.ComposeMode != "" && (v.Engine != "compose" || v.Source == "compose") {
+			return errors.New("composeMode applies only to Git Compose applications")
+		}
 		if v.Source == "compose" {
 			if v.Engine != "compose" || v.ServerID == "" {
 				return errors.New("Direct Compose requires the Compose engine and a server")
@@ -427,7 +434,7 @@ func Validate(r ResourceInput) error {
 		if strings.ContainsAny(v.Repository+v.Branch, "\x00\r\n") {
 			return errors.New("invalid repository/ref")
 		}
-		if !Relative(v.Context) || !Relative(v.File) {
+		if !Relative(v.Context) || (!v.InlineCompose() && !Relative(v.File)) {
 			return errors.New("build context and file must stay inside the repository")
 		}
 		if v.Port < 0 || v.Port > 65535 {

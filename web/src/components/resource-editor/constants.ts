@@ -1,5 +1,6 @@
 export const COMPOSE_HIDDEN_FIELDS = new Set([
   "engine",
+  "composeMode",
   "gitId",
   "repository",
   "branch",

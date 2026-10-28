@@ -1,4 +1,4 @@
-import { Copy, Eraser } from "lucide-react";
+import { ArrowDown, Copy, Eraser } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -21,6 +21,7 @@ import { logText } from "@/lib/log-text";
 import { inputNumberSchema } from "@/lib/schemas/coercion";
 
 import { logMessageSchema, logStatusSchema } from "../generics";
+import { useLogScroll } from "../hooks/useLogScroll";
 export type LogStreamProps = {
   runId?: string;
   deploymentId?: string;
@@ -50,7 +51,6 @@ export function LogStream({
   }
 
   const [selected, setSelected] = useState("");
-  const scroll = useRef<HTMLPreElement>(null);
   const buffer = useRef<LogBuffer | null>(null);
   const effectiveContainer = containers.includes(selected)
     ? selected
@@ -129,9 +129,10 @@ export function LogStream({
       if (buffer.current === current) buffer.current = null;
     };
   }, [endpoint, deploymentId, runId]);
-  useEffect(() => {
-    scroll.current?.scrollTo({ top: scroll.current.scrollHeight });
-  }, [lines]);
+  const { scroll, paused, handleScroll, jumpToLatest } = useLogScroll(
+    lines,
+    endpoint,
+  );
   return (
     <FlushCard>
       <CardHeader className="flex min-h-14 flex-wrap items-center justify-between border-b px-4 py-2.5 [.border-b]:pb-2.5">
@@ -163,6 +164,12 @@ export function LogStream({
             </Select>
           )}
           <StateBadge state={state} />
+          {paused && (
+            <Button size="sm" variant="outline" onClick={jumpToLatest}>
+              <ArrowDown className="size-3.5" />
+              Jump to latest
+            </Button>
+          )}
           {!deploymentId && (
             <Button
               size="icon"
@@ -197,17 +204,13 @@ export function LogStream({
       <CardContent className="bg-[#121a15] p-0 text-[#d1dfc9]">
         <pre
           ref={scroll}
-          className="h-[420px] overflow-auto p-5 font-mono text-xs leading-6"
+          onScroll={handleScroll}
+          data-testid="log-output"
+          className="h-[420px] overflow-auto [overflow-anchor:none] p-5 font-mono text-xs leading-6"
         >
           {lines.length ? (
             lines.map((line) => (
-              <div
-                key={line.number}
-                style={{
-                  contentVisibility: "auto",
-                  containIntrinsicSize: "auto 24px",
-                }}
-              >
+              <div key={line.number} data-log-number={line.number}>
                 <span className="mr-4 inline-block w-7 select-none text-right text-[#5d715c]">
                   {line.number}
                 </span>

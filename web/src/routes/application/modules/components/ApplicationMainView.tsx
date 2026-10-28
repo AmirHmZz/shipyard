@@ -6,6 +6,7 @@ import { Empty, ErrorState, Loading } from "@/components/Shared";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Variables } from "@/components/variables";
 import { describeError } from "@/lib/api/translate-error";
+import { usesInlineCompose } from "@/lib/compose-source";
 import { text } from "@/lib/resource-fields";
 
 import { useApplicationPage } from "../hooks";
@@ -110,7 +111,7 @@ export function ApplicationMainView() {
       <DeletionStatus resource={foundApp ?? app} onRetry={retryDeletion} />
       <Tabs value={tab} onValueChange={setTab}>
         <ApplicationTabList app={app} directCompose={directCompose} />
-        {directCompose && app.canWrite && (
+        {usesInlineCompose(app.data) && app.canWrite && (
           <TabsContent value="compose">
             <ConfigurationGuard className="max-w-none">
               <ComposeSource

@@ -167,7 +167,7 @@ func (c *Controller) deleteTree(ctx context.Context, job model.Job) (result erro
 	if _, err = tx.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended('resource-tree',0))"); err != nil {
 		return err
 	}
-	if _, err := tx.Exec(ctx, "DELETE FROM settings WHERE (starts_with(key,'deployment-deletion:') OR starts_with(key,'fresh-deployment:')) AND value->>'application'=ANY($1)", plan.Applications); err != nil {
+	if _, err := tx.Exec(ctx, "DELETE FROM settings WHERE (starts_with(key,'deployment-deletion:') OR starts_with(key,'fresh-deployment:') OR starts_with(key,'compose-cleanup:')) AND value->>'application'=ANY($1)", plan.Applications); err != nil {
 		return err
 	}
 	for _, statement := range []string{

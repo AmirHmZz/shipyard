@@ -20,6 +20,7 @@ import (
 )
 
 type Engine struct {
+	RenderedConfig  func(context.Context, *model.Release, map[string]any) error
 	Guard           func(context.Context) error
 	Remote          remote.Executor
 	Log             io.Writer
@@ -118,8 +119,11 @@ func (e *Engine) Build(ctx context.Context, r *model.Release, registries map[str
 	base := r.Directory + "/source"
 	contextDir := base + "/" + r.App.Context
 	file := base + "/" + r.App.File
+	if r.App.Source != "compose" && r.App.InlineCompose() {
+		file = r.Directory + "/inline-compose.yaml"
+	}
 	// Git permits symlinks; reject a context/file escaping the checked-out tree.
-	if err := e.Remote.Run(ctx, "set -eu; base="+remote.Quote(base)+"; for p in "+remote.Quote(contextDir)+" "+remote.Quote(file)+`; do case "$(realpath "$p")" in "$base"/*|"$base") ;; *) echo 'Build path escapes repository'; exit 1;; esac; done`, nil, e.Log); err != nil {
+	if err := e.Remote.Run(ctx, "set -eu; base="+remote.Quote(base)+"; for p in "+remote.Quote(contextDir)+" "+remote.Quote(buildPathToCheck(*r, base))+`; do case "$(realpath "$p")" in "$base"/*|"$base") ;; *) echo 'Build path escapes repository'; exit 1;; esac; done`, nil, e.Log); err != nil {
 		return err
 	}
 	if err := Write(ctx, e.Remote, r.Directory+"/build.env", envFile(r.Env)); err != nil {
@@ -176,17 +180,14 @@ func (e *Engine) Build(ctx context.Context, r *model.Release, registries map[str
 		b, _ := json.Marshal(config)
 		r.Compose = string(b)
 	} else {
-		args := []string{"env", "DOCKER_CONFIG=" + r.Directory + "/auth", "docker", "compose", "--ansi", "never", "--progress", "plain", "-p", Project(*r), "--project-directory", contextDir, "--env-file", r.Directory + "/build.env", "-f", file}
-		for _, p := range r.App.Profiles {
-			args = append(args, "--profile", p)
-		}
-		b, err := Output(ctx, e.Remote, append(args, "config", "--format", "json")...)
+		cfg, err := e.RenderCompose(ctx, *r, contextDir, file)
 		if err != nil {
-			return fmt.Errorf("render Compose configuration: %w", err)
+			return err
 		}
-		var cfg map[string]any
-		if err = json.Unmarshal([]byte(b), &cfg); err != nil {
-			return fmt.Errorf("decode Compose configuration (%d bytes): %w", len(b), err)
+		if e.RenderedConfig != nil {
+			if err = e.RenderedConfig(ctx, r, cfg); err != nil {
+				return err
+			}
 		}
 		if services, ok := cfg["services"].(map[string]any); ok {
 			for name, raw := range services {

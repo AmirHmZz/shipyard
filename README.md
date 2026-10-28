@@ -50,6 +50,12 @@ Direct Compose supports a single YAML document up to 1 MiB, using service images
 
 Operators can edit the saved YAML under the application's **Compose** tab. **Save** updates the document; **Save & deploy** queues that saved revision. YAML and queued source snapshots are encrypted, and viewers cannot retrieve the source. Each deployment snapshots the YAML, pins service images and retains the configuration for rollback. Later editor changes do not change queued deployments. Direct Compose has no Git connection, push deployments or PR previews. Define domain routes using each Compose service name and container port as usual.
 
+For Git Compose applications, choose **Compose document → Write compose in Shipyard** to keep the repository checkout while writing YAML in the dashboard. Relative build contexts, Dockerfiles and repository files use the selected build context. Git push deployments and PR previews remain available; each deployment freezes both its Git revision and saved YAML.
+
+When a deployment renders a Compose document with renamed or removed services, Shipyard deletes domains and service-specific networking/published-port settings that reference absent services before building images. These deletions remain effective if the build fails. Shared networks, persistent data and services in inactive profiles are preserved. Readiness checks and job targets still require explicit correction when their service names change.
+
+Live logs follow new output while you are at the bottom. Scroll up to hold your reading position, then select **Jump to latest** to resume following.
+
 The Compose editor uses Monaco with light/dark themes, folding, search, word wrap, formatting and schema-based YAML completion/diagnostics. Monaco and its workers are bundled with Shipyard. The Compose schema is vendored locally; editor content and schema requests are not sent to external services. Editor diagnostics are advisory; the destination's Docker Compose validates the deployment configuration.
 
 Under Integrations → Source control, choose **Add connection**. GitHub's guided setup creates an App for your personal account or organization, imports its credentials, and redirects you to select repositories. Grant Contents:read and Pull requests:read with `push` and `pull_request` events. Existing App credentials remain available under **Advanced: manual credentials**.

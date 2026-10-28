@@ -1456,7 +1456,7 @@
     },
     "/applications/{id}/compose": {
       "get": {
-        "summary": "Operator-only saved Direct Compose YAML",
+        "summary": "Operator-only saved inline Compose YAML (standalone or Git checkout)",
         "parameters": [
           {
             "in": "path",
@@ -1517,7 +1517,7 @@
         }
       },
       "put": {
-        "summary": "Save encrypted Direct Compose YAML for the next deployment",
+        "summary": "Save encrypted inline Compose YAML for the next deployment",
         "parameters": [
           {
             "in": "path",
@@ -9225,6 +9225,14 @@
       "ApplicationChecks": {
         "type": "object",
         "properties": {
+          "composeMode": {
+            "type": "string",
+            "enum": [
+              "repository",
+              "inline"
+            ],
+            "description": "Git Compose document source. Omitted means repository. Inline YAML is encrypted in secrets.compose and edited through /applications/{id}/compose."
+          },
           "workload": {
             "type": "string",
             "enum": [

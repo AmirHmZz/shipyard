@@ -46,11 +46,12 @@ export function ComposeSource({ app, onDeploy }: ComposeSourceProps) {
           onChange={changeYaml}
         />
         <p className="text-xs text-muted-foreground">
-          Use images or inline Dockerfiles. Referenced host files must have
-          absolute paths. Configure variables in the Variables tab and route
-          service ports under Domains. Compose ports declarations are ignored;
-          host publishing requires administrator-controlled Published ports
-          settings.
+          With Git, relative build contexts and files use the selected
+          repository build context. Without Git, use images or inline
+          Dockerfiles and absolute host paths. Configure variables in the
+          Variables tab and route service ports under Domains. Compose ports
+          declarations are ignored; host publishing requires
+          administrator-controlled Published ports settings.
         </p>
         {q.data && draft && q.data.version !== draft.version && (
           <Alert>

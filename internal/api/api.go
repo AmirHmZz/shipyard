@@ -576,14 +576,16 @@ func (a *API) saveResource(w http.ResponseWriter, r *http.Request) {
 			fail(w, 400, e.Error())
 			return
 		}
-		if spec.Source == "compose" {
+		if spec.InlineCompose() {
 			var values map[string]any
 			_ = json.Unmarshal(in.Data, &values)
 			if values == nil {
 				values = map[string]any{}
 			}
-			values["context"] = "."
-			values["file"] = "compose.yaml"
+			if spec.Source == "compose" {
+				values["context"] = "."
+				values["file"] = "compose.yaml"
+			}
 			in.Data, _ = json.Marshal(values)
 			source, provided := in.Secrets["compose"]
 			if !provided && !creating {
@@ -599,7 +601,7 @@ func (a *API) saveResource(w http.ResponseWriter, r *http.Request) {
 				}
 				source = secrets["compose"]
 			}
-			if err := model.ValidateComposeSource(source); err != nil {
+			if err := spec.ValidateCompose(source); err != nil {
 				fail(w, 400, err.Error())
 				return
 			}

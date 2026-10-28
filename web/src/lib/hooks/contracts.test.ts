@@ -685,3 +685,34 @@ it("keeps select projections out of the validated shared resource cache", async 
   expect(result.current.data).toBe(1);
   expect(client.getQueryData(resourceKeys.all)).toEqual([resource]);
 });
+
+it("updates the renamed resource before a delayed refetch completes", async () => {
+  const client = createTestClient();
+  client.setQueryData(resourceKeys.all, [{ ...resource, name: "Backend" }]);
+  vi.stubGlobal(
+    "fetch",
+    vi
+      .fn()
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify({ ...resource, name: "Backend 2", version: 4 }),
+        ),
+      ),
+  );
+  const { result } = renderHook(
+    () => useSaveResource(),
+    renderWithClient(client),
+  );
+  act(() =>
+    result.current.mutate({
+      existingId: resource.id,
+      kind: "application",
+      payload: { ...payload, kind: "application", name: "Backend 2" },
+    }),
+  );
+  await waitFor(() => expect(result.current.isSuccess).toBe(true));
+  expect(client.getQueryData(resourceKeys.all)).toEqual([
+    { ...resource, name: "Backend 2", version: 4 },
+  ]);
+  client.clear();
+});

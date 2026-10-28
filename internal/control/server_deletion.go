@@ -617,7 +617,7 @@ func (c *Controller) inventoryDeletionFiles(ctx context.Context, m *serverDeleti
 		managed := false
 		if len(parts) >= 3 && parts[0] == "releases" && releases[parts[1]] {
 			tail := strings.Join(parts[2:], "/")
-			managed = tail == "runtime.json" || tail == "build.json" || tail == "build.env" || tail == "auth/config.json" || tail == ".shipyard-files.sha256" || strings.HasPrefix(tail, "secret-") && model.ValidEnv(strings.TrimPrefix(tail, "secret-")) || sourceFiles[p] != ""
+			managed = tail == "inline-compose.yaml" || tail == "runtime.json" || tail == "build.json" || tail == "build.env" || tail == "auth/config.json" || tail == ".shipyard-files.sha256" || strings.HasPrefix(tail, "secret-") && model.ValidEnv(strings.TrimPrefix(tail, "secret-")) || sourceFiles[p] != ""
 		}
 		if len(parts) >= 2 && parts[0] == "proxy" && m.Proxy != nil {
 			tail := strings.Join(parts[1:], "/")
@@ -1185,7 +1185,7 @@ func (c *Controller) deleteServer(ctx context.Context, job model.Job) (result er
 	if _, e = tx.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended('resource-tree',0))"); e != nil {
 		return e
 	}
-	if _, err := tx.Exec(ctx, "DELETE FROM settings WHERE (starts_with(key,'deployment-deletion:') OR starts_with(key,'fresh-deployment:')) AND value->>'application'=ANY($1)", m.Apps); err != nil {
+	if _, err := tx.Exec(ctx, "DELETE FROM settings WHERE (starts_with(key,'deployment-deletion:') OR starts_with(key,'fresh-deployment:') OR starts_with(key,'compose-cleanup:')) AND value->>'application'=ANY($1)", m.Apps); err != nil {
 		return err
 	}
 	for _, sql := range []string{"DELETE FROM app_runtime WHERE app_id=ANY($1)", "DELETE FROM releases WHERE app_id=ANY($1)", "DELETE FROM deployments WHERE app_id=ANY($1)"} {

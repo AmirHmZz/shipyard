@@ -14,8 +14,8 @@ func (a *API) composeSource(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	spec, err := model.Decode[model.App](app)
-	if err != nil || app.Kind != "application" || spec.Source != "compose" {
-		fail(w, 400, "Direct Compose application required")
+	if err != nil || app.Kind != "application" || !spec.InlineCompose() {
+		fail(w, 400, "An application using inline Compose is required")
 		return
 	}
 	values, err := a.Store.Secrets(app)
@@ -38,7 +38,7 @@ func (a *API) composeSource(w http.ResponseWriter, r *http.Request) {
 		fail(w, 409, "Application changed; reload the saved Compose document before saving")
 		return
 	}
-	if err = model.ValidateComposeSource(input.YAML); err != nil {
+	if err = spec.ValidateCompose(input.YAML); err != nil {
 		fail(w, 400, err.Error())
 		return
 	}

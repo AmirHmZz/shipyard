@@ -25,8 +25,9 @@ export function ResourceFieldSelect(props: ResourceFieldSelectProps) {
     return (
       <SelectControl
         value={
-          String(data[f.key] || "") ||
-          (f.resource === "proxy" ? "__direct__" : undefined)
+          String(
+            data[f.key] || (f.key === "composeMode" ? "repository" : ""),
+          ) || (f.resource === "proxy" ? "__direct__" : undefined)
         }
         onValueChange={handleSelectControlValueChange}
         options={f.options.map((v) => ({

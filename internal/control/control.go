@@ -99,8 +99,8 @@ func (c *Controller) queue(ctx context.Context, app model.Resource, ref, rollbac
 		return model.Deployment{}, e
 	}
 	snapshot.Fresh = len(freshMode) > 0 && freshMode[0]
-	if spec.Source == "compose" {
-		if ref != "" {
+	if spec.InlineCompose() {
+		if spec.Source == "compose" && ref != "" {
 			return model.Deployment{}, errors.New("Direct Compose deployments do not accept a Git ref")
 		}
 		values, err := c.Store.Secrets(app)
@@ -109,7 +109,7 @@ func (c *Controller) queue(ctx context.Context, app model.Resource, ref, rollbac
 		}
 		snapshot.ComposeSource = values["compose"]
 		if rollback == "" {
-			if err := model.ValidateComposeSource(snapshot.ComposeSource); err != nil {
+			if err := spec.ValidateCompose(snapshot.ComposeSource); err != nil {
 				return model.Deployment{}, err
 			}
 		}
@@ -706,7 +706,12 @@ func (c *Controller) deploy(ctx context.Context, id string) (result error) {
 		return e
 	}
 	defer client.Close()
-	engine := &deploy.Engine{Remote: client, Log: log, Dial: client.DialContext, PrepareNetworks: c.prepareNetworks, ValidateConfig: c.validateRenderedNetworks, Guard: func(guardCtx context.Context) error { return c.deploymentFence(guardCtx, id) }}
+	engine := &deploy.Engine{RenderedConfig: func(renderCtx context.Context, release *model.Release, config map[string]any) error {
+		if err := c.deploymentFence(renderCtx, id); err != nil {
+			return err
+		}
+		return c.cleanupComposeServices(renderCtx, release, snapshot.Resource.Version, config, log)
+	}, Remote: client, Log: log, Dial: client.DialContext, PrepareNetworks: c.prepareNetworks, ValidateConfig: c.validateRenderedNetworks, Guard: func(guardCtx context.Context) error { return c.deploymentFence(guardCtx, id) }}
 	old, oldErr := c.Store.Active(ctx, d.AppID)
 	r := model.Release{ID: id, DeploymentID: id, AppID: d.AppID, TeamID: snapshot.Resource.TeamID, ServerID: snapshot.App.ServerID, App: snapshot.App, Env: snapshot.Env, BuildSecrets: snapshot.BuildSecrets, Routes: snapshot.Routes, Directory: remote.Root + "/releases/" + id, CreatedAt: time.Now()}
 	changed := false
@@ -764,7 +769,10 @@ func (c *Controller) deploy(ctx context.Context, id string) (result error) {
 			if ce == nil {
 				defer recoveryClient.Close()
 				recovery := &deploy.Engine{Remote: recoveryClient, Log: log, Dial: recoveryClient.DialContext, PrepareNetworks: c.prepareNetworks, ValidateConfig: c.validateRenderedNetworks, Guard: func(guardCtx context.Context) error { return c.deploymentFence(guardCtx, id) }}
-				ce = recovery.Start(recoveryCtx, &old)
+				ce = c.filterDeletedRoutes(recoveryCtx, &old)
+				if ce == nil {
+					ce = recovery.Start(recoveryCtx, &old)
+				}
 				if ce == nil {
 					ce = recovery.Healthy(recoveryCtx, old)
 				}
@@ -873,6 +881,12 @@ func (c *Controller) deploy(ctx context.Context, id string) (result error) {
 			if err = engine.Transfer(ctx, r, func(w io.Writer) error { return providers.Archive(ctx, workspace, w) }); err != nil {
 				return err
 			}
+			if r.App.InlineCompose() {
+				if err = engine.WriteInlineCompose(ctx, r, snapshot.ComposeSource); err != nil {
+					return err
+				}
+				log.emit("Using the saved Compose document with the Git checkout")
+			}
 		}
 		registries := snapshot.Registries
 		if len(registries) > 0 {
@@ -900,6 +914,9 @@ func (c *Controller) deploy(ctx context.Context, id string) (result error) {
 		if e = engine.Build(ctx, &r, registries); e != nil {
 			return e
 		}
+	}
+	if e = c.filterDeletedRoutes(ctx, &r); e != nil {
+		return e
 	}
 	// Freeze exact image/configuration identities before any container mutation.
 	// A resumed job starts this same release instead of rebuilding mutable input.
@@ -943,6 +960,10 @@ func (c *Controller) deploy(ctx context.Context, id string) (result error) {
 		}
 		changed = true
 		if e = engine.Remove(ctx, old, false); e != nil {
+			return e
+		}
+		// The old containers are detached now; retained images do not own IPs.
+		if e = c.ReleaseNetworkLeases(ctx, old.ID); e != nil {
 			return e
 		}
 	}

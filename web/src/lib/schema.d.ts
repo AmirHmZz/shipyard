@@ -1012,7 +1012,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Operator-only saved Direct Compose YAML */
+        /** Operator-only saved inline Compose YAML (standalone or Git checkout) */
         get: {
             parameters: {
                 query?: never;
@@ -1047,7 +1047,7 @@ export interface paths {
                 503: components["responses"]["Error"];
             };
         };
-        /** Save encrypted Direct Compose YAML for the next deployment */
+        /** Save encrypted inline Compose YAML for the next deployment */
         put: {
             parameters: {
                 query?: never;
@@ -5884,6 +5884,11 @@ export interface components {
             port?: number;
         };
         ApplicationChecks: {
+            /**
+             * @description Git Compose document source. Omitted means repository. Inline YAML is encrypted in secrets.compose and edited through /applications/{id}/compose.
+             * @enum {string}
+             */
+            composeMode?: "repository" | "inline";
             /**
              * @description Immutable application workload. Omitted values mean service.
              * @enum {string}

@@ -33,7 +33,7 @@ export function DeleteResource({
     onDeleted,
   );
   const { name } = state;
-  const { busy, error } = derived;
+  const { busy, error, confirmed } = derived;
   const { handleOpenChange, changeName, remove } = handlers;
   return (
     <Dialog open onOpenChange={handleOpenChange}>
@@ -71,7 +71,7 @@ export function DeleteResource({
           </Button>
           <Button
             variant="destructive"
-            disabled={busy || !resource.canWrite || name !== resource.name}
+            disabled={busy || !resource.canWrite || !confirmed}
             onClick={remove}
           >
             {busy ? <Spinner className="size-4" /> : <Trash2 />}Delete{" "}

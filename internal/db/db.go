@@ -217,6 +217,11 @@ func (s *Store) Save(ctx context.Context, id string, in model.ResourceInput) (mo
 	} else if !errors.Is(e, pgx.ErrNoRows) {
 		return model.Resource{}, e
 	}
+	if errors.Is(e, pgx.ErrNoRows) && in.Version > 0 {
+		// A concurrent cleanup may have deleted a resource after API validation.
+		// An update must never recreate that resource under its previous ID.
+		return model.Resource{}, pgx.ErrNoRows
+	}
 	ancestor := in.ParentID
 	if old.ID != "" {
 		ancestor = old.ID

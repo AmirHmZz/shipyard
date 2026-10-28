@@ -48,7 +48,11 @@ export function ResourceSchemaFields({
           (f) =>
             !(
               kind === "application" &&
-              ((f.key === "workload" && !!existing) ||
+              ((f.key === "composeMode" && data.engine !== "compose") ||
+                (f.key === "file" &&
+                  data.engine === "compose" &&
+                  data.composeMode === "inline") ||
+                (f.key === "workload" && !!existing) ||
                 (f.key === "jobService" &&
                   (data.workload !== "job" || data.engine !== "compose")) ||
                 (data.workload === "job" &&

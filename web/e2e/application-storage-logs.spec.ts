@@ -124,7 +124,10 @@ async function setup(
       return route.fulfill({ json: [{ name: "main" }] });
     if (path.endsWith("/runtime"))
       return route.fulfill({
-        json: { status: "running", containers: ["a".repeat(64)] },
+        json: {
+          status: "running",
+          containers: ["a".repeat(64), "b".repeat(64)],
+        },
       });
     if (path.endsWith("/volumes")) {
       volumeReads++;
@@ -366,4 +369,142 @@ test("private previews can be enabled without routes or DNS settings", async ({
     (state.writes[0].data as Record<string, unknown>).previewRouting,
   ).toEqual({ mode: "private" });
   expect((state.writes[0].data as Record<string, unknown>).previews).toBe(true);
+});
+
+for (const deployment of [false, true]) {
+  test(`${deployment ? "deployment" : "container"} logs pause, anchor through rollover and resume following`, async ({
+    page,
+  }) => {
+    await setup(page);
+    await page.goto(
+      deployment
+        ? "/applications/app?tab=deployments&deployment=deploy"
+        : "/applications/app?tab=logs",
+    );
+    const output = page.getByTestId("log-output");
+    await expect(output).toBeVisible();
+    await page.evaluate(() => {
+      const stream = window.testSources.at(-1)!;
+      for (let i = 1; i <= 2000; i++)
+        stream.send(`line ${i} ${"x".repeat(240)}`, String(i));
+    });
+    await expect(output.locator("[data-log-number]")).toHaveCount(2000);
+    await expect
+      .poll(() =>
+        output.evaluate(
+          (node) => node.scrollHeight - node.clientHeight - node.scrollTop,
+        ),
+      )
+      .toBeLessThanOrEqual(1);
+    await output.evaluate((node) => {
+      const target = node.querySelector('[data-log-number="200"]')!;
+      node.scrollTop +=
+        target.getBoundingClientRect().top -
+        node.getBoundingClientRect().top +
+        8;
+      node.scrollLeft = 80;
+      node.dispatchEvent(new Event("scroll"));
+    });
+    const jump = page.getByRole("button", { name: "Jump to latest" });
+    await expect(jump).toBeVisible();
+    const before = await output.evaluate((node) => {
+      const top = node.getBoundingClientRect().top;
+      const line = Array.from(node.children).find(
+        (child) => child.getBoundingClientRect().bottom > top,
+      )!;
+      return {
+        number: line.getAttribute("data-log-number"),
+        offset: line.getBoundingClientRect().top - top,
+        left: node.scrollLeft,
+      };
+    });
+    await page.evaluate(() => {
+      const stream = window.testSources.at(-1)!;
+      for (let i = 2001; i <= 2050; i++) stream.send(`line ${i}`, String(i));
+    });
+    await expect(output.locator('[data-log-number="2050"]')).toHaveCount(1);
+    const after = await output
+      .locator(`[data-log-number="${before.number}"]`)
+      .evaluate(
+        (line) =>
+          line.getBoundingClientRect().top -
+          line.parentElement!.getBoundingClientRect().top,
+      );
+    expect(Math.abs(after - before.offset)).toBeLessThanOrEqual(1);
+    expect(await output.evaluate((node) => node.scrollLeft)).toBe(before.left);
+    await page.evaluate(() => {
+      const stream = window.testSources.at(-1)!;
+      for (let i = 2051; i <= 4100; i++) stream.send(`line ${i}`, String(i));
+    });
+    await expect(output.locator('[data-log-number="4100"]')).toHaveCount(1);
+    await expect.poll(() => output.evaluate((node) => node.scrollTop)).toBe(0);
+    await jump.click();
+    await expect(jump).toHaveCount(0);
+    await expect
+      .poll(() =>
+        output.evaluate(
+          (node) => node.scrollHeight - node.clientHeight - node.scrollTop,
+        ),
+      )
+      .toBeLessThanOrEqual(1);
+    await page.evaluate(() =>
+      window.testSources.at(-1)!.send("following again", "4101"),
+    );
+    await expect(output).toContainText("following again");
+    await expect
+      .poll(() =>
+        output.evaluate(
+          (node) => node.scrollHeight - node.clientHeight - node.scrollTop,
+        ),
+      )
+      .toBeLessThanOrEqual(1);
+  });
+}
+
+test("changing containers and clearing output reset log following", async ({
+  page,
+}) => {
+  await setup(page);
+  await page.goto("/applications/app?tab=logs");
+  const output = page.getByTestId("log-output");
+  await expect(output).toBeVisible();
+  await page.evaluate(() => {
+    for (let i = 0; i < 100; i++) window.testSources.at(-1)!.send(`old ${i}`);
+  });
+  await expect(output.locator("[data-log-number]")).toHaveCount(100);
+  await output.evaluate((node) => {
+    node.scrollTop = 0;
+    node.dispatchEvent(new Event("scroll"));
+  });
+  await expect(
+    page.getByRole("button", { name: "Jump to latest" }),
+  ).toBeVisible();
+  await page.getByRole("combobox").click();
+  await page.getByRole("option", { name: "bbbbbbbbbbbb" }).click();
+  await expect(output).toContainText("Waiting for log output");
+  await expect(
+    page.getByRole("button", { name: "Jump to latest" }),
+  ).toHaveCount(0);
+  await page.evaluate(() => {
+    for (let i = 0; i < 100; i++) window.testSources.at(-1)!.send(`new ${i}`);
+  });
+  await expect(output.locator("[data-log-number]")).toHaveCount(100);
+  await expect
+    .poll(() =>
+      output.evaluate(
+        (node) => node.scrollHeight - node.clientHeight - node.scrollTop,
+      ),
+    )
+    .toBeLessThanOrEqual(1);
+  await output.evaluate((node) => {
+    node.scrollTop = 0;
+    node.dispatchEvent(new Event("scroll"));
+  });
+  await expect(
+    page.getByRole("button", { name: "Jump to latest" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Clear logs" }).click();
+  await expect(
+    page.getByRole("button", { name: "Jump to latest" }),
+  ).toHaveCount(0);
 });
