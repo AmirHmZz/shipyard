@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.11.0](https://github.com/AmirHmZz/shipyard/compare/v0.10.0...v0.11.0) (2026-10-29)
+
+### Features
+
+- Allow Git applications using Compose to keep their Compose YAML in Shipyard while checking out the selected repository, branch and build context. Inline documents are encrypted and snapshotted for deployments and previews; relative Dockerfiles and repository files remain available without overwriting repository Compose files.
+- Remove domains, Shipyard-owned DNS records, service networking settings and published ports for removed or renamed Compose services after rendering, before building images. Cleanup is audited, retryable and protected against concurrent edits; rollback and recovery cannot restore deleted routes.
+
+### Bug Fixes
+
+- Fix application deletion immediately after saving a new name. Update the cached application from the save response, reset stale confirmation input and use the same case-sensitive, Unicode-normalized whitespace matcher for confirmation and submission.
+- Preserve the reader's position in deployment, container and job logs when new output arrives or the 2,000-line buffer rotates. Scrolling up pauses following; returning to the bottom or selecting **Jump to latest** resumes it without resetting horizontal scroll.
+
+### Upgrade Notes
+
+- No database migration is required. Existing Git applications continue reading Compose from the repository unless inline mode is selected; direct Compose applications retain their existing behavior.
+- Service renames are treated as removal plus addition: settings are not transferred to the new service name. Cleanup remains effective if a later build or deployment fails. Declared services in disabled profiles, shared or external Docker networks, persistent data and unrelated services are preserved.
+
 ## [0.10.0](https://github.com/AmirHmZz/shipyard/compare/v0.9.0...v0.10.0) (2026-10-25)
 
 ### Features
