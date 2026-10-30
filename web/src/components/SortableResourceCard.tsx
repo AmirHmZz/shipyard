@@ -7,6 +7,7 @@ import { GripVertical } from "lucide-react";
 import type { Resource } from "@/lib/api/types";
 
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export type SortableResourceCardProps = {
   resource: Resource;
@@ -32,22 +33,26 @@ export function SortableResourceCard({
       droppable: disabled || saving || !!resource.data.deleting,
     },
   });
+  // Keep the handle mounted: otherwise the drag library puts disabled/button
+  // semantics on the card itself and disables its menus and navigation links.
   return (
     <div ref={ref} className="relative min-w-0" data-card-id={resource.id}>
       {children}
-      {editable && (
-        <Button
-          ref={handleRef}
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          aria-label={`Reorder ${resource.name}`}
-          disabled={disabled || saving}
-          className="absolute top-6 left-17 z-20 touch-none cursor-grab active:cursor-grabbing"
-        >
-          <GripVertical />
-        </Button>
-      )}
+      <Button
+        ref={handleRef}
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        aria-label={`Reorder ${resource.name}`}
+        hidden={!editable}
+        disabled={disabled || saving || !editable}
+        className={cn(
+          "absolute top-6 left-17 z-20 touch-none cursor-grab active:cursor-grabbing",
+          !editable && "hidden",
+        )}
+      >
+        <GripVertical />
+      </Button>
     </div>
   );
 }
