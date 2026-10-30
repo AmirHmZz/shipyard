@@ -1,10 +1,11 @@
-import { Box, FileCode2, GitBranch } from "lucide-react";
+import { FileCode2, GitBranch } from "lucide-react";
 import { Link } from "react-router";
 
 import type { Resource } from "@/lib/api/types";
 import type { indexResources } from "@/lib/resource-index";
 
 import { RepositoryName } from "@/components/repository-name";
+import { ResourceLogo } from "@/components/ResourceLogo";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { text } from "@/lib/resource-fields";
@@ -18,9 +19,7 @@ export function ApplicationCard({ resource: r, index }: ApplicationCardProps) {
       <Card className="py-0 shadow-none transition-colors hover:border-primary/40">
         <CardContent className="p-5">
           <div className="mb-5 flex items-center justify-between">
-            <div className="flex size-10 items-center justify-center rounded-xl border bg-muted/40">
-              <Box className="size-5 text-primary" />
-            </div>
+            <ResourceLogo resource={r} />
             <Badge variant="secondary" className="font-mono text-[10px]">
               {text(r.data, "engine").toUpperCase()}
             </Badge>

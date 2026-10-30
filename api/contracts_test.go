@@ -82,7 +82,7 @@ func TestContractFixtures(t *testing.T) {
 		{"route-ready", "DomainState", ready}, {"route-pending", "DomainState", pending}, {"route-conflict", "DomainState", conflict}, {"route-sync-failed", "DomainState", failed},
 		{"networking-before-deploy", "ApplicationNetworking", map[string]any{"version": 1, "services": map[string]model.ServiceNetworking{}, "applied": map[string]model.ServiceNetworking{}, "endpoints": []model.NetworkEndpoint(nil), "pending": false}},
 		{"networking-docker-assigned", "ApplicationNetworking", map[string]any{"version": 1, "services": map[string]model.ServiceNetworking{"app": {}}, "applied": map[string]model.ServiceNetworking{}, "endpoints": []model.NetworkEndpoint{{Service: "app", Replica: 1, NetworkID: "network-1", DockerName: "bridge", Ingress: false}}, "pending": true}},
-		{"runtime-private", "ApplicationRuntime", map[string]any{"status": "running", "containers": []string{"app"}, "targets": []model.Target(nil)}},
+		{"runtime-private", "ApplicationRuntime", map[string]any{"status": "running", "containers": []string{"app"}, "targets": []model.Target(nil), "containerDetails": []control.ContainerDetail{{ID: "app", Service: "web", Replica: 1, Name: "stack-web-1"}}}},
 		{"docker-network-empty", "DockerNetwork", control.DockerNetwork{ID: "network-1", Name: "bridge", Driver: "bridge"}},
 		{"updates-unavailable", "SystemUpdates", platformupdate.Status{Reason: "System updates require the release installer"}},
 		{"network-deletion", "DeletionResult", map[string]bool{"ok": true}},

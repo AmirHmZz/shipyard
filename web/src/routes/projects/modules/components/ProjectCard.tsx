@@ -1,9 +1,10 @@
-import { Layers3, MoreHorizontal, Trash2 } from "lucide-react";
+import { MoreHorizontal, Trash2 } from "lucide-react";
 import { Link } from "react-router";
 
 import type { Resource } from "@/lib/api/types";
 import type { indexResources } from "@/lib/resource-index";
 
+import { ResourceLogo } from "@/components/ResourceLogo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -25,9 +26,7 @@ export function ProjectCard({ project: p, index }: ProjectCardProps) {
     <Card className="group relative gap-0 py-0 shadow-none transition-colors hover:border-primary/40 focus-within:border-primary/40">
       <CardContent className="p-5">
         <div className="mb-4 flex items-center justify-between">
-          <div className="rounded-xl border bg-muted/50 p-3">
-            <Layers3 className="size-5 text-primary" />
-          </div>
+          <ResourceLogo resource={p} />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button

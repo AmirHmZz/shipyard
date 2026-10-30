@@ -2,6 +2,7 @@ import { Plus } from "lucide-react";
 
 import type { Resource } from "@/lib/api/types";
 
+import { ResourceLogo } from "@/components/ResourceLogo";
 import { PageHeader } from "@/components/Shared";
 import { Button } from "@/components/ui/button";
 
@@ -46,6 +47,7 @@ export function ProjectsHeader({
       "Isolated deployments for work in progress. Production secrets stay separate.";
   return (
     <PageHeader
+      icon={project && <ResourceLogo resource={project} />}
       eyebrow="Workspace"
       breadcrumbs={
         id

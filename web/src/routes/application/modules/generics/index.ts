@@ -1,4 +1,6 @@
 export type { Runtime } from "./types";
+export type { ContainerDetail } from "./container-labels";
+export { containerOptions } from "./container-labels";
 export type { Service, Port } from "./types";
 export type { Source } from "./types";
 export { applicationKeys } from "./constants";

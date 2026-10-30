@@ -16,7 +16,12 @@ export function terminalReducer(
 ): TerminalState {
   switch (action.type) {
     case "container_changed":
-      return { ...state, container: action.value, connected: false };
+      return {
+        ...state,
+        container: action.value,
+        connected: false,
+        status: "disconnected",
+      };
     case "connection_toggled":
       return { ...state, connected: !state.connected };
     case "status_changed":

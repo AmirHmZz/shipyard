@@ -3,7 +3,9 @@ import { Plus } from "lucide-react";
 import type { Resource } from "@/lib/api/types";
 import type { indexResources } from "@/lib/resource-index";
 
+import { ResourceCardGrid } from "@/components/ResourceCardGrid";
 import { Empty } from "@/components/Shared";
+import { SortableResourceCard } from "@/components/SortableResourceCard";
 import { Button } from "@/components/ui/button";
 
 import type { EditorRequest } from "../generics";
@@ -37,11 +39,18 @@ export function ApplicationCards({
     resource.name.toLowerCase().includes(filter.toLowerCase()),
   );
   return apps.length ? (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-      {visibleApps.map((r) => (
-        <ApplicationCard key={r.id} resource={r} index={index} />
+    <ResourceCardGrid resources={visibleApps}>
+      {visibleApps.map((r, position) => (
+        <SortableResourceCard
+          key={r.id}
+          resource={r}
+          index={position}
+          disabled={!!filter || previews}
+        >
+          <ApplicationCard resource={r} index={index} />
+        </SortableResourceCard>
       ))}
-    </div>
+    </ResourceCardGrid>
   ) : (
     <Empty
       title={

@@ -79,7 +79,10 @@ func TestVariableMigrationPreservesEncryptedSecrets(t *testing.T) {
 	if err := ApplyMigrations(ctx, s.Pool, 5, false); err != nil {
 		t.Fatal(err)
 	}
-	after, err := s.Resource(ctx, r.ID)
+	// This fixture deliberately remains on schema 5. Read only that schema's
+	// columns instead of using the current binary's resource projection.
+	after := model.Resource{ID: r.ID}
+	err = s.Pool.QueryRow(ctx, "SELECT secret,variables FROM resources WHERE id=$1", r.ID).Scan(&after.Secret, &after.Variables)
 	if err != nil || !bytes.Equal(after.Secret, r.Secret) || len(after.Variables) != 0 {
 		t.Fatal("migration changed existing values", err)
 	}

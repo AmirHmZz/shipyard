@@ -3,6 +3,7 @@ import { Settings2 } from "lucide-react";
 import type { Resource } from "@/lib/api/types";
 
 import { RepositoryName } from "@/components/repository-name";
+import { ResourceLogo } from "@/components/ResourceLogo";
 import { PageHeader } from "@/components/Shared";
 import { Button } from "@/components/ui/button";
 import { text } from "@/lib/resource-fields";
@@ -53,6 +54,7 @@ export function ApplicationHeader({
   const directCompose = app.data.source === "compose";
   return (
     <PageHeader
+      icon={<ResourceLogo resource={app} />}
       breadcrumbs={[
         { label: "Projects", to: "/projects" },
         ...(project

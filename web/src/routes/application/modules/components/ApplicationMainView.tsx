@@ -197,7 +197,11 @@ export function ApplicationMainView() {
         <TabsContent value="terminal">
           {app.canWrite && containers.length ? (
             <Suspense fallback={<Loading />}>
-              <ContainerTerminal applicationId={id} containers={containers} />
+              <ContainerTerminal
+                applicationId={id}
+                containers={containers}
+                containerDetails={runtime.data?.containerDetails}
+              />
             </Suspense>
           ) : (
             <Empty

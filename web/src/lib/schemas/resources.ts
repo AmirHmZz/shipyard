@@ -21,6 +21,8 @@ export function resourceDeletionSchema(name: string) {
 
 export const resourceResponseSchema = z.object({
   id: z.string(),
+  logoUrl: z.optional(z.nullable(z.string())),
+  sortOrder: z.optional(z.number()),
   kind: z.string(),
   name: z.string(),
   teamId: z.string(),

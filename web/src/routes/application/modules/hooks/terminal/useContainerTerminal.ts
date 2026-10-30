@@ -15,6 +15,11 @@ export function useContainerTerminal(
     initialTerminalState,
   );
   const host = useRef<HTMLDivElement>(null);
+  // Reconcile the reducer before committing effects so a removed container can
+  // never open a new connection while the old terminal is being cleaned up.
+  if (!containers.includes(container) && (container || containers.length)) {
+    dispatch({ type: "container_changed", value: containers[0] || "" });
+  }
   useEffect(() => {
     if (!connected || !host.current || !container) return;
     const terminal = new Terminal({
@@ -36,8 +41,10 @@ export function useContainerTerminal(
     const socket = new WebSocket(
       `${scheme}://${location.host}/api/v1/applications/${applicationId}/terminal?container=${encodeURIComponent(container)}&csrf=${encodeURIComponent(getCSRF())}`,
     );
+    let active = true;
     socket.binaryType = "arraybuffer";
     socket.onopen = () => {
+      if (!active) return;
       dispatch({ type: "status_changed", value: "connected" });
       socket.send(
         JSON.stringify({
@@ -55,10 +62,12 @@ export function useContainerTerminal(
           : new Uint8Array(event.data as ArrayBuffer),
       );
     socket.onclose = (event) => {
+      if (!active) return;
       dispatch({ type: "status_changed", value: "disconnected" });
       terminal.writeln(`\r\n[${event.reason || "Connection closed"}]`);
     };
     socket.onerror = () => {
+      if (!active) return;
       dispatch({ type: "status_changed", value: "failed" });
       terminal.writeln(
         "\r\n[Unable to connect. Check permissions and container status.]",
@@ -81,6 +90,7 @@ export function useContainerTerminal(
     });
     observer.observe(host.current);
     return () => {
+      active = false;
       subscription.dispose();
       observer.disconnect();
       socket.close();

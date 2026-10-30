@@ -2,7 +2,7 @@ import { expect, it } from "vitest";
 
 import { initialTerminalState, terminalReducer } from "./terminal-state";
 
-it("disconnects the requested terminal when choosing another container and retains observed socket status", () => {
+it("disconnects and resets status when choosing another container", () => {
   const initial = initialTerminalState("one");
   const requested = terminalReducer(initial, { type: "connection_toggled" });
   const connected = terminalReducer(requested, {
@@ -11,7 +11,7 @@ it("disconnects the requested terminal when choosing another container and retai
   });
   expect(
     terminalReducer(connected, { type: "container_changed", value: "two" }),
-  ).toEqual({ container: "two", connected: false, status: "connected" });
+  ).toEqual({ container: "two", connected: false, status: "disconnected" });
   expect(
     terminalReducer(connected, { type: "status_changed", value: "failed" })
       .connected,

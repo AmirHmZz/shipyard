@@ -12,6 +12,7 @@ import {
 import { FormField } from "@/components/FormField";
 import { InputField } from "@/components/InputField";
 import { useResourceOptions } from "@/components/resource-forms/Options";
+import { ResourceLogoEditor } from "@/components/ResourceLogoEditor";
 import { SelectControl } from "@/components/SelectControl";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -95,6 +96,9 @@ export function ResourceFormContent(props: ResourceFormContentProps) {
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={submit} className="flex flex-col gap-5">
+            {existing && (kind === "project" || kind === "application") && (
+              <ResourceLogoEditor resource={existing} />
+            )}
             {kind !== "zone" && kind !== "route" && (
               <InputField
                 label={<>Name</>}

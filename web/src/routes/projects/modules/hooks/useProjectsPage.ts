@@ -6,6 +6,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router";
 import type { Resource } from "@/lib/api/types";
 
 import { useResources } from "@/lib/hooks/useResources";
+import { orderedCards } from "@/lib/resource-card-order";
 import { indexResources } from "@/lib/resource-index";
 
 import type { EditorRequest } from "../generics";
@@ -28,13 +29,13 @@ export function useProjectsPage(previews: boolean) {
   const currentEnvironment =
     environments.find((environment) => environment.id === activeEnvironment) ??
     environments[0];
-  const applications = resources.filter(
+  const applications = (previews ? resources : orderedCards(resources)).filter(
     (resource) =>
       resource.kind === "application" &&
       !!resource.data.previewOf === previews &&
       !resource.data.previewClosed,
   );
-  const projects = resources.filter(
+  const projects = orderedCards(resources).filter(
     (resource) =>
       resource.kind === "project" &&
       resource.name.toLowerCase().includes(state.filter.toLowerCase()),

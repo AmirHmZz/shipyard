@@ -106,11 +106,11 @@ func (s *Store) checkKey(ctx context.Context) error {
 	return tx.Commit(ctx)
 }
 
-const resourceColumns = `id,kind,CASE WHEN kind='route' THEN COALESCE(data->>'domain',id) ELSE name END AS name,team_id,parent_id,data,secret,version,created_at,updated_at,variables`
+const resourceColumns = `id,kind,CASE WHEN kind='route' THEN COALESCE(data->>'domain',id) ELSE name END AS name,team_id,parent_id,data,secret,version,created_at,updated_at,variables,(SELECT '/api/v1/resources/' || resources.id || '/logo?v=' || revision FROM resource_logos WHERE resource_id=resources.id),sort_order`
 
 func scanResource(row pgx.Row) (model.Resource, error) {
 	var r model.Resource
-	err := row.Scan(&r.ID, &r.Kind, &r.Name, &r.TeamID, &r.ParentID, &r.Data, &r.Secret, &r.Version, &r.CreatedAt, &r.UpdatedAt, &r.Variables)
+	err := row.Scan(&r.ID, &r.Kind, &r.Name, &r.TeamID, &r.ParentID, &r.Data, &r.Secret, &r.Version, &r.CreatedAt, &r.UpdatedAt, &r.Variables, &r.LogoURL, &r.SortOrder)
 	return r, err
 }
 func (s *Store) Resource(ctx context.Context, id string) (model.Resource, error) {

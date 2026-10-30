@@ -61,6 +61,20 @@ func TestDatabaseBackupRestore(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
+	project, e := store.Save(ctx, "", model.ResourceInput{Kind: "project", Name: "Logo project", Data: json.RawMessage(`{}`)})
+	if e != nil {
+		t.Fatal(e)
+	}
+	if e = store.SaveLogo(ctx, project.ID, "logo-revision", []byte("normalized-png")); e != nil {
+		t.Fatal(e)
+	}
+	if e = store.MoveResource(ctx, project.ID, nil); e != nil {
+		t.Fatal(e)
+	}
+	project, e = store.Resource(ctx, project.ID)
+	if e != nil {
+		t.Fatal(e)
+	}
 	directory := t.TempDir()
 	_ = os.WriteFile(filepath.Join(directory, "artifact"), []byte("durable file"), 0600)
 	encrypted, e := ExportWithFiles(ctx, store, source, directory, "strong backup passphrase", map[string][]byte{".env": []byte("encrypted-installation-credentials")})
@@ -85,6 +99,14 @@ func TestDatabaseBackupRestore(t *testing.T) {
 		t.Fatal(e)
 	}
 	defer restored.Pool.Close()
+	logoProject, e := restored.Resource(ctx, project.ID)
+	if e != nil || logoProject.LogoURL == nil || logoProject.SortOrder != project.SortOrder {
+		t.Fatal("logo metadata or ordering not restored", logoProject, e)
+	}
+	var logo []byte
+	if e = restored.Pool.QueryRow(ctx, "SELECT image FROM resource_logos WHERE resource_id=$1", project.ID).Scan(&logo); e != nil || string(logo) != "normalized-png" {
+		t.Fatal("logo bytes not restored", e)
+	}
 	var stale int
 	if e = restored.Pool.QueryRow(ctx, "SELECT count(*) FROM settings WHERE key='platform-update' OR key LIKE 'platform-update:%' OR key LIKE 'platform-plan:%'").Scan(&stale); e != nil || stale != 0 {
 		t.Fatal("stale update request restored", stale, e)

@@ -144,6 +144,16 @@ export const runtimeResponseSchema = z.object({
   releaseId: z.optional(z.string()),
   commit: z.optional(z.string()),
   containers: z.optional(z.nullable(z.array(z.string()))),
+  containerDetails: z.optional(
+    z.array(
+      z.object({
+        id: z.string(),
+        service: z.string(),
+        replica: z.number(),
+        name: z.string(),
+      }),
+    ),
+  ),
   targets: z.optional(
     z.nullable(
       z.array(

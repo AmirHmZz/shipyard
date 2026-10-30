@@ -182,6 +182,14 @@
     "name": "runtime-private",
     "schema": "ApplicationRuntime",
     "body": {
+      "containerDetails": [
+        {
+          "id": "app",
+          "service": "web",
+          "replica": 1,
+          "name": "stack-web-1"
+        }
+      ],
       "containers": [
         "app"
       ],

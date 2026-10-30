@@ -14,6 +14,7 @@ require (
 	github.com/pquerna/otp v1.5.0
 	github.com/robfig/cron/v3 v3.0.1
 	golang.org/x/crypto v0.54.0
+	golang.org/x/image v0.40.0
 	golang.org/x/net v0.57.0
 	google.golang.org/grpc v1.75.1
 	gopkg.in/yaml.v3 v3.0.1

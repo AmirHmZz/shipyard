@@ -216,6 +216,15 @@ const schemas = {
       releaseId: str,
       commit: str,
       containers: nullable({ type: "array", items: str }),
+      containerDetails: {
+        type: "array",
+        items: object({
+          id: str,
+          service: str,
+          replica: { type: "integer" },
+          name: str,
+        }),
+      },
       targets: nullable({ type: "array", items: ref("RuntimeTarget") }),
       createdAt: str,
     },
@@ -450,6 +459,8 @@ const schemas = {
   ]),
   Resource: object({
     id: str,
+    logoUrl: nullable(str),
+    sortOrder: { type: "integer" },
     kind: str,
     name: str,
     teamId: str,
@@ -609,6 +620,10 @@ Object.assign(schemas.Metric.properties.containers.items.properties, {
   diskRead: nullable(num),
   diskWrite: nullable(num),
 });
+// Presentation fields are additive; older resource responses remain valid.
+schemas.Resource.required = schemas.Resource.required.filter(
+  (key) => key !== "logoUrl" && key !== "sortOrder",
+);
 schemas.CertificateNetwork = input({ proxyId: str });
 schemas.MonitoringPolicy = input({
   ...schemas.AlertPolicy.properties,
@@ -1169,6 +1184,31 @@ schemas.ResourceUpdateInput = {
   required: ["data"],
 };
 add("/resources/{id}", "get", "Get resource", ref("Resource"));
+add("/resources/{id}/logo", "get", "Read uploaded resource logo", {
+  type: "string",
+  format: "binary",
+});
+paths["/resources/{id}/logo"].get.responses[200].content = {
+  "image/png": { schema: { type: "string", format: "binary" } },
+};
+paths["/resources/{id}/logo"].get.responses[304] = {
+  description: "Logo has not changed",
+};
+add(
+  "/resources/{id}/logo",
+  "put",
+  "Upload a PNG, JPEG, or WebP logo up to 2 MiB",
+  ref("Resource"),
+  input({ image: { type: "string", format: "byte", maxLength: 2796204 } }),
+);
+add("/resources/{id}/logo", "delete", "Remove uploaded logo", ref("Resource"));
+add(
+  "/resources/{id}/move",
+  "post",
+  "Move a project or environment application before another card; null appends",
+  array(ref("Resource")),
+  input({ beforeId: nullable(str) }),
+);
 add(
   "/resources/{id}",
   "put",

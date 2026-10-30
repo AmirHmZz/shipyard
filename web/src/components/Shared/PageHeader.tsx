@@ -17,6 +17,7 @@ export type PageHeaderProps = {
   eyebrow?: string;
   breadcrumbs?: { label: string; to?: string }[];
   title: string;
+  icon?: ReactNode;
   description?: ReactNode;
   children?: ReactNode;
   className?: string;
@@ -26,6 +27,7 @@ export function PageHeader({
   eyebrow,
   breadcrumbs,
   title,
+  icon,
   description,
   children,
   className,
@@ -75,9 +77,12 @@ export function PageHeader({
             </div>
           )
         )}
-        <h1 className="text-[28px] font-semibold tracking-tight [overflow-wrap:anywhere]">
-          {title}
-        </h1>
+        <div className="flex items-center gap-3">
+          {icon}
+          <h1 className="min-w-0 text-[28px] font-semibold tracking-tight [overflow-wrap:anywhere]">
+            {title}
+          </h1>
+        </div>
         {description && (
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
             {description}

@@ -23,6 +23,8 @@ type User struct {
 	TOTP  bool   `json:"totp"`
 }
 type Resource struct {
+	LogoURL    *string           `json:"logoUrl"`
+	SortOrder  int64             `json:"sortOrder"`
 	ID         string            `json:"id"`
 	Kind       string            `json:"kind"`
 	Name       string            `json:"name"`

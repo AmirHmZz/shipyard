@@ -1,0 +1,11 @@
+{
+  "name": "Project and application presentation",
+  "up": {
+    "classification": "non-destructive",
+    "impact": "Add uploaded resource logos and shared card ordering without changing deployment configuration."
+  },
+  "down": {
+    "classification": "destructive",
+    "impact": "Discard uploaded logos and custom card ordering."
+  }
+}

@@ -2384,6 +2384,194 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/resources/{id}/logo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read uploaded resource logo */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "image/png": string;
+                    };
+                };
+                /** @description Logo has not changed */
+                304: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                400: components["responses"]["Error"];
+                401: components["responses"]["Error"];
+                403: components["responses"]["Error"];
+                404: components["responses"]["Error"];
+                409: components["responses"]["Error"];
+                413: components["responses"]["Error"];
+                415: components["responses"]["Error"];
+                422: components["responses"]["Error"];
+                429: components["responses"]["Error"];
+                500: components["responses"]["Error"];
+                502: components["responses"]["Error"];
+                503: components["responses"]["Error"];
+            };
+        };
+        /** Upload a PNG, JPEG, or WebP logo up to 2 MiB */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: byte */
+                        image: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Resource"];
+                    };
+                };
+                400: components["responses"]["Error"];
+                401: components["responses"]["Error"];
+                403: components["responses"]["Error"];
+                404: components["responses"]["Error"];
+                409: components["responses"]["Error"];
+                413: components["responses"]["Error"];
+                415: components["responses"]["Error"];
+                422: components["responses"]["Error"];
+                429: components["responses"]["Error"];
+                500: components["responses"]["Error"];
+                502: components["responses"]["Error"];
+                503: components["responses"]["Error"];
+            };
+        };
+        post?: never;
+        /** Remove uploaded logo */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Resource"];
+                    };
+                };
+                400: components["responses"]["Error"];
+                401: components["responses"]["Error"];
+                403: components["responses"]["Error"];
+                404: components["responses"]["Error"];
+                409: components["responses"]["Error"];
+                413: components["responses"]["Error"];
+                415: components["responses"]["Error"];
+                422: components["responses"]["Error"];
+                429: components["responses"]["Error"];
+                500: components["responses"]["Error"];
+                502: components["responses"]["Error"];
+                503: components["responses"]["Error"];
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/resources/{id}/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Move a project or environment application before another card; null appends */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        beforeId: string | null;
+                    };
+                };
+            };
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Resource"][];
+                    };
+                };
+                400: components["responses"]["Error"];
+                401: components["responses"]["Error"];
+                403: components["responses"]["Error"];
+                404: components["responses"]["Error"];
+                409: components["responses"]["Error"];
+                413: components["responses"]["Error"];
+                415: components["responses"]["Error"];
+                422: components["responses"]["Error"];
+                429: components["responses"]["Error"];
+                500: components["responses"]["Error"];
+                502: components["responses"]["Error"];
+                503: components["responses"]["Error"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/resources/{id}/grants": {
         parameters: {
             query?: never;
@@ -5869,6 +6057,12 @@ export interface components {
             releaseId?: string;
             commit?: string;
             containers?: string[] | null;
+            containerDetails?: {
+                id: string;
+                service: string;
+                replica: number;
+                name: string;
+            }[];
             targets?: components["schemas"]["RuntimeTarget"][] | null;
             createdAt?: string;
         };
@@ -6104,6 +6298,8 @@ export interface components {
         };
         Resource: {
             id: string;
+            logoUrl?: string | null;
+            sortOrder?: number;
             kind: string;
             name: string;
             teamId: string;

@@ -12,14 +12,19 @@ import {
 } from "@/components/ui/select";
 import "@xterm/xterm/css/xterm.css";
 
+import type { ContainerDetail } from "../generics";
+
+import { containerOptions } from "../generics";
 import { useContainerTerminal } from "../hooks/terminal";
 export type ContainerTerminalProps = {
   applicationId: string;
   containers: string[];
+  containerDetails?: ContainerDetail[];
 };
 export function ContainerTerminal({
   applicationId,
   containers,
+  containerDetails = [],
 }: ContainerTerminalProps) {
   const { state, derived, handlers } = useContainerTerminal(
     applicationId,
@@ -30,7 +35,7 @@ export function ContainerTerminal({
   const { selectContainer, toggleConnection } = handlers;
   return (
     <FlushCard>
-      <CardHeader className="flex items-center justify-between border-b py-4">
+      <CardHeader className="flex flex-col items-stretch gap-3 border-b py-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <CardTitle className="text-sm">Container terminal</CardTitle>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -38,17 +43,22 @@ export function ContainerTerminal({
             audit log.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2">
           <Select value={container} onValueChange={selectContainer}>
-            <SelectTrigger className="w-36">
+            <SelectTrigger
+              className="min-w-0 flex-1 sm:w-48"
+              aria-label="Container"
+            >
               <SelectValue placeholder="Container" />
             </SelectTrigger>
             <SelectContent>
-              {containers.map((id) => (
-                <SelectItem key={id} value={id}>
-                  {id.slice(0, 12)}
-                </SelectItem>
-              ))}
+              {containerOptions(containers, containerDetails).map(
+                ({ id, label }) => (
+                  <SelectItem key={id} value={id}>
+                    {label}
+                  </SelectItem>
+                ),
+              )}
             </SelectContent>
           </Select>
           <Button

@@ -341,14 +341,14 @@ func (c *Controller) Runtime(ctx context.Context, id string) (map[string]any, er
 		if controlStatus == "" || controlStatus == "running" {
 			controlStatus = "not_deployed"
 		}
-		return map[string]any{"status": controlStatus, "error": controlError, "containers": []string{}, "targets": []model.Target{}}, nil
+		return map[string]any{"status": controlStatus, "error": controlError, "containers": []string{}, "containerDetails": []ContainerDetail{}, "targets": []model.Target{}}, nil
 	}
 	var status string
 	_ = c.Store.Pool.QueryRow(ctx, "SELECT status FROM app_runtime WHERE app_id=$1", id).Scan(&status)
 	if desired == "stopped" {
 		status = controlStatus
 	}
-	return map[string]any{"releaseId": r.ID, "commit": r.Commit, "status": status, "error": controlError, "containers": r.Containers, "targets": r.Targets, "createdAt": r.CreatedAt}, nil
+	return map[string]any{"releaseId": r.ID, "commit": r.Commit, "status": status, "error": controlError, "containers": r.Containers, "containerDetails": c.containerDetails(ctx, r), "targets": r.Targets, "createdAt": r.CreatedAt}, nil
 }
 
 var ErrNotFound = errors.New("not found")
