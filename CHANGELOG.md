@@ -10,7 +10,6 @@
 
 ### Bug Fixes
 
-- Keep project menus and navigation usable on read-only and deleting cards while disabling their reorder handles.
 - Reuse a Compose image built by one service in other services declaring the same image name, instead of trying to pull that image from a registry. Build the image once and pin all consumers to it; require the builder's profile to be enabled and reject ambiguous image names with multiple builders.
 - Publish release notes from the matching versioned changelog section instead of GitHub-generated compare-link-only notes. Expand earlier changelog entries and remove the obsolete Release Please footer.
 

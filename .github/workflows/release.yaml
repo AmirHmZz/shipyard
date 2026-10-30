@@ -213,6 +213,13 @@ jobs:
       - name: Test the preceding published schema in both directions
         working-directory: source
         run: sh ../tooling/scripts/test-release-path.sh .local/release/release.json
+      - name: Prepare notes from the versioned changelog
+        working-directory: source
+        env:
+          TAG: ${{ needs.select.outputs.tag }}
+        run: |
+          node ../tooling/scripts/release-notes.mjs --source . --tag "$TAG" \
+            > /tmp/shipyard-release-notes.md
       - name: Create tag and publish completed release
         working-directory: source
         env:
@@ -255,24 +262,7 @@ jobs:
             --expected-commit "$SOURCE_COMMIT" --expected-tag "$TAG" \
             --tag-commit "$tag_commit" --release "$release_json" >/dev/null
 
-          previous_tag=$(gh release list --exclude-drafts --exclude-pre-releases \
-            --limit 100 --json tagName,publishedAt \
-            --jq 'sort_by(.publishedAt) | reverse | .[0].tagName // ""')
-          if test -n "$previous_tag"; then
-            jq -n --arg tag "$TAG" --arg commit "$SOURCE_COMMIT" \
-              --arg previous "$previous_tag" \
-              '{tag_name:$tag,target_commitish:$commit,previous_tag_name:$previous}' \
-              > /tmp/shipyard-generate-notes.json
-          else
-            jq -n --arg tag "$TAG" --arg commit "$SOURCE_COMMIT" \
-              '{tag_name:$tag,target_commitish:$commit}' \
-              > /tmp/shipyard-generate-notes.json
-          fi
-          gh api --method POST "repos/$GH_REPO/releases/generate-notes" \
-            --input /tmp/shipyard-generate-notes.json \
-            > /tmp/shipyard-release-notes.json
-          jq -r .body /tmp/shipyard-release-notes.json > /tmp/shipyard-release-notes.md
-          title=$(jq -r .name /tmp/shipyard-release-notes.json)
+          title="$TAG"
 
           if test "$state" = draft; then
             gh release edit "$TAG" --title "$title" \
