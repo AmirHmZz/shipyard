@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.13.0](https://github.com/AmirHmZz/shipyard/compare/v0.12.0...v0.13.0) (2026-10-30)
+
+### Bug Fixes
+
+- Skip superseded release runs after force-pushes, including validated commits removed from branch history. Recheck the current branch before publishing completed builds.
+- Allow validated releases to replace an existing version's tag, notes, images, and assets. Exclude the version being rebuilt from predecessor migration checks.
+
+### Upgrade Notes
+
+- No new database migration is required. Existing installations remain pinned to their recorded image digests until explicitly updated.
+
 ## [0.12.0](https://github.com/AmirHmZz/shipyard/compare/v0.11.0...v0.12.0) (2026-10-30)
 
 ### Features
@@ -10,7 +21,6 @@
 
 ### Bug Fixes
 
-- Skip superseded release runs after force-pushes and allow validated releases to replace an existing version's tag, notes, images, and assets.
 - Reuse a Compose image built by one service in other services declaring the same image name, instead of trying to pull that image from a registry. Build the image once and pin all consumers to it; require the builder's profile to be enabled and reject ambiguous image names with multiple builders.
 - Publish release notes from the matching versioned changelog section instead of GitHub-generated compare-link-only notes. Expand earlier changelog entries and remove the obsolete Release Please footer.
 
