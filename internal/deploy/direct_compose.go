@@ -9,7 +9,47 @@ import (
 	"fmt"
 	"io"
 	"shipyard/internal/model"
+	"sort"
 )
+
+// Resolve image-only services to their enabled build service before replacing
+// user image names with release tags. Only independent images need pulling.
+func prepareComposeImages(r model.Release, services map[string]any) ([]string, error) {
+	builders := map[string][]string{}
+	for name, raw := range services {
+		service, ok := raw.(map[string]any)
+		if !ok {
+			return nil, errors.New("invalid Compose service")
+		}
+		if _, ok := service["build"].(map[string]any); ok {
+			if image, _ := service["image"].(string); image != "" {
+				builders[image] = append(builders[image], name)
+			}
+		}
+	}
+	tag := func(name string) string { return "shipyard/" + r.AppID + "-" + name + ":" + r.ID }
+	var pull []string
+	for name, raw := range services {
+		service := raw.(map[string]any)
+		if _, ok := service["build"].(map[string]any); ok {
+			service["image"] = tag(name)
+			continue
+		}
+		image, _ := service["image"].(string)
+		owners := builders[image]
+		if len(owners) > 1 {
+			sort.Strings(owners)
+			return nil, fmt.Errorf("service %s: image %s has multiple build services %v; keep one build service for a shared image", name, image, owners)
+		}
+		if len(owners) == 1 {
+			service["image"] = tag(owners[0])
+		} else {
+			pull = append(pull, name)
+		}
+	}
+	sort.Strings(pull)
+	return pull, nil
+}
 
 func (e *Engine) TransferCompose(ctx context.Context, r *model.Release, source string) error {
 	if err := model.ValidateComposeSource(source); err != nil {

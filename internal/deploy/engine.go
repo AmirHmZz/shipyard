@@ -239,7 +239,11 @@ func (e *Engine) Build(ctx context.Context, r *model.Release, registries map[str
 		if len(services) == 0 {
 			return errors.New("Compose has no services enabled by the selected profiles")
 		}
-		for name, raw := range services {
+		pullServices, err := prepareComposeImages(*r, services)
+		if err != nil {
+			return err
+		}
+		for _, raw := range services {
 			service, ok := raw.(map[string]any)
 			if !ok {
 				return errors.New("invalid Compose service")
@@ -260,7 +264,6 @@ func (e *Engine) Build(ctx context.Context, r *model.Release, registries map[str
 			labels["shipyard.release"] = r.ID
 			service["labels"] = labels
 			if build, ok := service["build"].(map[string]any); ok {
-				service["image"] = "shipyard/" + r.AppID + "-" + name + ":" + r.ID
 				buildArgs, _ := build["args"].(map[string]any)
 				if buildArgs == nil {
 					buildArgs = map[string]any{}
@@ -296,8 +299,11 @@ func (e *Engine) Build(ctx context.Context, r *model.Release, registries map[str
 		if err = e.command(ctx, append(buildArgs, "build", "--pull")...); err != nil {
 			return err
 		}
-		if err = e.command(ctx, append(buildArgs, "pull", "--ignore-buildable")...); err != nil {
-			return err
+		if len(pullServices) > 0 {
+			args := append(append([]string{}, buildArgs...), "pull", "--ignore-buildable")
+			if err = e.command(ctx, append(args, pullServices...)...); err != nil {
+				return err
+			}
 		}
 		for name, raw := range services {
 			service := raw.(map[string]any)

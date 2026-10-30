@@ -52,6 +52,8 @@ Operators can edit the saved YAML under the application's **Compose** tab. **Sav
 
 For Git Compose applications, choose **Compose document → Write compose in Shipyard** to keep the repository checkout while writing YAML in the dashboard. Relative build contexts, Dockerfiles and repository files use the selected build context. Git push deployments and PR previews remain available; each deployment freezes both its Git revision and saved YAML.
 
+To build one image for multiple Compose services, declare `build` and `image` on one service and use the same `image` value on the others without `build`. Shipyard builds that service once, resolves consumers of the exact same image name to its release image, and pins every service to the resulting image ID. The builder must be enabled by the selected profiles. If multiple build services declare that image name, image-only consumers are rejected as ambiguous.
+
 When a deployment renders a Compose document with renamed or removed services, Shipyard deletes domains and service-specific networking/published-port settings that reference absent services before building images. These deletions remain effective if the build fails. Shared networks, persistent data and services in inactive profiles are preserved. Readiness checks and job targets still require explicit correction when their service names change.
 
 Live logs follow new output while you are at the bottom. Scroll up to hold your reading position, then select **Jump to latest** to resume following.
