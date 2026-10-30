@@ -53,7 +53,7 @@ test("selected versions require synchronized product metadata", () => {
   }
 });
 
-test("release state permits exact retries and refuses collisions", () => {
+test("release state permits retries and replacements but refuses unrelated releases", () => {
   const expectedCommit = "a".repeat(40),
     tag = "v1.2.3";
   assert.deepEqual(assessReleaseState({ expectedCommit }), {
@@ -73,27 +73,25 @@ test("release state permits exact retries and refuses collisions", () => {
     }),
     { createTag: false, createRelease: false },
   );
-  assert.throws(
-    () =>
-      assessReleaseState({
-        expectedCommit,
-        expectedTag: tag,
-        tagCommit: "b".repeat(40),
-      }),
-    /expected/,
+  assert.deepEqual(
+    assessReleaseState({
+      expectedCommit,
+      expectedTag: tag,
+      tagCommit: "b".repeat(40),
+    }),
+    { createTag: false, createRelease: true },
   );
-  assert.throws(
-    () =>
-      assessReleaseState({
-        expectedCommit,
-        expectedTag: tag,
-        release: {
-          tagName: tag,
-          isDraft: false,
-          isPrerelease: false,
-        },
-      }),
-    /cannot be overwritten/,
+  assert.deepEqual(
+    assessReleaseState({
+      expectedCommit,
+      expectedTag: tag,
+      release: {
+        tagName: tag,
+        isDraft: false,
+        isPrerelease: false,
+      },
+    }),
+    { createTag: true, createRelease: false },
   );
   assert.throws(
     () =>

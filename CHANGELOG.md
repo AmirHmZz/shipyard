@@ -10,6 +10,7 @@
 
 ### Bug Fixes
 
+- Skip superseded release runs after force-pushes and allow validated releases to replace an existing version's tag, notes, images, and assets.
 - Reuse a Compose image built by one service in other services declaring the same image name, instead of trying to pull that image from a registry. Build the image once and pin all consumers to it; require the builder's profile to be enabled and reject ambiguous image names with multiple builders.
 - Publish release notes from the matching versioned changelog section instead of GitHub-generated compare-link-only notes. Expand earlier changelog entries and remove the obsolete Release Please footer.
 

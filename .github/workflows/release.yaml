@@ -54,6 +54,11 @@ jobs:
           else
             mode=automatic
             source_sha="$WORKFLOW_RUN_SHA"
+            if test "$source_sha" != "$tooling_sha"; then
+              echo "Validated commit is no longer the main head; waiting for current validation."
+              echo "release=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
             tooling_sha="$source_sha"
             validate=false
           fi
@@ -206,7 +211,7 @@ jobs:
         run: |
           docker pull postgres:18-alpine
           POSTGRES_IMAGE=$(docker inspect postgres:18-alpine --format '{{index .RepoDigests 0}}')
-          PREVIOUS_VERSION=$(gh release list --exclude-drafts --exclude-pre-releases --json tagName --jq '.[0].tagName // ""' | sed 's/^v//')
+          PREVIOUS_VERSION=$(gh release list --exclude-drafts --exclude-pre-releases --limit 100 --json tagName --jq '[.[] | select(.tagName != "v${{ steps.metadata.outputs.version }}")][0].tagName // ""' | sed 's/^v//')
           export POSTGRES_IMAGE PREVIOUS_VERSION
           node ../tooling/scripts/release-manifest.mjs
           cd .local/release && sha256sum -c SHA256SUMS
@@ -227,6 +232,7 @@ jobs:
           SOURCE_COMMIT: ${{ needs.select.outputs.source_sha }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
+          RELEASE_EVENT: ${{ github.event_name }}
         run: |
           remote_tag_commit() {
             if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
@@ -235,9 +241,21 @@ jobs:
             fi
           }
 
+          if test "$RELEASE_EVENT" != workflow_dispatch; then
+            current_main=$(git ls-remote origin refs/heads/main | cut -f1)
+            if test "$current_main" != "$SOURCE_COMMIT"; then
+              echo "Main changed during the build; leaving release publication to the current run."
+              exit 0
+            fi
+          fi
+
           tag_commit=$(remote_tag_commit)
           if test -n "$tag_commit"; then
-            test "$tag_commit" = "$SOURCE_COMMIT"
+            if test "$tag_commit" != "$SOURCE_COMMIT"; then
+              gh api --method PATCH "repos/$GH_REPO/git/refs/tags/$TAG" \
+                -f sha="$SOURCE_COMMIT" -F force=true >/dev/null
+              tag_commit="$SOURCE_COMMIT"
+            fi
           else
             if gh api --method POST "repos/$GH_REPO/git/refs" \
               -f ref="refs/tags/$TAG" -f sha="$SOURCE_COMMIT" >/dev/null; then
@@ -250,7 +268,7 @@ jobs:
 
           state=missing
           if release_json=$(gh api "repos/$GH_REPO/releases/tags/$TAG" 2>/tmp/shipyard-release-error); then
-            state=draft
+            state=existing
           else
             release_json=
             grep -q 'HTTP 404' /tmp/shipyard-release-error || {
@@ -264,11 +282,10 @@ jobs:
 
           title="$TAG"
 
-          if test "$state" = draft; then
+          if test "$state" != missing; then
             gh release edit "$TAG" --title "$title" \
               --notes-file /tmp/shipyard-release-notes.md
             gh release upload "$TAG" .local/release/* --clobber
-            test "$(gh release view "$TAG" --json isDraft -q .isDraft)" = true
             gh release edit "$TAG" --draft=false --latest
           else
             gh release create "$TAG" .local/release/* --verify-tag --latest \

@@ -41,21 +41,14 @@ export function validateReleaseMetadata(root, selection) {
 }
 
 export function assessReleaseState({
-  expectedCommit,
   expectedTag,
   tagCommit = null,
   release = null,
 }) {
-  if (tagCommit && tagCommit !== expectedCommit)
-    throw new Error(
-      `Release tag targets ${tagCommit}, expected ${expectedCommit}`,
-    );
   if (release?.tagName && release.tagName !== expectedTag)
     throw new Error(`Release is attached to unexpected tag ${release.tagName}`);
   if (release?.isPrerelease)
     throw new Error("Prerelease drafts cannot be reused");
-  if (release && !release.isDraft)
-    throw new Error("Published releases cannot be overwritten");
   return { createTag: tagCommit === null, createRelease: release === null };
 }
 
