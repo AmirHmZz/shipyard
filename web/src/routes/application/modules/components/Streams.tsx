@@ -20,19 +20,27 @@ import { LogBuffer } from "@/lib/log-buffer";
 import { logText } from "@/lib/log-text";
 import { inputNumberSchema } from "@/lib/schemas/coercion";
 
-import { logMessageSchema, logStatusSchema } from "../generics";
+import type { ContainerDetail } from "../generics";
+
+import {
+  containerOptions,
+  logMessageSchema,
+  logStatusSchema,
+} from "../generics";
 import { useLogScroll } from "../hooks/useLogScroll";
 export type LogStreamProps = {
   runId?: string;
   deploymentId?: string;
   applicationId?: string;
   containers?: string[];
+  containerDetails?: ContainerDetail[];
 };
 export function LogStream({
   runId,
   deploymentId,
   applicationId,
   containers = [],
+  containerDetails = [],
 }: LogStreamProps) {
   function handleButtonClick() {
     return buffer.current?.clear();
@@ -151,15 +159,17 @@ export function LogStream({
         <div className="flex items-center gap-2">
           {!deploymentId && containers.length > 1 && (
             <Select value={effectiveContainer} onValueChange={setSelected}>
-              <SelectTrigger className="h-8 w-36">
+              <SelectTrigger className="h-8 w-48" aria-label="Service">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {containers.map((id) => (
-                  <SelectItem key={id} value={id}>
-                    {id.slice(0, 12)}
-                  </SelectItem>
-                ))}
+                {containerOptions(containers, containerDetails).map(
+                  ({ id, label }) => (
+                    <SelectItem key={id} value={id}>
+                      {label}
+                    </SelectItem>
+                  ),
+                )}
               </SelectContent>
             </Select>
           )}

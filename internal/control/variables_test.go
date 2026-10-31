@@ -25,15 +25,23 @@ func setVariables(t *testing.T, c *Controller, r model.Resource, values map[stri
 type variableServiceNode struct {
 	deletionNode
 	environment string
+	compose     string
+	config      string
 }
 
 func (n *variableServiceNode) Run(ctx context.Context, command string, input io.Reader, output io.Writer) error {
+	if strings.HasPrefix(command, "umask 077; cat > ") && strings.Contains(command, "inline-compose.yaml") {
+		value, err := io.ReadAll(input)
+		n.compose = string(value)
+		return err
+	}
 	if strings.HasPrefix(command, "umask 077; cat > ") && strings.Contains(command, "inspect.env") {
 		value, err := io.ReadAll(input)
 		n.environment = string(value)
 		return err
 	}
 	if strings.Contains(command, remote.Command("config", "--format", "json")) {
+		n.config = command
 		_, err := io.WriteString(output, `{"services":{"web":{"deploy":{"replicas":2}}}}`)
 		return err
 	}
@@ -42,6 +50,48 @@ func (n *variableServiceNode) Run(ctx context.Context, command string, input io.
 		return err
 	}
 	return nil
+}
+
+func TestServiceDiscoveryComposeSourcePaths(t *testing.T) {
+	for _, mode := range []string{"direct", "repository", "inline"} {
+		t.Run(mode, func(t *testing.T) {
+			c := testController(t)
+			ctx := context.Background()
+			node := &variableServiceNode{}
+			c.DialNode = func(context.Context, model.Server, map[string]string) (remote.Node, error) { return node, nil }
+			server := resource(t, c, "server", "", "", model.Server{}, nil)
+			spec := model.App{Source: "compose", Engine: "compose", ServerID: server.ID}
+			wantFile, wantContext := "/source/compose.yaml", "/source/."
+			if mode != "direct" {
+				git := resource(t, c, "git", "", "", model.Git{Provider: "gitea", URL: "https://git.invalid"}, nil)
+				c.GitFactory = func(model.Git, map[string]string) providers.GitProvider {
+					return &localGit{compose: true, version: "discovery"}
+				}
+				spec.Source, spec.GitID, spec.Repository, spec.Branch = "git", git.ID, "owner/app", "main"
+				spec.Context, spec.File = "services", "repository.yaml"
+				wantFile, wantContext = "/source/repository.yaml", "/source/services"
+				if mode == "inline" {
+					spec.ComposeMode = "inline"
+					wantFile = "/inline-compose.yaml"
+				}
+			}
+			source := "services:\n  web:\n    image: nginx:alpine\n"
+			app := resource(t, c, "application", "", "", spec, map[string]string{"compose": source})
+			services, err := c.Services(ctx, app)
+			if err != nil || len(services) != 1 {
+				t.Fatal("service discovery failed", services, err)
+			}
+			if !strings.Contains(node.config, wantFile+"'") || !strings.Contains(node.config, wantContext+"'") {
+				t.Fatal("incorrect Compose file or build context", node.config)
+			}
+			if mode == "inline" && node.compose != source {
+				t.Fatal("saved Compose document was not transferred", node.compose)
+			}
+			if mode != "inline" && node.compose != "" {
+				t.Fatal("unexpected inline document", node.compose)
+			}
+		})
+	}
 }
 
 func (n *variableServiceNode) RunSeparated(ctx context.Context, command string, input io.Reader, output, stderr io.Writer) error {

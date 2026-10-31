@@ -55,6 +55,10 @@ func TestLinuxGitInlineComposeRenameCleanup(t *testing.T) {
 	source := "services:\n  old:\n    build:\n      context: .\n      dockerfile: Dockerfile\n"
 	spec := model.App{Source: "git", ComposeMode: "inline", Engine: "compose", ServerID: server.ID, GitID: git.ID, Repository: "owner/app", Branch: "main", Context: ".", File: "compose.yaml", ReadinessMode: "container", HealthTimeout: 20, Networking: map[string]model.ServiceNetworking{"old": {Hostname: "old"}}}
 	app := resource(t, c, "application", "", team.ID, spec, map[string]string{"compose": source})
+	catalog, err := c.Services(ctx, app)
+	if err != nil || len(catalog) != 1 || catalog[0].Name != "old" {
+		t.Fatal("service discovery did not use saved inline Compose", catalog, err)
+	}
 	route := resource(t, c, "route", app.ID, team.ID, model.Route{Protocol: "tcp", TLS: "passthrough", Service: "old", ListenPort: 19090, TargetPort: 8080}, nil)
 	run := func(rollback string) (model.Deployment, error) {
 		d, err := c.Queue(ctx, app, "", rollback)

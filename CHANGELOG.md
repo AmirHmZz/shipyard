@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Bug Fixes
+
+- Discover services from the saved inline Compose document for Git applications when adding routes or configuring networking, using the repository build context. Use normalized Compose paths for Direct Compose discovery.
+- Show service names and replica numbers in the runtime Logs selector, with container names or shortened IDs as fallbacks.
+
 ## [0.13.0](https://github.com/AmirHmZz/shipyard/compare/v0.12.0...v0.13.0) (2026-10-30)
 
 ### Bug Fixes

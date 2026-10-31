@@ -1,5 +1,5 @@
 import { buildInfoFixture } from "./build-info";
-type TestSource = { send(message: string, id?: string): void };
+type TestSource = { url: string; send(message: string, id?: string): void };
 declare global {
   interface Window {
     testSources: TestSource[];
@@ -127,6 +127,20 @@ async function setup(
         json: {
           status: "running",
           containers: ["a".repeat(64), "b".repeat(64)],
+          containerDetails: [
+            {
+              id: "a".repeat(64),
+              name: "app-web-1",
+              service: "web",
+              replica: 1,
+            },
+            {
+              id: "b".repeat(64),
+              name: "app-worker-1",
+              service: "worker",
+              replica: 1,
+            },
+          ],
         },
       });
     if (path.endsWith("/volumes")) {
@@ -479,8 +493,17 @@ test("changing containers and clearing output reset log following", async ({
   await expect(
     page.getByRole("button", { name: "Jump to latest" }),
   ).toBeVisible();
-  await page.getByRole("combobox").click();
-  await page.getByRole("option", { name: "bbbbbbbbbbbb" }).click();
+  await expect(page.getByRole("combobox", { name: "Service" })).toHaveText(
+    "web",
+  );
+  await page.getByRole("combobox", { name: "Service" }).click();
+  await page.getByRole("option", { name: "worker", exact: true }).click();
+  await expect(page.getByRole("combobox", { name: "Service" })).toHaveText(
+    "worker",
+  );
+  await expect
+    .poll(() => page.evaluate(() => window.testSources.at(-1)?.url))
+    .toContain(`/logs?container=${"b".repeat(64)}`);
   await expect(output).toContainText("Waiting for log output");
   await expect(
     page.getByRole("button", { name: "Jump to latest" }),

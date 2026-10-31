@@ -105,6 +105,15 @@ func (c *Controller) Services(ctx context.Context, app model.Resource) ([]Servic
 		if e = engine.Transfer(ctx, r, func(w io.Writer) error { return providers.Archive(ctx, workspace, w) }); e != nil {
 			return nil, e
 		}
+		if a.InlineCompose() {
+			values, err := c.Store.Secrets(app)
+			if err != nil {
+				return nil, err
+			}
+			if err = engine.WriteInlineCompose(ctx, r, values["compose"]); err != nil {
+				return nil, err
+			}
+		}
 	}
 	lines := []string{}
 	for k, v := range env {
@@ -114,7 +123,11 @@ func (c *Controller) Services(ctx context.Context, app model.Resource) ([]Servic
 	if e = deploy.Write(ctx, client, dir+"/inspect.env", []byte(strings.Join(lines, "\n")+"\n")); e != nil {
 		return nil, e
 	}
-	args := []string{"docker", "compose", "--project-directory", dir + "/source/" + a.Context, "--env-file", dir + "/inspect.env", "-f", dir + "/source/" + a.File}
+	file := dir + "/source/" + r.App.File
+	if a.Source != "compose" && a.InlineCompose() {
+		file = dir + "/inline-compose.yaml"
+	}
+	args := []string{"docker", "compose", "--project-directory", dir + "/source/" + r.App.Context, "--env-file", dir + "/inspect.env", "-f", file}
 	for _, profile := range a.Profiles {
 		args = append(args, "--profile", profile)
 	}

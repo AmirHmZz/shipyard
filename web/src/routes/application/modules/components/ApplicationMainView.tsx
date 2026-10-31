@@ -186,7 +186,11 @@ export function ApplicationMainView() {
         </TabsContent>
         <TabsContent value="logs">
           {containers.length ? (
-            <LogStream applicationId={id} containers={containers} />
+            <LogStream
+              applicationId={id}
+              containers={containers}
+              containerDetails={runtime.data?.containerDetails}
+            />
           ) : (
             <Empty
               title="No running containers"
