@@ -1,11 +1,19 @@
 # Changelog
 
-## Unreleased
+## [0.14.0] (2026-10-31)
+
+### Features
+
+- Show Compose service names and replica numbers in the runtime Logs selector, with container names or shortened IDs as fallbacks. Log connections continue using full container IDs, and switching services resets the displayed output and resumes following new logs.
 
 ### Bug Fixes
 
-- Discover services from the saved inline Compose document for Git applications when adding routes or configuring networking, using the repository build context. Use normalized Compose paths for Direct Compose discovery.
-- Show service names and replica numbers in the runtime Logs selector, with container names or shortened IDs as fallbacks.
+- Fix service discovery for Git applications using inline Compose. Adding routes and configuring networking now use the saved Compose document with the selected repository build context, matching deployment behavior without overwriting repository files.
+- Use normalized Compose file and build-context paths when discovering services for Direct Compose applications.
+
+### Upgrade Notes
+
+- No database migration is required. Existing applications and routes retain their configuration. After upgrading, retry service discovery when adding a route or configuring networking for an inline Compose application.
 
 ## [0.13.0](https://github.com/AmirHmZz/shipyard/compare/v0.12.0...v0.13.0) (2026-10-30)
 
