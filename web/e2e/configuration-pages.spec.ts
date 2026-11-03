@@ -407,7 +407,7 @@ test("application networking saves per-service settings and hides admin port con
     page.getByText(/Compose port publishing is ignored for/),
   ).toBeVisible();
   const card = page.locator('[data-slot="card"]').filter({
-    has: page.locator('[data-slot="card-title"]').filter({ hasText: /^web$/ }),
+    has: page.getByRole("heading", { name: "web", exact: true }),
   });
   await card
     .getByLabel("Container hostname", { exact: true })
@@ -429,7 +429,7 @@ test("application networking saves per-service settings and hides admin port con
     connections: [{ networkId: "shared", ipv4: "172.25.0.10" }],
   });
   await expect(
-    page.getByText("Published ports · administrator only", { exact: true }),
+    page.getByRole("heading", { name: "Published ports", exact: true }),
   ).toHaveCount(0);
   await page.screenshot({
     path: info.outputPath("app-networks.png"),
