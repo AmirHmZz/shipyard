@@ -96,7 +96,20 @@ async function fixture(page: Page) {
     if (path.endsWith("/networking")) {
       if (request.method() === "GET")
         return route.fulfill({
-          json: { version: 1, services: {}, pending: false },
+          json: {
+            version: 1,
+            services: {},
+            pending: false,
+            endpoints: [
+              {
+                service: "web",
+                replica: 1,
+                ingress: true,
+                dockerName: "shipyard-ingress",
+                ipv4: "192.168.1.10",
+              },
+            ],
+          },
         });
       state.writes.push(path);
       state.payloads.push(request.postDataJSON());
@@ -232,6 +245,11 @@ test("saving networking leaves unsaved published ports protected", async ({
 }) => {
   const state = await fixture(page);
   await page.goto("/applications/app?tab=networking");
+  await expect(
+    page
+      .getByRole("table", { name: "Active container addresses" })
+      .getByRole("row", { name: /web 1 HAProxy ingress 192\.168\.1\.10/ }),
+  ).toBeVisible();
   await page.getByLabel("Container hostname").fill("draft-host");
   await page.getByRole("button", { name: "Add port exception" }).click();
   await page

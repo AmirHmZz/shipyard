@@ -4,9 +4,10 @@ import { Plus } from "lucide-react";
 
 import type { Resource } from "@/lib/api/types";
 
+import { FlushCard } from "@/components/FlushCard";
 import { InputField } from "@/components/InputField";
+import { SectionRow } from "@/components/SectionRow";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { draftRow } from "@/lib/draft-rows";
 
 import type { Service } from "../generics";
@@ -37,16 +38,30 @@ export function NetworkServiceCard({
   }
 
   return (
-    <Card key={service.name}>
-      <CardHeader>
-        <CardTitle>{service.name}</CardTitle>
-        <p className="text-xs text-muted-foreground">
-          {service.replicas} container
-          {service.replicas === 1 ? "" : "s"}
-        </p>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
+    <FlushCard>
+      <SectionRow className="border-b px-4 py-3">
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold wrap-anywhere">
+            {service.name}
+          </h3>
+          <p className="text-xs text-muted-foreground">
+            {service.replicas} container
+            {service.replicas === 1 ? "" : "s"}
+          </p>
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={!app.canWrite}
+          onClick={handleButtonClick}
+        >
+          <Plus />
+          Connect network
+        </Button>
+      </SectionRow>
+      <div className="bg-muted/20 px-4 py-3">
         <InputField
+          className="flex max-w-sm flex-col gap-2"
           label={<>Container hostname</>}
           labelProps={{ htmlFor: `hostname-${service.name}` }}
           inputProps={{
@@ -56,6 +71,13 @@ export function NetworkServiceCard({
             onChange: handleInputChange,
           }}
         />
+      </div>
+      <div className="@container">
+        {!state.connections.length && (
+          <p className="border-t px-4 py-3 text-sm text-muted-foreground">
+            No additional networks connected.
+          </p>
+        )}
         {state.connections.map((connection, index) => (
           <NetworkConnection
             key={connection.rowId}
@@ -68,16 +90,7 @@ export function NetworkServiceCard({
             networks={networks}
           />
         ))}
-        <Button
-          className="self-start"
-          variant="outline"
-          disabled={!app.canWrite}
-          onClick={handleButtonClick}
-        >
-          <Plus />
-          Connect network
-        </Button>
-      </CardContent>
-    </Card>
+      </div>
+    </FlushCard>
   );
 }

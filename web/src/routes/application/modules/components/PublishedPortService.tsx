@@ -2,6 +2,7 @@ import { Plus } from "lucide-react";
 
 import type { DraftRow } from "@/lib/draft-rows";
 
+import { SectionRow } from "@/components/SectionRow";
 import { Button } from "@/components/ui/button";
 import { draftRow } from "@/lib/draft-rows";
 
@@ -35,8 +36,16 @@ export function PublishedPortService({
     });
   }
   return (
-    <section className="flex flex-col gap-3">
-      <h3 className="text-sm font-medium">{service}</h3>
+    <section className="flex flex-col gap-3 px-4 py-3">
+      <SectionRow>
+        <h3 className="min-w-0 text-sm font-semibold wrap-anywhere">
+          {service}
+        </h3>
+        <Button size="sm" variant="outline" onClick={addPort}>
+          <Plus />
+          Add port exception
+        </Button>
+      </SectionRow>
       {ports.map((port, index) => (
         <PublishedPortRow
           key={port.rowId}
@@ -47,10 +56,6 @@ export function PublishedPortService({
           editPorts={editPorts}
         />
       ))}
-      <Button className="self-start" variant="outline" onClick={addPort}>
-        <Plus />
-        Add port exception
-      </Button>
     </section>
   );
 }

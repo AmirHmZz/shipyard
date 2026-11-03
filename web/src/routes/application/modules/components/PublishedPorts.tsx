@@ -1,7 +1,9 @@
 import type { DraftRow } from "@/lib/draft-rows";
 
+import { FlushCard } from "@/components/FlushCard";
+import { SectionRow } from "@/components/SectionRow";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import type { Port } from "../generics";
 
@@ -27,31 +29,33 @@ export function PublishedPorts({
     save(true);
   }
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Published ports · administrator only</CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Explicit host bindings are exceptions to domain-based ingress. They
-          apply on the next deployment.
-        </p>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-5">
-        {services.data?.map((service) => (
-          <PublishedPortService
-            key={service.name}
-            service={service.name}
-            publicPorts={publicPorts}
-            editPorts={editPorts}
-          />
-        ))}
-        <Button
-          className="self-start"
-          disabled={busy || !ports}
-          onClick={savePorts}
-        >
+    <section className="flex flex-col gap-3">
+      <SectionRow>
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="font-semibold">Published ports</h2>
+            <Badge variant="outline">Administrator only</Badge>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Host port exceptions apply on the next deployment.
+          </p>
+        </div>
+        <Button size="sm" disabled={busy || !ports} onClick={savePorts}>
           Save published ports
         </Button>
-      </CardContent>
-    </Card>
+      </SectionRow>
+      {!!services.data?.length && (
+        <FlushCard className="divide-y">
+          {services.data?.map((service) => (
+            <PublishedPortService
+              key={service.name}
+              service={service.name}
+              publicPorts={publicPorts}
+              editPorts={editPorts}
+            />
+          ))}
+        </FlushCard>
+      )}
+    </section>
   );
 }
