@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.15.0] (2026-11-04)
+
+### Features
+
+- Set per-IP request limits for exact paths and subtrees on HTTPS app domains. HAProxy uses stick tables and returns HTTP 429 when the matching rule exceeds its configured rate. Saving a rule applies it through domain sync without redeploying the app.
+- Redesign the application Networking tab to make service connections, active container addresses, and published host ports easier to find.
+
+### Bug Fixes
+
+- Align the application Previews tab and keep drag handles clear of logos on sortable project and application cards.
+
+### Upgrade Notes
+
+- No database migration is required. Rate limiting is opt-in. Counters are local to each HAProxy instance and may reset on reload.
+
 ## [0.14.0] (2026-10-31)
 
 ### Features
