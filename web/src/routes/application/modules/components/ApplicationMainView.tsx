@@ -180,7 +180,7 @@ export function ApplicationMainView() {
           <ApplicationVolumes applicationId={id} enabled={tab === "volumes"} />
         </TabsContent>
         <TabsContent value="previews">
-          <ConfigurationGuard>
+          <ConfigurationGuard className="max-w-none">
             <ApplicationPreviews key={app.id} app={app} />
           </ConfigurationGuard>
         </TabsContent>

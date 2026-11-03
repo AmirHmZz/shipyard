@@ -36,7 +36,14 @@ export function SortableResourceCard({
   // Keep the handle mounted: otherwise the drag library puts disabled/button
   // semantics on the card itself and disables its menus and navigation links.
   return (
-    <div ref={ref} className="relative min-w-0" data-card-id={resource.id}>
+    <div
+      ref={ref}
+      className={cn(
+        "relative min-w-0",
+        editable && "[&_[data-slot=resource-logo]]:ml-12",
+      )}
+      data-card-id={resource.id}
+    >
       {children}
       <Button
         ref={handleRef}
@@ -47,7 +54,7 @@ export function SortableResourceCard({
         hidden={!editable}
         disabled={disabled || saving || !editable}
         className={cn(
-          "absolute top-6 left-17 z-20 touch-none cursor-grab active:cursor-grabbing",
+          "absolute top-6 left-5 z-20 touch-none cursor-grab active:cursor-grabbing",
           !editable && "hidden",
         )}
       >

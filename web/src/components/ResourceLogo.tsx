@@ -15,7 +15,10 @@ export function ResourceLogo({ resource }: ResourceLogoProps) {
     setFailedURL(url || null);
   }
   return (
-    <span className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-muted/40">
+    <span
+      data-slot="resource-logo"
+      className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-muted/40"
+    >
       {url && url !== failedURL ? (
         <img
           src={url}
