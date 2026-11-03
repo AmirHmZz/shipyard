@@ -90,6 +90,9 @@ func Render(bindings []Binding, options ...Options) (string, error) {
 		if r.TLS != "terminate" && r.TLS != "passthrough" {
 			return "", errors.New("TLS termination or TCP passthrough is required")
 		}
+		if err := r.ValidateRateLimits(); err != nil {
+			return "", err
+		}
 		if len(b.Targets) == 0 {
 			continue
 		}
@@ -138,6 +141,7 @@ func Render(bindings []Binding, options ...Options) (string, error) {
 			cfg.WriteString("  mode tcp\n  balance leastconn\n")
 		} else {
 			cfg.WriteString("  mode http\n  balance roundrobin\n")
+			renderRateLimitActions(&cfg, b)
 		}
 		for i, t := range b.Targets {
 			if t.Port < 1 || t.Port > 65535 || net.ParseIP(t.Address) == nil {
@@ -150,6 +154,7 @@ func Render(bindings []Binding, options ...Options) (string, error) {
 			cfg.WriteString("\n")
 		}
 		cfg.WriteString("\n")
+		renderRateLimitTables(&cfg, b)
 	}
 	return cfg.String(), nil
 }

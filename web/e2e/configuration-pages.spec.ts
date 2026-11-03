@@ -100,6 +100,20 @@ async function mock(page: Page, admin = true) {
           { name: "worker", replicas: 1, ignoredPorts: false },
         ],
       });
+    if (path === "/api/v1/routes/created/status")
+      return route.fulfill({
+        json: {
+          routeId: "created",
+          domain: "api.example.com",
+          dns: "ready",
+          propagation: "ready",
+          certificate: "ready",
+          routing: "pending",
+          expiresAt: null,
+          records: [],
+          error: "HAProxy rejected the configuration",
+        },
+      });
     if (path.endsWith("/networking")) {
       if (req.method() === "GET")
         return route.fulfill({
@@ -117,9 +131,10 @@ async function mock(page: Page, admin = true) {
       return route.fulfill({ json: { ok: true } });
     }
     if (path.startsWith("/api/v1/resources/")) {
+      const saved = resources.find((r) => r.id === path.split("/").at(-1))!;
+      if (req.method() === "GET") return route.fulfill({ json: saved });
       const body = req.postDataJSON();
       writes.push({ path, body });
-      const saved = resources.find((r) => r.id === path.split("/").at(-1))!;
       Object.assign(saved, { data: body.data, version: saved.version + 1 });
       return route.fulfill({ json: saved });
     }
@@ -324,6 +339,63 @@ test("routes select zones and Compose services and only offer secure protocols",
   });
   expect(state.writes[0].body.data).not.toHaveProperty("redirect");
   expect(state.writes[0].body).not.toHaveProperty("name");
+});
+test("HTTPS route rate limits validate, save, and can be removed", async ({
+  page,
+}) => {
+  const state = await mock(page);
+  await page.goto("/applications/app?tab=domains");
+  await page.getByRole("button", { name: "Add route", exact: true }).click();
+  await expect(page).toHaveURL(/\/configure\/route\/new/);
+  await page.getByRole("combobox", { name: "Select connected zone" }).click();
+  await page.getByRole("option", { name: "example.com", exact: true }).click();
+  await page.getByLabel("Subdomain", { exact: true }).fill("api");
+  await page.getByRole("combobox", { name: "Select Compose service" }).click();
+  await page.getByRole("option", { name: "web", exact: true }).click();
+  await page.getByLabel("Container port", { exact: true }).fill("8080");
+
+  const add = page.getByRole("button", { name: "Add rate limit" });
+  const paths = page.getByLabel("Path", { exact: true });
+  const save = page.getByRole("button", { name: "Save route" });
+  const remove = page.getByRole("button", { name: "Remove rule" });
+  await add.click();
+  await paths.fill("/api");
+  await expect(page.getByLabel("Requests", { exact: true })).toHaveValue("60");
+  await expect(page.getByLabel("Window (seconds)")).toHaveValue("60");
+  await add.click();
+  await paths.last().fill("/api");
+  await save.click();
+  await expect(
+    page.getByText(/Each path and match type can appear only once/),
+  ).toBeVisible();
+  expect(state.writes).toHaveLength(0);
+  await remove.last().click();
+  await page.getByLabel("Match", { exact: true }).selectOption("subtree");
+  await page.getByLabel("Requests", { exact: true }).fill("12");
+  await page.getByLabel("Window (seconds)").fill("30");
+  await save.click();
+  await expect.poll(() => state.writes.length).toBe(1);
+  expect(state.writes[0].body.data).toMatchObject({
+    rateLimits: [
+      { path: "/api", match: "subtree", requests: 12, windowSeconds: 30 },
+    ],
+  });
+
+  await expect(
+    page.getByText("HAProxy rejected the configuration"),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Edit route", exact: true }).click();
+  await expect(paths).toHaveValue("/api");
+  await expect(page.getByLabel("Match", { exact: true })).toHaveValue(
+    "subtree",
+  );
+  await remove.click();
+  await save.click();
+  await expect.poll(() => state.writes.length).toBe(2);
+  expect(state.writes[1].body).toMatchObject({
+    version: 1,
+    data: { rateLimits: [] },
+  });
 });
 test("application networking saves per-service settings and hides admin port controls from operators", async ({
   page,

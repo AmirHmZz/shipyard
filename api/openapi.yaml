@@ -8697,6 +8697,40 @@
   },
   "components": {
     "schemas": {
+      "RouteRateLimit": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "maxLength": 256,
+            "pattern": "^/[A-Za-z0-9/._~-]*$",
+            "description": "Case-sensitive path without a query string, repeated slashes, or dot segments. A subtree path may end in a slash only if it is the root path."
+          },
+          "match": {
+            "type": "string",
+            "enum": [
+              "exact",
+              "subtree"
+            ]
+          },
+          "requests": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000000
+          },
+          "windowSeconds": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 3600
+          }
+        },
+        "required": [
+          "path",
+          "match",
+          "requests",
+          "windowSeconds"
+        ]
+      },
       "ControlPlaneNetwork": {
         "type": "object",
         "properties": {
@@ -10350,6 +10384,16 @@
           "data": {
             "type": "object",
             "additionalProperties": true,
+            "properties": {
+              "rateLimits": {
+                "type": "array",
+                "maxItems": 16,
+                "items": {
+                  "$ref": "#/components/schemas/RouteRateLimit"
+                },
+                "description": "Optional on HTTPS routes. An empty or omitted list disables limiting. Rules count requests per HAProxy source IP. Exact paths win over subtrees, then the longest subtree wins."
+              }
+            },
             "description": "Kind-specific configuration. Registry resources use RegistryConfiguration and encrypted secrets.password, with administrator-managed team grants and automatic image authentication. Application readiness and preview settings use ApplicationChecks. Server resources use ServerConfiguration; connection and daemonId are managed by Shipyard."
           },
           "secretKeys": {
@@ -10410,7 +10454,17 @@
           },
           "data": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "properties": {
+              "rateLimits": {
+                "type": "array",
+                "maxItems": 16,
+                "items": {
+                  "$ref": "#/components/schemas/RouteRateLimit"
+                },
+                "description": "Optional on HTTPS routes. An empty or omitted list disables limiting. Rules count requests per HAProxy source IP. Exact paths win over subtrees, then the longest subtree wins."
+              }
+            }
           },
           "secrets": {
             "type": "object",
@@ -12004,7 +12058,17 @@
           },
           "data": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "properties": {
+              "rateLimits": {
+                "type": "array",
+                "maxItems": 16,
+                "items": {
+                  "$ref": "#/components/schemas/RouteRateLimit"
+                },
+                "description": "Optional on HTTPS routes. An empty or omitted list disables limiting. Rules count requests per HAProxy source IP. Exact paths win over subtrees, then the longest subtree wins."
+              }
+            }
           },
           "secrets": {
             "type": "object",

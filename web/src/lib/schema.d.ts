@@ -5864,6 +5864,14 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        RouteRateLimit: {
+            /** @description Case-sensitive path without a query string, repeated slashes, or dot segments. A subtree path may end in a slash only if it is the root path. */
+            path: string;
+            /** @enum {string} */
+            match: "exact" | "subtree";
+            requests: number;
+            windowSeconds: number;
+        };
         ControlPlaneNetwork: {
             networkId: string;
             desired: boolean;
@@ -6306,6 +6314,9 @@ export interface components {
             parentId: string;
             /** @description Kind-specific configuration. Registry resources use RegistryConfiguration and encrypted secrets.password, with administrator-managed team grants and automatic image authentication. Application readiness and preview settings use ApplicationChecks. Server resources use ServerConfiguration; connection and daemonId are managed by Shipyard. */
             data: {
+                /** @description Optional on HTTPS routes. An empty or omitted list disables limiting. Rules count requests per HAProxy source IP. Exact paths win over subtrees, then the longest subtree wins. */
+                rateLimits?: components["schemas"]["RouteRateLimit"][];
+            } & {
                 [key: string]: unknown;
             };
             secretKeys: string[];
@@ -6324,6 +6335,9 @@ export interface components {
             teamId?: string;
             parentId?: string;
             data: {
+                /** @description Optional on HTTPS routes. An empty or omitted list disables limiting. Rules count requests per HAProxy source IP. Exact paths win over subtrees, then the longest subtree wins. */
+                rateLimits?: components["schemas"]["RouteRateLimit"][];
+            } & {
                 [key: string]: unknown;
             };
             secrets?: {
@@ -6749,6 +6763,9 @@ export interface components {
             teamId?: string;
             parentId?: string;
             data: {
+                /** @description Optional on HTTPS routes. An empty or omitted list disables limiting. Rules count requests per HAProxy source IP. Exact paths win over subtrees, then the longest subtree wins. */
+                rateLimits?: components["schemas"]["RouteRateLimit"][];
+            } & {
                 [key: string]: unknown;
             };
             secrets?: {

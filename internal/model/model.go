@@ -133,6 +133,7 @@ type Route struct {
 	ListenPort int    `json:"listenPort"`
 	TLS        string `json:"tls"`
 	ZoneID     string `json:"zoneId"`
+	RateLimits []RateLimit `json:"rateLimits,omitempty"`
 }
 type Webhook struct {
 	URL      string   `json:"url"`
@@ -460,6 +461,9 @@ func Validate(r ResourceInput) error {
 		}
 		if v.Protocol != "https" && v.Protocol != "grpc" && v.Protocol != "tcp" {
 			return errors.New("invalid route protocol")
+		}
+		if e = v.ValidateRateLimits(); e != nil {
+			return e
 		}
 		if v.TargetPort < 1 || v.TargetPort > 65535 {
 			return errors.New("invalid target port")

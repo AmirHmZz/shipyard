@@ -21,6 +21,7 @@ import { routeHostnameSchema } from "@/lib/route-hostname";
 import { previewApplicationRoutingSchema } from "@/lib/schemas/application";
 import { dnsCredentialSchema } from "@/lib/schemas/dns";
 import { serverFingerprintFormSchema } from "@/lib/schemas/endpoint-responses";
+import { rateLimitsSchema } from "@/lib/schemas/rate-limits";
 import { resourceFormSchema } from "@/lib/schemas/resource-form";
 
 import { initialResourceFormState, resourceFormReducer } from "./state";
@@ -180,6 +181,16 @@ export function useResourceFormController({
       }
     }
     if (kind === "route") {
+      if (resolved.protocol === "https") {
+        const rules = rateLimitsSchema.safeParse(resolved.rateLimits);
+        if (!rules.success) {
+          toastValidationError(rules.error);
+          return;
+        }
+        resolved.rateLimits = rules.data;
+      } else {
+        delete resolved.rateLimits;
+      }
       delete resolved.backendTls;
       delete resolved.backendServerName;
       delete resolved.redirect;

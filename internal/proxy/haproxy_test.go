@@ -44,3 +44,44 @@ func TestIPv6ListenersAndWildcardPort(t *testing.T) {
 		}
 	}
 }
+
+func TestRateLimitRendering(t *testing.T) {
+	b := Binding{
+		ID: "app",
+		Route: model.Route{Protocol: "https", Domain: "app.example.com", TLS: "terminate", RateLimits: []model.RateLimit{
+			{Path: "/", Match: "subtree", Requests: 40, WindowSeconds: 30},
+			{Path: "/api", Match: "subtree", Requests: 10, WindowSeconds: 5},
+			{Path: "/api/login", Match: "exact", Requests: 3, WindowSeconds: 60},
+		}},
+		Targets: []model.Target{{Address: "127.0.0.1", Port: 8080}},
+	}
+	cfg, err := Render([]Binding{b})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, expected := range []string{
+		"backend b_app\n  mode http\n  balance roundrobin\n  acl rate_path_2 path -m str /api/login",
+		"acl rate_path_1 path -m str /api\n  acl rate_path_1 path -m beg /api/",
+		"acl rate_path_0 path -m beg /\n",
+		"track-sc0 src table rate_app_2 if { var(txn.shipyard_rate_rule) -m int eq 2 }",
+		"return status 429 content-type text/plain string Too_Many_Requests if { var(txn.shipyard_rate_rule) -m int eq 2 } { sc_http_req_rate(0) gt 3 }",
+		"backend rate_app_2\n  mode http\n  stick-table type ipv6 size 10000 expire 120s store http_req_rate(60s)",
+	} {
+		if !strings.Contains(cfg, expected) {
+			t.Errorf("missing %q", expected)
+		}
+	}
+	if !(strings.Index(cfg, "acl rate_path_2") < strings.Index(cfg, "acl rate_path_1") &&
+		strings.Index(cfg, "acl rate_path_1") < strings.Index(cfg, "acl rate_path_0")) {
+		t.Fatal("exact paths must precede subtrees, with longer subtrees first")
+	}
+	b.Route.RateLimits = nil
+	cfg, err = Render([]Binding{b})
+	if err != nil || strings.Contains(cfg, "stick-table") {
+		t.Fatalf("unexpected config without rate limits: %v\n%s", err, cfg)
+	}
+	b.Route.RateLimits = []model.RateLimit{{Path: "/x\nbackend injected", Match: "exact", Requests: 1, WindowSeconds: 1}}
+	if _, err := Render([]Binding{b}); err == nil {
+		t.Fatal("renderer accepted an unsafe path")
+	}
+}

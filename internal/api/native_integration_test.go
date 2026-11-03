@@ -331,6 +331,56 @@ func TestLinuxNativeHostBootstrapDeployAndRecovery(t *testing.T) {
 	if getApp() != "first" {
 		t.Fatal("local app routing failed")
 	}
+	routeSpec, err := model.Decode[model.Route](route)
+	if err != nil {
+		t.Fatal(err)
+	}
+	saveRouteLimits := func(version int, rules []model.RateLimit) (int, []byte) {
+		t.Helper()
+		routeSpec.RateLimits = rules
+		raw, err := json.Marshal(routeSpec)
+		if err != nil {
+			t.Fatal(err)
+		}
+		body, err := json.Marshal(model.ResourceInput{Kind: "route", Data: raw, Version: version})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return request(secureClient, "https://shipyard.example.com", "PUT", "/resources/"+route.ID, string(body))
+	}
+	appStatus := func() int {
+		res, err := secureClient.Get("https://app.example.com/")
+		if err != nil {
+			return 0
+		}
+		io.Copy(io.Discard, res.Body)
+		res.Body.Close()
+		return res.StatusCode
+	}
+	rules := []model.RateLimit{{Path: "/", Match: "exact", Requests: 1, WindowSeconds: 60}}
+	status, body := saveRouteLimits(route.Version, rules)
+	if status != 200 {
+		t.Fatalf("save rate limit: %d %s", status, body)
+	}
+	var savedRoute model.Resource
+	if err := json.Unmarshal(body, &savedRoute); err != nil {
+		t.Fatal(err)
+	}
+	savedSpec, err := model.Decode[model.Route](savedRoute)
+	if err != nil || len(savedSpec.RateLimits) != 1 || savedSpec.RateLimits[0] != rules[0] {
+		t.Fatalf("rate limit was not saved: %s (%v)", body, err)
+	}
+	if status, body := saveRouteLimits(route.Version, nil); status != 409 {
+		t.Fatalf("stale rate limit update: %d %s", status, body)
+	}
+	wait("domain sync applies rate limit", func() bool { return appStatus() == 429 })
+	if status, body := saveRouteLimits(savedRoute.Version, nil); status != 200 {
+		t.Fatalf("remove rate limit: %d %s", status, body)
+	}
+	wait("domain sync removes rate limit", func() bool { return appStatus() == 200 && appStatus() == 200 })
+	if active, err := a.Store.Active(ctx, app.ID); err != nil || active.ID != first.ID {
+		t.Fatalf("rate limits changed the active release: %s (%v)", active.ID, err)
+	}
 	var inspect struct {
 		HostConfig struct{ PortBindings map[string]any }
 		Config     struct{ Hostname string }

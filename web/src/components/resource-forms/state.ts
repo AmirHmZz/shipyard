@@ -4,6 +4,7 @@ import type { ResourceKind } from "@/lib/resource-form-definitions";
 import { normalizeApplicationSettings } from "@/lib/application-settings";
 import { defaults } from "@/lib/resource-form-definitions";
 import { relativeHostname } from "@/lib/route-hostname";
+import { rateLimitDrafts } from "@/lib/schemas/rate-limits";
 
 export type ResourceFormInitial = {
   kind: ResourceKind;
@@ -53,6 +54,7 @@ export function initialResourceFormState({
       ),
     };
   if (kind === "route") {
+    data.rateLimits = rateLimitDrafts(data.rateLimits);
     delete data.path;
     delete data.stripPrefix;
     const zone = resources.find((resource) => resource.id === data.zoneId);

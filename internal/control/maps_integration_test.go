@@ -7,9 +7,11 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptrace"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -79,7 +81,14 @@ func TestLinuxHostnameMapsAndRecovery(t *testing.T) {
 		certs[kind] = cert
 		bindings = append(bindings, proxy.Binding{ID: kind, Certificate: true, Route: model.Route{Protocol: "https", TLS: "terminate", Domain: []string{"*.example.com", "*.sub.example.com", "api.example.com"}[i]}, Targets: []model.Target{{Address: address, Port: 8080}}})
 	}
-	config, err := proxy.Render(bindings)
+	bindings[2].Route.RateLimits = []model.RateLimit{
+		{Path: "/limited", Match: "subtree", Requests: 2, WindowSeconds: 60},
+		{Path: "/limited/login", Match: "subtree", Requests: 1, WindowSeconds: 60},
+		{Path: "/limited/login", Match: "exact", Requests: 1, WindowSeconds: 60},
+		{Path: "/recover", Match: "exact", Requests: 1, WindowSeconds: 2},
+		{Path: "/after-failure", Match: "exact", Requests: 1, WindowSeconds: 60},
+	}
+	config, err := proxy.Render(bindings, proxy.Options{IPv6: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,6 +127,63 @@ func TestLinuxHostnameMapsAndRecovery(t *testing.T) {
 	check("example.com", "")
 	check("badexample.com", "")
 	check("unknown.test", "")
+	rateStatus := func(c *http.Client, hostname, path string, want int) bool {
+		t.Helper()
+		req, err := http.NewRequestWithContext(ctx, "GET", "https://"+net.JoinHostPort(host, "443")+path, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Host = hostname
+		req.Header.Set("X-Forwarded-For", "198.51.100.10")
+		if strings.Contains(path, "?") {
+			req.Header.Set("X-Forwarded-For", "198.51.100.11")
+		}
+		reused := false
+		req = req.WithContext(httptrace.WithClientTrace(req.Context(), &httptrace.ClientTrace{
+			GotConn: func(info httptrace.GotConnInfo) { reused = info.Reused },
+		}))
+		res, err := c.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		io.Copy(io.Discard, res.Body)
+		res.Body.Close()
+		if res.StatusCode != want {
+			t.Fatalf("%s%s: got HTTP %d, want %d", hostname, path, res.StatusCode, want)
+		}
+		return reused
+	}
+	rateStatus(httpClient, "api.example.com", "/limited/login", 200)
+	if !rateStatus(httpClient, "api.example.com", "/limited/login/child", 200) {
+		t.Fatal("expected the two path rules to be exercised on a reused connection")
+	}
+	for _, check := range []struct {
+		path string
+		want int
+	}{
+		{"/limited/login?spoof=1", 429},
+		{"/limited/login/other", 429},
+		{"/limited", 200},
+		{"/limited/other", 200},
+		{"/limited/another", 429},
+		{"/limited-more", 200},
+		{"/%6cimited", 200},
+		{"/recover", 200},
+		{"/recover", 429},
+	} {
+		rateStatus(httpClient, "api.example.com", check.path, check.want)
+	}
+	rateStatus(httpClient, "www.example.com", "/limited/login", 200)
+	v6Transport := httpClient.Transport.(*http.Transport).Clone()
+	v6Transport.DialContext = func(ctx context.Context, _, _ string) (net.Conn, error) {
+		return client.DialContext(ctx, "tcp", "[::1]:443")
+	}
+	defer v6Transport.CloseIdleConnections()
+	v6Client := &http.Client{Timeout: httpClient.Timeout, Transport: v6Transport}
+	rateStatus(v6Client, "api.example.com", "/limited/login", 200)
+	rateStatus(v6Client, "api.example.com", "/limited/login", 429)
+	time.Sleep(4 * time.Second)
+	rateStatus(httpClient, "api.example.com", "/recover", 200)
 	bad := map[string][]byte{"hosts.map": maps["hosts.map"], "wildcards.map": []byte("[( b_wild\n"), "redirects.map": maps["redirects.map"]}
 	if err = proxy.Apply(ctx, client, config, certs, io.Discard, bad); err == nil {
 		t.Fatal("invalid map regex accepted")
@@ -142,5 +208,7 @@ func TestLinuxHostnameMapsAndRecovery(t *testing.T) {
 	}
 	check("api.example.com", "exact")
 	check("a.sub.example.com", "specific")
+	rateStatus(httpClient, "api.example.com", "/after-failure", 200)
+	rateStatus(httpClient, "api.example.com", "/after-failure", 429)
 	t.Log("hostname normalization, exact/wildcard precedence, unchanged paths, invalid maps, interruption and bind recovery passed")
 }

@@ -19,7 +19,27 @@ function nullable(schema) {
 function input(properties, required = Object.keys(properties)) {
   return { ...object(properties, required), additionalProperties: false };
 }
+const routeRateLimits = {
+  type: "array",
+  maxItems: 16,
+  items: ref("RouteRateLimit"),
+  description:
+    "Optional on HTTPS routes. An empty or omitted list disables limiting. Rules count requests per HAProxy source IP. Exact paths win over subtrees, then the longest subtree wins.",
+};
+
 const schemas = {
+  RouteRateLimit: object({
+    path: {
+      type: "string",
+      maxLength: 256,
+      pattern: "^/[A-Za-z0-9/._~-]*$",
+      description:
+        "Case-sensitive path without a query string, repeated slashes, or dot segments. A subtree path may end in a slash only if it is the root path.",
+    },
+    match: { type: "string", enum: ["exact", "subtree"] },
+    requests: { type: "integer", minimum: 1, maximum: 1000000 },
+    windowSeconds: { type: "integer", minimum: 1, maximum: 3600 },
+  }),
   ControlPlaneNetwork: object({
     networkId: str,
     desired: bool,
@@ -467,6 +487,7 @@ const schemas = {
     parentId: str,
     data: {
       ...obj,
+      properties: { rateLimits: routeRateLimits },
       description:
         "Kind-specific configuration. Registry resources use RegistryConfiguration and encrypted secrets.password, with administrator-managed team grants and automatic image authentication. Application readiness and preview settings use ApplicationChecks. Server resources use ServerConfiguration; connection and daemonId are managed by Shipyard.",
     },
@@ -487,7 +508,7 @@ const schemas = {
       },
       teamId: str,
       parentId: str,
-      data: obj,
+      data: { ...obj, properties: { rateLimits: routeRateLimits } },
       secrets: { type: "object", additionalProperties: str },
       variables: {
         type: "object",

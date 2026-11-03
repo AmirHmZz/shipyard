@@ -26,6 +26,7 @@ import type { ResourceFormViewOptions } from "./types";
 
 import { ResourceSchemaFields } from "./fields/ResourceSchemaFields";
 import { RouteFields } from "./fields/RouteFields";
+import { RouteRateLimits } from "./fields/RouteRateLimits";
 import { ZoneFields } from "./fields/ZoneFields";
 import { useResourceFormView } from "./useResourceFormView";
 const ComposeEditor = lazy(loadComposeEditor);
@@ -204,6 +205,7 @@ export function ResourceFormContent(props: ResourceFormContentProps) {
               repos={repos}
               branches={branches}
             />
+            {kind === "route" && <RouteRateLimits />}
             {kind === "application" &&
               usesInlineCompose(data) &&
               existing &&
