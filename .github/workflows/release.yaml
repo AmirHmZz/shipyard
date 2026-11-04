@@ -29,7 +29,7 @@ jobs:
       tooling_sha: ${{ steps.select.outputs.tooling_sha }}
       validate: ${{ steps.select.outputs.validate }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: main
           fetch-depth: 0
@@ -124,17 +124,17 @@ jobs:
       contents: write
       packages: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.select.outputs.source_sha }}
           path: source
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.select.outputs.tooling_sha }}
           path: tooling
-      - uses: docker/setup-qemu-action@v3
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -152,7 +152,7 @@ jobs:
             echo "commit=$SOURCE_SHA"
             echo "date=$(git show -s --format=%cI HEAD)"
           } >> "$GITHUB_OUTPUT"
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         id: core
         with:
           context: source
@@ -165,7 +165,7 @@ jobs:
             VERSION=${{ steps.metadata.outputs.version }}
             VCS_REF=${{ steps.metadata.outputs.commit }}
             BUILD_DATE=${{ steps.metadata.outputs.date }}
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         id: executor
         with:
           context: source

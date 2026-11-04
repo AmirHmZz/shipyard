@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.ref || github.sha }}
       - uses: oven-sh/setup-bun@v2
@@ -42,7 +42,7 @@ jobs:
       - run: bun run api:generate && bun run test && bun run build
         working-directory: web
       - run: git diff --exit-code api/openapi.yaml web/src/lib/schema.d.ts
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: frontend-assets
           path: internal/web/dist
@@ -64,10 +64,10 @@ jobs:
     env:
       TEST_DATABASE_URL: postgres://postgres:shipyard-test@127.0.0.1:5432/shipyard?sslmode=disable
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.ref || github.sha }}
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: frontend-assets
           path: internal/web/dist
@@ -96,7 +96,7 @@ jobs:
     env:
       TEST_DATABASE_URL: postgres://postgres:shipyard-test@127.0.0.1:5432/shipyard?sslmode=disable
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.ref || github.sha }}
       - run: docker build -t shipyard:test-tools -f tests/Dockerfile .
@@ -122,7 +122,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.ref || github.sha }}
       - name: Native host HTTPS and platform upgrade/downgrade
@@ -142,7 +142,7 @@ jobs:
     env:
       TEST_DATABASE_URL: postgres://postgres:shipyard-test@127.0.0.1:5432/shipyard?sslmode=disable
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.ref || github.sha }}
       - run: docker build -t shipyard:test-tools -f tests/Dockerfile .
@@ -179,7 +179,7 @@ jobs:
       TEST_DATABASE_URL: postgres://postgres:shipyard-test@127.0.0.1:5432/shipyard?sslmode=disable
       SHIPYARD_E2E_URL: http://127.0.0.1:8788
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.ref || github.sha }}
       - uses: oven-sh/setup-bun@v2
@@ -203,7 +203,7 @@ jobs:
       - name: Desktop and mobile browser tests against the actual API
         run: SHIPYARD_E2E_ENV_FILE="$PWD/../.env" bun run test:e2e
         working-directory: web
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: browser-diagnostics
