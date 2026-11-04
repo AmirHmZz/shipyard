@@ -14,19 +14,33 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useSortableResourceCard } from "@/lib/hooks/useSortableResourceCard";
+
 export type ProjectCardProps = {
   project: Resource;
-  index: ReturnType<typeof indexResources>;
+  index: number;
+  resourceIndex: ReturnType<typeof indexResources>;
+  disabled: boolean;
 };
-export function ProjectCard({ project: p, index }: ProjectCardProps) {
-  const environmentCount = (index.byParent.get(p.id) || []).filter(
+export function ProjectCard({
+  project: p,
+  index,
+  resourceIndex,
+  disabled,
+}: ProjectCardProps) {
+  const { ref, handle } = useSortableResourceCard(p, index, disabled);
+  const environmentCount = (resourceIndex.byParent.get(p.id) || []).filter(
     (resource) => resource.kind === "environment",
   ).length;
   return (
-    <Card className="group relative gap-0 py-0 shadow-none transition-colors hover:border-primary/40 focus-within:border-primary/40">
+    <Card
+      ref={ref}
+      data-card-id={p.id}
+      className="group relative min-w-0 gap-0 py-0 shadow-none transition-colors hover:border-primary/40 focus-within:border-primary/40"
+    >
       <CardContent className="p-5">
         <div className="mb-4 flex items-center justify-between">
-          <ResourceLogo resource={p} />
+          <ResourceLogo resource={p} reorderHandle={handle} />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -68,7 +82,7 @@ export function ProjectCard({ project: p, index }: ProjectCardProps) {
           {p.name}
         </Link>
         <p className="mt-2 text-xs text-muted-foreground">
-          {index.byId.get(p.teamId || "")?.name}
+          {resourceIndex.byId.get(p.teamId || "")?.name}
         </p>
         {!!p.data.deleting && (
           <Badge variant="secondary" className="mt-2">

@@ -5,7 +5,6 @@ import type { indexResources } from "@/lib/resource-index";
 
 import { ResourceCardGrid } from "@/components/ResourceCardGrid";
 import { Empty } from "@/components/Shared";
-import { SortableResourceCard } from "@/components/SortableResourceCard";
 import { Button } from "@/components/ui/button";
 
 import type { EditorRequest } from "../generics";
@@ -41,14 +40,13 @@ export function ApplicationCards({
   return apps.length ? (
     <ResourceCardGrid resources={visibleApps}>
       {visibleApps.map((r, position) => (
-        <SortableResourceCard
+        <ApplicationCard
           key={r.id}
           resource={r}
           index={position}
+          resourceIndex={index}
           disabled={!!filter || previews}
-        >
-          <ApplicationCard resource={r} index={index} />
-        </SortableResourceCard>
+        />
       ))}
     </ResourceCardGrid>
   ) : (

@@ -227,12 +227,13 @@ test("reorders project and app cards with keyboard and persists after reload", a
   );
 });
 
-test("reorders cards by dragging their dedicated handle", async ({ page }) => {
+test("reorders cards by dragging their project logo", async ({ page }) => {
   const { moves } = await setup(page);
   await page.goto("/projects");
-  const source = await page
-    .getByRole("button", { name: "Reorder second" })
-    .boundingBox();
+  const handle = page.getByRole("button", { name: "Reorder second" });
+  await expect(handle).toHaveAttribute("data-slot", "resource-logo");
+  await expect(handle).toHaveCSS("cursor", "default");
+  const source = await handle.boundingBox();
   const target = await page.locator('[data-card-id="project"]').boundingBox();
   if (!source || !target) throw new Error("Cards were not rendered");
   await page.mouse.move(

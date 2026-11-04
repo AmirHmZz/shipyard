@@ -2,7 +2,6 @@ import { Plus } from "lucide-react";
 
 import { ResourceCardGrid } from "@/components/ResourceCardGrid";
 import { Empty } from "@/components/Shared";
-import { SortableResourceCard } from "@/components/SortableResourceCard";
 import { Button } from "@/components/ui/button";
 
 import type { useProjectsPage } from "../hooks";
@@ -31,14 +30,13 @@ export function ProjectContent({ controller, previews }: ProjectContentProps) {
       <div onClick={handleProjectAction}>
         <ResourceCardGrid resources={projects}>
           {projects.map((project, position) => (
-            <SortableResourceCard
+            <ProjectCard
               key={project.id}
-              resource={project}
+              project={project}
               index={position}
+              resourceIndex={index}
               disabled={!!controller.state.filter}
-            >
-              <ProjectCard project={project} index={index} />
-            </SortableResourceCard>
+            />
           ))}
         </ResourceCardGrid>
       </div>
