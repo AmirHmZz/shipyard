@@ -1316,6 +1316,12 @@ add(
   array(ref("Metric")),
 );
 add(
+  "/servers/{id}/status",
+  "get",
+  "Latest online status for an accessible server",
+  object({ online: nullable(bool) }),
+);
+add(
   "/git/{id}/repositories",
   "get",
   "Accessible provider repositories",

@@ -8,6 +8,7 @@ export const deploymentKeys = {
 export const metricsKeys = {
   all: ["metrics"] as const,
   server: (serverId: string) => ["metrics", serverId] as const,
+  serverStatus: (serverId: string) => ["metrics", serverId, "status"] as const,
 };
 export const dockerNetworkKeys = {
   all: ["docker-networks"] as const,

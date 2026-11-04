@@ -64,6 +64,41 @@ func TestMonitoringAndProxyAdministratorBoundaries(t *testing.T) {
 			t.Fatal(path, code)
 		}
 	}
+	const statusPath = "/servers/monitor-server/status"
+	if code, _ := request("GET", statusPath, "", member); code != 403 {
+		t.Fatal("ungranted server status", code)
+	}
+	for _, statement := range []string{
+		"INSERT INTO resources(id,kind,name,data) VALUES('monitor-team','team','Monitoring team','{}')",
+		"INSERT INTO resource_grants(resource_id,team_id) VALUES('monitor-server','monitor-team')",
+	} {
+		if _, err := a.Store.Pool.Exec(ctx, statement); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := a.Store.Pool.Exec(ctx, "INSERT INTO team_members(team_id,user_id,role) SELECT 'monitor-team',user_id,'member' FROM sessions WHERE token=$1", secure.Hash(member)); err != nil {
+		t.Fatal(err)
+	}
+	if code, body := request("GET", statusPath, "", member); code != 200 || string(body) != "{\"online\":null}\n" {
+		t.Fatal(code, string(body))
+	}
+	if _, err := a.Store.Pool.Exec(ctx, `INSERT INTO metrics(resource_id,created_at,data)
+		VALUES ('monitor-server',now()-interval '30 seconds','{"online":true,"cpu":42}')`); err != nil {
+		t.Fatal(err)
+	}
+	if code, body := request("GET", statusPath, "", member); code != 200 || string(body) != "{\"online\":true}\n" {
+		t.Fatal(code, string(body))
+	}
+	if _, err := a.Store.Pool.Exec(ctx, `INSERT INTO metrics(resource_id,data)
+		VALUES ('monitor-server','{"online":false,"cpu":0}')`); err != nil {
+		t.Fatal(err)
+	}
+	if code, body := request("GET", statusPath, "", member); code != 200 || string(body) != "{\"online\":false}\n" {
+		t.Fatal(code, string(body))
+	}
+	if code, _ := request("GET", "/servers/monitor-server/metrics", "", member); code != 403 {
+		t.Fatal("granted server metrics", code)
+	}
 	if code, body := request("GET", "/resources?kind=proxy", "", member); code != 200 || string(body) != "[]\n" {
 		t.Fatal(code, string(body))
 	}

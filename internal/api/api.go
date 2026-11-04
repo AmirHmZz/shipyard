@@ -156,6 +156,7 @@ func (a *API) Router() http.Handler {
 			r.Get("/servers/{id}/haproxy", a.haproxySettings)
 			r.Put("/servers/{id}/haproxy", a.haproxySettings)
 			r.Get("/servers/{id}/metrics", a.metrics)
+			r.Get("/servers/{id}/status", a.serverStatus)
 			r.Get("/git/{id}/repositories", a.repositories)
 			r.Get("/git/{id}/branches", a.branches)
 			r.Get("/dns/{id}/zones", a.providerZones)
@@ -1008,6 +1009,23 @@ func (a *API) testServer(w http.ResponseWriter, r *http.Request) {
 	}
 	respond(w, 200, map[string]string{"dockerVersion": out, "status": "connected"})
 }
+func (a *API) serverStatus(w http.ResponseWriter, r *http.Request) {
+	v, ok := a.get(w, r, false)
+	if !ok {
+		return
+	}
+	if v.Kind != "server" {
+		fail(w, 400, "server required")
+		return
+	}
+	online, err := a.Control.ServerOnline(r.Context(), v.ID)
+	if err != nil {
+		a.err(w, err)
+		return
+	}
+	respond(w, 200, map[string]*bool{"online": online})
+}
+
 func (a *API) metrics(w http.ResponseWriter, r *http.Request) {
 	if !a.admin(w, r) {
 		return

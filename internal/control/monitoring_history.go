@@ -63,6 +63,17 @@ SELECT jsonb_build_object('resourceId',$1::text,'at',bucket,'online',bool_or((da
  'diskRead',avg((data->>'diskRead')::double precision),'diskWrite',avg((data->>'diskWrite')::double precision))
 FROM points p GROUP BY bucket ORDER BY bucket`
 
+func (c *Controller) ServerOnline(ctx context.Context, id string) (*bool, error) {
+	duration, _, _ := validateMetricRange("")
+	var online *bool
+	err := c.Store.Pool.QueryRow(ctx, `SELECT (
+		SELECT (data->>'online')::boolean FROM metrics
+		WHERE resource_id=$1 AND created_at>=$2
+		ORDER BY created_at DESC LIMIT 1
+	)`, id, time.Now().Add(-duration)).Scan(&online)
+	return online, err
+}
+
 func (c *Controller) MetricHistory(ctx context.Context, id, value string) ([]Metric, error) {
 	duration, bucket, err := validateMetricRange(value)
 	if err != nil {

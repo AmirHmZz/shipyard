@@ -7,3 +7,7 @@ export const dockerVersionResultResponseSchema = z.object({
 });
 
 export const getServerMetricsResponseSchema = z.array(metricResponseSchema);
+
+export const serverStatusResponseSchema = z.object({
+  online: z.nullable(z.boolean()),
+});
