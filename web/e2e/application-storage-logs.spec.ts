@@ -120,6 +120,8 @@ async function setup(
     }
     if (path.endsWith("/repositories"))
       return route.fulfill({ json: [{ full_name: "owner/app" }] });
+    if (path === "/api/v1/applications/app/domain-access")
+      return route.fulfill({ json: [] });
     if (path.endsWith("/branches"))
       return route.fulfill({ json: [{ name: "main" }] });
     if (path.endsWith("/runtime"))

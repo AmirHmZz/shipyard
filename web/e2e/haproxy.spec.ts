@@ -85,6 +85,8 @@ async function setup(page: Page, admin = true) {
         ],
       });
     if (path.endsWith("/metrics")) return route.fulfill({ json: [] });
+    if (path === "/api/v1/servers/server/status")
+      return route.fulfill({ json: { online: true } });
     if (path.endsWith("/haproxy")) {
       if (request.method() === "PUT") {
         const input: Input = request.postDataJSON();

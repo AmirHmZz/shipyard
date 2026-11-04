@@ -506,13 +506,11 @@ for (const provider of ["github", "gitea"]) {
     await expect(loadingBranches).toHaveCount(0);
     // A fresh navigation keeps this visual test independent of the unsaved form.
     await page.goto("/projects/project");
-    const card = page
-      .getByRole("main")
-      .getByRole("link", { name: /app.*owner\/repo/ });
+    const card = page.getByRole("main").locator('[data-card-id="app"]');
     await expect(
       card.locator(`img[src="/brands/${provider}.svg"]`),
     ).toBeVisible();
-    await card.click();
+    await card.getByRole("link", { name: "app", exact: true }).click();
     await expect(
       page
         .getByRole("navigation", { name: "Workspace navigation" })
