@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.16.0] (2026-11-04)
+
+### Features
+
+- Grant teams access to a whole DNS zone, exact hostnames, or wildcard subdomains for application routes and public PR previews. Shipyard prevents narrowing or revoking a grant while a route or enabled public preview depends on it.
+
+### Bug Fixes
+
+- Show current server health to team members with server access. Detailed metrics remain restricted to platform administrators.
+- Use project and application logos as drag handles when reordering cards, leaving the rest of each card available for navigation.
+
+### Upgrade Notes
+
+- Migration 010 preserves existing zone grants as whole-zone access. Apply it before starting the updated binary. Downgrading requires removing scoped grants first.
+- Raw DNS record access and replacement of conflicting provider records now require a platform administrator.
+
 ## [0.15.0] (2026-11-04)
 
 ### Features
