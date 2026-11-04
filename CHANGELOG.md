@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.17.0] (2026-11-05)
+
+### Features
+
+- Redesign Monitoring with a resource status summary, clearer chart legends, and a responsive container table showing CPU and memory usage. Charts open to the last hour by default, and longer ranges remain selectable and shareable through the URL.
+- Let platform administrators permanently delete other user accounts from Settings. Deletion revokes invitations for the account email and records the action in the audit log.
+
+### Bug Fixes
+
+- Let existing users accept invitations without re-entering their full name. Clarify when an authenticator or recovery code is required and show the recipient email next to the invitation link.
+
+### Maintenance
+
+- Update GitHub Actions used for validation and release publication to Node.js 24.
+
+### Upgrade Notes
+
+- No database migration is required.
+
 ## [0.16.0] (2026-11-04)
 
 ### Features
