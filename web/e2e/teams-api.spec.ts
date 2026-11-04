@@ -162,6 +162,9 @@ test("teams invitations stay pending and project assignments preserve their payl
       page.getByText("Invitation created", { exact: true }),
     ).toBeVisible();
     await expect(
+      page.getByText("Invitation for new@example.test", { exact: true }),
+    ).toBeVisible();
+    await expect(
       page.getByText("https://shipyard.test/invite?token=example", {
         exact: true,
       }),

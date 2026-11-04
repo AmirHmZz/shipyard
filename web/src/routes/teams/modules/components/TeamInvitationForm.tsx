@@ -90,6 +90,9 @@ export function TeamInvitationForm({
           )}
           {invitation && (
             <div className="flex flex-col gap-3 rounded-lg border bg-muted/50 p-3">
+              <p className="break-all text-xs">
+                Invitation for {invitationMutation.variables?.email}
+              </p>
               <p className="break-all font-mono text-[10px]">{invitation}</p>
               <CopyButton
                 className="self-start"

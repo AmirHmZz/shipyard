@@ -8,7 +8,7 @@ export function authFormSchema(mode: "login" | "setup" | "accept") {
     password: z
       .string()
       .check(z.minLength(mode === "setup" ? 12 : 1, "Enter a password.")),
-    name: mode === "login" ? z.string() : requiredText("Full name"),
+    name: mode === "setup" ? requiredText("Full name") : z.string(),
     code: z.string(),
     token:
       mode === "setup" || mode === "accept"

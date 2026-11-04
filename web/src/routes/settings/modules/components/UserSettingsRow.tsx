@@ -22,7 +22,7 @@ export function UserSettingsRow({
       </TableCell>
       <TableCell>{u.totp ? "Enabled" : "Off"}</TableCell>
       <TableCell>
-        <div className="flex justify-end gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
           <Button
             variant="outline"
             size="sm"
@@ -41,6 +41,16 @@ export function UserSettingsRow({
           >
             {u.disabled ? "Enable" : "Disable"}
           </Button>
+          {u.id !== currentUserId && (
+            <Button
+              variant="destructive"
+              size="sm"
+              data-user-id={u.id}
+              data-user-action="delete"
+            >
+              Delete user
+            </Button>
+          )}
         </div>
       </TableCell>
     </TableRow>

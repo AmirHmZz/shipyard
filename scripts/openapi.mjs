@@ -1180,6 +1180,11 @@ add(
   ref("Ok"),
   object({ admin: bool, disabled: bool }),
 );
+add("/users/{id}", "delete", "Permanently delete a platform user", ref("Ok"));
+paths["/users/{id}"].delete.responses[404] = {
+  description: "User not found",
+  content: { "application/json": { schema: ref("Error") } },
+};
 for (const [action, response, body] of [
   ["start", "TOTPStart", "TOTPStartInput"],
   ["confirm", "TOTPRecovery", "TOTPConfirmInput"],

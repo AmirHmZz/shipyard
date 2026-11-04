@@ -1,8 +1,11 @@
 package api
 
 import (
-	"github.com/go-chi/chi/v5"
+	"errors"
 	"net/http"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5"
 	"shipyard/internal/secure"
 )
 
@@ -82,6 +85,71 @@ func (a *API) updateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = a.Store.Audit(r.Context(), user(r).ID, "user.access_changed", target, "", in)
+	respond(w, 200, map[string]bool{"ok": true})
+}
+
+func (a *API) deleteUser(w http.ResponseWriter, r *http.Request) {
+	if !a.admin(w, r) {
+		return
+	}
+	actor, target := user(r).ID, chi.URLParam(r, "id")
+	if actor == target {
+		fail(w, 409, "You cannot delete your own account")
+		return
+	}
+	ctx := r.Context()
+	tx, err := a.Store.Pool.Begin(ctx)
+	if err != nil {
+		a.err(w, err)
+		return
+	}
+	defer tx.Rollback(ctx)
+	if _, err = tx.Exec(ctx, "SELECT pg_advisory_xact_lock(73914231)"); err != nil {
+		a.err(w, err)
+		return
+	}
+	var activeAdmin bool
+	err = tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM users WHERE id=$1 AND admin AND NOT disabled)", actor).Scan(&activeAdmin)
+	if err != nil {
+		a.err(w, err)
+		return
+	}
+	if !activeAdmin {
+		fail(w, 403, "Platform administrator access required")
+		return
+	}
+	// The acting administrator remains active under the user-management lock.
+	var email string
+	err = tx.QueryRow(ctx, "SELECT email FROM users WHERE id=$1", target).Scan(&email)
+	if errors.Is(err, pgx.ErrNoRows) {
+		fail(w, 404, "User not found")
+		return
+	}
+	if err != nil {
+		a.err(w, err)
+		return
+	}
+	if err = lockInvitationEmail(ctx, tx, email); err != nil {
+		a.err(w, err)
+		return
+	}
+	// Claim or revoke invitations before touching the account, in the same order as acceptance.
+	if _, err = tx.Exec(ctx, "DELETE FROM invitations WHERE email=$1", email); err != nil {
+		a.err(w, err)
+		return
+	}
+	if _, err = tx.Exec(ctx, "DELETE FROM users WHERE id=$1", target); err != nil {
+		a.err(w, err)
+		return
+	}
+	if _, err = tx.Exec(ctx, "INSERT INTO audit(user_id,action,resource_id) VALUES($1,'user.deleted',$2)", actor, target); err != nil {
+		a.err(w, err)
+		return
+	}
+	if err = tx.Commit(ctx); err != nil {
+		a.err(w, err)
+		return
+	}
 	respond(w, 200, map[string]bool{"ok": true})
 }
 

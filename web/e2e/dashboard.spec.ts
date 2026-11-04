@@ -24,7 +24,7 @@ function bootstrapToken() {
   return "";
 }
 
-test("installation, project configuration, invitations and viewer boundaries", async ({
+test("installation, project configuration, invitations, viewer boundaries and account deletion", async ({
   page,
   request,
   context,
@@ -257,6 +257,60 @@ test("installation, project configuration, invitations and viewer boundaries", a
       },
     });
     expect(replay.status()).toBe(400);
+
+    await page.goto("/settings?tab=users");
+    const target = page
+      .getByRole("row", { includeHidden: true })
+      .filter({ hasText: `viewer-${unique}@shipyard.test` });
+    const remove = target.getByRole("button", { name: "Delete user" });
+    await expect(
+      page.getByRole("row").filter({ hasText: email }).getByRole("button", {
+        name: "Delete user",
+      }),
+    ).toHaveCount(0);
+    const dialog = page.getByRole("dialog", { name: "Delete user?" });
+    await remove.click();
+    await expect(dialog).toContainText(
+      `Project Viewer (viewer-${unique}@shipyard.test)`,
+    );
+    await expect(dialog).toContainText("revokes their outstanding invitations");
+    await dialog.getByRole("button", { name: "Cancel" }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(target).toBeVisible();
+
+    const deletionPath = `**/api/v1/users/${viewerSession.user.id}`;
+    let releaseDeletion: (() => void) | undefined;
+    const deletionGate = new Promise<void>((resolve) => {
+      releaseDeletion = resolve;
+    });
+    await page.route(
+      deletionPath,
+      async (route) => {
+        expect(route.request().method()).toBe("DELETE");
+        await deletionGate;
+        await route.fulfill({
+          status: 409,
+          json: { error: "Deletion rejected for test" },
+        });
+      },
+      { times: 1 },
+    );
+    const confirm = dialog.getByRole("button", { name: "Confirm" });
+    try {
+      await remove.click();
+      await confirm.click();
+      await expect(confirm).toBeDisabled();
+      await expect(target).toBeVisible();
+    } finally {
+      releaseDeletion?.();
+    }
+    await expect(page.getByText("Deletion rejected for test")).toBeVisible();
+    await expect(confirm).toBeEnabled();
+    await expect(target).toBeVisible();
+    await confirm.click();
+    await expect(dialog).toHaveCount(0);
+    await expect(target).toHaveCount(0);
+    expect((await viewer.request.get("/api/v1/auth/me")).status()).toBe(401);
   } finally {
     await viewerContext.close();
   }

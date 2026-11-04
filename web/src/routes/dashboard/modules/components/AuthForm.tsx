@@ -39,7 +39,17 @@ export function AuthForm({ controller }: AuthFormProps) {
         <form className="flex flex-col gap-5" onSubmit={submit}>
           {(setup || token) && (
             <InputField
-              label={<>Full name</>}
+              label={
+                <>
+                  Full name
+                  {token && (
+                    <span className="text-muted-foreground">
+                      {" "}
+                      (new accounts only)
+                    </span>
+                  )}
+                </>
+              }
               labelProps={{ htmlFor: "name" }}
               inputProps={{
                 id: "name",
@@ -47,7 +57,7 @@ export function AuthForm({ controller }: AuthFormProps) {
                 value: form.name,
                 onChange: changeField,
                 "data-auth-field": "name",
-                required: true,
+                required: setup,
               }}
             />
           )}

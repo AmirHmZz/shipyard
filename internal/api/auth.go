@@ -334,7 +334,7 @@ func (a *API) accept(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if !secure.CheckPassword(in.Password, encoded) || len(otp) > 0 && !a.validateOTP(r.Context(), u.ID, otp, in.Code) {
-			fail(w, 403, "Use your existing account password and authenticator code")
+			fail(w, 403, "Use your existing account password and enter an authenticator or recovery code if two-factor authentication is enabled")
 			return
 		}
 	} else if !errors.Is(e, pgx.ErrNoRows) {

@@ -39,7 +39,7 @@ export function useAuthForm() {
   if (token) {
     title = "Join your team";
     description =
-      "Accept your invitation. Existing users should enter their current credentials.";
+      "Already have an account? Use your current password and enter a code if two-factor authentication is enabled.";
     submitLabel = "Accept invitation";
   }
   function changeField(event: ChangeEvent<HTMLInputElement>) {

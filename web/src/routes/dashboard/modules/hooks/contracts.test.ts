@@ -215,7 +215,9 @@ describe("dashboard surface request contracts", () => {
       expect(error?.error).toMatchObject({ kind: "schema", path: request[0] });
       expect(reportError).toHaveBeenCalledTimes(1);
       expect(toast.success).not.toHaveBeenCalled();
-      expect(toast.error).toHaveBeenCalledTimes(request[1] ? 1 : 0);
+      expect(toast.error).toHaveBeenCalledTimes(
+        request[1] && request[0] !== "/auth/accept" ? 1 : 0,
+      );
     },
   );
 });

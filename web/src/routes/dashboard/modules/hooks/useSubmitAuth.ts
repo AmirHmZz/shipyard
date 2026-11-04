@@ -10,6 +10,7 @@ export function useSubmitAuth(mode: "accept" | "login" | "setup") {
     path: `/auth/${mode}`,
     body: (values: AuthValues) => values,
     schema: sessionResponseSchema,
+    meta: { silent: mode === "accept" },
     onSuccess: (session, _variables, _snapshot, context) => {
       context.client.removeQueries({
         predicate: (query) => query.queryKey[0] !== "session",

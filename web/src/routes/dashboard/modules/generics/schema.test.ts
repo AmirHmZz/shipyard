@@ -25,7 +25,7 @@ describe("dashboard form validation", () => {
       authFormSchema("accept").safeParse({
         email: "",
         password: "current",
-        name: "New User",
+        name: "",
         code: "",
         token: "invite",
       }).success,

@@ -17,7 +17,7 @@ export type UserSettingsProps = { session: Session };
 export function UserSettings({ session }: UserSettingsProps) {
   const { state, derived, handlers } = useUsersPage();
   const { change } = state;
-  const { q, update, description } = derived;
+  const { q, pending, deleting, description } = derived;
   const { handleOpenChange, confirmChange, handleUserAction } = handlers;
   if (q.isPending) return <Loading />;
   if (q.error) return <ErrorState error={q.error} />;
@@ -59,9 +59,10 @@ export function UserSettings({ session }: UserSettingsProps) {
       <Confirm
         open={!!change}
         onOpenChange={handleOpenChange}
-        title="Change user access?"
+        title={deleting ? "Delete user?" : "Change user access?"}
         description={description}
-        pending={update.isPending}
+        pending={pending}
+        destructive={deleting}
         onConfirm={confirmChange}
       />
     </>

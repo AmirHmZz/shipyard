@@ -27,3 +27,20 @@ it("preserves credential guidance inline while other failures use the shared tra
   ).toBe(API_ERROR_MESSAGES.network);
   expect(describeAuthError(null)).toBe("");
 });
+
+it.each([
+  "Use your existing account password and enter an authenticator or recovery code if two-factor authentication is enabled",
+  "Account is disabled; contact a platform administrator",
+  "Origin is not allowed",
+])("shows the invitation rejection inline: %s", (message) => {
+  expect(
+    describeAuthError(
+      new ApiException({
+        kind: "http",
+        status: 403,
+        path: "/auth/accept",
+        message,
+      }),
+    ),
+  ).toBe(message);
+});

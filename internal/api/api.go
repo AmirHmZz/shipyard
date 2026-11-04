@@ -135,6 +135,7 @@ func (a *API) Router() http.Handler {
 			r.Post("/auth/password", a.changePassword)
 			r.Get("/users", a.users)
 			r.Put("/users/{id}", a.updateUser)
+			r.Delete("/users/{id}", a.deleteUser)
 			r.Post("/auth/totp/start", a.totpStart)
 			r.Post("/auth/totp/confirm", a.totpConfirm)
 			r.Post("/auth/totp/disable", a.totpDisable)

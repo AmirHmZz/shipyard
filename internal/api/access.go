@@ -1,13 +1,20 @@
 package api
 
 import (
+	"context"
 	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"shipyard/internal/secure"
 )
+
+func lockInvitationEmail(ctx context.Context, tx pgx.Tx, email string) error {
+	_, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock(73914232, hashtext($1))", email)
+	return err
+}
 
 func (a *API) members(w http.ResponseWriter, r *http.Request) {
 	team, ok := a.get(w, r, false)
@@ -71,9 +78,24 @@ func (a *API) invite(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	token := secure.Token()
-	_, e := a.Store.Pool.Exec(r.Context(), "INSERT INTO invitations(id,token,email,team_id,project_id,role,expires_at) VALUES($1,$2,$3,$4,$5,$6,$7)", uuid.NewString(), secure.Hash(token), in.Email, team.ID, in.ProjectID, in.Role, time.Now().Add(48*time.Hour))
+	ctx := r.Context()
+	tx, e := a.Store.Pool.Begin(ctx)
 	if e != nil {
+		a.err(w, e)
+		return
+	}
+	defer tx.Rollback(ctx)
+	if e = lockInvitationEmail(ctx, tx, in.Email); e != nil {
+		a.err(w, e)
+		return
+	}
+	token := secure.Token()
+	_, e = tx.Exec(ctx, "INSERT INTO invitations(id,token,email,team_id,project_id,role,expires_at) VALUES($1,$2,$3,$4,$5,$6,$7)", uuid.NewString(), secure.Hash(token), in.Email, team.ID, in.ProjectID, in.Role, time.Now().Add(48*time.Hour))
+	if e != nil {
+		a.err(w, e)
+		return
+	}
+	if e = tx.Commit(ctx); e != nil {
 		a.err(w, e)
 		return
 	}
