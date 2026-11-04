@@ -189,6 +189,14 @@ func (s *Store) Values(r model.Resource) (map[string]string, error) {
 	return values, nil
 }
 func (s *Store) Save(ctx context.Context, id string, in model.ResourceInput) (model.Resource, error) {
+	return s.save(ctx, id, in, false)
+}
+
+func (s *Store) SaveWithZoneAccess(ctx context.Context, id string, in model.ResourceInput) (model.Resource, error) {
+	return s.save(ctx, id, in, true)
+}
+
+func (s *Store) save(ctx context.Context, id string, in model.ResourceInput, checkZoneAccess bool) (model.Resource, error) {
 	tx, err := s.Pool.Begin(ctx)
 	if err != nil {
 		return model.Resource{}, err
@@ -221,6 +229,11 @@ func (s *Store) Save(ctx context.Context, id string, in model.ResourceInput) (mo
 		// A concurrent cleanup may have deleted a resource after API validation.
 		// An update must never recreate that resource under its previous ID.
 		return model.Resource{}, pgx.ErrNoRows
+	}
+	if checkZoneAccess {
+		if e := checkResourceZoneAccess(ctx, tx, id, old, in); e != nil {
+			return model.Resource{}, e
+		}
 	}
 	ancestor := in.ParentID
 	if old.ID != "" {
@@ -316,9 +329,11 @@ func (s *Store) Save(ctx context.Context, id string, in model.ResourceInput) (mo
 				return model.Resource{}, errors.New("configure an explicit preview target or private previews when there are no HTTP/gRPC routes")
 			}
 		}
-		if app.PreviewOf == "" && app.PreviewDomain != "" {
+		if app.PreviewOf == "" && app.UsesPublicPreviewDomain() && app.PreviewDomain != "" {
 			var exists bool
-			if e = tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM resources WHERE kind='application' AND id<>$1 AND COALESCE(data->>'previewOf','')='' AND lower(data->>'previewDomain')=lower($2))", id, app.PreviewDomain).Scan(&exists); e != nil {
+			if e = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM resources WHERE kind='application' AND id<>$1
+				AND COALESCE(data->>'previewOf','')='' AND lower(data->>'previewDomain')=lower($2)
+				AND data->>'previews'='true' AND data->'previewRouting'->>'mode' IS DISTINCT FROM 'private')`, id, app.PreviewDomain).Scan(&exists); e != nil {
 				return model.Resource{}, e
 			}
 			if exists {

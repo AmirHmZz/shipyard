@@ -1,5 +1,7 @@
 # Development and validation
 
+Schema 10 adds scoped hostname grants. Existing grants retain whole-zone access for application routes and previews. Apply the migration before starting the updated Shipyard binary. Downgrading to schema 9 requires removing scoped grants first.
+
 Schema 9 adds uploaded project/application logos and shared card ordering. Logos are validated PNG/JPEG/WebP uploads (2 MiB, 16 megapixels), normalized to PNG within 256×256, and stored in PostgreSQL with cascading resource cleanup and normal backup coverage. The `/resources/{id}/logo` endpoints return versioned authenticated image URLs; `/resources/{id}/move` moves projects globally or apps within an environment. These changes leave resource configuration versions and deployments untouched. Upgrade using the normal migration procedure; downgrading discards logos and custom ordering. Runtime responses retain container IDs and add best-effort Docker service/replica metadata for terminal labels.
 
 Registry connections are administrator-managed resources in Integrations, with `hostname`, `username`, encrypted `password`, and team grants. Image pulls and Dockerfile builds select credentials automatically through a temporary Docker auth map. Docker Hub aliases normalize to `docker.io`; public images require no connection. Startup migrates legacy app credentials transactionally after verifying the encryption key. Unexpected conflicting credentials abort the migration without changing app records. Existing encrypted queued deployments remain readable.

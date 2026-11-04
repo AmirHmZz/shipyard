@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { text } from "@/lib/resource-fields";
+import { describeError } from "@/lib/api/translate-error";
 
 import { useApplicationPreviewsForm } from "../hooks";
 import { PreviewCard } from "./PreviewCard";
@@ -29,7 +29,17 @@ export function ApplicationPreviews({ app }: ApplicationPreviewsProps) {
 
   const { state, derived, handlers } = useApplicationPreviewsForm(app);
   const { enabled, domain, zone } = state;
-  const { q, routes, routing, error, saved, busy, previewRows } = derived;
+  const {
+    domainAccess,
+    zones,
+    previewZone,
+    routes,
+    routing,
+    error,
+    saved,
+    busy,
+    previewRows,
+  } = derived;
   const {
     setRouting,
     setEnabled,
@@ -73,19 +83,21 @@ export function ApplicationPreviews({ app }: ApplicationPreviewsProps) {
                       <Select
                         value={zone}
                         onValueChange={setZone}
-                        disabled={!app.canWrite}
+                        disabled={
+                          !app.canWrite ||
+                          domainAccess.isPending ||
+                          zones.length === 0
+                        }
                       >
                         <SelectTrigger aria-label="Preview connected zone">
                           <SelectValue placeholder="Select zone" />
                         </SelectTrigger>
                         <SelectContent>
-                          {q.data
-                            ?.filter((r) => r.kind === "zone")
-                            .map((r) => (
-                              <SelectItem key={r.id} value={r.id}>
-                                {text(r.data, "domain")}
-                              </SelectItem>
-                            ))}
+                          {zones.map((zone) => (
+                            <SelectItem key={zone.zoneId} value={zone.zoneId}>
+                              {zone.domain}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </FormField>
@@ -105,7 +117,25 @@ export function ApplicationPreviews({ app }: ApplicationPreviewsProps) {
                         {domain.replace(/^\*\./, "") || "preview.example.com"}.
                         Preview variables are configured in the Variables tab.
                       </p>
+                      {previewZone?.mode === "scoped" && (
+                        <p className="text-xs text-muted-foreground">
+                          Allowed wildcards: {previewZone.patterns.join(", ")}
+                        </p>
+                      )}
                     </FormField>
+                    {domainAccess.error && (
+                      <Alert variant="destructive">
+                        <AlertDescription>
+                          {describeError(domainAccess.error)}
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                    {domainAccess.isSuccess && zones.length === 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        This application's team has no hostname grants for
+                        public previews.
+                      </p>
+                    )}
                   </>
                 )}
               </>

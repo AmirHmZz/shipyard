@@ -9,6 +9,7 @@ import { toastValidationError } from "@/lib/api/toaster";
 import { describeError } from "@/lib/api/translate-error";
 import { normalizeApplicationSettings } from "@/lib/application-settings";
 import { useConfigurationChanges } from "@/lib/configuration-state";
+import { useApplicationDomainAccess } from "@/lib/hooks/useApplicationDomainAccess";
 import { useResources } from "@/lib/hooks/useResources";
 import { previewRoutingSchema } from "@/lib/schemas/application";
 
@@ -39,6 +40,18 @@ export function useApplicationPreviewsForm(app: Resource) {
   const routing: PreviewRouting =
     state.routingDraft ??
     (savedRouting.success ? savedRouting.data : { mode: "inherit" });
+  const domainAccess = useApplicationDomainAccess(
+    app.id,
+    state.enabled && routing.mode !== "private",
+  );
+  const zones = (domainAccess.data ?? []).flatMap((zone) => {
+    if (zone.mode === "whole") return [zone];
+    const patterns = zone.patterns.filter((pattern) =>
+      pattern.startsWith("*."),
+    );
+    return patterns.length ? [{ ...zone, patterns }] : [];
+  });
+  const previewZone = zones.find((zone) => zone.zoneId === state.zone);
   const savePreview = useSaveApplicationPreview();
   const createPreview = useApprovePreview();
   const failure = savePreview.error ?? createPreview.error;
@@ -134,7 +147,9 @@ export function useApplicationPreviewsForm(app: Resource) {
   return {
     state,
     derived: {
-      q,
+      domainAccess,
+      zones,
+      previewZone,
       routes,
       routing,
       error,

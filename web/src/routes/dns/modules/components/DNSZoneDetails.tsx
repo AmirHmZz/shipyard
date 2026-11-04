@@ -21,18 +21,22 @@ export function DNSZoneDetails({
   return (
     <Tabs value={tab} onValueChange={setTab}>
       <TabsList>
-        <TabsTrigger value="records">
-          <Globe2 aria-hidden="true" />
-          DNS records
-        </TabsTrigger>
+        {zone.canWrite && (
+          <TabsTrigger value="records">
+            <Globe2 aria-hidden="true" />
+            DNS records
+          </TabsTrigger>
+        )}
         <TabsTrigger value="certificates">
           <ShieldCheck aria-hidden="true" />
           Certificates
         </TabsTrigger>
       </TabsList>
-      <TabsContent value="records">
-        <DNSRecordSurface zone={zone} />
-      </TabsContent>
+      {zone.canWrite && (
+        <TabsContent value="records">
+          <DNSRecordSurface zone={zone} />
+        </TabsContent>
+      )}
       <TabsContent value="certificates">
         <ZoneCertificates key={zone.id} zone={zone} resources={resources} />
       </TabsContent>

@@ -90,6 +90,17 @@ async function setup(page: Page, writable = true) {
         json: { ok: true, jobId: "deletion" },
       });
     }
+    if (path === "/api/v1/applications/app/domain-access")
+      return route.fulfill({
+        json: [
+          {
+            zoneId: "zone",
+            domain: "example.com",
+            mode: "whole",
+            patterns: [],
+          },
+        ],
+      });
     if (path.endsWith("/services"))
       return route.fulfill({
         json: [{ name: "app", replicas: 1, ignoredPorts: false }],

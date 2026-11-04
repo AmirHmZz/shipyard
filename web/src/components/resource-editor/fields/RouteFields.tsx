@@ -1,6 +1,5 @@
 import type * as React from "react";
 
-import type { ResourceFormProps } from "@/components/resource-forms/controller";
 import type { Options } from "@/components/resource-forms/Options";
 
 import { FormField } from "@/components/FormField";
@@ -17,10 +16,9 @@ import {
 import { describeError } from "@/lib/api/translate-error";
 
 export type RouteFieldsProps = {
-  resources: ResourceFormProps["resources"];
   services: Options["services"];
 };
-export function RouteFields({ resources, services }: RouteFieldsProps) {
+export function RouteFields({ services }: RouteFieldsProps) {
   function handleSelectControlValueChange(value: string) {
     return update("zoneId", value);
   }
@@ -34,9 +32,10 @@ export function RouteFields({ resources, services }: RouteFieldsProps) {
 
   const {
     state: { data },
+    derived: { domainAccess, routeZone, routeSubdomain },
     handlers: { update },
   } = useResourceForm();
-  const zone = resources.find((r) => r.id === data.zoneId && r.kind === "zone");
+  const zones = domainAccess.data ?? [];
   return (
     <section className="flex flex-col gap-4">
       <FormField label={<>Connected zone</>} labelProps={{}}>
@@ -44,14 +43,12 @@ export function RouteFields({ resources, services }: RouteFieldsProps) {
           <SelectControl
             value={String(data.zoneId || "") || undefined}
             onValueChange={handleSelectControlValueChange}
-            options={resources
-              .filter((r) => r.kind === "zone")
-              .map((r) => ({
-                value: r.id,
-                label: String(r.data.domain),
-              }))}
+            options={zones.map((zone) => ({
+              value: zone.zoneId,
+              label: zone.domain,
+            }))}
             placeholder={"Select connected zone"}
-            disabled={false}
+            disabled={domainAccess.isPending || zones.length === 0}
             triggerProps={{
               id: undefined,
               className: "w-full",
@@ -67,21 +64,40 @@ export function RouteFields({ resources, services }: RouteFieldsProps) {
         <InputGroup>
           <InputGroupInput
             id="route-subdomain"
-            value={String(data.domain || "")}
+            value={routeSubdomain}
             onChange={handleInputGroupInputChange}
-            disabled={!zone}
+            disabled={!routeZone}
             placeholder="api or *.apps"
           />
-          {zone && (
+          {routeZone && (
             <InputGroupAddon align="inline-end">
-              <InputGroupText>.{String(zone.data.domain)}</InputGroupText>
+              <InputGroupText>.{routeZone.domain}</InputGroupText>
             </InputGroupAddon>
           )}
         </InputGroup>
-        <p className="text-xs text-muted-foreground">
-          Leave blank for the zone itself.
-        </p>
+        {routeZone?.mode === "whole" && (
+          <p className="text-xs text-muted-foreground">
+            Leave blank for the zone itself.
+          </p>
+        )}
+        {routeZone?.mode === "scoped" && (
+          <p className="text-xs text-muted-foreground">
+            Allowed hostnames: {routeZone.patterns.join(", ")}
+          </p>
+        )}
       </FormField>
+      {domainAccess.error && (
+        <Alert variant="destructive">
+          <AlertDescription>
+            {describeError(domainAccess.error)}
+          </AlertDescription>
+        </Alert>
+      )}
+      {domainAccess.isSuccess && zones.length === 0 && (
+        <p className="text-xs text-muted-foreground">
+          This application's team has no connected zone access.
+        </p>
+      )}
       {services.error && (
         <Alert variant="destructive">
           <AlertDescription>

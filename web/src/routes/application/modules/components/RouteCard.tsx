@@ -18,9 +18,9 @@ import { number, text } from "@/lib/resource-fields";
 
 import { useRouteCard } from "../hooks";
 
-export type RouteCardProps = { route: Resource };
+export type RouteCardProps = { route: Resource; canReplaceDNSRecords: boolean };
 const statusKeys = ["dns", "propagation", "certificate", "routing"] as const;
-export function RouteCard({ route }: RouteCardProps) {
+export function RouteCard({ route, canReplaceDNSRecords }: RouteCardProps) {
   const { state, derived, handlers } = useRouteCard(route);
   const { replace } = state;
   const { q, syncing, protocol, statusError } = derived;
@@ -139,14 +139,16 @@ export function RouteCard({ route }: RouteCardProps) {
             >
               Adopt matching records
             </Button>
-            <Button
-              disabled={syncing}
-              variant="destructive"
-              size="sm"
-              onClick={replaceRecords}
-            >
-              Replace conflicting records
-            </Button>
+            {canReplaceDNSRecords && (
+              <Button
+                disabled={syncing}
+                variant="destructive"
+                size="sm"
+                onClick={replaceRecords}
+              >
+                Replace conflicting records
+              </Button>
+            )}
           </div>
         )}
       </CardContent>

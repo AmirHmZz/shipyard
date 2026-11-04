@@ -32,6 +32,7 @@ async function mock(page: Page, admin = true) {
       domain: "example.com",
       providerZoneId: "existing",
     }),
+    resource("other-zone", "zone", "arvan", { domain: "other.example" }),
     resource("app", "application", "env", {
       source: "git",
       engine: "compose",
@@ -53,6 +54,7 @@ async function mock(page: Page, admin = true) {
   ];
   const writes: { path: string; body: Record<string, unknown> }[] = [];
   let zoneFailure = false;
+  let zoneGrant = { mode: "whole", patterns: [] };
   await page.route("**/api/v1/**", async (route) => {
     const req = route.request(),
       path = new URL(req.url()).pathname;
@@ -73,6 +75,25 @@ async function mock(page: Page, admin = true) {
           csrf: "csrf",
         },
       });
+    if (path === "/api/v1/zones/zone/grants")
+      return route.fulfill({ json: [{ teamId: "team", ...zoneGrant }] });
+    if (path === "/api/v1/zones/zone/grants/team") {
+      zoneGrant = req.postDataJSON();
+      writes.push({ path, body: zoneGrant });
+      return route.fulfill({ json: { ok: true } });
+    }
+    if (path === "/api/v1/applications/app/domain-access")
+      return route.fulfill({
+        json: [
+          {
+            zoneId: "zone",
+            domain: "example.com",
+            mode: "scoped",
+            patterns: ["api.example.com", "*.preview.example.com"],
+          },
+        ],
+      });
+    if (path.endsWith("/records")) return route.fulfill({ json: [] });
     if (path.endsWith("/resources")) {
       if (req.method() === "GET") return route.fulfill({ json: resources });
       const body = req.postDataJSON();
@@ -295,6 +316,36 @@ test("zone creation discovers domains and shows provider logos without naming fi
     data: { domain: "new.example.org", providerZoneId: "new" },
   });
 });
+test("admins can narrow a team's whole-zone grant in one save", async ({
+  page,
+}) => {
+  const { writes } = await mock(page);
+  await page.goto("/dns/zone");
+  await page.getByRole("button", { name: "Team access" }).click();
+  await page.getByRole("combobox", { name: "Team", exact: true }).click();
+  await page.getByRole("option", { name: "team · Whole zone" }).click();
+  await page.getByRole("combobox", { name: "Access", exact: true }).click();
+  await page.getByRole("option", { name: "Specific hostnames" }).click();
+  await page
+    .getByLabel("Allowed hostnames")
+    .fill("api.example.com\n*.preview.example.com");
+  await page.getByRole("button", { name: "Save access" }).click();
+  await expect
+    .poll(() => writes)
+    .toEqual([
+      {
+        path: "/api/v1/zones/zone/grants/team",
+        body: {
+          mode: "scoped",
+          patterns: ["api.example.com", "*.preview.example.com"],
+        },
+      },
+    ]);
+  await expect(
+    page.getByRole("combobox", { name: "Team", exact: true }),
+  ).toContainText("Specific hostnames");
+});
+
 test("routes select zones and Compose services and only offer secure protocols", async ({
   page,
 }) => {
@@ -302,7 +353,13 @@ test("routes select zones and Compose services and only offer secure protocols",
   await page.goto("/configure/route/new?parent=app&return=/applications/app");
   await expect(page.getByLabel("Name", { exact: true })).toHaveCount(0);
   await page.getByRole("combobox", { name: "Select connected zone" }).click();
+  await expect(page.getByRole("option", { name: "other.example" })).toHaveCount(
+    0,
+  );
   await page.getByRole("option", { name: "example.com", exact: true }).click();
+  await expect(
+    page.getByText("Allowed hostnames: api.example.com, *.preview.example.com"),
+  ).toBeVisible();
   await page.getByLabel("Subdomain", { exact: true }).fill("api");
   await page.getByRole("combobox", { name: "Select Compose service" }).click();
   await page.getByRole("option", { name: "web", exact: true }).click();
@@ -482,7 +539,13 @@ test("application preview settings have deep links and retain wildcard settings 
     .click();
   await page.getByLabel("Preview port", { exact: true }).fill("8080");
   await page.getByRole("combobox", { name: "Preview connected zone" }).click();
+  await expect(page.getByRole("option", { name: "other.example" })).toHaveCount(
+    0,
+  );
   await page.getByRole("option", { name: "example.com", exact: true }).click();
+  await expect(
+    page.getByText("Allowed wildcards: *.preview.example.com"),
+  ).toBeVisible();
   await page
     .getByLabel("Preview wildcard domain", { exact: true })
     .fill("*.preview.example.com");

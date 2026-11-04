@@ -3,6 +3,7 @@ package control
 import (
 	"context"
 	"encoding/json"
+	"shipyard/internal/db"
 	"shipyard/internal/model"
 	"shipyard/internal/providers"
 	"strings"
@@ -20,10 +21,13 @@ func TestExplicitPreviewRoutingUpdatesExistingPreviews(t *testing.T) {
 	git := resource(t, c, "git", "", "", model.Git{Provider: "gitea", URL: "https://git.invalid"}, nil)
 	dns := resource(t, c, "dns", "", "", model.DNS{Provider: "cloudflare"}, nil)
 	zone := resource(t, c, "zone", dns.ID, "", model.Zone{Domain: "example.com", ProviderZoneID: "zone"}, nil)
-	for _, id := range []string{server.ID, git.ID, zone.ID} {
+	for _, id := range []string{server.ID, git.ID} {
 		if _, err := c.Store.Pool.Exec(ctx, "INSERT INTO resource_grants(resource_id,team_id) VALUES($1,$2)", id, team.ID); err != nil {
 			t.Fatal(err)
 		}
+	}
+	if err := c.Store.SetZoneGrant(ctx, "admin", zone.ID, team.ID, db.ZoneGrant{Mode: "scoped", Patterns: []string{"*.preview.example.com"}}, false); err != nil {
+		t.Fatal(err)
 	}
 	spec := model.App{Source: "git", Engine: "dockerfile", ServerID: server.ID, GitID: git.ID, Repository: "owner/repo", Branch: "main", Context: ".", File: "Dockerfile", Previews: true, ReadinessChecks: []model.HTTPReadinessCheck{}, PreviewRouting: &model.PreviewRouting{Mode: "private"}}
 	app := resource(t, c, "application", environment.ID, team.ID, spec, nil)

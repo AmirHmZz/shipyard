@@ -1366,7 +1366,44 @@ add(
 paths["/servers/{id}/haproxy"].put.responses[202] =
   paths["/servers/{id}/haproxy"].put.responses[200];
 delete paths["/servers/{id}/haproxy"].put.responses[200];
-add("/zones/{id}/records", "get", "DNS records", array(ref("DNSRecord")));
+const hostnameGrant = {
+  mode: { type: "string", enum: ["whole", "scoped"] },
+  patterns: array(str),
+};
+schemas.TeamZoneGrant = object({ teamId: str, ...hostnameGrant });
+schemas.ZoneAccess = object({ zoneId: str, domain: str, ...hostnameGrant });
+schemas.ZoneGrantInput = input(
+  {
+    mode: { type: "string", enum: ["none", "whole", "scoped"] },
+    patterns: array(str),
+  },
+  ["mode"],
+);
+add(
+  "/zones/{id}/grants",
+  "get",
+  "List team hostname grants (platform admin)",
+  array(ref("TeamZoneGrant")),
+);
+add(
+  "/zones/{id}/grants/{teamId}",
+  "put",
+  "Replace a team's hostname grant (platform admin)",
+  ref("Ok"),
+  ref("ZoneGrantInput"),
+);
+add(
+  "/applications/{id}/domain-access",
+  "get",
+  "List eligible zones and hostname grants for the application's team",
+  array(ref("ZoneAccess")),
+);
+add(
+  "/zones/{id}/records",
+  "get",
+  "DNS records (platform admin)",
+  array(ref("DNSRecord")),
+);
 add(
   "/zones/{id}/certificates",
   "get",
@@ -1376,18 +1413,23 @@ add(
 add(
   "/zones/{id}/records",
   "post",
-  "Create DNS record",
+  "Create DNS record (platform admin)",
   ref("DNSRecord"),
   ref("DNSRecordInput"),
 );
 add(
   "/zones/{id}/records/{record}",
   "put",
-  "Update DNS record",
+  "Update DNS record (platform admin)",
   ref("DNSRecord"),
   ref("DNSRecordInput"),
 );
-add("/zones/{id}/records/{record}", "delete", "Delete DNS record", ref("Ok"));
+add(
+  "/zones/{id}/records/{record}",
+  "delete",
+  "Delete DNS record (platform admin)",
+  ref("Ok"),
+);
 add(
   "/routes/{id}/status",
   "get",
@@ -1399,7 +1441,17 @@ add(
   "post",
   "Reconcile route DNS and certificate",
   ref("Queued"),
-  input({ mode: { type: "string", enum: ["", "adopt", "replace"] } }, []),
+  input(
+    {
+      mode: {
+        type: "string",
+        enum: ["", "adopt", "replace"],
+        description:
+          "Replacing conflicting DNS records requires a platform admin.",
+      },
+    },
+    [],
+  ),
 );
 add(
   "/applications/{id}/runtime",

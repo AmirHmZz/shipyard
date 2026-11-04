@@ -162,9 +162,7 @@ export function ResourceFormContent(props: ResourceFormContentProps) {
                 selectableZones={selectableZones}
               />
             )}
-            {kind === "route" && (
-              <RouteFields resources={resources} services={services} />
-            )}
+            {kind === "route" && <RouteFields services={services} />}
             {kind === "webhook" &&
               data.provider !== "telegram" &&
               data.provider !== "bale" && (

@@ -1,0 +1,11 @@
+{
+  "name": "Scoped hostname grants",
+  "up": {
+    "classification": "non-destructive",
+    "impact": "Add hostname scopes to DNS zone grants. Existing grants retain whole-zone hostname coverage."
+  },
+  "down": {
+    "classification": "non-destructive",
+    "impact": "Return to whole-zone grants. Downgrade is blocked while scoped grants exist."
+  }
+}

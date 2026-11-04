@@ -17,8 +17,13 @@ function viewState(
 ) {
   const { name, parent, data, busy, dnsTesting, dnsVerified, composeYAML } =
     form.state;
-  const { parentKind, parentOptions, needsDNSTest, needsComposeDocument } =
-    form.derived;
+  const {
+    parentKind,
+    parentOptions,
+    needsDNSTest,
+    needsComposeDocument,
+    domainAccess,
+  } = form.derived;
   const registeredZones = new Set(
     resources
       .filter(
@@ -59,6 +64,7 @@ function viewState(
     (kind === "application" && !parentOptions.length);
   const saveDisabled =
     busy ||
+    (kind === "route" && domainAccess.isPending) ||
     (kind !== "zone" && kind !== "route" && !name) ||
     (needsDNSTest && (!dnsVerified || dnsTesting)) ||
     (kind === "zone" && !data.providerZoneId) ||

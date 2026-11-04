@@ -133,11 +133,13 @@ func (c *Controller) preview(ctx context.Context, app model.Resource, spec model
 	if e.Action != "opened" && e.Action != "reopened" && e.Action != "synchronize" && e.Action != "synchronized" && !approved {
 		return nil
 	}
-	if (spec.PreviewRouting == nil || spec.PreviewRouting.Mode != "private") && (spec.PreviewDomain == "" || spec.PreviewZoneID == "") {
-		return errors.New("configure a wildcard preview domain on the application")
-	}
-	if (spec.PreviewRouting == nil || spec.PreviewRouting.Mode != "private") && !c.Store.TeamGranted(ctx, app.TeamID, spec.PreviewZoneID) {
-		return errors.New("preview zone must be granted to the application's team")
+	if spec.UsesPublicPreviewDomain() {
+		if spec.PreviewDomain == "" || spec.PreviewZoneID == "" {
+			return errors.New("configure a wildcard preview domain on the application")
+		}
+		if err := c.Store.RequireZoneHostname(ctx, app.TeamID, spec.PreviewZoneID, spec.PreviewDomain); err != nil {
+			return err
+		}
 	}
 	preview := spec
 	preview.PreviewOf = app.ID
@@ -265,7 +267,7 @@ func (c *Controller) preview(ctx context.Context, app model.Resource, spec model
 					break
 				}
 			}
-			rr, err := c.Store.Save(ctx, existingID, model.ResourceInput{Kind: "route", Name: domain, ParentID: r.ID, TeamID: r.TeamID, Data: raw, Version: version})
+			rr, err := c.Store.SaveWithZoneAccess(ctx, existingID, model.ResourceInput{Kind: "route", Name: domain, ParentID: r.ID, TeamID: r.TeamID, Data: raw, Version: version})
 			if err != nil {
 				return err
 			}

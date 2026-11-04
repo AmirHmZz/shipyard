@@ -70,6 +70,10 @@ func decode(w http.ResponseWriter, r *http.Request, out any) bool {
 	return true
 }
 func (a *API) err(w http.ResponseWriter, e error) {
+	if errors.Is(e, db.ErrZoneGrant) {
+		fail(w, 400, e.Error())
+		return
+	}
 	if errors.Is(e, db.ErrConflict) {
 		fail(w, 409, e.Error())
 		return
@@ -163,12 +167,15 @@ func (a *API) Router() http.Handler {
 			r.Post("/dns/test", a.testDNSProvider)
 			r.Get("/zones/{id}/records", a.records)
 			r.Get("/zones/{id}/certificates", a.zoneCertificates)
+			r.Get("/zones/{id}/grants", a.zoneGrants)
+			r.Put("/zones/{id}/grants/{teamId}", a.setZoneGrant)
 			r.Post("/zones/{id}/records", a.putRecord)
 			r.Put("/zones/{id}/records/{record}", a.putRecord)
 			r.Delete("/zones/{id}/records/{record}", a.deleteRecord)
 			r.Get("/routes/{id}/status", a.domainStatus)
 			r.Post("/routes/{id}/sync", a.syncDomain)
 			r.Get("/applications/{id}/runtime", a.runtime)
+			r.Get("/applications/{id}/domain-access", a.applicationDomainAccess)
 			r.Get("/applications/{id}/job-settings", a.jobSettings)
 			r.Put("/applications/{id}/job-settings", a.jobSettings)
 			r.Get("/applications/{id}/runs", a.jobRuns)
@@ -433,18 +440,6 @@ func (a *API) validateBindings(ctx context.Context, in model.ResourceInput) erro
 		if spec.Source != "compose" {
 			refs[spec.GitID] = "git"
 		}
-		if spec.PreviewZoneID != "" {
-			refs[spec.PreviewZoneID] = "zone"
-		}
-	}
-	if in.Kind == "route" {
-		spec, e := model.Decode[model.Route](model.Resource{Data: in.Data})
-		if e != nil {
-			return e
-		}
-		if spec.ZoneID != "" {
-			refs[spec.ZoneID] = "zone"
-		}
 	}
 	for id, kind := range refs {
 		v, e := a.Store.Resource(ctx, id)
@@ -577,9 +572,15 @@ func (a *API) saveResource(w http.ResponseWriter, r *http.Request) {
 			fail(w, 400, e.Error())
 			return
 		}
-		if e := a.Control.ValidatePreviewDomain(r.Context(), id, in.TeamID, spec); e != nil {
-			fail(w, 400, e.Error())
-			return
+		if spec.UsesPublicPreviewDomain() && spec.PreviewDomain != "" && spec.PreviewZoneID != "" {
+			if e := a.Store.RequireZoneHostname(r.Context(), in.TeamID, spec.PreviewZoneID, spec.PreviewDomain); e != nil {
+				a.err(w, e)
+				return
+			}
+			if e := a.Control.ValidatePreviewDomain(r.Context(), id, in.TeamID, spec); e != nil {
+				fail(w, 400, e.Error())
+				return
+			}
 		}
 		if spec.InlineCompose() {
 			var values map[string]any
@@ -648,7 +649,7 @@ func (a *API) saveResource(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		z, _ := model.Decode[model.Zone](zone)
-		if !strings.HasSuffix(v.Domain, "."+z.Domain) && v.Domain != z.Domain {
+		if zone.Kind != "zone" || !model.HostnameWithinZone(v.Domain, z.Domain) {
 			fail(w, 400, "Route domain does not belong to the selected zone")
 			return
 		}
@@ -661,13 +662,7 @@ func (a *API) saveResource(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, e.Error())
 		return
 	}
-	if in.Kind == "route" {
-		if e := a.routeConflict(r.Context(), id, in); e != nil {
-			fail(w, 409, e.Error())
-			return
-		}
-	}
-	v, e := a.Store.Save(r.Context(), id, in)
+	v, e := a.Store.SaveWithZoneAccess(r.Context(), id, in)
 	if e != nil {
 		if !creating && errors.Is(e, pgx.ErrNoRows) {
 			fail(w, 409, "Resource was changed by another operation; refresh and try again")
@@ -722,43 +717,6 @@ func (a *API) saveResource(w http.ResponseWriter, r *http.Request) {
 	}
 	v.CanWrite = true
 	respond(w, 200, a.Store.Public(v))
-}
-func (a *API) routeConflict(ctx context.Context, id string, in model.ResourceInput) error {
-	app, e := a.Store.Resource(ctx, in.ParentID)
-	if e != nil {
-		return e
-	}
-	spec, _ := model.Decode[model.App](app)
-	candidate, _ := model.Decode[model.Route](model.Resource{Data: in.Data})
-	candidateDomain, _ := model.Domain(candidate.Domain)
-	rows, e := a.Store.Resources(ctx, "route")
-	if e != nil {
-		return e
-	}
-	for _, rr := range rows {
-		if rr.ID == id {
-			continue
-		}
-		existing, _ := model.Decode[model.Route](rr)
-		parent, e := a.Store.Resource(ctx, rr.ParentID)
-		if e != nil {
-			return e
-		}
-		other, _ := model.Decode[model.App](parent)
-		if candidate.Protocol == "tcp" && existing.Protocol == "tcp" && spec.ServerID == other.ServerID && candidate.ListenPort == existing.ListenPort {
-			return errors.New("TCP listener port is already assigned")
-		}
-		existingDomain, _ := model.Domain(existing.Domain)
-		if candidateDomain != "" && candidateDomain == existingDomain {
-			if spec.ServerID != other.ServerID {
-				return errors.New("hostname is already assigned to another server")
-			}
-			if candidate.Protocol != "tcp" && existing.Protocol != "tcp" {
-				return errors.New("hostname is already assigned")
-			}
-		}
-	}
-	return nil
 }
 func (a *API) deleteResource(w http.ResponseWriter, r *http.Request) {
 	v, ok := a.get(w, r, true)
@@ -826,6 +784,15 @@ func (a *API) deleteResource(w http.ResponseWriter, r *http.Request) {
 		fail(w, 409, "Remove child resources first")
 		return
 	}
+	if v.Kind == "zone" {
+		if e = a.Store.DeleteZone(r.Context(), v.ID); e != nil {
+			a.err(w, e)
+			return
+		}
+		_ = a.Store.Audit(r.Context(), user(r).ID, "resource.deleted", v.ID, v.TeamID, nil)
+		respond(w, 200, map[string]bool{"ok": true})
+		return
+	}
 	if v.Kind == "route" {
 		if e = a.Control.DeleteDomain(r.Context(), v.ID); e != nil {
 			fail(w, 409, e.Error())
@@ -885,6 +852,18 @@ func (a *API) grant(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, "Team not found")
 		return
 	}
+	if v.Kind == "zone" {
+		mode := "none"
+		if in.Granted {
+			mode = "whole"
+		}
+		if e := a.Store.SetZoneGrant(r.Context(), user(r).ID, v.ID, in.TeamID, db.ZoneGrant{Mode: mode}, true); e != nil {
+			a.err(w, e)
+			return
+		}
+		respond(w, 200, map[string]bool{"ok": true})
+		return
+	}
 	if v.Kind == "registry" {
 		e = a.Store.GrantRegistry(r.Context(), v.ID, in.TeamID, in.Granted)
 	} else if in.Granted {
@@ -907,7 +886,7 @@ func (a *API) grants(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	rows, e := a.Store.Pool.Query(r.Context(), "SELECT team_id FROM resource_grants WHERE resource_id=$1", v.ID)
+	rows, e := a.Store.Pool.Query(r.Context(), "SELECT team_id FROM resource_grants WHERE resource_id=$1 AND cardinality(hostname_patterns)=0", v.ID)
 	if e != nil {
 		a.err(w, e)
 		return
@@ -1122,7 +1101,10 @@ func (a *API) providerZones(w http.ResponseWriter, r *http.Request) {
 	}
 	respond(w, 200, zones)
 }
-func (a *API) zone(w http.ResponseWriter, r *http.Request, write bool) (providers.DNSProvider, model.Zone, bool) {
+func (a *API) zone(w http.ResponseWriter, r *http.Request) (providers.DNSProvider, model.Zone, bool) {
+	if !a.admin(w, r) {
+		return nil, model.Zone{}, false
+	}
 	v, ok := a.get(w, r, false)
 	if !ok {
 		return nil, model.Zone{}, false
@@ -1130,14 +1112,6 @@ func (a *API) zone(w http.ResponseWriter, r *http.Request, write bool) (provider
 	if v.Kind != "zone" {
 		fail(w, 400, "DNS zone required")
 		return nil, model.Zone{}, false
-	}
-	if write && !user(r).Admin {
-		var allowed bool
-		_ = a.Store.Pool.QueryRow(r.Context(), "SELECT EXISTS(SELECT 1 FROM resource_grants g JOIN team_members m ON g.team_id=m.team_id WHERE g.resource_id=$1 AND m.user_id=$2 AND m.role='owner')", v.ID, user(r).ID).Scan(&allowed)
-		if !allowed {
-			fail(w, 403, "Team owner required to edit zone records")
-			return nil, model.Zone{}, false
-		}
 	}
 	p, z, _, e := a.Control.DNS(r.Context(), v.ID)
 	if e != nil {
@@ -1147,7 +1121,7 @@ func (a *API) zone(w http.ResponseWriter, r *http.Request, write bool) (provider
 	return p, z, true
 }
 func (a *API) records(w http.ResponseWriter, r *http.Request) {
-	p, z, ok := a.zone(w, r, false)
+	p, z, ok := a.zone(w, r)
 	if !ok {
 		return
 	}
@@ -1159,7 +1133,7 @@ func (a *API) records(w http.ResponseWriter, r *http.Request) {
 	respond(w, 200, records)
 }
 func (a *API) putRecord(w http.ResponseWriter, r *http.Request) {
-	p, z, ok := a.zone(w, r, true)
+	p, z, ok := a.zone(w, r)
 	if !ok {
 		return
 	}
@@ -1181,7 +1155,7 @@ func (a *API) putRecord(w http.ResponseWriter, r *http.Request) {
 	respond(w, 200, record)
 }
 func (a *API) deleteRecord(w http.ResponseWriter, r *http.Request) {
-	p, z, ok := a.zone(w, r, true)
+	p, z, ok := a.zone(w, r)
 	if !ok {
 		return
 	}
@@ -1208,6 +1182,10 @@ func (a *API) syncDomain(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if v.Kind != "route" {
+		fail(w, 400, "Route required")
+		return
+	}
 	var in struct {
 		Mode string `json:"mode"`
 	}
@@ -1217,6 +1195,15 @@ func (a *API) syncDomain(w http.ResponseWriter, r *http.Request) {
 	if in.Mode != "" && in.Mode != "adopt" && in.Mode != "replace" {
 		fail(w, 400, "Invalid DNS reconciliation mode")
 		return
+	}
+	if in.Mode == "replace" && !a.admin(w, r) {
+		return
+	}
+	if !user(r).Admin {
+		if err := a.Store.RequireRouteZoneAccess(r.Context(), v); err != nil {
+			a.err(w, err)
+			return
+		}
 	}
 	e := a.Store.Enqueue(r.Context(), "domain", v.ID, uuid.NewString(), in)
 	if e != nil {

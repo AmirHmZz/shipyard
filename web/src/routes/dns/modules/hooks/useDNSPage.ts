@@ -20,7 +20,10 @@ export function useDNSPage() {
       .toLowerCase()
       .includes(filter.toLowerCase()),
   );
-  const tab = params.get("tab") === "certificates" ? "certificates" : "records";
+  const tab =
+    !account?.admin || params.get("tab") === "certificates"
+      ? "certificates"
+      : "records";
   const breadcrumbs = zone
     ? [
         { label: "DNS & domains", to: "/dns" },

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"shipyard/internal/model"
-	"strings"
 )
 
 func (c *Controller) DisablePreviews(ctx context.Context, app string) error {
@@ -64,11 +63,13 @@ func (c *Controller) ValidatePreviewDomain(ctx context.Context, id, team string,
 	if e != nil {
 		return e
 	}
-	if !domainWithin(d, z.Domain) {
+	if zone.Kind != "zone" || !model.HostnameWithinZone(d, z.Domain) {
 		return fmt.Errorf("preview wildcard does not belong to the selected zone")
 	}
 	var used bool
-	e = c.Store.Pool.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM resources WHERE kind='application' AND id<>$1 AND COALESCE(data->>'previewOf','')='' AND data->>'previewDomain'=$2)", id, d).Scan(&used)
+	e = c.Store.Pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM resources WHERE kind='application' AND id<>$1
+		AND COALESCE(data->>'previewOf','')='' AND data->>'previewDomain'=$2 AND data->>'previews'='true'
+		AND data->'previewRouting'->>'mode' IS DISTINCT FROM 'private')`, id, d).Scan(&used)
 	if e != nil {
 		return e
 	}
@@ -76,7 +77,4 @@ func (c *Controller) ValidatePreviewDomain(ctx context.Context, id, team string,
 		return fmt.Errorf("preview wildcard is already assigned to another application")
 	}
 	return nil
-}
-func domainWithin(domain, zone string) bool {
-	return domain == zone || strings.HasSuffix(domain, "."+zone)
 }

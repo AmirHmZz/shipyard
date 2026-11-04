@@ -35,4 +35,7 @@ export const branchKeys = {
 };
 export const grantKeys = {
   resource: (resourceId: string) => ["grants", resourceId] as const,
+  zone: (zoneId: string) => ["zone-grants", zoneId] as const,
+  applications: ["application-domain-access"] as const,
+  application: (appId: string) => ["application-domain-access", appId] as const,
 };

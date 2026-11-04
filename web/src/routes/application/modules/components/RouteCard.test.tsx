@@ -49,9 +49,9 @@ it("shows real ready states and DNS conflict actions", async () => {
     .mockResolvedValueOnce(new Response(JSON.stringify(conflict)));
   vi.stubGlobal("fetch", fetch);
   const client = createTestClient();
-  render(
+  const { rerender } = render(
     <TooltipProvider>
-      <RouteCard route={route} />
+      <RouteCard route={route} canReplaceDNSRecords />
     </TooltipProvider>,
     renderWithClient(client),
   );
@@ -69,6 +69,14 @@ it("shows real ready states and DNS conflict actions", async () => {
   expect(
     screen.getByRole("button", { name: "Replace conflicting records" }),
   ).toBeDefined();
+  rerender(
+    <TooltipProvider>
+      <RouteCard route={route} canReplaceDNSRecords={false} />
+    </TooltipProvider>,
+  );
+  expect(
+    screen.queryByRole("button", { name: "Replace conflicting records" }),
+  ).toBeNull();
   client.clear();
 });
 
@@ -87,7 +95,7 @@ it("shows query errors, retries reads, and identifies stale status", async () =>
   const client = createTestClient();
   render(
     <TooltipProvider>
-      <RouteCard route={route} />
+      <RouteCard route={route} canReplaceDNSRecords={false} />
     </TooltipProvider>,
     renderWithClient(client),
   );

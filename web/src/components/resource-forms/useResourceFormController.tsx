@@ -16,8 +16,9 @@ import {
   useTestDNSCredentials,
   useProbeServerFingerprint,
 } from "@/lib/hooks";
+import { useApplicationDomainAccess } from "@/lib/hooks/useApplicationDomainAccess";
 import { parents } from "@/lib/resource-form-definitions";
-import { routeHostnameSchema } from "@/lib/route-hostname";
+import { relativeHostname, routeHostnameSchema } from "@/lib/route-hostname";
 import { previewApplicationRoutingSchema } from "@/lib/schemas/application";
 import { dnsCredentialSchema } from "@/lib/schemas/dns";
 import { serverFingerprintFormSchema } from "@/lib/schemas/endpoint-responses";
@@ -36,6 +37,42 @@ export type ResourceFormProps = {
 export type ResourceFormControllerProps = ResourceFormProps & {
   kind: ResourceKind;
 };
+
+function routeSubdomainDraft(value: unknown, original: unknown, zone?: string) {
+  const hostname = String(value || "");
+  return zone && hostname === original
+    ? relativeHostname(hostname, zone)
+    : hostname;
+}
+
+function prepareRouteForSave(
+  data: Record<string, unknown>,
+  relative: string,
+  zone: string,
+): boolean {
+  if (data.protocol === "https") {
+    const rules = rateLimitsSchema.safeParse(data.rateLimits);
+    if (!rules.success) {
+      toastValidationError(rules.error);
+      return false;
+    }
+    data.rateLimits = rules.data;
+  } else {
+    delete data.rateLimits;
+  }
+  delete data.backendTls;
+  delete data.backendServerName;
+  delete data.redirect;
+  if (data.protocol !== "tcp") data.tls = "terminate";
+  const hostname = routeHostnameSchema.safeParse({ relative, zone });
+  if (!hostname.success) {
+    toastValidationError(hostname.error);
+    return false;
+  }
+  data.domain = hostname.data;
+  return true;
+}
+
 export function useResourceFormController({
   kind,
   resources,
@@ -56,6 +93,17 @@ export function useResourceFormController({
   );
   const { name, parent, project, team, data, secrets, version, composeYAML } =
     formState;
+  const domainAccess = useApplicationDomainAccess(
+    kind === "route" ? parent : "",
+  );
+  const routeZone = domainAccess.data?.find(
+    (zone) => zone.zoneId === data.zoneId,
+  );
+  const routeSubdomain = routeSubdomainDraft(
+    data.domain,
+    existing?.data.domain,
+    routeZone?.domain,
+  );
   function setName(value: string) {
     dispatch({ type: "name_changed", value });
   }
@@ -180,49 +228,11 @@ export function useResourceFormController({
         return;
       }
     }
-    if (kind === "route") {
-      if (resolved.protocol === "https") {
-        const rules = rateLimitsSchema.safeParse(resolved.rateLimits);
-        if (!rules.success) {
-          toastValidationError(rules.error);
-          return;
-        }
-        resolved.rateLimits = rules.data;
-      } else {
-        delete resolved.rateLimits;
-      }
-      delete resolved.backendTls;
-      delete resolved.backendServerName;
-      delete resolved.redirect;
-      if (resolved.protocol !== "tcp") resolved.tls = "terminate";
-      const zoneId = z
-        .string()
-        .check(
-          z.refine(
-            (value) =>
-              resources.some(
-                (resource) => resource.kind === "zone" && resource.id === value,
-              ),
-            "Select a connected zone",
-          ),
-        )
-        .safeParse(resolved.zoneId);
-      if (!zoneId.success) {
-        toastValidationError(zoneId.error);
-        return;
-      }
-      const zone = resources.find((resource) => resource.id === zoneId.data);
-      if (!zone) return;
-      const hostname = routeHostnameSchema.safeParse({
-        relative: String(resolved.domain || ""),
-        zone: String(zone.data.domain),
-      });
-      if (!hostname.success) {
-        toastValidationError(hostname.error);
-        return;
-      }
-      resolved.domain = hostname.data;
-    }
+    if (
+      kind === "route" &&
+      !prepareRouteForSave(resolved, routeSubdomain, routeZone?.domain ?? "")
+    )
+      return;
     if (kind === "application") {
       const routing = previewApplicationRoutingSchema(
         resources.some(
@@ -322,6 +332,9 @@ export function useResourceFormController({
       repository,
       needsDNSTest,
       needsComposeDocument,
+      domainAccess,
+      routeZone,
+      routeSubdomain,
     },
   };
 }

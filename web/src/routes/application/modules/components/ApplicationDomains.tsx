@@ -7,6 +7,7 @@ import type { Resource } from "@/lib/api/types";
 import { Empty } from "@/components/Shared";
 import { Button } from "@/components/ui/button";
 import { TabsContent } from "@/components/ui/tabs";
+import { useAdmin } from "@/lib/session";
 
 import { RouteCard } from "./RouteCard";
 
@@ -22,6 +23,7 @@ export function ApplicationDomains({
   openEditor,
   setConfirmAction,
 }: ApplicationDomainsProps) {
+  const admin = useAdmin();
   function handleRouteAction(event: MouseEvent<HTMLDivElement>) {
     if (!(event.target instanceof Element)) return;
     const button = event.target.closest<HTMLButtonElement>(
@@ -53,6 +55,7 @@ export function ApplicationDomains({
             <RouteCard
               key={route.id}
               route={{ ...route, canWrite: route.canWrite && app.canWrite }}
+              canReplaceDNSRecords={admin}
             />
           ))
         ) : (

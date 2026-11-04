@@ -8,6 +8,7 @@ import type { useConfigurationPage } from "../hooks";
 
 import { GitConnection } from "./GitConnection";
 import { HAProxySettings } from "./HAProxySettings";
+import { ZoneGrants } from "./ZoneGrants";
 
 export type ConfigurationContentProps = {
   controller: ReturnType<typeof useConfigurationPage>;
@@ -57,7 +58,11 @@ export function ConfigurationContent({
           title={`${resource.name} access`}
           description="Manage the teams that can use this resource."
         />
-        <Grants resource={resource} resources={resources} />
+        {resource.kind === "zone" ? (
+          <ZoneGrants key={resource.id} zone={resource} resources={resources} />
+        ) : (
+          <Grants resource={resource} resources={resources} />
+        )}
       </div>
     );
   return (

@@ -404,7 +404,7 @@ func Validate(r ResourceInput) error {
 		if e = ValidateNetworking(v); e != nil {
 			return e
 		}
-		if v.Previews && (v.PreviewRouting == nil || v.PreviewRouting.Mode != "private") {
+		if v.UsesPublicPreviewDomain() {
 			if d, err := Domain(v.PreviewDomain); err != nil || !strings.HasPrefix(d, "*.") || v.PreviewZoneID == "" {
 				return errors.New("previews require a wildcard domain and connected DNS zone")
 			}
