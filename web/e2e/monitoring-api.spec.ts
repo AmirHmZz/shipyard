@@ -75,7 +75,16 @@ function point() {
     networkTx: null,
     diskRead: null,
     diskWrite: null,
-    containers: [],
+    containers: [
+      {
+        id: "web-one",
+        name: "production-api-worker-with-a-long-container-name",
+        cpu: 12.5,
+        cpuValid: true,
+        memory: 0,
+        memoryBytes: 128 * 1024 ** 2,
+      },
+    ],
   };
 }
 type MonitoringFixture = { admin?: boolean; rejectPolicy?: boolean };
@@ -205,6 +214,19 @@ test("administrator changes history and retries a failed policy save without los
   await expect(
     page.getByRole("heading", { name: "Monitoring", exact: true }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("combobox", { name: "History range" }),
+  ).toHaveText("Last hour");
+  await expect
+    .poll(() => calls.some((call) => call.path.endsWith("/metrics?range=1h")))
+    .toBe(true);
+  await expect(
+    page.getByRole("heading", { name: "Resource utilization" }),
+  ).toBeVisible();
+  const containers = page.getByRole("table", { name: "Current containers" });
+  const worker = containers.getByRole("row", { name: /production-api-worker/ });
+  await expect(worker.getByRole("cell", { name: "12.5%" })).toBeVisible();
+  await expect(worker.getByRole("cell", { name: "128.0 MiB" })).toBeVisible();
   await page.getByRole("combobox", { name: "History range" }).click();
   await page.getByRole("option", { name: "Last 30 days" }).click();
   await expect(page).toHaveURL(/range=30d/);
@@ -264,6 +286,15 @@ test("administrator changes history and retries a failed policy save without los
   ).toBeChecked();
   await expect(cpu).toBeEnabled();
   await expect(cpu).toHaveValue("95");
+  await page.getByRole("tab", { name: "Alert defaults" }).click();
+  await expect(page).toHaveURL(/view=defaults/);
+  await expect(
+    page.getByText("Server defaults", { exact: true }),
+  ).toBeVisible();
+  await page.getByRole("tab", { name: "Resources" }).click();
+  await expect(
+    page.getByRole("combobox", { name: "History range" }),
+  ).toHaveText("Last 30 days");
 });
 test("certificate proxy saves independently and notification tests require an explicit click", async ({
   page,

@@ -8,9 +8,9 @@ export function useMonitoringPage() {
   const query = useMonitoringResources();
   const [params, setParams] = useSearchParams();
   const type = params.get("type") || "all";
-  const view = params.get("view") || "resources";
-  const parsed = monitoringRangeSchema.safeParse(params.get("range") || "24h");
-  const range = parsed.success ? parsed.data : "24h";
+  const view = params.get("view") === "defaults" ? "defaults" : "resources";
+  const parsed = monitoringRangeSchema.safeParse(params.get("range"));
+  const range = parsed.success ? parsed.data : "1h";
   const resources = (query.data || []).filter(
     (r) => type === "all" || r.kind === type,
   );
