@@ -43,6 +43,24 @@ func TestLinuxServiceLimitsAndPeriodicRestart(t *testing.T) {
 		}
 		return strings.TrimSpace(out)
 	}
+	// CI starts with an empty Docker daemon. Local offline runs can supply an
+	// image archive; otherwise prepare the image here rather than relying on
+	// another test package to pull it first.
+	if _, err = Output(ctx, node, "docker", "image", "inspect", "busybox:1.37.0"); err != nil {
+		if archive := os.Getenv("SHIPYARD_FIXTURE_IMAGE_ARCHIVE"); archive != "" {
+			file, err := os.Open(archive)
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = node.Run(ctx, remote.Command("docker", "load"), file, nil)
+			file.Close()
+			if err != nil {
+				t.Fatal(err)
+			}
+		} else {
+			run("docker", "pull", "busybox:1.37.0")
+		}
+	}
 	cpu := 0.5
 	memory := int64(64 * 1024 * 1024)
 	r := model.Release{ID: uuid.NewString(), AppID: uuid.NewString(), App: model.App{Engine: "compose"}, Images: map[string]string{}, Env: map[string]string{}}
