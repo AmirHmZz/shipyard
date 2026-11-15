@@ -253,6 +253,12 @@ func (c *Controller) Action(ctx context.Context, app model.Resource, action stri
 		return e
 	}
 	defer lock.Exec(context.WithoutCancel(ctx), "SELECT pg_advisory_unlock(hashtextextended($1,0))", key)
+	return c.actionLocked(ctx, app, action, true)
+}
+
+// actionLocked shares execution with durable automation workers holding the app lock.
+func (c *Controller) actionLocked(ctx context.Context, app model.Resource, action string, manual bool, expected ...db.AutomationAction) error {
+	var e error
 	current, err := c.Store.Resource(ctx, app.ID)
 	if err != nil {
 		return err
@@ -272,7 +278,12 @@ func (c *Controller) Action(ctx context.Context, app model.Resource, action stri
 		return e
 	}
 	if action == "start" {
-		if e = c.resumeApplication(ctx, app.ID); e != nil {
+		if e = c.resumeApplication(ctx, app.ID, manual, expected...); e != nil {
+			return e
+		}
+	}
+	if manual && action == "restart" {
+		if _, e = c.Store.Pool.Exec(ctx, "INSERT INTO application_control(app_id,automation_generation,automation_manual_at) VALUES($1,1,now()) ON CONFLICT(app_id) DO UPDATE SET automation_generation=application_control.automation_generation+1,automation_manual_at=now(),updated_at=now()", app.ID); e != nil {
 			return e
 		}
 	}

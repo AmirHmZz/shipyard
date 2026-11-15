@@ -1,12 +1,15 @@
-import type { MouseEvent } from "react";
+import type { ChangeEvent, MouseEvent } from "react";
 
 import { useState } from "react";
 
+import { canDeleteJobRun } from "../generics/automation";
 import { useCancelJobRun } from "./useCancelJobRun";
 import { useJobRun } from "./useJobRun";
 import { useJobRuns } from "./useJobRuns";
 import { useStartJobRun } from "./useStartJobRun";
 export function useJobRunsPage(id: string) {
+  const [checked, setChecked] = useState<string[]>([]);
+  const [deleting, setDeleting] = useState<string[]>([]);
   const [cursor, setCursor] = useState("");
   const [selected, setSelected] = useState("");
   const runs = useJobRuns(id, cursor);
@@ -36,6 +39,38 @@ export function useJobRunsPage(id: string) {
     const run = event.currentTarget.dataset.run;
     if (run) cancel.mutate(run);
   }
+  function toggleRun(event: ChangeEvent<HTMLInputElement>) {
+    const id = event.currentTarget.dataset.run;
+    if (id)
+      setChecked((previous) =>
+        previous.includes(id)
+          ? previous.filter((run) => run !== id)
+          : [...previous, id],
+      );
+  }
+  const eligible = (runs.data?.items || [])
+    .filter(canDeleteJobRun)
+    .map((run) => run.id);
+  const checkedVisible = checked.filter((id) => eligible.includes(id));
+  function toggleAll() {
+    setChecked(checkedVisible.length === eligible.length ? [] : eligible);
+  }
+  function deleteRun(event: MouseEvent<HTMLButtonElement>) {
+    const id = event.currentTarget.dataset.run;
+    if (id) setDeleting([id]);
+  }
+  function deleteSelected() {
+    setDeleting(checkedVisible);
+  }
+  function closeDelete() {
+    setDeleting([]);
+  }
+  function deleted() {
+    setDeleting([]);
+    setChecked([]);
+    setSelected("");
+    setCursor("");
+  }
   function nextPage() {
     setCursor(runs.data?.nextCursor || "");
   }
@@ -43,6 +78,15 @@ export function useJobRunsPage(id: string) {
     setCursor("");
   }
   return {
+    checkedVisible,
+    eligible,
+    toggleRun,
+    toggleAll,
+    deleteRun,
+    deleteSelected,
+    deleting,
+    closeDelete,
+    deleted,
     runs,
     detail,
     selected,

@@ -277,7 +277,7 @@ func (c *Controller) Run(ctx context.Context) {
 		wg.Add(1)
 		go func() { defer wg.Done(); c.controlNetworkLoop(ctx) }()
 	}
-	ops := []string{"application-stop", "git-event", "domain", "proxy", "proxy-settings", "provision", "prune", "notify", "preview-cleanup", "drain", "resource-delete", "server-delete", "deployment-delete", "network-create", "network-delete", "dashboard-apply", "dashboard-retire"}
+	ops := []string{"application-automation", "application-restart", "application-stop", "git-event", "domain", "proxy", "proxy-settings", "provision", "prune", "notify", "preview-cleanup", "drain", "resource-delete", "server-delete", "deployment-delete", "network-create", "network-delete", "dashboard-apply", "dashboard-retire"}
 	// Long builds and DNS challenges cannot monopolize metric sampling or all
 	// operational workers. Every lane still uses the same durable job leases.
 	for _, kinds := range [][]string{{"deploy"}, {"deploy"}, ops, ops, {"metrics"}, {"job-reconcile"}, {"job-reconcile"}} {
@@ -288,6 +288,8 @@ func (c *Controller) Run(ctx context.Context) {
 	go func() { defer wg.Done(); c.scheduler(ctx) }()
 	wg.Add(1)
 	go func() { defer wg.Done(); c.jobScheduler(ctx) }()
+	wg.Add(1)
+	go func() { defer wg.Done(); c.automationScheduler(ctx) }()
 	<-ctx.Done()
 	wg.Wait()
 }
@@ -404,6 +406,12 @@ func (c *Controller) runJob(parent context.Context, j model.Job, worker string) 
 		e = json.Unmarshal(j.Payload, &p)
 		if e == nil {
 			e = c.reconcileJob(ctx, j.ResourceID, p.RunID)
+		}
+	case "application-automation", "application-restart":
+		var action db.AutomationAction
+		e = json.Unmarshal(j.Payload, &action)
+		if e == nil {
+			e = c.runAutomation(ctx, j.ResourceID, action)
 		}
 	case "application-stop":
 		var p struct {

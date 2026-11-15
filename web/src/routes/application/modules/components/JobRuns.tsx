@@ -12,13 +12,24 @@ import {
   TableCell,
 } from "@/components/ui/table";
 
+import { canDeleteJobRun } from "../generics/automation";
 import { activeJobRun } from "../generics/jobs";
 import { useJobRunsPage } from "../hooks/useJobRunsPage";
+import { DeleteJobRuns } from "./DeleteJobRuns";
 import { LogStream } from "./Streams";
 export type JobRunsProps = { app: Resource; prepared: boolean };
 export function JobRuns({ app, prepared }: JobRunsProps) {
   const page = useJobRunsPage(app.id);
   const {
+    checkedVisible,
+    eligible,
+    toggleRun,
+    toggleAll,
+    deleteRun,
+    deleteSelected,
+    deleting,
+    closeDelete,
+    deleted,
     runs,
     detail,
     selected,
@@ -37,12 +48,27 @@ export function JobRuns({ app, prepared }: JobRunsProps) {
   if (runs.error) return <ErrorState error={runs.error} />;
   return (
     <div className="flex flex-col gap-5">
+      {deleting.length > 0 && (
+        <DeleteJobRuns
+          appId={app.id}
+          ids={deleting}
+          onClose={closeDelete}
+          onDeleted={deleted}
+        />
+      )}
       <div className="flex flex-wrap items-center gap-3">
         <Button
           onClick={runNow}
           disabled={!app.canWrite || !prepared || !!active || start.isPending}
         >
           Run now
+        </Button>
+        <Button
+          variant="outline"
+          onClick={deleteSelected}
+          disabled={!app.canWrite || !checkedVisible.length}
+        >
+          Delete selected ({checkedVisible.length})
         </Button>
         <span className="text-sm text-muted-foreground">
           Uses the latest deployed release. One active run at a time.
@@ -65,6 +91,18 @@ export function JobRuns({ app, prepared }: JobRunsProps) {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>
+                    <input
+                      type="checkbox"
+                      aria-label="Select all finished runs on this page"
+                      checked={
+                        eligible.length > 0 &&
+                        checkedVisible.length === eligible.length
+                      }
+                      onChange={toggleAll}
+                      disabled={!app.canWrite || !eligible.length}
+                    />
+                  </TableHead>
                   <TableHead>Started</TableHead>
                   <TableHead>Trigger</TableHead>
                   <TableHead>Result</TableHead>
@@ -75,6 +113,16 @@ export function JobRuns({ app, prepared }: JobRunsProps) {
                 {runs.data.items.map(function row(run) {
                   return (
                     <TableRow key={run.id} data-run={run.id}>
+                      <TableCell>
+                        <input
+                          type="checkbox"
+                          aria-label={`Select run ${run.id}`}
+                          data-run={run.id}
+                          checked={checkedVisible.includes(run.id)}
+                          onChange={toggleRun}
+                          disabled={!app.canWrite || !canDeleteJobRun(run)}
+                        />
+                      </TableCell>
                       <TableCell>
                         {new Date(run.createdAt).toLocaleString()}
                       </TableCell>
@@ -87,6 +135,17 @@ export function JobRuns({ app, prepared }: JobRunsProps) {
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-2">
+                          {canDeleteJobRun(run) && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              data-run={run.id}
+                              onClick={deleteRun}
+                              disabled={!app.canWrite}
+                            >
+                              Delete run
+                            </Button>
+                          )}
                           <Button
                             variant="outline"
                             size="sm"

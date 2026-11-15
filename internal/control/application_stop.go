@@ -19,6 +19,9 @@ var ErrApplicationStopped = db.ErrApplicationStopped
 var ErrAutoDeployPaused = errors.New("automatic deployments are paused while the application is stopped")
 
 func prepareApplicationControl(ctx context.Context, tx pgx.Tx, app string, manual bool) (int64, error) {
+	return prepareApplicationControlFenced(ctx, tx, app, manual, manual)
+}
+func prepareApplicationControlFenced(ctx context.Context, tx pgx.Tx, app string, manual, fence bool) (int64, error) {
 	if _, err := tx.Exec(ctx, "INSERT INTO application_control(app_id) VALUES($1) ON CONFLICT DO NOTHING", app); err != nil {
 		return 0, err
 	}
@@ -37,6 +40,11 @@ func prepareApplicationControl(ctx context.Context, tx pgx.Tx, app string, manua
 		return 0, ErrAutoDeployPaused
 	}
 	if manual {
+		if fence {
+			if _, err := tx.Exec(ctx, "UPDATE application_control SET automation_generation=automation_generation+1,automation_manual_at=now() WHERE app_id=$1", app); err != nil {
+				return 0, err
+			}
+		}
 		if desired == "stopped" {
 			generation++
 		}
@@ -50,6 +58,9 @@ func prepareApplicationControl(ctx context.Context, tx pgx.Tx, app string, manua
 // Stop intent deliberately does not wait for the execution advisory lock. The
 // worker holding that lock observes the durable generation and releases it.
 func (c *Controller) QueueStop(ctx context.Context, app model.Resource) error {
+	return c.queueStop(ctx, app, true)
+}
+func (c *Controller) queueStop(ctx context.Context, app model.Resource, manual bool, expected ...db.AutomationAction) error {
 	if app.Kind != "application" {
 		return errors.New("application required")
 	}
@@ -80,7 +91,22 @@ func (c *Controller) QueueStop(ctx context.Context, app model.Resource) error {
 		return err
 	}
 	if status == "stopping" || status == "stopped" {
+		if manual {
+			if _, err = tx.Exec(ctx, "UPDATE application_control SET automation_generation=automation_generation+1,automation_manual_at=now(),updated_at=now() WHERE app_id=$1", app.ID); err != nil {
+				return err
+			}
+		}
 		return tx.Commit(ctx)
+	}
+	if len(expected) > 0 {
+		if err = automationFence(ctx, tx, app.ID, expected[0]); err != nil {
+			return err
+		}
+	}
+	if manual {
+		if _, err = tx.Exec(ctx, "UPDATE application_control SET automation_generation=automation_generation+1,automation_manual_at=now() WHERE app_id=$1", app.ID); err != nil {
+			return err
+		}
 	}
 	generation++
 	if _, err = tx.Exec(ctx, "UPDATE application_control SET desired_state='stopped',generation=$2,status='stopping',error='',updated_at=now() WHERE app_id=$1", app.ID, generation); err != nil {
@@ -266,7 +292,7 @@ func (c *Controller) stopApplicationServer(ctx context.Context, appID, server st
 }
 
 // resumeApplication is called while the application execution lock is held.
-func (c *Controller) resumeApplication(ctx context.Context, appID string) error {
+func (c *Controller) resumeApplication(ctx context.Context, appID string, manual bool, expected ...db.AutomationAction) error {
 	tx, err := c.Store.Pool.Begin(ctx)
 	if err != nil {
 		return err
@@ -275,7 +301,12 @@ func (c *Controller) resumeApplication(ctx context.Context, appID string) error 
 	if _, err = tx.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended('resource-tree',0))"); err != nil {
 		return err
 	}
-	if _, err = prepareApplicationControl(ctx, tx, appID, true); err != nil {
+	if len(expected) > 0 {
+		if err = automationFence(ctx, tx, appID, expected[0]); err != nil {
+			return err
+		}
+	}
+	if _, err = prepareApplicationControlFenced(ctx, tx, appID, true, manual); err != nil {
 		return err
 	}
 	return tx.Commit(ctx)

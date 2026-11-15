@@ -115,6 +115,24 @@ func TestJobAPIPermissionsVersionsIdempotencyAndReplay(t *testing.T) {
 	if code, body = request("GET", "/runs/"+run.ID+"/events", "", viewer, "", cursor); code != 200 || strings.Contains(body, `"message":"first"`) || !strings.Contains(body, `"message":"second"`) {
 		t.Fatal(code, body)
 	}
+	if code, _ := request("DELETE", "/runs/"+run.ID, "", viewer, "csrf", ""); code != 403 {
+		t.Fatal("viewer deleted history", code)
+	}
+	if code, _ := request("DELETE", "/runs/"+run.ID, "", operator, "", ""); code != 403 {
+		t.Fatal("deletion without CSRF", code)
+	}
+	if code, body = request("POST", "/runs/delete", `{"ids":["`+run.ID+`","foreign-run"]}`, operator, "csrf", ""); code != 404 {
+		t.Fatal("bulk accepted foreign run", code, body)
+	}
+	if code, body = request("GET", "/runs/"+run.ID, "", viewer, "", ""); code != 200 {
+		t.Fatal("failed bulk deletion changed history", code, body)
+	}
+	if code, body = request("DELETE", "/runs/"+run.ID, "", operator, "csrf", ""); code != 200 {
+		t.Fatal(code, body)
+	}
+	if code, _ := request("GET", "/runs/"+run.ID, "", viewer, "", ""); code != 404 {
+		t.Fatal("deleted history still accessible", code)
+	}
 	// Cancellation remains usable while maintenance prevents new work.
 	next, err := a.Store.QueueJobRun(ctx, app.ID, "operator", "next")
 	if err != nil {

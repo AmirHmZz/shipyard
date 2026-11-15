@@ -25,6 +25,10 @@ func hostnameGrantFixtures(t *testing.T, s *Store) {
 func TestHostnameGrantsMigration(t *testing.T) {
 	ctx := context.Background()
 	s := testStore(t)
+	// Remove later destructive migrations before exercising schema 10 downgrade policy.
+	if err := ApplyMigrations(ctx, s.Pool, 10, true); err != nil {
+		t.Fatal(err)
+	}
 	if err := ApplyMigrations(ctx, s.Pool, 9, false); err != nil {
 		t.Fatal(err)
 	}

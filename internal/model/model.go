@@ -124,15 +124,16 @@ type App struct {
 	PreviewZoneID   string                       `json:"previewZoneId,omitempty"`
 	Networking      map[string]ServiceNetworking `json:"networking,omitempty"`
 	PublishedPorts  map[string][]PublishedPort   `json:"publishedPorts,omitempty"`
+	ResourceLimits  map[string]ServiceLimits     `json:"resourceLimits,omitempty"`
 }
 type Route struct {
-	Protocol   string `json:"protocol"`
-	Domain     string `json:"domain"`
-	Service    string `json:"service"`
-	TargetPort int    `json:"targetPort"`
-	ListenPort int    `json:"listenPort"`
-	TLS        string `json:"tls"`
-	ZoneID     string `json:"zoneId"`
+	Protocol   string      `json:"protocol"`
+	Domain     string      `json:"domain"`
+	Service    string      `json:"service"`
+	TargetPort int         `json:"targetPort"`
+	ListenPort int         `json:"listenPort"`
+	TLS        string      `json:"tls"`
+	ZoneID     string      `json:"zoneId"`
 	RateLimits []RateLimit `json:"rateLimits,omitempty"`
 }
 type Webhook struct {
@@ -393,6 +394,9 @@ func Validate(r ResourceInput) error {
 		}
 		v, e := Decode[App](x)
 		if e != nil {
+			return e
+		}
+		if e = ValidateResourceLimits(v.ResourceLimits); e != nil {
 			return e
 		}
 		if e = ValidateJobApplication(v); e != nil {

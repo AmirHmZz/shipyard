@@ -334,6 +334,18 @@ func (e *Engine) Build(ctx context.Context, r *model.Release, registries map[str
 		r.Compose = string(resolved)
 		_ = e.command(context.WithoutCancel(ctx), "rm", "-f", r.Directory+"/build.json")
 	}
+	var cfg map[string]any
+	if err := json.Unmarshal([]byte(r.Compose), &cfg); err != nil {
+		return err
+	}
+	if err := ApplyResourceLimits(cfg, r.App.ResourceLimits); err != nil {
+		return err
+	}
+	resolved, err := json.Marshal(cfg)
+	if err != nil {
+		return err
+	}
+	r.Compose = string(resolved)
 	return nil
 }
 func portsFor(r model.Release, service string) []int {
@@ -443,6 +455,7 @@ type container struct {
 	ID           string
 	Config       struct{ Labels map[string]string }
 	State        struct {
+		StartedAt string
 		OOMKilled bool
 		Error     string
 		Status    string

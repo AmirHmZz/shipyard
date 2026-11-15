@@ -85,8 +85,12 @@ func (a *API) jobRuns(w http.ResponseWriter, r *http.Request) {
 		if len(rows) == 50 {
 			next = rows[len(rows)-1].ID
 		}
-		active,err:=a.Store.ActiveJobRun(r.Context(),app.ID);if err!=nil { a.err(w,err);return }
-		respond(w, 200, map[string]any{"items": rows, "nextCursor": next,"activeRun":active})
+		active, err := a.Store.ActiveJobRun(r.Context(), app.ID)
+		if err != nil {
+			a.err(w, err)
+			return
+		}
+		respond(w, 200, map[string]any{"items": rows, "nextCursor": next, "activeRun": active})
 		return
 	}
 	var input struct {
@@ -192,4 +196,39 @@ func (a *API) jobRunEvents(w http.ResponseWriter, r *http.Request) {
 		case <-tick.C:
 		}
 	}
+}
+
+func (a *API) deleteJobRuns(w http.ResponseWriter, r *http.Request) {
+	app, ok := a.jobApplication(w, r, true)
+	if !ok {
+		return
+	}
+	ids := []string{chi.URLParam(r, "runId")}
+	if r.Method == "POST" {
+		var input struct {
+			IDs []string `json:"ids"`
+		}
+		if !decode(w, r, &input) {
+			return
+		}
+		ids = input.IDs
+	}
+	if len(ids) == 0 || len(ids) > 50 {
+		fail(w, 422, "select between one and 50 runs")
+		return
+	}
+	seen := map[string]bool{}
+	for _, id := range ids {
+		if id == "" || seen[id] {
+			fail(w, 422, "select unique run IDs")
+			return
+		}
+		seen[id] = true
+	}
+	if err := a.Store.DeleteJobRuns(r.Context(), app.ID, ids); err != nil {
+		a.err(w, err)
+		return
+	}
+	_ = a.Store.Audit(r.Context(), user(r).ID, "job.runs_deleted", app.ID, app.TeamID, map[string]any{"runIds": ids})
+	respond(w, 200, map[string]bool{"ok": true})
 }

@@ -43,6 +43,10 @@ export function ApplicationTabList({
                 { value: "schedule", icon: Clock },
               ]
             : [{ value: "domains", icon: Globe2 }]),
+          { value: "resources", icon: SlidersHorizontal },
+          ...(app.data.workload !== "job" && !app.data.previewOf
+            ? [{ value: "automation", icon: Clock }]
+            : []),
           { value: "variables", icon: SlidersHorizontal },
           { value: "networking", icon: Network },
           { value: "volumes", icon: HardDrive },

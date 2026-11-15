@@ -684,6 +684,74 @@ schemas.NotificationDelivery = object({
   at: nullable(str),
 });
 
+schemas.ServiceLimits = input(
+  {
+    cpus: { type: "number", minimum: 0.001, maximum: 1000000 },
+    memoryBytes: {
+      type: "integer",
+      minimum: 6291456,
+      maximum: 9007199254740991,
+    },
+  },
+  [],
+);
+const limitMap = { type: "object", additionalProperties: ref("ServiceLimits") };
+schemas.ResourceLimitsInput = input({
+  version: { type: "integer" },
+  services: limitMap,
+});
+schemas.ResourceLimits = object({
+  version: { type: "integer" },
+  services: limitMap,
+  applied: limitMap,
+  pending: bool,
+});
+schemas.RestartPolicy = input({
+  service: str,
+  enabled: bool,
+  intervalSeconds: { type: "integer", minimum: 60, maximum: 31536000 },
+});
+schemas.AutomationRule = input({
+  id: str,
+  enabled: bool,
+  action: { type: "string", enum: ["start", "stop"] },
+  cron: str,
+  timezone: str,
+});
+schemas.AutomationInput = input({
+  version: { type: "integer", minimum: 0 },
+  restarts: { type: "array", maxItems: 100, items: ref("RestartPolicy") },
+  rules: { type: "array", maxItems: 100, items: ref("AutomationRule") },
+});
+schemas.RestartStatus = object({
+  service: str,
+  container: str,
+  nextDue: nullable(str),
+  state: str,
+});
+schemas.Automation = object({
+  ...schemas.AutomationInput.properties,
+  lastAction: str,
+  lastAt: nullable(str),
+  lastResult: str,
+  lastError: str,
+  restartStatus: { type: "array", items: ref("RestartStatus") },
+  upcoming: {
+    type: "object",
+    additionalProperties: { type: "array", items: str },
+  },
+});
+schemas.SchedulePreview = object({ upcoming: { type: "array", items: str } });
+schemas.DeleteJobRunsInput = input({
+  ids: {
+    type: "array",
+    minItems: 1,
+    maxItems: 50,
+    uniqueItems: true,
+    items: str,
+  },
+});
+
 const paths = {};
 schemas.BuildInfo = object({
   version: str,
@@ -1463,6 +1531,58 @@ add(
   "get",
   "Application status, including stopping/stopped/stop_failed without an active release",
   ref("ApplicationRuntime"),
+);
+add(
+  "/applications/{id}/automation",
+  "get",
+  "Read service automation settings and latest status",
+  ref("Automation"),
+);
+add(
+  "/applications/{id}/automation",
+  "put",
+  "Save service restart intervals and application schedules",
+  ref("Automation"),
+  ref("AutomationInput"),
+);
+add(
+  "/applications/{id}/automation/preview",
+  "get",
+  "Preview a five-field cron rule in an IANA timezone",
+  ref("SchedulePreview"),
+);
+for (const name of ["cron", "timezone"])
+  paths["/applications/{id}/automation/preview"].get.parameters.push({
+    name,
+    in: "query",
+    required: true,
+    schema: str,
+  });
+add(
+  "/applications/{id}/resource-limits",
+  "get",
+  "Read saved and applied per-container CPU and RAM limits",
+  ref("ResourceLimits"),
+);
+add(
+  "/applications/{id}/resource-limits",
+  "put",
+  "Save CPU and RAM limits for the next deployment",
+  ref("ResourceLimits"),
+  ref("ResourceLimitsInput"),
+);
+add(
+  "/applications/{id}/runs/{runId}",
+  "delete",
+  "Delete a finished run and its logs after cleanup",
+  object({ ok: bool }),
+);
+add(
+  "/applications/{id}/runs/delete",
+  "post",
+  "Atomically delete up to fifty finished runs",
+  object({ ok: bool }),
+  ref("DeleteJobRunsInput"),
 );
 add(
   "/applications/{id}/job-settings",

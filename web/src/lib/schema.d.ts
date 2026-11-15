@@ -4065,6 +4065,379 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/applications/{id}/automation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read service automation settings and latest status */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Automation"];
+                    };
+                };
+                400: components["responses"]["Error"];
+                401: components["responses"]["Error"];
+                403: components["responses"]["Error"];
+                404: components["responses"]["Error"];
+                409: components["responses"]["Error"];
+                413: components["responses"]["Error"];
+                415: components["responses"]["Error"];
+                422: components["responses"]["Error"];
+                429: components["responses"]["Error"];
+                500: components["responses"]["Error"];
+                502: components["responses"]["Error"];
+                503: components["responses"]["Error"];
+            };
+        };
+        /** Save service restart intervals and application schedules */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AutomationInput"];
+                };
+            };
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Automation"];
+                    };
+                };
+                400: components["responses"]["Error"];
+                401: components["responses"]["Error"];
+                403: components["responses"]["Error"];
+                404: components["responses"]["Error"];
+                409: components["responses"]["Error"];
+                413: components["responses"]["Error"];
+                415: components["responses"]["Error"];
+                422: components["responses"]["Error"];
+                429: components["responses"]["Error"];
+                500: components["responses"]["Error"];
+                502: components["responses"]["Error"];
+                503: components["responses"]["Error"];
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/applications/{id}/automation/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Preview a five-field cron rule in an IANA timezone */
+        get: {
+            parameters: {
+                query: {
+                    cron: string;
+                    timezone: string;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SchedulePreview"];
+                    };
+                };
+                400: components["responses"]["Error"];
+                401: components["responses"]["Error"];
+                403: components["responses"]["Error"];
+                404: components["responses"]["Error"];
+                409: components["responses"]["Error"];
+                413: components["responses"]["Error"];
+                415: components["responses"]["Error"];
+                422: components["responses"]["Error"];
+                429: components["responses"]["Error"];
+                500: components["responses"]["Error"];
+                502: components["responses"]["Error"];
+                503: components["responses"]["Error"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/applications/{id}/resource-limits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read saved and applied per-container CPU and RAM limits */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ResourceLimits"];
+                    };
+                };
+                400: components["responses"]["Error"];
+                401: components["responses"]["Error"];
+                403: components["responses"]["Error"];
+                404: components["responses"]["Error"];
+                409: components["responses"]["Error"];
+                413: components["responses"]["Error"];
+                415: components["responses"]["Error"];
+                422: components["responses"]["Error"];
+                429: components["responses"]["Error"];
+                500: components["responses"]["Error"];
+                502: components["responses"]["Error"];
+                503: components["responses"]["Error"];
+            };
+        };
+        /** Save CPU and RAM limits for the next deployment */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ResourceLimitsInput"];
+                };
+            };
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ResourceLimits"];
+                    };
+                };
+                400: components["responses"]["Error"];
+                401: components["responses"]["Error"];
+                403: components["responses"]["Error"];
+                404: components["responses"]["Error"];
+                409: components["responses"]["Error"];
+                413: components["responses"]["Error"];
+                415: components["responses"]["Error"];
+                422: components["responses"]["Error"];
+                429: components["responses"]["Error"];
+                500: components["responses"]["Error"];
+                502: components["responses"]["Error"];
+                503: components["responses"]["Error"];
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/applications/{id}/runs/{runId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Job execution and attempt details */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    runId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["JobRun"];
+                    };
+                };
+                400: components["responses"]["Error"];
+                401: components["responses"]["Error"];
+                403: components["responses"]["Error"];
+                404: components["responses"]["Error"];
+                409: components["responses"]["Error"];
+                413: components["responses"]["Error"];
+                415: components["responses"]["Error"];
+                422: components["responses"]["Error"];
+                429: components["responses"]["Error"];
+                500: components["responses"]["Error"];
+                502: components["responses"]["Error"];
+                503: components["responses"]["Error"];
+            };
+        };
+        put?: never;
+        post?: never;
+        /** Delete a finished run and its logs after cleanup */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    runId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            ok: boolean;
+                        };
+                    };
+                };
+                400: components["responses"]["Error"];
+                401: components["responses"]["Error"];
+                403: components["responses"]["Error"];
+                404: components["responses"]["Error"];
+                409: components["responses"]["Error"];
+                413: components["responses"]["Error"];
+                415: components["responses"]["Error"];
+                422: components["responses"]["Error"];
+                429: components["responses"]["Error"];
+                500: components["responses"]["Error"];
+                502: components["responses"]["Error"];
+                503: components["responses"]["Error"];
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/applications/{id}/runs/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Atomically delete up to fifty finished runs */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["DeleteJobRunsInput"];
+                };
+            };
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            ok: boolean;
+                        };
+                    };
+                };
+                400: components["responses"]["Error"];
+                401: components["responses"]["Error"];
+                403: components["responses"]["Error"];
+                404: components["responses"]["Error"];
+                409: components["responses"]["Error"];
+                413: components["responses"]["Error"];
+                415: components["responses"]["Error"];
+                422: components["responses"]["Error"];
+                429: components["responses"]["Error"];
+                500: components["responses"]["Error"];
+                502: components["responses"]["Error"];
+                503: components["responses"]["Error"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/applications/{id}/job-settings": {
         parameters: {
             query?: never;
@@ -4244,57 +4617,6 @@ export interface paths {
                 503: components["responses"]["Error"];
             };
         };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/applications/{id}/runs/{runId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Job execution and attempt details */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                    runId: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Success */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["JobRun"];
-                    };
-                };
-                400: components["responses"]["Error"];
-                401: components["responses"]["Error"];
-                403: components["responses"]["Error"];
-                404: components["responses"]["Error"];
-                409: components["responses"]["Error"];
-                413: components["responses"]["Error"];
-                415: components["responses"]["Error"];
-                422: components["responses"]["Error"];
-                429: components["responses"]["Error"];
-                500: components["responses"]["Error"];
-                502: components["responses"]["Error"];
-                503: components["responses"]["Error"];
-            };
-        };
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -6782,6 +7104,69 @@ export interface components {
             state: string;
             error: string;
             at: string | null;
+        };
+        ServiceLimits: {
+            cpus?: number;
+            memoryBytes?: number;
+        };
+        ResourceLimitsInput: {
+            version: number;
+            services: {
+                [key: string]: components["schemas"]["ServiceLimits"];
+            };
+        };
+        ResourceLimits: {
+            version: number;
+            services: {
+                [key: string]: components["schemas"]["ServiceLimits"];
+            };
+            applied: {
+                [key: string]: components["schemas"]["ServiceLimits"];
+            };
+            pending: boolean;
+        };
+        RestartPolicy: {
+            service: string;
+            enabled: boolean;
+            intervalSeconds: number;
+        };
+        AutomationRule: {
+            id: string;
+            enabled: boolean;
+            /** @enum {string} */
+            action: "start" | "stop";
+            cron: string;
+            timezone: string;
+        };
+        AutomationInput: {
+            version: number;
+            restarts: components["schemas"]["RestartPolicy"][];
+            rules: components["schemas"]["AutomationRule"][];
+        };
+        RestartStatus: {
+            service: string;
+            container: string;
+            nextDue: string | null;
+            state: string;
+        };
+        Automation: {
+            version: number;
+            restarts: components["schemas"]["RestartPolicy"][];
+            rules: components["schemas"]["AutomationRule"][];
+            lastAction: string;
+            lastAt: string | null;
+            lastResult: string;
+            lastError: string;
+            restartStatus: components["schemas"]["RestartStatus"][];
+            upcoming: {
+                [key: string]: string[];
+            };
+        };
+        SchedulePreview: {
+            upcoming: string[];
+        };
+        DeleteJobRunsInput: {
+            ids: string[];
         };
         BuildInfo: {
             version: string;

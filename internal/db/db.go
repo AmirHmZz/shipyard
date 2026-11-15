@@ -260,6 +260,9 @@ func (s *Store) save(ctx context.Context, id string, in model.ResourceInput, che
 		if err != nil {
 			return model.Resource{}, err
 		}
+		if err = model.ValidateResourceLimits(spec.ResourceLimits); err != nil {
+			return model.Resource{}, err
+		}
 		if err = model.ValidateJobApplication(spec); err != nil {
 			return model.Resource{}, err
 		}

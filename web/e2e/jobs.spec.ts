@@ -125,6 +125,18 @@ async function jobFixture(page: Page, canWrite = true) {
         },
       });
     }
+    if (
+      (request.method() === "DELETE" && path.includes("/runs/")) ||
+      path.endsWith("/runs/delete")
+    ) {
+      const ids =
+        request.method() === "DELETE"
+          ? [path.split("/").at(-1)]
+          : request.postDataJSON().ids;
+      writes.push({ path, body: { ids } });
+      runs = runs.filter((run) => !ids.includes(run.id));
+      return route.fulfill({ json: { ok: true } });
+    }
     if (path.endsWith("/runs")) {
       if (request.method() === "POST") {
         writes.push({ path, body: request.postDataJSON() });
@@ -195,6 +207,9 @@ async function jobFixture(page: Page, canWrite = true) {
   });
   return {
     writes,
+    addFinishedRun: function addFinishedRun() {
+      runs.push({ ...base, id: "second-finished-run" });
+    },
     bumpVersion: function bump() {
       policy.version++;
     },
@@ -355,4 +370,36 @@ test("Job viewers can inspect runs but cannot execute or change policy", async f
     page.getByRole("button", { name: "Save job settings" }),
   ).toBeDisabled();
   expect(fixture.writes).toHaveLength(0);
+});
+
+test("delete one finished run with confirmation", async function deletion({
+  page,
+}) {
+  const fixture = await jobFixture(page);
+  await page.goto("/applications/app?tab=runs");
+  await page.getByRole("button", { name: "Delete run", exact: true }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  expect(fixture.writes).toHaveLength(0);
+  await page.getByRole("button", { name: "Delete runs", exact: true }).click();
+  await expect(page.getByText("No job runs", { exact: true })).toBeVisible();
+  expect(fixture.writes[0].path).toContain("/runs/finished-run");
+});
+
+test("bulk-delete selected finished runs", async function bulkDeletion({
+  page,
+}) {
+  const fixture = await jobFixture(page);
+  fixture.addFinishedRun();
+  await page.goto("/applications/app?tab=runs");
+  await page
+    .getByRole("checkbox", { name: "Select all finished runs on this page" })
+    .check();
+  await page.getByRole("button", { name: "Delete selected (2)" }).click();
+  await expect(page.getByRole("dialog")).toContainText("Delete 2 job runs?");
+  await page.getByRole("button", { name: "Delete runs", exact: true }).click();
+  await expect(page.getByText("No job runs", { exact: true })).toBeVisible();
+  expect(fixture.writes[0]).toMatchObject({
+    path: "/api/v1/applications/app/runs/delete",
+    body: { ids: ["finished-run", "second-finished-run"] },
+  });
 });

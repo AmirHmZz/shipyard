@@ -11,12 +11,14 @@ import { text } from "@/lib/resource-fields";
 
 import { useApplicationPage } from "../hooks";
 import { ApplicationActionConfirmation } from "./ApplicationActionConfirmation";
+import { ApplicationAutomation } from "./ApplicationAutomation";
 import { ApplicationDeployments } from "./ApplicationDeployments";
 import { ApplicationDomains } from "./ApplicationDomains";
 import { ApplicationHeader } from "./ApplicationHeader";
 import { ApplicationNetworking } from "./ApplicationNetworking";
 import { ApplicationOverview } from "./ApplicationOverview";
 import { ApplicationPreviews } from "./ApplicationPreviews";
+import { ApplicationResourceLimits } from "./ApplicationResourceLimits";
 import { ApplicationStatus } from "./ApplicationStatus";
 import { ApplicationTabList } from "./ApplicationTabList";
 import { ApplicationVolumes } from "./ApplicationVolumes";
@@ -148,6 +150,18 @@ export function ApplicationMainView() {
               <JobSchedule key={app.id} app={app} />
             </TabsContent>
           </>
+        )}
+        <TabsContent value="resources">
+          <ConfigurationGuard className="max-w-none">
+            <ApplicationResourceLimits app={app} />
+          </ConfigurationGuard>
+        </TabsContent>
+        {app.data.workload !== "job" && !app.data.previewOf && (
+          <TabsContent value="automation">
+            <ConfigurationGuard className="max-w-none">
+              <ApplicationAutomation app={app} />
+            </ConfigurationGuard>
+          </TabsContent>
         )}
         <ApplicationDeployments
           app={app}

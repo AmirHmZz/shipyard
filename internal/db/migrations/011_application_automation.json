@@ -1,0 +1,11 @@
+{
+  "name": "Application automation and resource limits",
+  "up": {
+    "classification": "non-destructive",
+    "impact": "Add disabled-by-default service restart and app schedule settings and manual-action fencing."
+  },
+  "down": {
+    "classification": "destructive",
+    "impact": "Discard application automation configuration and resource limit overrides. Existing retained releases keep their frozen Docker limits."
+  }
+}

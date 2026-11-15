@@ -1,5 +1,7 @@
 # Shipyard
 
+Configure [application automation and resource limits](docs/automation.md) for periodic service restarts, scheduled app start/stop, and Docker CPU/RAM caps. Finished Job runs can be deleted individually or in bulk.
+
 For tasks that run to completion, see [Job applications](docs/jobs.md): manual and cron execution, retries, cancellation, and retained logs.
 
 A focused, self-hosted deployment control plane. Go + PostgreSQL, Vite/React/TypeScript, shadcn/ui + Tailwind, and HAProxy Community. Deploy to the native Linux installation host or independent Docker hosts over SSH; no Swarm, Kubernetes, Redis, database catalog, or deployment templates.
