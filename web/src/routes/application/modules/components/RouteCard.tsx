@@ -1,4 +1,11 @@
-import { Pencil, RefreshCw, Trash2 } from "lucide-react";
+import {
+  ArrowRight,
+  Globe2,
+  Network,
+  Pencil,
+  RefreshCw,
+  Trash2,
+} from "lucide-react";
 
 import type { Resource } from "@/lib/api/types";
 
@@ -35,19 +42,36 @@ export function RouteCard({ route, canReplaceDNSRecords }: RouteCardProps) {
   return (
     <Card className="py-0 shadow-none">
       <CardContent className="p-5">
-        <SectionRow>
-          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
-            <Badge variant="secondary" className="font-mono text-[10px]">
-              {protocol}
-            </Badge>
-            <span className="break-all font-medium">
-              {text(route.data, "domain") ||
-                `TCP :${number(route.data, "listenPort")}`}
-            </span>
-            <span className="font-mono text-xs text-muted-foreground">
-              → {text(route.data, "service", "app")}:
-              {number(route.data, "targetPort")}
-            </span>
+        <SectionRow className="items-start">
+          <div className="flex min-w-0 flex-1 items-start gap-3">
+            <div
+              className="flex size-10 shrink-0 items-center justify-center rounded-xl border bg-primary/5 text-primary"
+              aria-hidden="true"
+            >
+              {protocol === "TCP" ? (
+                <Network className="size-5" />
+              ) : (
+                <Globe2 className="size-5" />
+              )}
+            </div>
+            <div className="flex min-w-0 flex-col gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="break-all text-base font-semibold tracking-tight">
+                  {text(route.data, "domain") ||
+                    `TCP :${number(route.data, "listenPort")}`}
+                </span>
+                <Badge variant="secondary" className="font-mono text-[10px]">
+                  {protocol}
+                </Badge>
+              </div>
+              <span className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
+                <ArrowRight className="size-3.5 shrink-0" />{" "}
+                <span className="break-all">
+                  {text(route.data, "service", "app")}:
+                  {number(route.data, "targetPort")}
+                </span>
+              </span>
+            </div>
           </div>
           <div className="flex gap-1">
             <Tooltip>
@@ -113,10 +137,13 @@ export function RouteCard({ route, canReplaceDNSRecords }: RouteCardProps) {
           </Alert>
         )}
         {q.data && (
-          <div className="mt-5 grid gap-3 border-t pt-4 sm:grid-cols-4">
+          <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
             {statusKeys.map((key) => (
-              <div key={key}>
-                <p className="mb-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+              <div
+                key={key}
+                className="flex flex-col items-start gap-2 rounded-lg border bg-muted/20 px-3 py-3"
+              >
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
                   {key}
                 </p>
                 <StateBadge state={q.data?.[key] || "pending"} />

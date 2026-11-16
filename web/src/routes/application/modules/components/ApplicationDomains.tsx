@@ -1,10 +1,12 @@
 import type { MouseEvent } from "react";
 
-import { Plus } from "lucide-react";
+import { Globe2, Plus } from "lucide-react";
 
 import type { Resource } from "@/lib/api/types";
 
+import { SettingsHeading } from "@/components/SettingsHeading";
 import { Empty } from "@/components/Shared";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TabsContent } from "@/components/ui/tabs";
 import { useAdmin } from "@/lib/session";
@@ -42,12 +44,21 @@ export function ApplicationDomains({
   }
 
   return (
-    <TabsContent value="domains">
-      <div className="mb-5 flex justify-end">
-        <Button disabled={!app.canWrite} onClick={handleButtonClick}>
-          <Plus />
-          Add route
-        </Button>
+    <TabsContent value="domains" className="flex flex-col gap-6">
+      <SettingsHeading
+        title="Domains & routes"
+        description="Connect an address to your application and monitor its DNS, certificate, and routing status."
+        action={
+          <Button disabled={!app.canWrite} onClick={handleButtonClick}>
+            <Plus />
+            Add route
+          </Button>
+        }
+      />
+      <div className="flex items-center gap-2 text-sm font-medium">
+        <Globe2 className="size-4 text-muted-foreground" />
+        Connected routes
+        <Badge variant="secondary">{routes.length}</Badge>
       </div>
       <div className="flex flex-col gap-4" onClick={handleRouteAction}>
         {routes.length ? (
@@ -60,6 +71,7 @@ export function ApplicationDomains({
           ))
         ) : (
           <Empty
+            icon={<Globe2 className="size-5" />}
             title="Give your application an address"
             description="Add a domain or a TCP listener. Managed zones create DNS records and obtain certificates automatically."
           />

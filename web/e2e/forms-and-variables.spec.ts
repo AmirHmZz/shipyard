@@ -392,7 +392,7 @@ for (const theme of ["light", "dark"]) {
         .click();
       await page.getByRole("button", { name: "Confirm", exact: true }).click();
       await expect(
-        page.getByRole("cell", { name: "env:ORIGIN", exact: true }),
+        page.getByRole("button", { name: "Remove env:ORIGIN", exact: true }),
       ).toHaveCount(0);
       expect(state.writes.at(-1)?.secrets).toEqual({ "env:ORIGIN": "" });
       await page
@@ -400,7 +400,7 @@ for (const theme of ["light", "dark"]) {
         .click();
       await page.getByRole("button", { name: "Confirm", exact: true }).click();
       await expect(
-        page.getByRole("cell", { name: "env:TOKEN", exact: true }),
+        page.getByRole("button", { name: "Remove env:TOKEN", exact: true }),
       ).toHaveCount(0);
       expect(state.writes.at(-1)?.variables).toEqual({ "env:TOKEN": null });
       await choose(page, "Scope", "BuildKit secret");

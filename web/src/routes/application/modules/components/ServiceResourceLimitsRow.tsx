@@ -1,7 +1,10 @@
 import type { MouseEvent } from "react";
 
+import { Box } from "lucide-react";
+
 import { InputField } from "@/components/InputField";
 import { SelectControl } from "@/components/SelectControl";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 export type ServiceResourceLimitsRowProps = {
@@ -21,13 +24,27 @@ export function ServiceResourceLimitsRow({
   const gib = !!memoryBytes && memoryBytes % 1073741824 === 0;
   return (
     <div
-      className="flex flex-col gap-3 rounded-lg border p-4"
+      className="grid items-start gap-5 p-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.25fr)]"
       data-service={name}
     >
-      <p className="font-medium">
-        {name}
-        {!active && " · Inactive in current source"}
-      </p>
+      <div className="flex min-w-0 flex-col items-start gap-2 md:pt-7">
+        <p className="flex min-w-0 items-center gap-2 text-sm font-medium">
+          <Box className="size-4 shrink-0 text-muted-foreground" />
+          <span className="break-all font-mono">{name}</span>
+        </p>
+        {!active && <Badge variant="outline">Inactive in current source</Badge>}
+        {!active && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            data-service={name}
+            onClick={remove}
+          >
+            Remove inactive limits
+          </Button>
+        )}
+      </div>
       <InputField
         label="CPU limit (cores)"
         inputProps={{
@@ -37,12 +54,13 @@ export function ServiceResourceLimitsRow({
           max: 1000000,
           step: "any",
           defaultValue: cpus ?? "",
-          placeholder: "Use Compose/default",
+          placeholder: "Compose/default",
           "aria-label": `${name} CPU limit`,
         }}
       />
-      <div className="flex flex-wrap items-end gap-3">
+      <div className="flex min-w-0 items-end gap-2">
         <InputField
+          className="flex min-w-0 flex-1 flex-col gap-2"
           label="RAM limit"
           inputProps={{
             name: `memory:${name}`,
@@ -52,7 +70,7 @@ export function ServiceResourceLimitsRow({
             defaultValue: memoryBytes
               ? memoryBytes / (gib ? 1073741824 : 1048576)
               : "",
-            placeholder: "Use Compose/default",
+            placeholder: "Compose/default",
             "aria-label": `${name} RAM limit`,
           }}
         />
@@ -63,16 +81,6 @@ export function ServiceResourceLimitsRow({
           triggerProps={{ "aria-label": `${name} RAM unit` }}
         />
       </div>
-      {!active && (
-        <Button
-          type="button"
-          variant="outline"
-          data-service={name}
-          onClick={remove}
-        >
-          Remove inactive limits
-        </Button>
-      )}
     </div>
   );
 }

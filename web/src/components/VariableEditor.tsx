@@ -1,7 +1,9 @@
+import { KeyRound, Plus, Save } from "lucide-react";
+
 import { FormField } from "@/components/FormField";
 import { InputField } from "@/components/InputField";
+import { SettingsSection } from "@/components/SettingsSection";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -30,10 +32,18 @@ export function VariableEditor({ controller }: VariableEditorProps) {
     cancelEditor,
   } = controller.handlers;
   return (
-    <Card className="py-0 shadow-none">
-      <CardContent className="p-5">
+    <SettingsSection
+      title={editing ? "Edit variable" : "Add a variable"}
+      description={
+        editing
+          ? "Update the value or change how it is stored."
+          : "Choose a scope, then add a name and value."
+      }
+      icon={<KeyRound />}
+    >
+      <div className="p-5">
         <form onSubmit={submitEditor} className="flex flex-col gap-4">
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
             <FormField label={<>Scope</>} labelProps={{ htmlFor: "var-scope" }}>
               <Select
                 value={scope}
@@ -70,15 +80,6 @@ export function VariableEditor({ controller }: VariableEditorProps) {
               }}
             />
           </div>
-          <div className="flex items-center gap-3">
-            <Switch
-              id="var-secret"
-              checked={isSecret}
-              onCheckedChange={setSecret}
-              disabled={busy || buildScope}
-            />
-            <Label htmlFor="var-secret">Secret</Label>
-          </div>
           {editing && secretKeys.has(editing) && (
             <p className="text-sm text-muted-foreground">
               Enter a replacement value. The stored secret is never returned.
@@ -96,16 +97,33 @@ export function VariableEditor({ controller }: VariableEditorProps) {
           >
             <Textarea
               id="var-value"
-              className="font-mono text-xs"
+              className="min-h-28 font-mono text-xs"
               value={value}
               onChange={changeValue}
               required={isSecret || secretKeys.has(scope + key)}
               disabled={busy}
             />
           </FormField>
-          <div className="flex gap-2">
+          <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/20 p-3">
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="var-secret">Secret</Label>
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                Encrypted and never returned.
+                {buildScope && " Required for build secrets."}
+              </p>
+            </div>
+            <Switch
+              id="var-secret"
+              checked={isSecret}
+              onCheckedChange={setSecret}
+              disabled={busy || buildScope}
+            />
+          </div>
+          <div className="flex flex-wrap gap-2 border-t pt-4">
             <Button disabled={busy}>
               {busy && <Spinner className="size-4" />}
+              {!busy && editing && <Save />}
+              {!busy && !editing && <Plus />}
               {editing ? "Save variable" : "Add / replace variable"}
             </Button>
             {editing && (
@@ -120,7 +138,7 @@ export function VariableEditor({ controller }: VariableEditorProps) {
             )}
           </div>
         </form>
-      </CardContent>
-    </Card>
+      </div>
+    </SettingsSection>
   );
 }
