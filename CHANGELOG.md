@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.18.0] (2026-11-16)
+
+### Features
+
+- Configure independent restart intervals for each service. Timers use each running replica's last start time and leave stopped applications and replicas stopped.
+- Schedule application start and stop actions with multiple five-field cron rules, explicit IANA timezones, and schedule previews. After downtime, apply only the latest missed action; manual controls override earlier occurrences, and Stop wins simultaneous rules.
+- Set Docker CPU and RAM limits per service and container replica, including Job applications. Limits apply on the next deployment, and rollback restores the retained release's limits.
+- Delete individual finished Job runs or up to fifty selected runs, including their attempt history and logs. Active runs and runs awaiting log capture or container cleanup remain protected.
+
+### Bug Fixes
+
+- Compare Fresh deploy container identities independently of Docker mount-list ordering, avoiding false container-change failures while preserving checks on mount sources and destinations.
+- Preserve unsaved automation and resource-limit drafts during background refreshes and flag concurrent settings changes before saving.
+
+### Maintenance
+
+- Prepare the BusyBox image explicitly in automation integration fixtures and avoid repeated registry pulls in the Fresh deploy fixture. Include deployment diagnostics when Fresh deploy integration assertions fail.
+
+### Upgrade Notes
+
+- Migration 011 is required. Back up the installation, inspect `shipyard migrate plan 11`, and apply `shipyard migrate apply 11` before starting the new binary.
+- Existing applications have automation disabled and no resource-limit overrides. Empty CPU/RAM fields preserve Compose/default settings. Saving limits does not change running containers.
+- Downgrading discards automation settings and application resource-limit overrides; retained releases keep their frozen Docker limits.
+
 ## [0.17.0] (2026-11-05)
 
 ### Features
