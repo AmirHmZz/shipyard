@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 
 	"github.com/jackc/pgx/v5"
 	"shipyard/internal/deploy"
@@ -25,6 +26,17 @@ type freshDeployment struct {
 }
 
 func freshDeploymentKey(id string) string { return "fresh-deployment:" + id }
+
+// Docker can return the same mounts in a different order between inspections.
+// Compare identities independently of that presentation order, without changing
+// the saved manifest or overlooking changed mount sources and destinations.
+func freshContainerDigest(container deletionContainer) string {
+	container.Mounts = append(container.Mounts[:0:0], container.Mounts...)
+	sort.Slice(container.Mounts, func(i, j int) bool {
+		return container.Mounts[i].Destination < container.Mounts[j].Destination
+	})
+	return digestJSON(container)
+}
 
 func (c *Controller) saveFreshDeployment(ctx context.Context, id string, m *freshDeployment) error {
 	raw, err := json.Marshal(m)
@@ -279,7 +291,7 @@ func (c *Controller) resetFreshDeployment(ctx context.Context, node remote.Node,
 	for _, item := range containers {
 		if owned[item.ID] {
 			for _, expected := range m.Containers {
-				if item.ID == expected.ID && digestJSON(item) != digestJSON(expected) {
+				if item.ID == expected.ID && freshContainerDigest(item) != freshContainerDigest(expected) {
 					return errors.New("application container changed during Fresh deploy")
 				}
 			}

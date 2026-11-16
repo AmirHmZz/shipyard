@@ -310,3 +310,30 @@ func TestFreshRetryRejectsChangedHostAndRecreatedVolume(t *testing.T) {
 		t.Fatal("completed reset repeated", err)
 	}
 }
+
+func TestFreshContainerIdentityIgnoresMountOrder(t *testing.T) {
+	var original, reordered deletionContainer
+	if err := json.Unmarshal([]byte(`{"Id":"same","Config":{"Labels":{"shipyard.app":"app"}},"Mounts":[{"Type":"volume","Name":"data","Destination":"/data"},{"Type":"bind","Source":"/host","Destination":"/bind"}]}`), &original); err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := json.Marshal(original)
+	if err := json.Unmarshal(raw, &reordered); err != nil {
+		t.Fatal(err)
+	}
+	reordered.Mounts[0], reordered.Mounts[1] = reordered.Mounts[1], reordered.Mounts[0]
+	if freshContainerDigest(original) != freshContainerDigest(reordered) {
+		t.Fatal("mount ordering changed container identity")
+	}
+	if reordered.Mounts[0].Destination != "/bind" {
+		t.Fatal("digest mutated inspected mount order")
+	}
+	reordered.Mounts[0].Source = "/replacement"
+	if freshContainerDigest(original) == freshContainerDigest(reordered) {
+		t.Fatal("changed bind source accepted")
+	}
+	reordered = original
+	reordered.ID = "replacement"
+	if freshContainerDigest(original) == freshContainerDigest(reordered) {
+		t.Fatal("replacement container accepted")
+	}
+}

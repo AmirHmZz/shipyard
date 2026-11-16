@@ -117,11 +117,17 @@ func TestLinuxFreshDeployAndDeploymentDeletion(t *testing.T) {
 	external := "fresh-external-" + suffix
 	bind := "/tmp/fresh-bind-" + suffix
 	consumer := "fresh-consumer-" + suffix
+	// Pull once up front. Every deployment below must reach its intended phase
+	// without an unrelated registry failure being mistaken for a reset failure.
+	if _, err := deploy.Output(ctx, node, "docker", "image", "inspect", "busybox:1.37.0"); err != nil {
+		run("docker", "pull", "busybox:1.37.0")
+	}
 	run("docker", "volume", "create", external)
 	run("mkdir", "-p", bind)
 	source := `services:
   web:
     image: busybox:1.37.0
+    pull_policy: never
     command: [sh, -c, 'sleep 3600']
     volumes:
       - state:/state
@@ -218,12 +224,15 @@ volumes:
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = c.deploy(ctx, failed.ID); err == nil {
+	deployErr := c.deploy(ctx, failed.ID)
+	if deployErr == nil {
 		t.Fatal("unhealthy Fresh deploy succeeded")
 	}
 	status, err := c.Runtime(ctx, app.ID)
 	if err != nil || status["status"] != "stopped" || status["releaseId"] != fresh.ID {
-		t.Fatal("failed Fresh deploy auto-recovered", status, err)
+		var log string
+		_ = c.Store.Pool.QueryRow(ctx, "SELECT string_agg(message,E'\n' ORDER BY id) FROM events WHERE deployment_id=$1", failed.ID).Scan(&log)
+		t.Fatal("failed Fresh deploy auto-recovered", status, err, "deployment error:", deployErr, "deployment log:", log)
 	}
 	if got := run("docker", "ps", "-aq", "--filter", "label=shipyard.app="+app.ID); got != "" {
 		t.Fatal("partial containers left running", got)
