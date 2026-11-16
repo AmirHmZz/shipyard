@@ -256,7 +256,9 @@ for (const theme of ["light", "dark"]) {
       ).toHaveCount(0);
       const card = panel.locator('[data-slot="card"]');
       await expect(card.getByText("HTTPS", { exact: true })).toBeVisible();
-      await expect(card.getByText("→ server:8080")).toBeVisible();
+      await expect(
+        card.getByText("server:8080", { exact: true }),
+      ).toBeVisible();
       const sync = card.getByRole("button", {
         name: "Retry sync",
         exact: true,
@@ -288,17 +290,19 @@ for (const theme of ["light", "dark"]) {
         path: info.outputPath(`domains-${theme}.png`),
         fullPage: true,
       });
-      if (info.project.name === "desktop") {
-        const domain = await card
-          .getByText("test.example.com", { exact: true })
-          .boundingBox();
-        const target = await card.getByText("→ server:8080").boundingBox();
-        expect(
-          Math.abs(
-            domain!.y + domain!.height / 2 - target!.y - target!.height / 2,
-          ),
-        ).toBeLessThan(3);
-      } else {
+      const domain = await card
+        .getByText("test.example.com", { exact: true })
+        .boundingBox();
+      const target = await card
+        .getByText("server:8080", { exact: true })
+        .boundingBox();
+      const routeBounds = (await card.boundingBox())!;
+      expect(target!.y).toBeGreaterThanOrEqual(domain!.y + domain!.height);
+      expect(target!.x).toBeGreaterThanOrEqual(routeBounds.x);
+      expect(target!.x + target!.width).toBeLessThanOrEqual(
+        routeBounds.x + routeBounds.width,
+      );
+      if (info.project.name === "mobile") {
         await page.getByRole("tab", { name: /^terminal$/i }).focus();
         await expect(
           page.getByRole("tab", { name: /^terminal$/i }),
@@ -371,13 +375,31 @@ for (const theme of ["light", "dark"]) {
             panel.getByLabel("Value", { exact: true }),
           ).toBeVisible();
         const cards = panel.locator('[data-slot="card"]');
-        for (const card of await cards.all())
-          expect(
-            Math.abs(
-              (await card.boundingBox())!.width -
-                (await panel.boundingBox())!.width,
-            ),
-          ).toBeLessThan(3);
+        const panelBounds = (await panel.boundingBox())!;
+        const cardBounds = [];
+        for (const card of await cards.all()) {
+          const bounds = (await card.boundingBox())!;
+          cardBounds.push(bounds);
+          expect(bounds.x).toBeGreaterThanOrEqual(panelBounds.x - 1);
+          expect(bounds.x + bounds.width).toBeLessThanOrEqual(
+            panelBounds.x + panelBounds.width + 1,
+          );
+          if (tab === "networking" || info.project.name === "mobile")
+            expect(Math.abs(bounds.width - panelBounds.width)).toBeLessThan(3);
+        }
+        if (tab === "variables") {
+          expect(cardBounds).toHaveLength(2);
+          const [list, editor] = cardBounds;
+          if (info.project.name === "desktop") {
+            expect(Math.abs(list.y - editor.y)).toBeLessThan(3);
+            expect(editor.x).toBeGreaterThanOrEqual(list.x + list.width);
+            expect(
+              Math.abs(editor.x + editor.width - list.x - panelBounds.width),
+            ).toBeLessThan(3);
+          } else {
+            expect(editor.y).toBeGreaterThanOrEqual(list.y + list.height);
+          }
+        }
         expect(
           await page.evaluate(
             () => document.documentElement.scrollWidth <= innerWidth,

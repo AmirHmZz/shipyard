@@ -97,9 +97,17 @@ test("installation, project configuration, invitations, viewer boundaries and ac
   const secret = "browser-secret-" + unique;
   await page.getByLabel("Value", { exact: true }).fill(secret);
   await page.getByRole("button", { name: "Add / replace variable" }).click();
+  const variableRow = page.getByRole("row").filter({
+    has: page.getByRole("button", { name: "Edit env:API_TOKEN", exact: true }),
+  });
   await expect(
-    page.getByRole("cell", { name: "env:API_TOKEN", exact: true }),
+    variableRow.getByText("API_TOKEN", { exact: true }),
   ).toBeVisible();
+  await expect(
+    variableRow.getByText("Runtime environment", { exact: true }),
+  ).toBeVisible();
+  await expect(variableRow.getByText("Secret", { exact: true })).toBeVisible();
+  await expect(variableRow).not.toContainText(secret);
   expect(
     await page.request
       .get("/api/v1/resources/" + environment.id)
