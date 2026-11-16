@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.19.0] (2026-11-17)
+
+### Features
+
+- Redesign application Domains with clearer route cards, prominent hostnames and targets, and separate DNS, propagation, certificate, and routing status indicators.
+- Present application resource limits in compact service rows with CPU and memory controls, default-setting guidance, and deployment status feedback.
+- Organize Automation into service restarts, start/stop schedules, and saved activity with upcoming runs. Add clearer empty states and save feedback.
+- Redesign Variables with a configuration list beside its editor on wide screens, readable scope labels, encrypted-secret badges, and a stacked layout on mobile.
+
+### Maintenance
+
+- Update browser assertions for the redesigned route and variable layouts while preserving sync, responsive-width, and secret-leakage checks. Cover long service names and variable values in light and dark themes on desktop and mobile.
+
+### Upgrade Notes
+
+- No additional database migration is required when upgrading from 0.18.0. Existing routes, automation settings, resource limits, and variables are preserved.
+
 ## [0.18.0] (2026-11-16)
 
 ### Features
