@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.20.0] (2026-11-18)
+
+### Features
+
+- Redesign application and Job overviews so status, recent activity, and common actions are easier to find.
+- Redesign Job Runs with expandable attempt details and logs. Organize Job Schedules around cron, timezone, retry settings, and upcoming run previews.
+- Update server cards to make health and resource usage easier to scan. Add network search by name, server, ID, or subnet and filters for server, type, and status.
+- Update automation checkboxes and remove the Deployment workspace card from the sidebar.
+
+### Bug Fixes
+
+- Keep captured Job logs valid when output contains malformed UTF-8, NUL bytes, or a multibyte character at the truncation boundary.
+- Correct Job attempt status, start time, and deadline tracking. Allow finished runs to be deleted after container cleanup when remaining logs are unavailable, and record the reason in the attempt history.
+- Continue processing scheduled restarts for other replicas when one replica fails. Fix floating-point rounding when a restart interval entered in minutes, hours, or days converts to a whole number of seconds.
+
+### Upgrade Notes
+
+- No additional database migration is required when upgrading from 0.19.0.
+
 ## [0.19.0] (2026-11-17)
 
 ### Features
