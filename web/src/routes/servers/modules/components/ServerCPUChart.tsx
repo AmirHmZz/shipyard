@@ -20,6 +20,7 @@ export function ServerCPUChart({ data }: ServerCPUChartProps) {
           fill="var(--primary)"
           fillOpacity={0.1}
           strokeWidth={1.5}
+          isAnimationActive={false}
         />
         <ChartTooltip content={<ChartTooltipContent hideLabel />} />
       </AreaChart>

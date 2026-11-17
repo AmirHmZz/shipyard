@@ -324,6 +324,7 @@ test("Job schedule previews timezone and saves bounded policy", async function s
 }) {
   const fixture = await jobFixture(page);
   await page.goto("/applications/app?tab=schedule");
+  await page.getByRole("checkbox", { name: /^Enable schedule/ }).check();
   await page
     .getByRole("textbox", { name: "Cron expression" })
     .fill("*/15 * * * *");
@@ -333,7 +334,7 @@ test("Job schedule previews timezone and saves bounded policy", async function s
   await page.getByRole("spinbutton", { name: "Additional retries" }).fill("2");
   await page.getByRole("button", { name: "Preview schedule" }).click();
   await expect(
-    page.getByText("Upcoming occurrences (UTC)", { exact: true }),
+    page.getByText("UTC · Schedule preview", { exact: true }),
   ).toBeVisible();
   expect(fixture.writes).toHaveLength(0);
   await page.getByRole("button", { name: "Save job settings" }).click();
@@ -345,6 +346,7 @@ test("Job schedule previews timezone and saves bounded policy", async function s
     cron: "*/15 * * * *",
     timezone: "UTC",
     retries: 2,
+    enabled: true,
   });
   fixture.bumpVersion();
   await page.getByRole("button", { name: "Save job settings" }).click();
@@ -392,6 +394,14 @@ test("bulk-delete selected finished runs", async function bulkDeletion({
   fixture.addFinishedRun();
   await page.goto("/applications/app?tab=runs");
   await page
+    .getByRole("checkbox", { name: "Select run finished-run", exact: true })
+    .check();
+  await expect(
+    page.getByRole("checkbox", {
+      name: "Select all finished runs on this page",
+    }),
+  ).toHaveAttribute("aria-checked", "mixed");
+  await page
     .getByRole("checkbox", { name: "Select all finished runs on this page" })
     .check();
   await page.getByRole("button", { name: "Delete selected (2)" }).click();
@@ -403,3 +413,42 @@ test("bulk-delete selected finished runs", async function bulkDeletion({
     body: { ids: ["finished-run", "second-finished-run"] },
   });
 });
+
+for (const theme of ["light", "dark"]) {
+  test(`job pages fit the viewport in ${theme} theme`, async function layout({
+    page,
+  }, info) {
+    await page.addInitScript(
+      (value) => localStorage.setItem("shipyard-theme:v1", value),
+      theme,
+    );
+    const fixture = await jobFixture(page);
+    for (const tab of ["overview", "runs", "schedule"]) {
+      await page.goto(`/applications/app?tab=${tab}`);
+      const panel = page.getByRole("tabpanel");
+      await expect(panel).toBeVisible();
+      if (tab === "overview")
+        await expect(
+          panel.getByRole("heading", { name: "Prepared release" }),
+        ).toBeVisible();
+      if (tab === "runs")
+        await expect(
+          panel.getByRole("button", { name: "Details", exact: true }),
+        ).toBeVisible();
+      if (tab === "schedule")
+        await expect(
+          panel.getByRole("heading", { name: "Execution policy", exact: true }),
+        ).toBeVisible();
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBeTruthy();
+      await page.screenshot({
+        path: info.outputPath(`${tab}-${theme}.png`),
+        fullPage: true,
+      });
+    }
+    expect(fixture.writes).toHaveLength(0);
+  });
+}

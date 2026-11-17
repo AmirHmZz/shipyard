@@ -1,4 +1,4 @@
-import type { ChangeEvent, MouseEvent } from "react";
+import type { MouseEvent } from "react";
 
 import { useState } from "react";
 
@@ -39,7 +39,7 @@ export function useJobRunsPage(id: string) {
     const run = event.currentTarget.dataset.run;
     if (run) cancel.mutate(run);
   }
-  function toggleRun(event: ChangeEvent<HTMLInputElement>) {
+  function toggleRun(event: MouseEvent<HTMLButtonElement>) {
     const id = event.currentTarget.dataset.run;
     if (id)
       setChecked((previous) =>

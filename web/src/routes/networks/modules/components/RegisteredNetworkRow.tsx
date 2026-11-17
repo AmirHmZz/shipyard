@@ -1,8 +1,10 @@
-import { Trash2, Users } from "lucide-react";
+import { Network, Server, Trash2, Users } from "lucide-react";
 import { Link } from "react-router";
 
 import type { Resource } from "@/lib/api/types";
 
+import { StateBadge } from "@/components/Shared";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { text } from "@/lib/resource-fields";
@@ -38,10 +40,19 @@ export function RegisteredNetworkRow({
       : [text(r.data, "subnet"), text(r.data, "ipv6Subnet")]
   ).filter(Boolean);
   return (
-    <TableRow>
+    <TableRow className="[&>td]:px-5 [&>td]:py-4">
       <TableCell>
-        <p className="font-medium">{r.name}</p>
-        <p className="text-xs text-muted-foreground">{kindLabel}</p>
+        <div className="flex items-start gap-3">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border bg-primary/5 text-primary">
+            <Network className="size-4" />
+          </div>
+          <div className="flex min-w-0 flex-col gap-1">
+            <p className="max-w-64 truncate font-medium" title={r.name}>
+              {r.name}
+            </p>
+            <p className="text-xs text-muted-foreground">{kindLabel}</p>
+          </div>
+        </div>
         {!!r.data.ingressApp && (
           <Link
             className="text-xs text-primary hover:underline"
@@ -51,15 +62,39 @@ export function RegisteredNetworkRow({
           </Link>
         )}
       </TableCell>
-      <TableCell>{byId.get(String(r.data.serverId))?.name}</TableCell>
-      <TableCell className="font-mono text-xs">
-        {visibleAddresses.map((subnet) => (
-          <p key={subnet}>{subnet}</p>
-        ))}
+      <TableCell>
+        <span className="flex items-center gap-2 text-sm">
+          <Server className="size-3.5 shrink-0 text-muted-foreground" />
+          {byId.get(String(r.data.serverId))?.name || "—"}
+        </span>
       </TableCell>
       <TableCell>
-        {text(r.data, "status")}
-        <p className="text-xs text-destructive">{text(r.data, "error")}</p>
+        <div className="flex flex-col items-start gap-1.5">
+          {visibleAddresses.map((subnet) => (
+            <Badge
+              key={subnet}
+              variant="outline"
+              className="font-mono text-[11px] font-normal"
+            >
+              {subnet}
+            </Badge>
+          ))}
+          {!visibleAddresses.length && (
+            <span className="text-muted-foreground">—</span>
+          )}
+          {docker && (
+            <span className="text-xs text-muted-foreground">
+              {docker.Driver} · {Object.keys(docker.Containers).length}{" "}
+              containers
+            </span>
+          )}
+        </div>
+      </TableCell>
+      <TableCell>
+        <StateBadge state={text(r.data, "status") || "unknown"} />
+        <p className="mt-1 max-w-64 whitespace-normal break-words text-xs text-destructive">
+          {text(r.data, "error")}
+        </p>
       </TableCell>
       <TableCell>
         <ControlPlaneAttachment

@@ -6,6 +6,7 @@ import { FormField } from "@/components/FormField";
 import { InputField } from "@/components/InputField";
 import { SelectControl } from "@/components/SelectControl";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 
 import type { AutomationRule } from "../generics/automation";
 
@@ -21,12 +22,7 @@ export function AutomationRuleRow({ rule, remove }: AutomationRuleRowProps) {
     >
       <div className="flex items-center justify-between gap-3">
         <label className="flex items-center gap-2 text-sm font-medium">
-          <input
-            type="checkbox"
-            name={`enabled:${rule.id}`}
-            defaultChecked={rule.enabled}
-            className="size-4 accent-primary"
-          />
+          <Checkbox name={`enabled:${rule.id}`} defaultChecked={rule.enabled} />
           Enabled
         </label>
         <Button

@@ -4,7 +4,7 @@ import { buildInfoFixture } from "./build-info";
 
 test("network removal is immediate, rolls back on failure, and preserves external Docker networks", async ({
   page,
-}) => {
+}, info) => {
   function resource(id: string, kind: string, name: string, data = {}) {
     return {
       id,
@@ -113,7 +113,7 @@ test("network removal is immediate, rolls back on failure, and preserves externa
   });
   try {
     await page.goto("/networks");
-    await page.getByRole("combobox").click();
+    await page.getByRole("combobox", { name: "Server", exact: true }).click();
     await page
       .getByRole("option", { name: "Test server", exact: true })
       .click();
@@ -124,6 +124,44 @@ test("network removal is immediate, rolls back on failure, and preserves externa
       .getByRole("row", { includeHidden: true })
       .filter({ hasText: "external-bridge" });
     await expect(row).toHaveCount(1);
+    await expect(external).toHaveCount(1);
+    await expect(page.getByRole("listbox")).toHaveCount(0);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBeTruthy();
+    await page.screenshot({
+      path: info.outputPath("network-inventory.png"),
+      fullPage: true,
+    });
+    await page.getByRole("combobox", { name: "Network type" }).click();
+    await page
+      .getByRole("option", { name: "Not registered", exact: true })
+      .click();
+    await expect(row).toHaveCount(0);
+    await expect(external).toHaveCount(1);
+    await page.getByRole("combobox", { name: "Status", exact: true }).click();
+    await page.getByRole("option", { name: "available", exact: true }).click();
+    await page
+      .getByRole("textbox", { name: "Search networks" })
+      .fill("EXTERNAL");
+    await expect(external).toHaveCount(1);
+    await page
+      .getByRole("textbox", { name: "Search networks" })
+      .fill("no-such-network");
+    await expect(
+      page.getByText("No matching networks", { exact: true }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "Clear filters", exact: true })
+      .first()
+      .click();
+    await expect(row).toHaveCount(1);
+    await page.getByRole("combobox", { name: "Server", exact: true }).click();
+    await page
+      .getByRole("option", { name: "Test server", exact: true })
+      .click();
     await expect(external).toHaveCount(1);
     await row
       .getByRole("button", { name: "Delete network", exact: true })

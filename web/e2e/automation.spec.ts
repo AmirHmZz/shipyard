@@ -196,6 +196,23 @@ async function automationFixture(
       }
       return route.fulfill({ json: limits });
     }
+    if (path.endsWith("/deployments") && populated)
+      return route.fulfill({
+        json: [
+          {
+            id: "deployment",
+            applicationId: "app",
+            state: "healthy",
+            phase: "Application is healthy",
+            commit: "a1b2c3d4e5f6789012345678901234567890abcdef",
+            releaseId: "release",
+            rollbackId: "",
+            error: "",
+            createdAt: "2026-11-17T04:30:00Z",
+            updatedAt: "2026-11-17T04:31:00Z",
+          },
+        ],
+      });
     if (
       path.endsWith("/deployments") ||
       path.endsWith("/releases") ||
@@ -310,7 +327,13 @@ for (const theme of ["light", "dark"]) {
       theme,
     );
     const fixture = await automationFixture(page, true, true);
-    for (const tab of ["domains", "resources", "automation", "variables"]) {
+    for (const tab of [
+      "overview",
+      "domains",
+      "resources",
+      "automation",
+      "variables",
+    ]) {
       await page.goto(`/applications/app?tab=${tab}`);
       const panel = page.getByRole("tabpanel");
       await expect(panel).toBeVisible();

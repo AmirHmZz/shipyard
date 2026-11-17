@@ -11,7 +11,7 @@ import { indexResources } from "@/lib/resource-index";
 import { useAccount } from "@/lib/session";
 
 import { attachmentInputSchema } from "../generics";
-import { networkRows } from "../utils";
+import { filterNetworkRows, networkRows } from "../utils";
 import { useControlPlaneNetworks } from "./useControlPlaneNetworks";
 import { useDockerNetworks } from "./useDockerNetworks";
 import { useRemoveNetwork } from "./useRemoveNetwork";
@@ -25,6 +25,9 @@ export function useNetworksPage() {
   const removeMutation = useRemoveNetwork();
   const [remove, setRemove] = useState<Resource | null>(null);
   const [filter, setFilter] = useState("");
+  const [search, setSearch] = useState("");
+  const [type, setType] = useState("all");
+  const [status, setStatus] = useState("all");
   const inventory = useDockerNetworks(filter, !!filter && !!account?.admin);
   const resources = q.data || [];
   const hasLocalHost = resources.some(
@@ -42,20 +45,40 @@ export function useNetworksPage() {
     ]),
   );
   const { byId } = indexResources(resources);
-  const { rows, unregistered } = networkRows(
-    resources,
-    inventory.data || [],
-    filter,
+  const available = networkRows(resources, inventory.data || [], filter);
+  const { rows, unregistered } = filterNetworkRows(
+    available,
+    byId,
+    { search, type, status },
+    byId.get(filter)?.name,
   );
+  const total = available.rows.length + available.unregistered.length;
+  const visible = rows.length + unregistered.length;
+  const statuses = Array.from(
+    new Set([
+      ...available.rows.map(({ resource }) =>
+        String(resource.data.status || "unknown"),
+      ),
+      ...(available.unregistered.length ? ["available"] : []),
+    ]),
+  ).sort();
+  const filtered = !!search || type !== "all" || status !== "all";
   const hasRows = !!(rows.length || unregistered.length);
   const showEmpty = !inventory.isFetching && !inventory.error;
   const showInventoryError = !!filter && !!inventory.error;
   const removalTitle = remove?.data.managed
     ? "Delete Docker network?"
     : "Unregister external network?";
-  const emptyTitle = filter
+  let emptyTitle = filter
     ? "No networks on this server"
     : "No registered networks";
+  if (filtered) emptyTitle = "No matching networks";
+  function clearFilters() {
+    setSearch("");
+    setType("all");
+    setStatus("all");
+    setFilter("");
+  }
   function confirmRemoval() {
     if (!remove || removeMutation.isPending) return;
     removeMutation.mutate(remove.id, {
@@ -107,7 +130,7 @@ export function useNetworksPage() {
     void controlNetworks.refetch();
   }
   return {
-    state: { remove, filter },
+    state: { remove, filter, search, type, status },
     derived: {
       q,
       account,
@@ -125,9 +148,17 @@ export function useNetworksPage() {
       controlNetworks,
       controlById,
       saveControlNetwork,
+      total,
+      visible,
+      statuses,
+      filtered,
     },
     handlers: {
       setFilter,
+      setSearch,
+      setType,
+      setStatus,
+      clearFilters,
       confirmRemoval,
       handleRemovalOpenChange,
       handleNetworkAction,

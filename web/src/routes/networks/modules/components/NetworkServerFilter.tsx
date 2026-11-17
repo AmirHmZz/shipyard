@@ -39,8 +39,8 @@ export function NetworkServerFilter({
     void inventory.refetch();
   }
   return (
-    <div className="mb-5 flex flex-wrap items-end gap-3">
-      <div className="w-full flex flex-col gap-2 sm:w-72">
+    <div className="flex min-w-0 items-end gap-2">
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
         <Label htmlFor="network-server-filter">Server</Label>
         <Select value={filter || "all"} onValueChange={handleFilterChange}>
           <SelectTrigger id="network-server-filter" className="w-full">
@@ -64,13 +64,15 @@ export function NetworkServerFilter({
           variant="outline"
           disabled={inventory.isFetching}
           onClick={refreshNetworks}
+          size="icon"
+          aria-label="Refresh networks"
+          title="Refresh networks"
         >
           {inventory.isFetching ? (
             <Spinner className="size-4" />
           ) : (
             <RefreshCw />
           )}
-          Refresh networks
         </Button>
       )}
     </div>

@@ -1,25 +1,37 @@
+import {
+  Activity,
+  ChevronLeft,
+  ChevronRight,
+  ListChecks,
+  Play,
+  Trash2,
+} from "lucide-react";
+
 import type { Resource } from "@/lib/api/types";
 
+import { FlushCard } from "@/components/FlushCard";
+import { SettingsHeading } from "@/components/SettingsHeading";
 import { Empty, ErrorState, Loading, StateBadge } from "@/components/Shared";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Table,
   TableHeader,
   TableRow,
   TableHead,
   TableBody,
-  TableCell,
 } from "@/components/ui/table";
 
-import { canDeleteJobRun } from "../generics/automation";
 import { activeJobRun } from "../generics/jobs";
 import { useJobRunsPage } from "../hooks/useJobRunsPage";
 import { DeleteJobRuns } from "./DeleteJobRuns";
+import { JobRunRow } from "./JobRunRow";
 import { LogStream } from "./Streams";
+
 export type JobRunsProps = { app: Resource; prepared: boolean };
 export function JobRuns({ app, prepared }: JobRunsProps) {
-  const page = useJobRunsPage(app.id);
   const {
     checkedVisible,
     eligible,
@@ -43,11 +55,17 @@ export function JobRuns({ app, prepared }: JobRunsProps) {
     cancelRun,
     nextPage,
     firstPage,
-  } = page;
+  } = useJobRunsPage(app.id);
+  const canRun = app.canWrite && prepared && !active && !start.isPending;
+  const allChecked =
+    eligible.length > 0 && checkedVisible.length === eligible.length;
+  let selection: boolean | "indeterminate" = false;
+  if (allChecked) selection = true;
+  else if (checkedVisible.length) selection = "indeterminate";
   if (runs.isPending) return <Loading />;
   if (runs.error) return <ErrorState error={runs.error} />;
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex min-w-0 flex-col gap-5">
       {deleting.length > 0 && (
         <DeleteJobRuns
           appId={app.id}
@@ -56,181 +74,159 @@ export function JobRuns({ app, prepared }: JobRunsProps) {
           onDeleted={deleted}
         />
       )}
-      <div className="flex flex-wrap items-center gap-3">
-        <Button
-          onClick={runNow}
-          disabled={!app.canWrite || !prepared || !!active || start.isPending}
-        >
-          Run now
-        </Button>
-        <Button
-          variant="outline"
-          onClick={deleteSelected}
-          disabled={!app.canWrite || !checkedVisible.length}
-        >
-          Delete selected ({checkedVisible.length})
-        </Button>
-        <span className="text-sm text-muted-foreground">
-          Uses the latest deployed release. One active run at a time.
-        </span>
-      </div>
+      <SettingsHeading
+        title="Run history"
+        description="Track executions, inspect logs, and rerun the latest deployed release."
+        action={
+          <Button onClick={runNow} disabled={!canRun}>
+            {start.isPending ? <Spinner /> : <Play />}Run now
+          </Button>
+        }
+      />
       {active && (
-        <p role="status">
-          Active run: {active.id} · {active.state}
-          {active.retryAt && " · retry in " + retryIn + "s"}
-        </p>
+        <div
+          role="status"
+          className="flex flex-wrap items-center gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4"
+        >
+          <Activity className="size-4 shrink-0 text-primary" />
+          <p className="min-w-0 flex-1 break-all text-sm">
+            Active run: <span className="font-mono text-xs">{active.id}</span>
+            {active.retryAt && " · retry in " + retryIn + "s"}
+          </p>
+          <StateBadge state={active.state} />
+        </div>
       )}
       {!runs.data?.items.length ? (
         <Empty
           title="No job runs"
           description="Deploy a release, then run it manually or enable its schedule."
+          icon={<ListChecks />}
         />
       ) : (
-        <Card>
-          <CardContent className="overflow-x-auto pt-5">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>
-                    <input
-                      type="checkbox"
-                      aria-label="Select all finished runs on this page"
-                      checked={
-                        eligible.length > 0 &&
-                        checkedVisible.length === eligible.length
-                      }
-                      onChange={toggleAll}
-                      disabled={!app.canWrite || !eligible.length}
-                    />
-                  </TableHead>
-                  <TableHead>Started</TableHead>
-                  <TableHead>Trigger</TableHead>
-                  <TableHead>Result</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {runs.data.items.map(function row(run) {
-                  return (
-                    <TableRow key={run.id} data-run={run.id}>
-                      <TableCell>
-                        <input
-                          type="checkbox"
-                          aria-label={`Select run ${run.id}`}
-                          data-run={run.id}
-                          checked={checkedVisible.includes(run.id)}
-                          onChange={toggleRun}
-                          disabled={!app.canWrite || !canDeleteJobRun(run)}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        {new Date(run.createdAt).toLocaleString()}
-                      </TableCell>
-                      <TableCell>{run.trigger}</TableCell>
-                      <TableCell>
-                        <StateBadge state={run.state} />
-                        {run.error && (
-                          <p className="max-w-sm text-xs">{run.error}</p>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          {canDeleteJobRun(run) && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              data-run={run.id}
-                              onClick={deleteRun}
-                              disabled={!app.canWrite}
-                            >
-                              Delete run
-                            </Button>
-                          )}
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            data-run={run.id}
-                            onClick={selectRun}
-                          >
-                            Details
-                          </Button>
-                          {activeJobRun(run) ? (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              data-run={run.id}
-                              onClick={cancelRun}
-                              disabled={
-                                !app.canWrite ||
-                                cancel.isPending ||
-                                run.state === "cancelling"
-                              }
-                            >
-                              Cancel run
-                            </Button>
-                          ) : (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={runNow}
-                              disabled={
-                                !app.canWrite ||
-                                !prepared ||
-                                !!active ||
-                                start.isPending
-                              }
-                            >
-                              Run again
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        <FlushCard>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-muted/20 px-5 py-3">
+            <p className="text-xs text-muted-foreground">
+              {checkedVisible.length
+                ? `${checkedVisible.length} selected on this page`
+                : "One active run at a time. All runs use their recorded execution policy."}
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={deleteSelected}
+              disabled={!app.canWrite || !checkedVisible.length}
+            >
+              <Trash2 />
+              Delete selected ({checkedVisible.length})
+            </Button>
+          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-12 pl-5">
+                  <Checkbox
+                    aria-label="Select all finished runs on this page"
+                    checked={selection}
+                    onCheckedChange={toggleAll}
+                    disabled={!app.canWrite || !eligible.length}
+                  />
+                </TableHead>
+                <TableHead>Run / started</TableHead>
+                <TableHead>Trigger</TableHead>
+                <TableHead>Result</TableHead>
+                <TableHead className="pr-5 text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {runs.data.items.map((run) => (
+                <JobRunRow
+                  key={run.id}
+                  run={run}
+                  checked={checkedVisible.includes(run.id)}
+                  selected={selected === run.id}
+                  canWrite={app.canWrite}
+                  canRun={canRun}
+                  cancelling={cancel.isPending}
+                  onCheck={toggleRun}
+                  onDelete={deleteRun}
+                  onSelect={selectRun}
+                  onCancel={cancelRun}
+                  onRun={runNow}
+                />
+              ))}
+            </TableBody>
+          </Table>
+        </FlushCard>
       )}
-      <div className="flex gap-2">
-        <Button variant="outline" onClick={firstPage} disabled={!cursor}>
-          Newest
-        </Button>
-        <Button
-          variant="outline"
-          onClick={nextPage}
-          disabled={!runs.data?.nextCursor}
-        >
-          Older runs
-        </Button>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs text-muted-foreground">
+          {runs.data?.items.length || 0}{" "}
+          {runs.data?.items.length === 1 ? "run" : "runs"} on this page
+        </p>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={firstPage}
+            disabled={!cursor}
+          >
+            <ChevronLeft />
+            Newest
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={nextPage}
+            disabled={!runs.data?.nextCursor}
+          >
+            Older runs
+            <ChevronRight />
+          </Button>
+        </div>
       </div>
+      {detail.isFetching && !detail.data && <Loading />}
       {detail.error && <ErrorState error={detail.error} />}
       {detail.data && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Run {detail.data.id}</CardTitle>
+        <Card className="min-w-0 shadow-none">
+          <CardHeader className="flex flex-wrap items-center justify-between gap-3">
+            <CardTitle className="min-w-0 break-all text-sm">
+              Run {detail.data.id}
+            </CardTitle>
+            <StateBadge state={detail.data.state} />
           </CardHeader>
-          <CardContent className="flex flex-col gap-3 text-sm">
-            <p>
-              Release: <code>{detail.data.releaseId}</code> ·{" "}
-              <StateBadge state={detail.data.state} />
+          <CardContent className="flex min-w-0 flex-col gap-4 text-sm">
+            <p className="break-all text-xs text-muted-foreground">
+              Release:{" "}
+              <code className="text-foreground">{detail.data.releaseId}</code>
             </p>
-            {detail.data.attempts.map(function attempt(a) {
-              return (
-                <p key={a.number}>
-                  Attempt {a.number}: {a.state} · exit {a.exitCode ?? "—"} ·{" "}
-                  {a.startedAt
-                    ? new Date(a.startedAt).toLocaleString()
-                    : "Not started"}
-                  {a.finishedAt &&
-                    " → " + new Date(a.finishedAt).toLocaleString()}
-                </p>
-              );
-            })}
-            {detail.data.error && <p role="alert">{detail.data.error}</p>}
+            <div className="flex flex-col divide-y">
+              {detail.data.attempts.map((a) => (
+                <div
+                  key={a.number}
+                  className="flex flex-wrap items-center justify-between gap-3 py-3"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">Attempt {a.number}</span>
+                    <StateBadge state={a.state} />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Exit {a.exitCode ?? "—"} ·{" "}
+                    {a.startedAt
+                      ? new Date(a.startedAt).toLocaleString()
+                      : "Not started"}
+                    {a.finishedAt &&
+                      " → " + new Date(a.finishedAt).toLocaleString()}
+                  </p>
+                </div>
+              ))}
+            </div>
+            {detail.data.error && (
+              <p role="alert" className="break-words text-destructive">
+                {detail.data.error}
+              </p>
+            )}
             {detail.data.cleanupPending && !activeJobRun(detail.data) && (
-              <p>
+              <p className="rounded-lg border bg-muted/20 p-3 text-muted-foreground">
                 Container cleanup is pending; the execution slot remains
                 reserved.
               </p>

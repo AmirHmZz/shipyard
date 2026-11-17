@@ -6,6 +6,7 @@ import { InputField } from "@/components/InputField";
 import { SelectControl } from "@/components/SelectControl";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export type ServiceRestartRowProps = {
   name: string;
@@ -54,12 +55,7 @@ export function ServiceRestartRow({
         )}
       </div>
       <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          name={`restart:${name}`}
-          defaultChecked={enabled}
-          className="size-4 accent-primary"
-        />
+        <Checkbox name={`restart:${name}`} defaultChecked={enabled} />
         Restart periodically
       </label>
       <div className="flex min-w-0 items-end gap-2">

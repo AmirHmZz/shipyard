@@ -175,6 +175,60 @@ test("server deletion is a full-page review with exact confirmation and explicit
     deleteVolumes: true,
   });
 });
+
+for (const theme of ["light", "dark"]) {
+  test(`server card shows resource usage and accessible actions in ${theme} theme`, async function card({
+    page,
+  }, info) {
+    await page.addInitScript(
+      (value) => localStorage.setItem("shipyard-theme:v1", value),
+      theme,
+    );
+    const state = await setup(page);
+    await page.route(
+      "**/api/v1/servers/host/metrics",
+      async function metrics(route) {
+        return route.fulfill({
+          json: [0, 1, 2, 3].map((i) => ({
+            resourceId: "host",
+            cpu: 24 + i,
+            memory: 48.5,
+            disk: 65.2,
+            online: true,
+            at: new Date(Date.now() - (3 - i) * 30000).toISOString(),
+            containers: [],
+          })),
+        });
+      },
+    );
+    await page.goto("/servers");
+    await expect(page.getByText("online", { exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("progressbar", { name: "Memory usage" }),
+    ).toHaveAttribute("aria-valuenow", "48.5");
+    await expect(page.locator(".recharts-area-curve")).toBeVisible();
+    for (const name of [
+      "Configure",
+      "Team access",
+      "HAProxy settings",
+      "Test connection",
+      "Delete server",
+    ])
+      await expect(
+        page.getByRole("button", { name, exact: true }),
+      ).toBeVisible();
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBeTruthy();
+    await page.screenshot({
+      path: info.outputPath(`server-card-${theme}.png`),
+      fullPage: true,
+    });
+    expect(state.writes).toHaveLength(0);
+  });
+}
 test("changed inventory requires a fresh review", async ({ page }) => {
   const state = await setup(page);
   state.conflict();

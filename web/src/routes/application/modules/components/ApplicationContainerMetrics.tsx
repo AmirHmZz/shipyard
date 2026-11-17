@@ -1,7 +1,9 @@
+import { Activity } from "lucide-react";
+
 import type { Metric } from "@/lib/api/types";
 
+import { SettingsSection } from "@/components/SettingsSection";
 import { TableHeadings } from "@/components/TableHeadings";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -18,14 +20,12 @@ export function ApplicationContainerMetrics({
   if (!admin) return null;
   const containers = metrics?.at(-1)?.containers ?? [];
   return (
-    <Card className="mt-5 overflow-hidden pb-0 shadow-none">
-      <CardHeader>
-        <CardTitle className="text-sm">Container resources</CardTitle>
-        <p className="text-xs text-muted-foreground">
-          Sampled every 30 seconds. CPU may exceed 100% across multiple cores.
-        </p>
-      </CardHeader>
-      <CardContent className="p-0">
+    <div className="mt-5">
+      <SettingsSection
+        title="Container resources"
+        description="Sampled every 30 seconds. CPU may exceed 100% across multiple cores."
+        icon={<Activity />}
+      >
         {containers.length ? (
           <Table>
             <TableHeader>
@@ -51,11 +51,11 @@ export function ApplicationContainerMetrics({
             </TableBody>
           </Table>
         ) : (
-          <p className="px-6 pb-6 text-sm text-muted-foreground">
+          <p className="p-5 text-sm text-muted-foreground">
             Container metrics appear after deployment and the next metrics poll.
           </p>
         )}
-      </CardContent>
-    </Card>
+      </SettingsSection>
+    </div>
   );
 }

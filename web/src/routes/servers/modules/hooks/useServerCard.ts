@@ -26,7 +26,7 @@ export function useServerCard(server: Resource) {
   }
   return {
     state: {},
-    derived: { admin, q, latest, status },
+    derived: { admin, q, latest, status, testing: checkVersion.isPending },
     handlers: { testConnection },
   };
 }

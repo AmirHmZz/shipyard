@@ -1,20 +1,30 @@
-import { Check, Server, Settings2, Trash2, Users } from "lucide-react";
+import {
+  Activity,
+  Check,
+  Cpu,
+  HardDrive,
+  MemoryStick,
+  Server,
+  Settings2,
+  ShieldCheck,
+  Terminal,
+  Trash2,
+  Users,
+} from "lucide-react";
 import { lazy, Suspense } from "react";
 
 import type { Resource } from "@/lib/api/types";
 
+import { FlushCard } from "@/components/FlushCard";
+import { IconButton } from "@/components/IconButton";
 import { StateBadge } from "@/components/Shared";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
 import { text } from "@/lib/resource-fields";
 
 import { useServerCard } from "../hooks";
+import { ServerMetric } from "./ServerMetric";
 
 const ServerCPUChart = lazy(() =>
   import("./ServerCPUChart").then((module) => ({
@@ -25,138 +35,152 @@ const ServerCPUChart = lazy(() =>
 export type ServerCardProps = { server: Resource };
 export function ServerCard({ server }: ServerCardProps) {
   const { derived, handlers } = useServerCard(server);
-  const { admin, q, latest, status } = derived;
+  const { admin, q, latest, status, testing } = derived;
   const { testConnection } = handlers;
+  const local = server.data.connection === "local";
   return (
-    <Card className="shadow-none">
-      <CardHeader className="flex justify-between">
-        <div>
-          <div className="mb-4 flex size-10 items-center justify-center rounded-xl border bg-muted/50">
-            <Server className="size-5 text-primary" />
+    <FlushCard className="flex-1">
+      <div className="flex flex-col gap-4 p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex size-10 items-center justify-center rounded-xl border bg-primary/5 text-primary">
+            <Server className="size-5" />
           </div>
-          <CardTitle className="text-base">{server.name}</CardTitle>
-          <CardDescription className="mt-2 font-mono text-xs">
-            {server.data.connection === "local"
-              ? "Local Docker host"
-              : `${text(server.data, "user")}@${text(server.data, "host")} · SSH`}
-          </CardDescription>
+          <StateBadge state={status} />
         </div>
-        <StateBadge state={status} />
-      </CardHeader>
-      <CardContent>
-        {server.data.deleting ? (
-          <div className="flex flex-col gap-3">
-            <p className="text-sm text-muted-foreground">
-              {server.data.deletionError
-                ? text(server.data, "deletionError")
-                : "Server cleanup in progress."}
-            </p>
-            {admin && (
-              <Button
-                className="self-start"
-                variant="outline"
-                size="sm"
-                data-server-id={server.id}
-                data-action="delete"
-              >
-                {server.data.deletionError
-                  ? "Retry cleanup"
-                  : "Cleanup details"}
-              </Button>
+        <div className="flex min-w-0 flex-col gap-2">
+          <h2 className="break-all text-base font-semibold tracking-tight">
+            {server.name}
+          </h2>
+          <p className="flex min-w-0 items-start gap-2 text-xs text-muted-foreground">
+            <Terminal className="mt-0.5 size-3.5 shrink-0" />
+            <span className="break-all font-mono">
+              {local
+                ? "Local Docker host"
+                : `${text(server.data, "user")}@${text(server.data, "host")}`}
+            </span>
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="outline" className="gap-1.5 font-normal">
+            {local ? (
+              <Server className="size-3" />
+            ) : (
+              <ShieldCheck className="size-3" />
             )}
-          </div>
-        ) : (
-          <>
-            {admin && (
-              <>
-                <div className="mb-5 grid grid-cols-3 gap-3">
-                  {[
-                    ["CPU", latest?.cpu],
-                    ["Memory", latest?.memory],
-                    ["Disk", latest?.disk],
-                  ].map(([label, v]) => (
-                    <div key={label}>
-                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                        {label}
-                      </p>
-                      <p className="mt-2 font-mono text-lg">
-                        {typeof v === "number" ? `${v.toFixed(1)}%` : "—"}
-                      </p>
-                    </div>
-                  ))}
+            {local ? "Local connection" : "SSH connection"}
+          </Badge>
+        </div>
+      </div>
+      {server.data.deleting ? (
+        <div className="flex flex-col gap-3 border-t p-5">
+          <p className="break-words text-sm text-muted-foreground">
+            {server.data.deletionError
+              ? text(server.data, "deletionError")
+              : "Server cleanup in progress."}
+          </p>
+          {admin && (
+            <Button
+              className="self-start"
+              variant="outline"
+              size="sm"
+              data-server-id={server.id}
+              data-action="delete"
+            >
+              {server.data.deletionError ? "Retry cleanup" : "Cleanup details"}
+            </Button>
+          )}
+        </div>
+      ) : (
+        <>
+          {admin && (
+            <div className="flex flex-col gap-4 border-t p-5">
+              <div className="grid grid-cols-3 gap-2">
+                <ServerMetric label="CPU" value={latest?.cpu} icon={<Cpu />} />
+                <ServerMetric
+                  label="Memory"
+                  value={latest?.memory}
+                  icon={<MemoryStick />}
+                />
+                <ServerMetric
+                  label="Disk"
+                  value={latest?.disk}
+                  icon={<HardDrive />}
+                />
+              </div>
+              <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <Activity className="size-3.5" />
+                  CPU activity
+                </span>
+                <span>30s sampling</span>
+              </div>
+              {q.data && q.data.length > 1 ? (
+                <div className="h-20">
+                  <Suspense
+                    fallback={
+                      <div className="h-full animate-pulse rounded bg-muted" />
+                    }
+                  >
+                    <ServerCPUChart data={q.data} />
+                  </Suspense>
                 </div>
-                {q.data && q.data.length > 1 ? (
-                  <div className="mb-5 h-20">
-                    <Suspense
-                      fallback={
-                        <div className="h-full animate-pulse rounded bg-muted" />
-                      }
-                    >
-                      <ServerCPUChart data={q.data} />
-                    </Suspense>
-                  </div>
-                ) : (
-                  <p className="mb-5 text-xs text-muted-foreground">
-                    Metrics appear after the next 30-second poll.
-                  </p>
-                )}
-              </>
-            )}
-            <div className="flex flex-wrap gap-2 border-t pt-4">
-              <Button
+              ) : (
+                <div className="flex h-20 items-center justify-center rounded-lg border border-dashed bg-muted/10 px-3 text-center text-xs text-muted-foreground">
+                  Metrics appear after the next 30-second poll.
+                </div>
+              )}
+            </div>
+          )}
+          <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t bg-muted/20 px-4 py-3">
+            <Button
+              disabled={!server.canWrite}
+              variant="outline"
+              size="sm"
+              data-server-id={server.id}
+              data-action="edit"
+            >
+              <Settings2 />
+              Configure
+            </Button>
+            <div className="flex items-center gap-1">
+              <IconButton
+                label="Team access"
                 disabled={!server.canWrite}
-                variant="outline"
-                size="sm"
-                data-server-id={server.id}
-                data-action="edit"
-              >
-                Configure
-              </Button>
-              <Button
-                disabled={!server.canWrite}
-                variant="outline"
-                size="sm"
                 data-server-id={server.id}
                 data-action="grants"
               >
                 <Users />
-                Team access
-              </Button>
+              </IconButton>
               {server.canWrite && (
-                <Button
-                  variant="outline"
-                  size="sm"
+                <IconButton
+                  label="HAProxy settings"
                   data-server-id={server.id}
                   data-action="haproxy"
                 >
-                  <Settings2 /> HAProxy settings
-                </Button>
+                  <ShieldCheck />
+                </IconButton>
               )}
-              <Button
-                disabled={!server.canWrite}
-                variant="ghost"
-                size="sm"
+              <IconButton
+                label="Test connection"
+                disabled={!server.canWrite || testing}
                 onClick={testConnection}
               >
-                <Check />
-                Test
-              </Button>
-              {admin && server.data.connection !== "local" && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-destructive hover:text-destructive"
+                {testing ? <Spinner /> : <Check />}
+              </IconButton>
+              {admin && !local && (
+                <IconButton
+                  label="Delete server"
+                  className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                   data-server-id={server.id}
                   data-action="delete"
                 >
                   <Trash2 />
-                  Delete server
-                </Button>
+                </IconButton>
               )}
             </div>
-          </>
-        )}
-      </CardContent>
-    </Card>
+          </div>
+        </>
+      )}
+    </FlushCard>
   );
 }

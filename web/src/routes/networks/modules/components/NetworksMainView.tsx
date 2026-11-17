@@ -6,15 +6,14 @@ import { Button } from "@/components/ui/button";
 import { describeError } from "@/lib/api/translate-error";
 
 import { useNetworksPage } from "../hooks";
-import { NetworkServerFilter } from "./NetworkServerFilter";
+import { NetworkFilters } from "./NetworkFilters";
 import { NetworkTable } from "./NetworkTable";
 export function NetworksMainView() {
   const controller = useNetworksPage();
-  const { remove, filter } = controller.state;
+  const { remove } = controller.state;
   const {
     q,
     account,
-    resources,
     inventory,
     removeMutation,
     removalTitle,
@@ -22,7 +21,6 @@ export function NetworksMainView() {
     controlNetworks,
   } = controller.derived;
   const {
-    setFilter,
     confirmRemoval,
     handleRemovalOpenChange,
     addNetwork,
@@ -34,6 +32,7 @@ export function NetworksMainView() {
   return (
     <>
       <PageHeader
+        eyebrow="Infrastructure"
         title="Docker networks"
         description="Manage bridge networks on your deployment servers. Application changes apply on the next deployment."
       >
@@ -42,13 +41,7 @@ export function NetworksMainView() {
           Add network
         </Button>
       </PageHeader>
-      <NetworkServerFilter
-        filter={filter}
-        setFilter={setFilter}
-        resources={resources}
-        account={account}
-        inventory={inventory}
-      />
+      <NetworkFilters controller={controller} />
       {inventory.isFetching && (
         <p role="status" className="mb-4 text-sm text-muted-foreground">
           Loading server networks…

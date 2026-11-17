@@ -10,11 +10,11 @@ export function ServerEntry({ server }: ServerEntryProps) {
   const canProvision =
     server.data.connection !== "local" && !server.data.deleting;
   return (
-    <div>
+    <div className="flex min-w-0 flex-col gap-2">
       <ServerCard server={server} />
       {canProvision && (
         <Button
-          className="mt-2"
+          className="self-start whitespace-normal text-left"
           disabled={!server.canWrite}
           variant="ghost"
           size="sm"
