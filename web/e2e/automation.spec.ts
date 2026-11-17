@@ -240,6 +240,29 @@ test("save per-service intervals and preview timezone-aware app schedules", asyn
   await expect(page.getByText("Automation settings saved")).toBeVisible();
 });
 
+test("preserve a 62-second interval while editing schedules", async function interval({
+  page,
+}) {
+  const fixture = await automationFixture(page);
+  await page.goto("/applications/app?tab=automation");
+  await page.getByLabel("Restart periodically").check();
+  await page
+    .getByRole("spinbutton", { name: "app restart interval" })
+    .fill(String(62 / 60));
+  await page.getByRole("button", { name: "Save automation" }).click();
+  await expect.poll(() => fixture.writes.length).toBe(1);
+  await expect(
+    page.getByRole("button", { name: "Save automation" }),
+  ).toBeEnabled();
+  await page.getByRole("button", { name: "Add schedule rule" }).click();
+  await page.getByRole("button", { name: "Save automation" }).click();
+  await expect.poll(() => fixture.writes.length).toBe(2);
+  expect(fixture.writes[1].body).toMatchObject({
+    restarts: [{ service: "app", enabled: true, intervalSeconds: 62 }],
+    rules: [{ action: "start" }],
+  });
+});
+
 test("save CPU and RAM caps with next-deployment feedback", async function resources({
   page,
 }) {

@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 func (c *Controller) jobScheduler(ctx context.Context) {
@@ -244,17 +245,15 @@ func (c *Controller) reconcileJob(ctx context.Context, app, id string) (result e
 		}
 		return nil
 	}
-	if a.StartedAt == nil {
+	if a.StartedAt == nil || a.Deadline == nil || a.State == "creating" || a.State == "starting" {
 		start, e := time.Parse(time.RFC3339Nano, container.State.StartedAt)
 		if e != nil {
 			return e
 		}
 		deadline := start.Add(time.Duration(run.Policy.TimeoutSeconds) * time.Second)
-		if _, err = c.Store.Pool.Exec(ctx, "UPDATE job_attempts SET state='running',started_at=$3,deadline=$4 WHERE run_id=$1 AND number=$2", id, a.Number, start, deadline); err != nil {
+		if err = c.Store.Pool.QueryRow(ctx, "UPDATE job_attempts SET state=CASE WHEN state IN ('creating','starting') THEN 'running' ELSE state END,started_at=COALESCE(started_at,$3),deadline=COALESCE(deadline,$4) WHERE run_id=$1 AND number=$2 RETURNING state,started_at,deadline", id, a.Number, start, deadline).Scan(&a.State, &a.StartedAt, &a.Deadline); err != nil {
 			return err
 		}
-		a.StartedAt = &start
-		a.Deadline = &deadline
 	}
 	timeout := a.Deadline != nil && !time.Now().Before(*a.Deadline)
 	if container.State.Status == "running" || container.State.Status == "restarting" || container.State.Status == "paused" {
@@ -409,8 +408,13 @@ func (c *Controller) captureJobLogs(ctx context.Context, e *deploy.Engine, relea
 			continue
 		}
 		line = redactor.redact(line)
+		line = strings.ToValidUTF8(strings.ReplaceAll(line, "\x00", "�"), "�")
 		if len(line) > 16384 {
-			line = line[:16384] + " [line truncated]"
+			end := 16384
+			for !utf8.RuneStart(line[end]) {
+				end--
+			}
+			line = line[:end] + " [line truncated]"
 		}
 		if _, err = tx.Exec(ctx, "INSERT INTO job_run_events(run_id,attempt,message) VALUES($1,$2,$3)", r.ID, a.Number, line); err != nil {
 			return err
@@ -458,7 +462,21 @@ func (c *Controller) cleanupJobAttempt(ctx context.Context, e *deploy.Engine, re
 	if err = e.CleanupJob(ctx, release, a); err != nil {
 		return err
 	}
-	_, err = c.Store.Pool.Exec(ctx, "UPDATE job_attempts SET cleaned=true WHERE run_id=$1 AND number=$2", r.ID, a.Number)
+	return c.completeJobAttemptCleanup(ctx, r.ID, a.Number)
+}
+
+// Cleanup proves that any remaining output is unavailable. Finalize that state
+// and its explanation together so retries cannot append duplicate events.
+func (c *Controller) completeJobAttemptCleanup(ctx context.Context, run string, attempt int) error {
+	_, err := c.Store.Pool.Exec(ctx, `WITH previous AS (
+ SELECT number,logs_complete FROM job_attempts WHERE run_id=$1 AND number=$2 FOR UPDATE
+), completed AS (
+ UPDATE job_attempts a SET cleaned=true,logs_complete=true FROM previous p
+ WHERE a.run_id=$1 AND a.number=p.number RETURNING p.logs_complete
+)
+INSERT INTO job_run_events(run_id,attempt,message)
+SELECT $1,$2,'[Remaining logs unavailable: the attempt container has been removed]'
+FROM completed WHERE NOT logs_complete`, run, attempt)
 	return err
 }
 func (c *Controller) notifyJobRun(ctx context.Context, resource model.Resource, r model.JobRun) error {

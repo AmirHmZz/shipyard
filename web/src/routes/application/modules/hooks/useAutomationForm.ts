@@ -87,10 +87,14 @@ export function useAutomationForm(
         return;
       }
       const factors = { minutes: 60, hours: 3600, days: 86400 };
+      const seconds = draft.data.amount * factors[draft.data.unit];
+      const rounded = Math.round(seconds);
+      const tolerance = 8 * Number.EPSILON * Math.max(1, Math.abs(seconds));
       restarts.push({
         service,
         enabled,
-        intervalSeconds: draft.data.amount * factors[draft.data.unit],
+        intervalSeconds:
+          Math.abs(seconds - rounded) <= tolerance ? rounded : seconds,
       });
     }
     const result = automationSettingsSchema.safeParse({
