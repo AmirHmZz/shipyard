@@ -1,4 +1,4 @@
-import { Anchor, ChevronDown, Info } from "lucide-react";
+import { Anchor, Info } from "lucide-react";
 import { Link, NavLink } from "react-router";
 
 import { Badge } from "@/components/ui/badge";
@@ -68,22 +68,6 @@ export function Sidebar({ close, collapsed = false, admin }: SidebarProps) {
           BETA
         </Badge>
       </Link>
-      <div className={cn("px-4", collapsed && "hidden")}>
-        <div className="mb-7 flex items-center gap-2.5 rounded-lg border bg-card/70 p-3">
-          <div className="flex size-7 items-center justify-center rounded-md bg-muted text-xs font-medium text-primary">
-            S
-          </div>
-          <div>
-            <p className="text-xs font-medium text-foreground">
-              Deployment workspace
-            </p>
-            <p className="mt-0.5 text-[10px] text-muted-foreground">
-              Self-hosted
-            </p>
-          </div>
-          <ChevronDown className="ml-auto size-3.5 text-muted-foreground" />
-        </div>
-      </div>
       <nav
         aria-label="Main navigation"
         className={cn("flex flex-col gap-1", collapsed ? "px-2" : "px-3")}
