@@ -5,14 +5,20 @@ Shipyard serves Streamable HTTP at `https://<dashboard-host>/mcp`. Every request
 ## Connect an agent
 
 1. Open **Settings → MCP access** as a platform administrator.
-2. Name the credential, select the projects the agent may read, and set an expiry. The default is 30 days. Copy the token when it appears and save it in the agent's secret store.
+2. Select **Create token**. Name the credential, select the projects the agent may read, and set an expiry. The default is 30 days. Copy the token when it appears and save it in the agent's secret store.
 3. Configure the client with the endpoint shown in settings. For Codex, make the token available to the Codex process as `SHIPYARD_MCP_TOKEN` and register the endpoint with the following command.
 
    ```sh
    codex mcp add shipyard --url https://<dashboard-host>/mcp --bearer-token-env-var SHIPYARD_MCP_TOKEN
    ```
 
-Issue one credential per agent. To rotate, issue a replacement, configure it in the client, and revoke the previous token. Restoring a Shipyard backup requires issuing fresh MCP tokens.
+Issue one credential per agent. Use the token's action menu to manage it.
+
+- **Edit access** updates the allowed projects immediately. The client can keep its current secret.
+- **Recreate token** issues a new secret on the same record, retains the allowed projects, and starts a new lifetime. Expired and revoked records can be recreated. Any previous secret stops working immediately. Copy the new secret and update the client.
+- **Revoke token** invalidates the credential and keeps its record. **Delete record** invalidates the credential and permanently removes the record.
+
+Expired tokens remain listed until deleted. Restoring a Shipyard backup requires issuing fresh MCP tokens.
 
 Native dashboard ingress handles HTTPS automatically. With a separately managed proxy, set `SHIPYARD_ORIGIN` to the dashboard HTTPS origin and `SHIPYARD_MCP_TRUSTED_PROXY` to the proxy's exact peer IP as seen from Shipyard. The proxy must preserve the external host and overwrite `X-Forwarded-Proto` based on the client connection. Keep the upstream listener private to that proxy.
 

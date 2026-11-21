@@ -239,7 +239,7 @@ export const mcpProjectSchema = z.object({
   teamName: z.string(),
 });
 
-const mcpTokenSchema = z.object({
+export const mcpTokenSchema = z.object({
   id: z.string(),
   name: z.string(),
   projectIds: z.array(z.string()),
@@ -259,10 +259,23 @@ export const issuedMcpTokenSchema = z.object({
   secret: z.string(),
 });
 
-export const mcpTokenInputSchema = z.object({
-  name: z.string().check(z.trim(), z.minLength(1), z.maxLength(80)),
+export const mcpTokenAccessSchema = z.object({
   projectIds: z
     .array(z.uuid())
     .check(z.minLength(1, "Select at least one project."), z.maxLength(100)),
+});
+
+export const mcpTokenRecreationSchema = z.object({
   expiryDays: z.coerce.number().check(z.int(), z.minimum(1), z.maximum(365)),
+});
+
+export const mcpTokenInputSchema = z.object({
+  name: z.string().check(z.trim(), z.minLength(1), z.maxLength(80)),
+  ...mcpTokenAccessSchema.shape,
+  ...mcpTokenRecreationSchema.shape,
+});
+
+export const mcpTokenActionSchema = z.object({
+  kind: z.enum(["edit", "recreate", "revoke", "delete"]),
+  id: z.uuid(),
 });

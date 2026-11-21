@@ -16,7 +16,12 @@ import type {
   alertPolicySchema,
   updateFormSchema,
   mcpProjectSchema,
+  issuedMcpTokenSchema,
+  mcpTokenAccessSchema,
+  mcpTokenActionSchema,
   mcpTokenInputSchema,
+  mcpTokenRecreationSchema,
+  mcpTokenSchema,
 } from "./schema";
 
 export type AlertPolicy = z.infer<typeof alertPolicyResponseSchema>;
@@ -30,7 +35,12 @@ export type State = z.infer<typeof dashboardAccessResponseSchema>;
 
 export type User = z.infer<typeof userResponseSchema>;
 export type McpProject = z.infer<typeof mcpProjectSchema>;
+export type McpToken = z.infer<typeof mcpTokenSchema>;
+export type IssuedMcpToken = z.infer<typeof issuedMcpTokenSchema>;
+export type McpTokenAction = z.infer<typeof mcpTokenActionSchema>;
+export type McpTokenAccess = z.infer<typeof mcpTokenAccessSchema>;
 export type McpTokenInput = z.infer<typeof mcpTokenInputSchema>;
+export type McpTokenRecreation = z.infer<typeof mcpTokenRecreationSchema>;
 
 export type PasswordValues = z.infer<typeof passwordFormSchema>;
 export type PassphraseValues = z.infer<typeof passphraseSchema>;

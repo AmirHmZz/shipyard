@@ -9,13 +9,16 @@ import (
 	"net/http/httputil"
 	"net/netip"
 	"net/url"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"shipyard/internal/control"
+	"shipyard/internal/db"
 	"shipyard/internal/model"
 	"shipyard/internal/remote"
 	"shipyard/internal/secure"
@@ -150,10 +153,7 @@ func TestMCPAuthenticationAndScope(t *testing.T) {
 	check(status, 403, body)
 	status, body = request(tls, "POST", settings, string(create), "", "admin-cookie", "csrf", "")
 	check(status, 201, body)
-	var issued struct {
-		Token  struct{ ID string }
-		Secret string
-	}
+	var issued mcpIssuedToken
 	contract := testcontract.Document(t)
 	var response any
 	if err := json.Unmarshal([]byte(body), &response); err != nil {
@@ -296,20 +296,97 @@ func TestMCPAuthenticationAndScope(t *testing.T) {
 	requireContains(call("read_deployment_logs", map[string]any{"deploymentId": deployment}, true), "Resource not found")
 	forbid(call("search_logs", map[string]any{"query": "retry failure"}, false), "100% retry failure")
 
+	path := settings + "/" + issued.Token.ID
+	access := func(projectID string) string {
+		return `{"projectIds":["` + projectID + `"]}`
+	}
+	for _, mutation := range []struct{ method, path, body string }{
+		{"PATCH", path, access(foreign)},
+		{"POST", path + "/recreate", `{}`},
+		{"DELETE", path + "/record", ""},
+	} {
+		status, body = request(tls, mutation.method, mutation.path, mutation.body, "", "viewer-cookie", "csrf", "")
+		check(status, 403, body)
+		status, body = request(tls, mutation.method, mutation.path, mutation.body, "", "admin-cookie", "", "")
+		check(status, 403, body)
+	}
+	status, body = request(tls, "PATCH", path, access(uuid.NewString()), "", "admin-cookie", "csrf", "")
+	check(status, 400, body)
+	apps = call("list_applications", map[string]any{}, false)
+	requireContains(apps, job)
+	forbid(apps, other)
+	status, body = request(tls, "PATCH", path, access(foreign), "", "admin-cookie", "csrf", "")
+	check(status, 200, body)
+	apps = call("list_applications", map[string]any{}, false)
+	requireContains(apps, other, app)
+	forbid(apps, job)
+	tokens, err := a.Store.MCPTokens(ctx)
+	if err != nil || len(tokens) != 1 || !tokens[0].ExpiresAt.Equal(issued.Token.ExpiresAt) {
+		t.Fatalf("access update changed the original expiry: %+v %v", tokens, err)
+	}
+
+	recreate := func(payload string, lifetime time.Duration) mcpIssuedToken {
+		t.Helper()
+		before := time.Now()
+		status, body := request(tls, "POST", path+"/recreate", payload, "", "admin-cookie", "csrf", "")
+		check(status, 200, body)
+		var next mcpIssuedToken
+		if err := json.Unmarshal([]byte(body), &next); err != nil {
+			t.Fatal(err)
+		}
+		if next.Token.ID != issued.Token.ID || next.Token.Name != issued.Token.Name || !next.Token.CreatedAt.Equal(issued.Token.CreatedAt) ||
+			!slices.Equal(next.Token.ProjectIDs, []string{foreign}) || next.Token.RevokedAt != nil || next.Secret == "" || next.Secret == issued.Secret {
+			t.Fatal("recreation did not preserve the token record and replace its secret")
+		}
+		if delta := next.Token.ExpiresAt.Sub(before); delta < lifetime-time.Second || delta > lifetime+time.Minute {
+			t.Fatalf("unexpected recreated lifetime: %s", delta)
+		}
+		return next
+	}
+	rotated := recreate(`{"expiryDays":14}`, 14*24*time.Hour)
+	status, body = request(tls, "POST", "/mcp", discovery, issued.Secret, "", "", "")
+	check(status, 401, body)
+	for _, probe := range []struct {
+		secret string
+		count  int
+	}{{issued.Secret, 0}, {rotated.Secret, 2}} {
+		apps, err := a.Store.MCPApplications(ctx, secure.Hash(probe.secret), db.MCPApplicationFilter{Limit: 20})
+		if err != nil || len(apps) != probe.count {
+			t.Fatalf("expected %d applications for the credential, got %d: %v", probe.count, len(apps), err)
+		}
+	}
+	issued = rotated
 	exec("UPDATE settings SET value='true' WHERE key='maintenance'")
-	status, body = request(tls, "DELETE", settings+"/"+issued.Token.ID, "", "", "admin-cookie", "csrf", "")
+	status, body = request(tls, "DELETE", path, "", "", "admin-cookie", "csrf", "")
 	check(status, 200, body)
 	status, body = request(tls, "POST", "/mcp", discovery, issued.Secret, "", "", "")
 	check(status, 401, body)
 	exec("UPDATE settings SET value='false' WHERE key='maintenance'")
-	status, body = request(tls, "POST", settings, string(create), "", "admin-cookie", "csrf", "")
-	check(status, 201, body)
-	if err := json.Unmarshal([]byte(body), &issued); err != nil {
-		t.Fatal(err)
-	}
+	issued = recreate(`{}`, 30*24*time.Hour)
 	exec("UPDATE mcp_tokens SET expires_at=now()-interval '1 second' WHERE id=$1", issued.Token.ID)
 	status, body = request(tls, "POST", "/mcp", discovery, issued.Secret, "", "", "")
 	check(status, 401, body)
+	status, body = request(tls, "GET", settings, "", "", "admin-cookie", "", "")
+	check(status, 200, body)
+	requireContains(body, issued.Token.ID)
+	forbid(body, issued.Secret, secure.Hash(issued.Secret))
+	issued = recreate(`{"expiryDays":1}`, 24*time.Hour)
+	if id, err := a.Store.MCPTokenID(ctx, secure.Hash(issued.Secret)); err != nil || id != issued.Token.ID {
+		t.Fatalf("expired token was not reactivated: %v", err)
+	}
+	status, body = request(tls, "DELETE", path+"/record", "", "", "admin-cookie", "csrf", "")
+	check(status, 200, body)
+	status, body = request(tls, "POST", "/mcp", discovery, issued.Secret, "", "", "")
+	check(status, 401, body)
+	status, body = request(tls, "GET", settings, "", "", "admin-cookie", "", "")
+	check(status, 200, body)
+	forbid(body, issued.Token.ID)
+	status, body = request(tls, "POST", path+"/recreate", `{}`, "", "admin-cookie", "csrf", "")
+	check(status, 404, body)
+	if err := a.Store.Pool.QueryRow(ctx, `SELECT count(*) FROM audit WHERE user_id=$1 AND resource_id=$2
+		AND action IN ('mcp.token_access_updated','mcp.token_recreated','mcp.token_deleted')`, admin, issued.Token.ID).Scan(&auditRows); err != nil || auditRows != 5 {
+		t.Fatalf("expected five successful management actions in audit history, got %d: %v", auditRows, err)
+	}
 }
 
 func TestMCPManagedDashboardProxyTLSBoundary(t *testing.T) {

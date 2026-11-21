@@ -9,7 +9,8 @@ import (
 )
 
 // Scope is resolved from the current application ancestry, inside the same
-// query as the protected data. A moved app follows its new project immediately.
+// query as the protected data. Match the presented token hash so a request
+// authenticated before recreation cannot use the replacement credential's grants.
 const mcpScope = `WITH scoped_apps AS (
 	SELECT a.id,a.name,env.id AS environment_id,env.name AS environment_name,
 		p.id AS project_id,p.name AS project_name,a.data->>'workload' AS workload
@@ -17,7 +18,7 @@ const mcpScope = `WITH scoped_apps AS (
 	JOIN resources p ON p.id=scope.project_id AND p.kind='project'
 	JOIN resources env ON env.parent_id=p.id AND env.kind='environment' AND env.team_id=p.team_id
 	JOIN resources a ON a.parent_id=env.id AND a.kind='application' AND a.team_id=p.team_id
-	WHERE token.id=$1 AND token.revoked_at IS NULL AND token.expires_at>now()
+	WHERE token.token_hash=$1 AND token.revoked_at IS NULL AND token.expires_at>now()
 )`
 
 type MCPApplication struct {
@@ -36,14 +37,14 @@ type MCPApplicationFilter struct {
 	Limit                                                               int
 }
 
-func (s *Store) MCPApplications(ctx context.Context, token string, f MCPApplicationFilter) ([]MCPApplication, error) {
+func (s *Store) MCPApplications(ctx context.Context, tokenHash string, f MCPApplicationFilter) ([]MCPApplication, error) {
 	rows, err := s.Pool.Query(ctx, mcpScope+`
 		SELECT id,name,project_id,project_name,environment_id,environment_name,CASE WHEN workload='job' THEN 'job' ELSE 'application' END
 		FROM scoped_apps WHERE ($2='' OR project_id=$2) AND ($3='' OR environment_id=$3)
 		AND ($4='' OR strpos(lower(name),lower($4))>0)
 		AND ($5='' OR lower(project_name)=lower($5)) AND ($6='' OR lower(environment_name)=lower($6))
 		AND id>$7 ORDER BY id LIMIT $8`,
-		token, f.ProjectID, f.EnvironmentID, f.Name, f.ProjectName, f.EnvironmentName, f.After, f.Limit)
+		tokenHash, f.ProjectID, f.EnvironmentID, f.Name, f.ProjectName, f.EnvironmentName, f.After, f.Limit)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +85,7 @@ type MCPRunFilter struct {
 	Limit                    int
 }
 
-func (s *Store) MCPRuns(ctx context.Context, token string, job bool, f MCPRunFilter) ([]MCPRun, error) {
+func (s *Store) MCPRuns(ctx context.Context, tokenHash string, job bool, f MCPRunFilter) ([]MCPRun, error) {
 	table, fields := "deployments", "r.commit_sha,r.updated_at,NULL,NULL"
 	if job {
 		table, fields = "job_runs", `NULL,NULL,r.finished_at,(SELECT jsonb_agg(jsonb_build_object(
@@ -97,7 +98,7 @@ func (s *Store) MCPRuns(ctx context.Context, token string, job bool, f MCPRunFil
 		WHERE ($2='' OR app.project_id=$2) AND ($3='' OR r.app_id=$3) AND ($4='' OR r.state=$4)
 		AND ($5::timestamptz IS NULL OR r.created_at >= $5) AND ($6::timestamptz IS NULL OR r.created_at < $6)
 		AND ($7::timestamptz IS NULL OR (r.created_at,r.id)<($7,$8))
-		ORDER BY r.created_at DESC,r.id DESC LIMIT $9`, token, f.ProjectID, f.AppID, f.Status,
+		ORDER BY r.created_at DESC,r.id DESC LIMIT $9`, tokenHash, f.ProjectID, f.AppID, f.Status,
 		f.Since, f.Until, f.Before, f.BeforeID, f.Limit)
 	if err != nil {
 		return nil, err
@@ -130,7 +131,7 @@ type MCPLogPage struct {
 	Entries     []MCPLogLine
 }
 
-func (s *Store) MCPReadLogs(ctx context.Context, token, app, id string, job bool, attempt *int, after int64, limit int) (MCPLogPage, error) {
+func (s *Store) MCPReadLogs(ctx context.Context, tokenHash, app, id string, job bool, attempt *int, after int64, limit int) (MCPLogPage, error) {
 	var result MCPLogPage
 	tx, err := s.Pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
 	if err != nil {
@@ -141,7 +142,7 @@ func (s *Store) MCPReadLogs(ctx context.Context, token, app, id string, job bool
 		FROM deployments d JOIN scoped_apps a ON a.id=d.app_id WHERE d.id=$2`
 	logSQL := `SELECT id,'deployment',deployment_id,$4::text,NULL::integer,created_at,message
 		FROM events WHERE deployment_id=$1 AND id>$2 AND $5::int IS NULL ORDER BY id LIMIT $3`
-	args := []any{token, id}
+	args := []any{tokenHash, id}
 	if job {
 		parentSQL = `SELECT r.app_id, CASE WHEN $4::int IS NULL THEN (
 			r.state IN ` + ActiveJobStates + ` OR EXISTS(SELECT 1 FROM job_attempts a WHERE a.run_id=r.id AND NOT a.logs_complete)
@@ -175,7 +176,7 @@ type MCPSearchFilter struct {
 	Limit                  int
 }
 
-func (s *Store) MCPSearch(ctx context.Context, token string, f MCPSearchFilter) ([]MCPLogLine, error) {
+func (s *Store) MCPSearch(ctx context.Context, tokenHash string, f MCPSearchFilter) ([]MCPLogLine, error) {
 	rows, err := s.Pool.Query(ctx, mcpScope+`, match_apps AS (
 		SELECT id FROM scoped_apps WHERE ($2='' OR project_id=$2) AND ($3='' OR id=$3)
 	), log_lines AS (
@@ -190,7 +191,7 @@ func (s *Store) MCPSearch(ctx context.Context, token string, f MCPSearchFilter) 
 	SELECT id,source,source_id,app_id,attempt,created_at,message FROM log_lines
 	WHERE ($7::timestamptz IS NULL OR (created_at,source,id)<($7,$8,$9))
 	ORDER BY created_at DESC,source DESC,id DESC LIMIT $10`,
-		token, f.ProjectID, f.AppID, f.Text, f.Since, f.Until, f.Before, f.BeforeSource, f.BeforeID, f.Limit)
+		tokenHash, f.ProjectID, f.AppID, f.Text, f.Since, f.Until, f.Before, f.BeforeSource, f.BeforeID, f.Limit)
 	if err != nil {
 		return nil, err
 	}
@@ -203,7 +204,7 @@ func scanMCPLogLine(row pgx.CollectableRow) (MCPLogLine, error) {
 	return line, err
 }
 
-func (s *Store) MCPCheckApplication(ctx context.Context, token, app string) error {
+func (s *Store) MCPCheckApplication(ctx context.Context, tokenHash, app string) error {
 	var id string
-	return s.Pool.QueryRow(ctx, mcpScope+" SELECT id FROM scoped_apps WHERE id=$2", token, app).Scan(&id)
+	return s.Pool.QueryRow(ctx, mcpScope+" SELECT id FROM scoped_apps WHERE id=$2", tokenHash, app).Scan(&id)
 }

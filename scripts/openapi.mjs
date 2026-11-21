@@ -810,20 +810,28 @@ schemas.MCPToken = object(
   },
   ["id", "name", "projectIds", "createdAt", "expiresAt"],
 );
+const mcpTokenAccess = {
+  projectIds: {
+    type: "array",
+    items: { type: "string", format: "uuid" },
+    minItems: 1,
+    maxItems: 100,
+    uniqueItems: true,
+  },
+};
+const mcpTokenExpiry = {
+  expiryDays: { type: "integer", minimum: 1, maximum: 365, default: 30 },
+};
 schemas.MCPTokenInput = input(
   {
     name: { type: "string", minLength: 1, maxLength: 80 },
-    projectIds: {
-      type: "array",
-      items: { type: "string", format: "uuid" },
-      minItems: 1,
-      maxItems: 100,
-      uniqueItems: true,
-    },
-    expiryDays: { type: "integer", minimum: 1, maximum: 365, default: 30 },
+    ...mcpTokenAccess,
+    ...mcpTokenExpiry,
   },
   ["name", "projectIds"],
 );
+schemas.MCPTokenAccessInput = input(mcpTokenAccess);
+schemas.MCPTokenRecreationInput = input(mcpTokenExpiry, []);
 schemas.MCPTokens = object({
   endpoint: str,
   tokens: { type: "array", items: ref("MCPToken") },
@@ -833,7 +841,7 @@ schemas.MCPIssuedToken = object({
   token: ref("MCPToken"),
   secret: {
     type: "string",
-    description: "Returned only when creating a token.",
+    description: "Returned only when issuing or recreating a token.",
   },
 });
 schemas.MigrationDirection = object({
@@ -1093,10 +1101,40 @@ paths["/settings/mcp-tokens"].post.responses[201] =
 delete paths["/settings/mcp-tokens"].post.responses[200];
 add(
   "/settings/mcp-tokens/{id}",
+  "patch",
+  "Replace an MCP token's allowed projects as a platform administrator",
+  ref("Ok"),
+  ref("MCPTokenAccessInput"),
+);
+add(
+  "/settings/mcp-tokens/{id}",
   "delete",
   "Revoke an MCP token as a platform administrator",
   ref("Ok"),
 );
+add(
+  "/settings/mcp-tokens/{id}/recreate",
+  "post",
+  "Replace an MCP token's secret and reset its lifetime as a platform administrator",
+  ref("MCPIssuedToken"),
+  ref("MCPTokenRecreationInput"),
+);
+add(
+  "/settings/mcp-tokens/{id}/record",
+  "delete",
+  "Permanently delete an MCP token record as a platform administrator",
+  ref("Ok"),
+);
+for (const [path, method] of [
+  ["/settings/mcp-tokens/{id}", "patch"],
+  ["/settings/mcp-tokens/{id}/recreate", "post"],
+  ["/settings/mcp-tokens/{id}/record", "delete"],
+]) {
+  paths[path][method].responses[404] = {
+    description: "Token record not found",
+    content: { "application/json": { schema: ref("Error") } },
+  };
+}
 add(
   "/settings/dashboard-access",
   "put",

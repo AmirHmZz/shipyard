@@ -2,65 +2,92 @@ import type { FormEvent } from "react";
 
 import { InputField } from "@/components/InputField";
 import { Button } from "@/components/ui/button";
+import { DialogFooter } from "@/components/ui/dialog";
+import { Spinner } from "@/components/ui/spinner";
 
 import type { McpProject } from "../generics";
 
+import { McpProjectPicker } from "./McpProjectPicker";
+
 export type McpTokenFormProps = {
+  mode: "create" | "edit" | "recreate";
   projects: McpProject[];
+  projectIds: string[];
   pending: boolean;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onCancel: () => void;
 };
 export function McpTokenForm({
+  mode,
   projects,
+  projectIds,
   pending,
   onSubmit,
+  onCancel,
 }: McpTokenFormProps) {
+  const labels = {
+    create: "Create token",
+    edit: "Save access",
+    recreate: "Recreate token",
+  };
   return (
-    <form onSubmit={onSubmit} className="flex max-w-xl flex-col gap-4">
-      <InputField
-        label="Token name"
-        labelProps={{ htmlFor: "mcp-token-name" }}
-        inputProps={{
-          id: "mcp-token-name",
-          name: "name",
-          required: true,
-          maxLength: 80,
-        }}
-      />
-      <InputField
-        label="Expires in days"
-        labelProps={{ htmlFor: "mcp-expiry" }}
-        inputProps={{
-          id: "mcp-expiry",
-          name: "expiryDays",
-          type: "number",
-          defaultValue: 30,
-          min: 1,
-          max: 365,
-          required: true,
-        }}
-      />
-      <fieldset className="flex flex-col gap-2">
-        <legend className="mb-2 text-sm font-medium">Allowed projects</legend>
-        <div className="flex max-h-56 flex-col gap-2 overflow-y-auto rounded-md border p-3">
-          {projects.map((project) => (
-            <label key={project.id} className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                name="projectIds"
-                value={project.id}
-                className="size-4 shrink-0 accent-primary"
-              />
-              <span>
-                {project.teamName} / {project.name}
-              </span>
-            </label>
-          ))}
-        </div>
-      </fieldset>
-      <Button disabled={pending} className="self-start">
-        Create token
-      </Button>
+    <form onSubmit={onSubmit} className="flex min-w-0 flex-col gap-4">
+      {mode === "create" && (
+        <InputField
+          label="Token name"
+          labelProps={{ htmlFor: "mcp-token-name" }}
+          inputProps={{
+            id: "mcp-token-name",
+            name: "name",
+            required: true,
+            maxLength: 80,
+            disabled: pending,
+            placeholder: "e.g. Incident triage agent",
+          }}
+        />
+      )}
+      {mode !== "edit" && (
+        <InputField
+          label={
+            mode === "recreate" ? "New lifetime (days)" : "Expires in days"
+          }
+          labelProps={{ htmlFor: "mcp-expiry" }}
+          inputProps={{
+            id: "mcp-expiry",
+            name: "expiryDays",
+            type: "number",
+            defaultValue: 30,
+            min: 1,
+            max: 365,
+            required: true,
+            disabled: pending,
+          }}
+        />
+      )}
+      {mode !== "recreate" && (
+        <McpProjectPicker
+          projects={projects}
+          projectIds={projectIds}
+          pending={pending}
+        />
+      )}
+      <DialogFooter>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onCancel}
+          disabled={pending}
+        >
+          Cancel
+        </Button>
+        <Button
+          type="submit"
+          disabled={pending || (mode !== "recreate" && projects.length === 0)}
+        >
+          {pending && <Spinner />}
+          {labels[mode]}
+        </Button>
+      </DialogFooter>
     </form>
   );
 }

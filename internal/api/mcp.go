@@ -26,6 +26,11 @@ const mcpLogRetentionDays = 30
 
 type mcpTokenContextKey struct{}
 
+type mcpCredential struct {
+	id   string
+	hash string
+}
+
 type mcpInputError string
 
 func (e mcpInputError) Error() string { return string(e) }
@@ -62,7 +67,8 @@ func (a *API) mcpHandler() http.Handler {
 			fail(w, http.StatusForbidden, "HTTPS is required")
 			return
 		}
-		id, err := a.Store.MCPTokenID(ctx, secure.Hash(fields[1]))
+		hash := secure.Hash(fields[1])
+		id, err := a.Store.MCPTokenID(ctx, hash)
 		if errors.Is(err, pgx.ErrNoRows) {
 			rejectMCPToken(w)
 			return
@@ -81,7 +87,7 @@ func (a *API) mcpHandler() http.Handler {
 		if response.SetReadDeadline(deadline) == nil {
 			defer response.SetReadDeadline(time.Time{})
 		}
-		handler.ServeHTTP(w, r.WithContext(context.WithValue(ctx, mcpTokenContextKey{}, id)))
+		handler.ServeHTTP(w, r.WithContext(context.WithValue(ctx, mcpTokenContextKey{}, mcpCredential{id: id, hash: hash})))
 	})
 }
 
@@ -111,9 +117,9 @@ func addMCPTool[In, Out any](a *API, server *mcp.Server, name, description strin
 		Name: name, Description: description,
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true},
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in In) (*mcp.CallToolResult, Out, error) {
-		id, _ := ctx.Value(mcpTokenContextKey{}).(string)
+		credential, _ := ctx.Value(mcpTokenContextKey{}).(mcpCredential)
 		var out Out
-		if id == "" {
+		if credential.id == "" {
 			return nil, out, errors.New("Valid Shipyard MCP token required")
 		}
 		ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
@@ -125,10 +131,10 @@ func addMCPTool[In, Out any](a *API, server *mcp.Server, name, description strin
 				resource = candidate
 			}
 		}
-		if err := a.Store.Audit(ctx, "mcp:"+id, "mcp."+name, resource, "", map[string]string{"tokenId": id}); err != nil {
+		if err := a.Store.Audit(ctx, "mcp:"+credential.id, "mcp."+name, resource, "", map[string]string{"tokenId": credential.id}); err != nil {
 			return nil, out, errors.New("MCP audit unavailable")
 		}
-		out, err := run(ctx, id, in)
+		out, err := run(ctx, credential.hash, in)
 		var input mcpInputError
 		switch {
 		case err == nil, errors.As(err, &input):

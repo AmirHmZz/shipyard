@@ -1,195 +1,146 @@
-import type { FormEvent, MouseEvent } from "react";
+import { Cable, KeyRound, Plus } from "lucide-react";
+import { useEffect, useState } from "react";
 
-import { useState } from "react";
-import { toast } from "sonner";
-import * as z from "zod/mini";
-
-import { Confirm, Empty, ErrorState, Loading } from "@/components/Shared";
+import { CopyButton, ErrorState, Loading } from "@/components/Shared";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { toastValidationError } from "@/lib/api/toaster";
+import { Card } from "@/components/ui/card";
 
-import { mcpTokenInputSchema } from "../generics";
-import { useIssueMcpToken } from "../hooks/useIssueMcpToken";
-import { useMcpTokens } from "../hooks/useMcpTokens";
-import { useRevokeMcpToken } from "../hooks/useRevokeMcpToken";
-import { McpTokenForm } from "./McpTokenForm";
+import { useMcpTokenActions, useMcpTokens } from "../hooks";
+import { McpTokenDialog } from "./McpTokenDialog";
+import { McpTokenRow } from "./McpTokenRow";
 
 export function McpAccess() {
   const inventory = useMcpTokens();
-  const issue = useIssueMcpToken();
-  const revoke = useRevokeMcpToken();
-  const [confirmId, setConfirmId] = useState("");
+  const actions = useMcpTokenActions();
+  const [now, setNow] = useState(Date.now);
 
-  function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const data = new FormData(form);
-    const parsed = z.safeParse(mcpTokenInputSchema, {
-      name: data.get("name"),
-      projectIds: data.getAll("projectIds"),
-      expiryDays: data.get("expiryDays"),
-    });
-    if (!parsed.success) {
-      toastValidationError(parsed.error);
-      return;
-    }
-    issue.mutate(parsed.data, {
-      onSuccess: () => form.reset(),
-    });
-  }
-
-  async function copy() {
-    if (!issue.data) return;
-    try {
-      await navigator.clipboard.writeText(issue.data.secret);
-      toast.success("Token copied");
-    } catch {
-      toast.error("Copy the token manually");
-    }
-  }
-
-  function openRevoke(event: MouseEvent<HTMLButtonElement>) {
-    setConfirmId(event.currentTarget.dataset.token || "");
-  }
-
-  function closeRevoke(open: boolean) {
-    if (!open && !revoke.isPending) setConfirmId("");
-  }
-
-  function confirmRevoke() {
-    revoke.mutate(confirmId, { onSuccess: () => setConfirmId("") });
-  }
+  useEffect(() => {
+    const clock = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(clock);
+  }, []);
 
   if (inventory.isPending) return <Loading />;
-  if (inventory.error) return <ErrorState error={inventory.error} />;
+  if (!inventory.data) return <ErrorState error={inventory.error} />;
+
   const { endpoint, tokens, projects } = inventory.data;
-  const names = new Map(
+  const projectNames = new Map(
     projects.map((project) => [
       project.id,
-      project.teamName + " / " + project.name,
+      `${project.teamName} / ${project.name}`,
     ]),
   );
-  const confirmToken = tokens.find((token) => token.id === confirmId);
+  const actionId =
+    actions.action && "id" in actions.action ? actions.action.id : undefined;
+  const selected = tokens.find((token) => token.id === actionId);
+
   return (
-    <div className="flex flex-col gap-5">
-      <Card>
-        <CardHeader>
-          <CardTitle>MCP access</CardTitle>
-          <CardDescription>
-            Agents can read deployment, job, and runtime logs in the selected
-            projects.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <div>
-            <p className="mb-1 text-sm font-medium">HTTPS endpoint</p>
+    <div className="flex min-w-0 flex-col gap-5">
+      <Card className="gap-4 bg-linear-to-br from-primary/6 via-card to-card px-4 py-5 shadow-none sm:px-6">
+        <div className="flex min-w-0 items-start gap-3">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
+            <Cable className="size-5" aria-hidden="true" />
+          </div>
+          <div className="flex min-w-0 flex-col gap-1">
+            <h2 className="font-semibold">MCP connection</h2>
+            <p className="text-sm text-muted-foreground">
+              Connect an agent to read deployment, job, and runtime logs from
+              its allowed projects.
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-col gap-2 rounded-lg border bg-background/70 p-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 flex-col gap-1">
+            <p className="text-xs font-medium text-muted-foreground">
+              HTTPS endpoint
+            </p>
             {endpoint ? (
-              <code className="text-sm break-all">{endpoint}</code>
+              <code className="text-sm wrap-anywhere">{endpoint}</code>
             ) : (
-              <p className="text-muted-foreground text-sm">
-                Configure dashboard HTTPS to connect agents.
+              <p className="text-sm">
+                Configure dashboard HTTPS to enable the MCP endpoint.
               </p>
             )}
           </div>
-          {issue.data ? (
-            <div className="flex max-w-xl flex-col gap-2 rounded-md border p-3">
-              <label htmlFor="issued-mcp-token" className="text-sm font-medium">
-                Copy this token now. It is displayed once.
-              </label>
-              <Input
-                id="issued-mcp-token"
-                readOnly
-                autoComplete="off"
-                value={issue.data.secret}
-              />
-              <div className="flex flex-wrap gap-2">
-                <Button variant="secondary" onClick={copy}>
-                  Copy token
-                </Button>
-                <Button variant="ghost" onClick={issue.reset}>
-                  Done
-                </Button>
-              </div>
-            </div>
-          ) : null}
-          {!issue.data && projects.length > 0 && (
-            <McpTokenForm
-              projects={projects}
-              pending={issue.isPending}
-              onSubmit={submit}
+          {endpoint && (
+            <CopyButton
+              label="Copy endpoint"
+              value={endpoint}
+              className="self-start sm:self-center"
             />
           )}
-          {!issue.data && projects.length === 0 && (
-            <Empty
-              title="No projects"
-              description="Create a project before issuing a token."
-            />
-          )}
-        </CardContent>
+        </div>
       </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>Issued tokens</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {tokens.length === 0 ? (
-            <Empty
-              title="No MCP tokens"
-              description="Create a token to connect an agent."
-            />
-          ) : (
-            <ul className="divide-y">
+
+      <Card className="gap-0 py-0 shadow-none">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-5 sm:px-6">
+          <div>
+            <h2 className="font-semibold">
+              Access tokens{" "}
+              <span className="ml-1 text-sm font-normal text-muted-foreground">
+                ({tokens.length})
+              </span>
+            </h2>
+            {tokens.length > 0 && projects.length === 0 && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                Create a project before issuing a token.
+              </p>
+            )}
+          </div>
+          <Button
+            id="mcp-create-token"
+            onClick={actions.openCreate}
+            disabled={projects.length === 0}
+          >
+            <Plus aria-hidden="true" /> Create token
+          </Button>
+        </div>
+        {tokens.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 border-t px-4 py-10 text-center">
+            <div className="mb-1 flex size-10 items-center justify-center rounded-xl border bg-muted/40 text-muted-foreground">
+              <KeyRound className="size-5" aria-hidden="true" />
+            </div>
+            <h3 className="text-sm font-semibold">No MCP tokens</h3>
+            <p className="text-sm text-muted-foreground">
+              {projects.length === 0
+                ? "Create a project before issuing a token."
+                : "Create a token for the agent you want to connect."}
+            </p>
+          </div>
+        ) : (
+          <>
+            <div
+              aria-hidden="true"
+              className="hidden grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_minmax(7rem,0.6fr)_2.25rem] gap-x-5 border-t bg-muted/35 px-6 py-2.5 text-xs font-medium text-muted-foreground lg:grid"
+            >
+              <span>Token name</span>
+              <span>Allowed projects</span>
+              <span>Status</span>
+            </div>
+            <ul aria-label="Access tokens" className="divide-y border-t">
               {tokens.map((token) => (
-                <li
+                <McpTokenRow
                   key={token.id}
-                  className="flex flex-wrap items-center justify-between gap-3 py-3"
-                >
-                  <div className="min-w-0 space-y-1">
-                    <p className="font-medium break-words">{token.name}</p>
-                    <p className="text-muted-foreground text-sm break-words">
-                      {token.projectIds
-                        .map((id) => names.get(id) ?? id)
-                        .join(", ") || "No projects"}
-                    </p>
-                    <p className="text-muted-foreground text-sm">
-                      {token.revokedAt ? "Revoked" : "Expires"}{" "}
-                      {new Date(
-                        token.revokedAt ?? token.expiresAt,
-                      ).toLocaleString()}
-                    </p>
-                  </div>
-                  {!token.revokedAt && (
-                    <Button
-                      variant="outline"
-                      data-token={token.id}
-                      onClick={openRevoke}
-                    >
-                      Revoke
-                    </Button>
-                  )}
-                </li>
+                  token={token}
+                  now={Math.max(now, inventory.dataUpdatedAt)}
+                  projectNames={projectNames}
+                  onAction={actions.openTokenAction}
+                />
               ))}
             </ul>
-          )}
-        </CardContent>
+          </>
+        )}
       </Card>
-      {confirmToken && (
-        <Confirm
-          open
-          onOpenChange={closeRevoke}
-          title={`Revoke ${confirmToken.name}?`}
-          description="Agents using this token will lose access immediately."
-          onConfirm={confirmRevoke}
-          pending={revoke.isPending}
-          destructive
+
+      {actions.action && (
+        <McpTokenDialog
+          mode={actions.action.kind}
+          token={selected}
+          projects={projects}
+          issued={actions.issued}
+          pending={actions.pending}
+          onClose={actions.closeDialog}
+          onCloseAutoFocus={actions.restoreFocus}
+          onSubmit={actions.submit}
         />
       )}
     </div>
