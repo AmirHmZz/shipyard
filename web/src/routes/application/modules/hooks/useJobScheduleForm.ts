@@ -21,6 +21,16 @@ export function useJobScheduleForm(id: string, initial: JobSettings) {
   const timezone = baseline.version
     ? baseline.timezone
     : Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  const saved = initial.version >= baseline.version ? initial : baseline;
+  const stale = initial.version > baseline.version;
+  function reload() {
+    setBaseline(initial);
+    setPreviewInput({ cron: "", timezone: "" });
+  }
+  function savedSettings(settings: JobSettings) {
+    setBaseline(settings);
+    setPreviewInput({ cron: "", timezone: "" });
+  }
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -46,7 +56,22 @@ export function useJobScheduleForm(id: string, initial: JobSettings) {
       });
       return;
     }
-    save.mutate({ ...baseline, ...result.data }, { onSuccess: setBaseline });
+    if (!stale)
+      save.mutate(
+        { ...baseline, ...result.data },
+        { onSuccess: savedSettings },
+      );
   }
-  return { save, preview, timezone, submit };
+  const previewActive = !!previewInput.cron && !!previewInput.timezone;
+  return {
+    baseline,
+    saved,
+    stale,
+    reload,
+    save,
+    preview,
+    previewActive,
+    timezone,
+    submit,
+  };
 }

@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/google/uuid"
 	"io"
 	"net/http"
@@ -112,8 +113,14 @@ func TestJobAPIPermissionsVersionsIdempotencyAndReplay(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, _ = a.Store.Pool.Exec(ctx, "INSERT INTO job_run_events(run_id,message) VALUES($1,'second')", run.ID)
+	if _, err = a.Store.Pool.Exec(ctx, "INSERT INTO job_run_events(run_id,message) SELECT $1,'batch-'||n FROM generate_series(1,500) AS n", run.ID); err != nil {
+		t.Fatal(err)
+	}
 	if code, body = request("GET", "/runs/"+run.ID+"/events", "", viewer, "", cursor); code != 200 || strings.Contains(body, `"message":"first"`) || !strings.Contains(body, `"message":"second"`) {
 		t.Fatal(code, body)
+	}
+	if last, status := strings.LastIndex(body, `"message":"batch-500"`), strings.Index(body, "event: status"); last < 0 || status < last {
+		t.Fatal("terminal status arrived before the final log batch")
 	}
 	if code, _ := request("DELETE", "/runs/"+run.ID, "", viewer, "csrf", ""); code != 403 {
 		t.Fatal("viewer deleted history", code)
@@ -144,5 +151,32 @@ func TestJobAPIPermissionsVersionsIdempotencyAndReplay(t *testing.T) {
 	}
 	if code, body = request("POST", "/runs/"+next.ID+"/cancel", "{}", operator, "csrf", ""); code != 200 {
 		t.Fatal(code, body)
+	}
+
+	for _, count := range []int{49, 50, 51, 100} {
+		t.Run(fmt.Sprintf("history-%d", count), func(t *testing.T) {
+			if _, err := a.Store.Pool.Exec(ctx, "DELETE FROM job_runs WHERE app_id=$1", app.ID); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := a.Store.Pool.Exec(ctx, `INSERT INTO job_runs(id,app_id,release_id,state,trigger,policy)
+				SELECT 'page-run-'||n,$1,$2,'succeeded','manual',$3 FROM generate_series(1,$4) AS n`, app.ID, release.ID, b, count); err != nil {
+				t.Fatal(err)
+			}
+			path := "/runs"
+			for remaining := count; remaining > 0; remaining -= 50 {
+				code, body := request("GET", path, "", viewer, "", "")
+				var page struct {
+					Items      []model.JobRun
+					NextCursor string
+				}
+				if err := json.Unmarshal([]byte(body), &page); code != 200 || err != nil {
+					t.Fatalf("read run history: %d %s (%v)", code, body, err)
+				}
+				if len(page.Items) != min(remaining, 50) || (page.NextCursor != "") != (remaining > 50) {
+					t.Fatalf("unexpected page at remaining=%d: %d items, next=%q", remaining, len(page.Items), page.NextCursor)
+				}
+				path = "/runs?before=" + page.NextCursor
+			}
+		})
 	}
 }

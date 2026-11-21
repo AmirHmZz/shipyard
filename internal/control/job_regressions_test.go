@@ -207,14 +207,14 @@ func TestJobExitPreservesTerminationIntentWithMissingTimestamp(t *testing.T) {
 	}
 }
 
-func TestJobStartingAttemptBecomesVisibleWithoutExtendingDeadline(t *testing.T) {
+func TestJobStartingAttemptUsesConfirmedDockerStartAndDeadline(t *testing.T) {
 	c, app, release, run := jobRegressionFixture(t)
 	node := &jobRegressionNode{container: &deploy.JobContainer{ID: "container"}}
 	node.container.Config.Labels = map[string]string{"shipyard.app": app.ID, "shipyard.run": run.ID, "shipyard.release": release.ID, "shipyard.attempt": "1"}
 	node.container.State.Status = "running"
-	node.container.State.StartedAt = time.Now().UTC().Format(time.RFC3339Nano)
+	start := time.Now().UTC().Add(-time.Minute).Truncate(time.Microsecond)
+	node.container.State.StartedAt = start.Format(time.RFC3339Nano)
 	c.DialNode = func(context.Context, model.Server, map[string]string) (remote.Node, error) { return node, nil }
-	original := run.Attempts[0]
 	if err := c.reconcileJob(context.Background(), app.ID, run.ID); err != nil {
 		t.Fatal(err)
 	}
@@ -223,12 +223,21 @@ func TestJobStartingAttemptBecomesVisibleWithoutExtendingDeadline(t *testing.T) 
 		t.Fatal(err)
 	}
 	attempt := current.Attempts[0]
-	if attempt.State != "running" || !attempt.Deadline.Equal(*original.Deadline) || !attempt.StartedAt.Equal(*original.StartedAt) {
+	if attempt.State != "running" || !attempt.Deadline.Equal(start.Add(time.Duration(run.Policy.TimeoutSeconds)*time.Second)) || !attempt.StartedAt.Equal(start) {
 		t.Fatal(attempt)
 	}
 	var visible int
 	if err = c.Store.Pool.QueryRow(context.Background(), "SELECT count(*) FROM job_attempts a JOIN job_runs r ON r.id=a.run_id WHERE r.app_id=$1 AND r.state='running' AND a.state='running' AND NOT a.cleaned", app.ID).Scan(&visible); err != nil || visible != 1 {
 		t.Fatal(visible, err)
+	}
+	node.container.State.Status = "exited"
+	node.container.State.FinishedAt = attempt.Deadline.Add(time.Second).Format(time.RFC3339Nano)
+	if err = c.reconcileJob(context.Background(), app.ID, run.ID); err != nil {
+		t.Fatal(err)
+	}
+	current, err = c.Store.JobRun(context.Background(), app.ID, run.ID)
+	if err != nil || current.State != "timed_out" {
+		t.Fatalf("an exit after the deadline must time out even when observed after exit: %+v, %v", current, err)
 	}
 }
 

@@ -8,7 +8,7 @@ export type JobScheduleProps = { app: Resource };
 export function JobSchedule({ app }: JobScheduleProps) {
   const settings = useJobSettings(app.id);
   if (settings.isPending) return <Loading />;
-  if (settings.error) return <ErrorState error={settings.error} />;
-  if (!settings.data) return null;
+  if (!settings.data)
+    return settings.error ? <ErrorState error={settings.error} /> : null;
   return <JobScheduleForm key={app.id} app={app} initial={settings.data} />;
 }

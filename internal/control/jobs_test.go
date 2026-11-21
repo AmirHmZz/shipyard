@@ -38,7 +38,33 @@ func TestJobReleaseProtectionAndBackupDrain(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_ = prepare()
+	older := prepare()
+	for range 10 {
+		prepare()
+	}
+	_, retained, err := c.reservePrune(ctx, app.ID)
+	if err != nil || !retained[first.ID] || retained[older.ID] {
+		t.Fatalf("prune must retain the pinned release and reserve the obsolete release: %v, %v", retained, err)
+	}
+	if _, err = c.Queue(ctx, app, "", older.ID); !errors.Is(err, ErrDeploymentProtected) {
+		t.Fatal("rollback accepted a release that is reserved for pruning", err)
+	}
+	if _, err = c.QueueDeploymentDeletion(ctx, older.DeploymentID, "operator"); !errors.Is(err, ErrDeploymentProtected) {
+		t.Fatal("manual deletion accepted a release that is reserved for pruning", err)
+	}
+	if _, err = c.Store.Pool.Exec(ctx, "INSERT INTO settings(key,value) VALUES ('network-lease:test',jsonb_build_object('release',$1::text))", older.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.finishPrune(ctx, older.ID); err != nil {
+		t.Fatal(err)
+	}
+	var leftovers bool
+	if err = c.Store.Pool.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM settings WHERE key IN ('network-lease:test','release-prune:'||$1))", older.ID).Scan(&leftovers); err != nil || leftovers {
+		t.Fatalf("release cleanup left a reservation or lease: %v, %v", leftovers, err)
+	}
+	if _, err = c.Store.Deployment(ctx, older.DeploymentID); err != nil {
+		t.Fatal("prune deleted deployment history", err)
+	}
 	if _, err = c.QueueDeploymentDeletion(ctx, first.DeploymentID, "operator"); !errors.Is(err, ErrDeploymentProtected) {
 		t.Fatal("running Job release could be deleted", err)
 	}

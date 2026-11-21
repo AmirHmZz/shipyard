@@ -268,10 +268,12 @@ func (r *Runner) Run(ctx context.Context, id string) (result error) {
 		if uint64(stat.Bavail)*uint64(stat.Bsize) < uint64(databaseSize*2)+(512<<20) {
 			return errors.New("insufficient space for backup and version-change files")
 		}
+		if o.DrainDeadline.IsZero() {
+			o.DrainDeadline = time.Now().Add(15 * time.Minute)
+		}
 		if !o.MaintenanceEntered {
 			o.PreviousMaintenance = r.Store.Maintenance(ctx)
 			o.MaintenanceEntered = true
-			o.DrainDeadline = time.Now().Add(15 * time.Minute)
 			if e = checkpoint("waiting"); e != nil {
 				return e
 			}
@@ -283,9 +285,6 @@ func (r *Runner) Run(ctx context.Context, id string) (result error) {
 			return e
 		}
 		deadline := o.DrainDeadline
-		if deadline.IsZero() {
-			deadline = time.Now().Add(15 * time.Minute)
-		}
 		for {
 			var count int
 			if e = r.Store.Pool.QueryRow(ctx, "SELECT (SELECT count(*) FROM jobs WHERE state='running')+(SELECT count(*) FROM job_runs WHERE state IN ('queued','running','retry_wait','cancelling') OR cleanup_pending)").Scan(&count); e != nil {
@@ -404,8 +403,18 @@ func (r *Runner) Run(ctx context.Context, id string) (result error) {
 	return nil
 }
 func (r *Runner) maintenance(ctx context.Context, value bool) error {
-	_, e := r.Store.Pool.Exec(ctx, "UPDATE settings SET value=$1 WHERE key='maintenance'", fmt.Sprintf("%t", value))
-	return e
+	tx, err := r.Store.Pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	if _, err = tx.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended('resource-tree',0))"); err != nil {
+		return err
+	}
+	if _, err = tx.Exec(ctx, "UPDATE settings SET value=$1 WHERE key='maintenance'", fmt.Sprintf("%t", value)); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 func (r *Runner) compose(ctx context.Context, args ...string) ([]byte, error) {
 	base := []string{"docker", "compose", "--project-name", "shipyard", "--env-file", filepath.Join(r.InstallDir, ".env"), "-f", filepath.Join(r.InstallDir, "compose.host.yaml")}

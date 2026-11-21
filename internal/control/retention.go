@@ -5,47 +5,78 @@ import (
 	"errors"
 	"github.com/google/uuid"
 	"io"
+	"shipyard/internal/db"
 	"shipyard/internal/deploy"
 	"shipyard/internal/model"
 	"shipyard/internal/remote"
 	"strings"
 )
 
-func (c *Controller) prune(ctx context.Context, app string) error {
-	rows, e := c.Store.Pool.Query(ctx, "SELECT r.id,d.state FROM releases r JOIN deployments d ON d.id=r.deployment_id WHERE r.app_id=$1 AND d.state IN ('healthy','failed','recovery_failed','cancelled') AND NOT EXISTS(SELECT 1 FROM settings WHERE key='deployment-deletion:'||d.id) ORDER BY r.created_at DESC", app)
-	if e != nil {
-		return e
-	}
-	ids := []string{}
-	successful := map[string]bool{}
-	for rows.Next() {
-		var id string
-		var state string
-		if rows.Scan(&id, &state) == nil {
-			ids = append(ids, id)
-			successful[id] = state == "healthy"
-		}
-	}
-	rows.Close()
-	active, _ := c.Store.Active(ctx, app)
-	keep := map[string]bool{active.ID: true}
-	pending, err := c.Store.Pool.Query(ctx, "SELECT rollback_id FROM deployments WHERE app_id=$1 AND rollback_id<>'' AND state IN ('queued','building','deploying')", app)
+const releaseInUse = `EXISTS(SELECT 1 FROM app_runtime WHERE app_id=r.app_id AND release_id=r.id)
+	OR EXISTS(SELECT 1 FROM deployments WHERE app_id=r.app_id AND rollback_id=r.id AND state IN ('queued','building','deploying'))
+	OR EXISTS(SELECT 1 FROM job_runs WHERE app_id=r.app_id AND release_id=r.id AND (state IN ` + db.ActiveJobStates + ` OR cleanup_pending))`
+
+// The worker holds the application lock. Reserve under the tree lock shared
+// with rollback admission, manual deletion, and Job admission.
+func (c *Controller) reservePrune(ctx context.Context, app string) ([]string, map[string]bool, error) {
+	tx, err := c.Store.Pool.Begin(ctx)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
-	for pending.Next() {
-		var id string
-		if pending.Scan(&id) == nil {
-			keep[id] = true
-		}
+	defer tx.Rollback(ctx)
+	if _, err = tx.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended('resource-tree',0))"); err != nil {
+		return nil, nil, err
 	}
-	pending.Close()
+	rows, err := tx.Query(ctx, `SELECT r.id,d.state,(`+releaseInUse+`),
+		EXISTS(SELECT 1 FROM settings WHERE key='release-prune:'||r.id)
+		FROM releases r JOIN deployments d ON d.id=r.deployment_id
+		WHERE r.app_id=$1 AND NOT EXISTS(SELECT 1 FROM settings WHERE key='deployment-deletion:'||d.id)
+		ORDER BY r.created_at DESC,r.id DESC`, app)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer rows.Close()
+	ids, candidates := []string{}, []string{}
+	keep := map[string]bool{}
 	count := 0
-	for _, id := range ids {
-		if successful[id] && count < 10 {
-			keep[id] = true
+	for rows.Next() {
+		var id, state string
+		var protected, reserved bool
+		if err = rows.Scan(&id, &state, &protected, &reserved); err != nil {
+			return nil, nil, err
+		}
+		ids = append(ids, id)
+		recent := state == "healthy" && !reserved && count < 10
+		if recent {
 			count++
 		}
+		switch {
+		case protected, recent:
+			keep[id] = true
+		case state == "healthy", state == "failed", state == "recovery_failed", state == "cancelled":
+			candidates = append(candidates, id)
+		default:
+			keep[id] = true
+		}
+	}
+	if err = rows.Err(); err != nil {
+		return nil, nil, err
+	}
+	rows.Close()
+	if len(candidates) > 0 {
+		if _, err = tx.Exec(ctx, `INSERT INTO settings(key,value)
+			SELECT 'release-prune:'||id,jsonb_build_object('application',$1::text)
+			FROM unnest($2::text[]) AS ids(id) ON CONFLICT DO NOTHING`, app, candidates); err != nil {
+			return nil, nil, err
+		}
+	}
+	return ids, keep, tx.Commit(ctx)
+}
+
+func (c *Controller) prune(ctx context.Context, app string) error {
+	ids, keep, err := c.reservePrune(ctx, app)
+	if err != nil {
+		return err
 	}
 	all := map[string]model.Release{}
 	for _, id := range ids {
@@ -60,6 +91,9 @@ func (c *Controller) prune(ctx context.Context, app string) error {
 			continue
 		}
 		r := all[id]
+		if _, err := uuid.Parse(r.ID); err != nil || r.Directory != remote.Root+"/releases/"+r.ID {
+			return errors.New("invalid managed release directory")
+		}
 		client, _, e := c.connect(ctx, r.ServerID)
 		if e != nil {
 			return e
@@ -69,7 +103,7 @@ func (c *Controller) prune(ctx context.Context, app string) error {
 			return e
 		}
 		engine := deploy.Engine{Remote: client, Log: io.Discard}
-		if r.App.Engine == "dockerfile" {
+		if r.App.Engine == "dockerfile" && !r.App.IsJob() {
 			if e = engine.Remove(ctx, r, false); e != nil {
 				client.Close()
 				return e
@@ -80,7 +114,14 @@ func (c *Controller) prune(ctx context.Context, app string) error {
 			if r.App.Engine == "compose" {
 				name += "-" + service
 			}
-			_, _ = deploy.Output(ctx, client, "docker", "image", "rm", name+":"+r.ID)
+			tag := name + ":" + r.ID
+			if _, removeErr := deploy.Output(ctx, client, "docker", "image", "rm", tag); removeErr != nil {
+				remaining, listErr := deploy.Output(ctx, client, "docker", "image", "ls", "-q", "--filter", "reference="+tag)
+				if listErr != nil || remaining != "" {
+					client.Close()
+					return errors.Join(removeErr, listErr)
+				}
+			}
 		}
 		referenced := false
 		for key, other := range all {
@@ -89,23 +130,37 @@ func (c *Controller) prune(ctx context.Context, app string) error {
 			}
 		}
 		if !referenced {
-			if _, err := uuid.Parse(r.ID); err != nil || r.Directory != remote.Root+"/releases/"+r.ID {
-				client.Close()
-				return errors.New("invalid managed release directory")
-			}
 			if _, e = deploy.Output(ctx, client, "rm", "-rf", r.Directory); e != nil {
 				client.Close()
 				return e
 			}
 		}
 		client.Close()
-		if _, e = c.Store.Pool.Exec(ctx, "DELETE FROM releases WHERE id=$1 AND NOT EXISTS(SELECT 1 FROM app_runtime WHERE release_id=$1)", id); e != nil {
-			return e
-		}
-		_, _ = c.Store.Pool.Exec(ctx, "UPDATE jobs SET state='done' WHERE kind='drain' AND payload->>'releaseId'=$1", id)
-		if e = c.ReleaseNetworkLeases(ctx, id); e != nil {
+		if e = c.finishPrune(ctx, id); e != nil {
 			return e
 		}
 	}
 	return nil
+}
+
+func (c *Controller) finishPrune(ctx context.Context, id string) error {
+	tx, err := c.Store.Pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	tag, err := tx.Exec(ctx, "DELETE FROM releases r WHERE r.id=$1 AND NOT ("+releaseInUse+")", id)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() != 1 {
+		return ErrDeploymentProtected
+	}
+	if _, err = tx.Exec(ctx, "UPDATE jobs SET state='done' WHERE kind='drain' AND payload->>'releaseId'=$1", id); err != nil {
+		return err
+	}
+	if _, err = tx.Exec(ctx, "DELETE FROM settings WHERE key='release-prune:'||$1 OR (starts_with(key,'network-lease:') AND value->>'release'=$1)", id); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }

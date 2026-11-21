@@ -16,13 +16,21 @@ import { useJobScheduleForm } from "../hooks/useJobScheduleForm";
 
 export type JobScheduleFormProps = { app: Resource; initial: JobSettings };
 export function JobScheduleForm({ app, initial }: JobScheduleFormProps) {
-  const { save, preview, timezone, submit } = useJobScheduleForm(
-    app.id,
-    initial,
-  );
-  const occurrences = preview.data?.upcoming ?? initial.upcoming;
+  const {
+    baseline,
+    saved,
+    stale,
+    reload,
+    save,
+    preview,
+    previewActive,
+    timezone,
+    submit,
+  } = useJobScheduleForm(app.id, initial);
+  const previewSettings = previewActive ? preview.data : undefined;
+  const occurrences = previewSettings?.upcoming ?? saved.upcoming;
   const occurrenceTimezone =
-    preview.data?.timezone || initial.timezone || timezone;
+    previewSettings?.timezone || saved.timezone || timezone;
   return (
     <form onSubmit={submit} className="flex min-w-0 flex-col gap-6">
       <SettingsHeading
@@ -31,9 +39,24 @@ export function JobScheduleForm({ app, initial }: JobScheduleFormProps) {
       />
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <fieldset
+          key={baseline.version}
           disabled={!app.canWrite || save.isPending}
           className="flex min-w-0 flex-col gap-5"
         >
+          {stale && (
+            <div
+              role="alert"
+              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4 text-sm"
+            >
+              <p>
+                Settings changed remotely. Reload saved settings before saving
+                your changes.
+              </p>
+              <Button type="button" variant="outline" onClick={reload}>
+                Reload saved settings
+              </Button>
+            </div>
+          )}
           <SettingsSection
             title="Run schedule"
             description="Use a five-field cron expression and an IANA timezone."
@@ -43,7 +66,7 @@ export function JobScheduleForm({ app, initial }: JobScheduleFormProps) {
               <label className="flex items-start gap-3 rounded-lg border bg-muted/20 p-4">
                 <Checkbox
                   name="enabled"
-                  defaultChecked={initial.enabled}
+                  defaultChecked={baseline.enabled}
                   className="mt-0.5"
                 />
                 <span className="flex flex-col gap-1">
@@ -59,7 +82,7 @@ export function JobScheduleForm({ app, initial }: JobScheduleFormProps) {
                   label="Cron expression"
                   inputProps={{
                     name: "cron",
-                    defaultValue: initial.cron,
+                    defaultValue: baseline.cron,
                     placeholder: "0 2 * * *",
                     "aria-label": "Cron expression",
                     className: "font-mono",
@@ -109,7 +132,7 @@ export function JobScheduleForm({ app, initial }: JobScheduleFormProps) {
                   type: "number",
                   min: 60,
                   max: 86400,
-                  defaultValue: initial.timeoutSeconds,
+                  defaultValue: baseline.timeoutSeconds,
                   required: true,
                   "aria-label": "Timeout per attempt (seconds)",
                 }}
@@ -122,7 +145,7 @@ export function JobScheduleForm({ app, initial }: JobScheduleFormProps) {
                     type: "number",
                     min: 0,
                     max: 5,
-                    defaultValue: initial.retries,
+                    defaultValue: baseline.retries,
                     required: true,
                     "aria-label": "Additional retries",
                   }}
@@ -134,7 +157,7 @@ export function JobScheduleForm({ app, initial }: JobScheduleFormProps) {
                     type: "number",
                     min: 1,
                     max: 3600,
-                    defaultValue: initial.retryDelaySeconds,
+                    defaultValue: baseline.retryDelaySeconds,
                     required: true,
                     "aria-label": "Retry delay (seconds)",
                   }}
@@ -155,7 +178,7 @@ export function JobScheduleForm({ app, initial }: JobScheduleFormProps) {
               Settings apply to future runs immediately. Active runs retain
               their policy.
             </p>
-            <Button type="submit" name="action" value="save">
+            <Button type="submit" name="action" value="save" disabled={stale}>
               {save.isPending ? <Spinner /> : <Save />}Save job settings
             </Button>
           </div>
@@ -166,12 +189,14 @@ export function JobScheduleForm({ app, initial }: JobScheduleFormProps) {
           icon={<CalendarClock />}
         >
           <div className="p-5" aria-live="polite">
-            {preview.error && <ErrorState error={preview.error} />}
+            {previewActive && preview.error && (
+              <ErrorState error={preview.error} />
+            )}
             {occurrences.length ? (
               <div className="flex flex-col gap-4">
                 <p className="break-all text-xs text-muted-foreground">
                   {occurrenceTimezone} ·{" "}
-                  {preview.data ? "Schedule preview" : "Saved schedule"}
+                  {previewSettings ? "Schedule preview" : "Saved schedule"}
                 </p>
                 <ol className="flex flex-col divide-y">
                   {occurrences.map((at, index) => (

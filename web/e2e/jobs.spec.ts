@@ -211,7 +211,7 @@ async function jobFixture(page: Page, canWrite = true) {
       runs.push({ ...base, id: "second-finished-run" });
     },
     bumpVersion: function bump() {
-      policy.version++;
+      policy = { ...policy, version: policy.version + 1, cron: "0 6 * * *" };
     },
   };
 }
@@ -337,24 +337,39 @@ test("Job schedule previews timezone and saves bounded policy", async function s
     page.getByText("UTC · Schedule preview", { exact: true }),
   ).toBeVisible();
   expect(fixture.writes).toHaveLength(0);
+  await page
+    .getByRole("textbox", { name: "Cron expression" })
+    .fill("0 4 * * *");
+  await page
+    .getByRole("textbox", { name: "Timezone", exact: true })
+    .fill("Europe/Paris");
   await page.getByRole("button", { name: "Save job settings" }).click();
   await expect(
     page.getByText("Job settings saved", { exact: true }),
   ).toBeVisible();
   expect(fixture.writes[0].body).toMatchObject({
     version: 1,
-    cron: "*/15 * * * *",
-    timezone: "UTC",
+    cron: "0 4 * * *",
+    timezone: "Europe/Paris",
     retries: 2,
     enabled: true,
   });
-  fixture.bumpVersion();
-  await page.getByRole("button", { name: "Save job settings" }).click();
   await expect(
-    page.getByText("Job settings changed; reload before saving", {
-      exact: false,
-    }),
+    page.getByText("Europe/Paris · Saved schedule", { exact: true }),
   ).toBeVisible();
+  await expect(
+    page.getByText("UTC · Schedule preview", { exact: true }),
+  ).toHaveCount(0);
+  const cron = page.getByRole("textbox", { name: "Cron expression" });
+  await cron.fill("0 5 * * *");
+  fixture.bumpVersion();
+  const save = page.getByRole("button", { name: "Save job settings" });
+  await expect(save).toBeDisabled();
+  await expect(cron).toHaveValue("0 5 * * *");
+  await page.getByRole("button", { name: "Reload saved settings" }).click();
+  await expect(cron).toHaveValue("0 6 * * *");
+  await expect(save).toBeEnabled();
+  expect(fixture.writes).toHaveLength(1);
 });
 test("Job viewers can inspect runs but cannot execute or change policy", async function permissions({
   page,

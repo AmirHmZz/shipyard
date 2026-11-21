@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"shipyard/internal/model"
 	"sync"
 	"testing"
@@ -170,5 +171,52 @@ func TestJobWorkloadImmutabilityAndMaintenance(t *testing.T) {
 	_, _ = s.Pool.Exec(ctx, "UPDATE settings SET value='true' WHERE key='maintenance'")
 	if _, err := s.QueueJobRun(ctx, app.ID, "operator", ""); err == nil {
 		t.Fatal("run admitted during maintenance")
+	}
+	allowed, err := s.JobExecutionAllowed(ctx)
+	if err != nil || allowed {
+		t.Fatalf("ordinary maintenance must pause starts: allowed=%v, error=%v", allowed, err)
+	}
+	if _, err = s.Pool.Exec(ctx, `INSERT INTO settings(key,value) VALUES ($1,jsonb_build_object(
+		'state','waiting','maintenanceEntered',true,'drainDeadline',now()+interval '15 minutes'))`, PlatformUpdateKey); err != nil {
+		t.Fatal(err)
+	}
+	allowed, err = s.JobExecutionAllowed(ctx)
+	if err != nil || !allowed {
+		t.Fatalf("update drain must allow admitted Jobs: allowed=%v, error=%v", allowed, err)
+	}
+	if _, err = s.QueueJobRun(ctx, app.ID, "operator", ""); err == nil {
+		t.Fatal("update drain admitted a new Job")
+	}
+	if _, err = s.Pool.Exec(ctx, `UPDATE settings SET value=value||jsonb_build_object('drainDeadline',now()-interval '1 second') WHERE key=$1`, PlatformUpdateKey); err != nil {
+		t.Fatal(err)
+	}
+	allowed, err = s.JobExecutionAllowed(ctx)
+	if err != nil || allowed {
+		t.Fatalf("expired drain must pause starts: allowed=%v, error=%v", allowed, err)
+	}
+}
+
+func TestIdempotentJobRunWithOneConnection(t *testing.T) {
+	s, app, _ := jobStoreFixture(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	run, err := s.QueueJobRun(ctx, app.ID, "operator", "same-request")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.Pool.Exec(ctx, "INSERT INTO job_attempts(run_id,number,container) VALUES($1,1,'first-attempt')", run.ID); err != nil {
+		t.Fatal(err)
+	}
+	config := s.Pool.Config()
+	config.MaxConns = 1
+	pool, err := pgxpool.NewWithConfig(ctx, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer pool.Close()
+	limited := &Store{Pool: pool, Vault: s.Vault}
+	replayed, err := limited.QueueJobRun(ctx, app.ID, "operator", "same-request")
+	if err != nil || replayed.ID != run.ID || len(replayed.Attempts) != 1 {
+		t.Fatalf("idempotent replay did not return the existing run with its attempt: %+v, %v", replayed, err)
 	}
 }

@@ -216,7 +216,7 @@ func (c *Controller) queue(ctx context.Context, app model.Resource, ref, rollbac
 	}
 	if rollback != "" {
 		var available bool
-		if e = tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM releases r WHERE r.id=$1 AND r.app_id=$2 AND NOT EXISTS(SELECT 1 FROM settings WHERE key='deployment-deletion:'||r.deployment_id))", rollback, app.ID).Scan(&available); e != nil {
+		if e = tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM releases r WHERE r.id=$1 AND r.app_id=$2 AND NOT EXISTS(SELECT 1 FROM settings WHERE key IN ('deployment-deletion:'||r.deployment_id,'release-prune:'||r.id)))", rollback, app.ID).Scan(&available); e != nil {
 			return model.Deployment{}, e
 		}
 		if !available {
@@ -948,7 +948,11 @@ func (c *Controller) deploy(ctx context.Context, id string) (result error) {
 			return e
 		}
 		log.emit("Job release prepared; deploy does not execute the task")
-		return c.Store.Activate(ctx, r)
+		if e = c.Store.Activate(ctx, r); e != nil {
+			return e
+		}
+		c.completeDeployment(ctx, r, snapshot.Resource.TeamID, id)
+		return nil
 	}
 	if e = c.deploymentFence(ctx, id); e != nil {
 		return e
@@ -1009,9 +1013,13 @@ func (c *Controller) deploy(ctx context.Context, id string) (result error) {
 		_ = c.Store.Enqueue(ctx, "drain", old.AppID, "drain:"+old.ID, map[string]string{"releaseId": old.ID})
 		_, _ = c.Store.Pool.Exec(ctx, "UPDATE jobs SET available_at=now()+interval '60 seconds' WHERE dedupe=$1", "drain:"+old.ID)
 	}
-	_ = c.Store.Enqueue(ctx, "prune", r.AppID, "prune:"+r.ID, nil)
-	_ = c.Emit(ctx, "deployment.healthy", snapshot.Resource.TeamID, d.AppID, map[string]string{"deploymentId": id, "commit": r.Commit})
+	c.completeDeployment(ctx, r, snapshot.Resource.TeamID, id)
 	return nil
+}
+
+func (c *Controller) completeDeployment(ctx context.Context, r model.Release, teamID, deploymentID string) {
+	_ = c.Store.Enqueue(ctx, "prune", r.AppID, "prune:"+r.ID, nil)
+	_ = c.Emit(ctx, "deployment.healthy", teamID, r.AppID, map[string]string{"deploymentId": deploymentID, "commit": r.Commit})
 }
 func (c *Controller) drain(ctx context.Context, id string) error {
 	r, e := c.Store.Release(ctx, id)
@@ -1051,6 +1059,11 @@ func (c *Controller) scheduler(ctx context.Context) {
 				}
 			}
 			if t.Minute()%5 == 0 {
+				if _, err := c.Store.Pool.Exec(ctx, `UPDATE jobs j SET state='queued',attempts=0,worker=NULL,lease_until=NULL,available_at=now()
+					WHERE j.kind='prune' AND j.state='failed' AND EXISTS(SELECT 1 FROM settings
+						WHERE starts_with(key,'release-prune:') AND value->>'application'=j.resource_id)`); err != nil {
+					c.Logger.Error("retry reserved release cleanup", "error", err)
+				}
 				_ = c.Store.Retention(ctx)
 				rows, e := c.Store.Pool.Query(ctx, "SELECT route_id FROM domain_state WHERE expires_at<now()+interval '30 days' OR dns_state='pending' OR propagation_state='pending' OR (certificate_state<>'off' AND certificate_ca<>$1)", c.certificateAuthority())
 				if e == nil {

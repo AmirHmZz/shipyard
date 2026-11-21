@@ -16,12 +16,20 @@ import (
 )
 
 func TestRunnerBackupRecoveryAndIdempotence(t *testing.T) {
-	for _, mode := range []string{"success", "health-failure", "unsafe-recovery", "pull-failure", "interrupted", "drain-cancelled"} {
+	for _, mode := range []string{"success", "health-failure", "unsafe-recovery", "pull-failure", "interrupted", "drain-cancelled", "drain-admitted", "drain-expired"} {
 		t.Run(mode, func(t *testing.T) {
 			s, installed, next := fixture(t)
 			ctx := context.Background()
 			if mode == "drain-cancelled" {
 				if _, e := s.Store.Pool.Exec(ctx, "INSERT INTO jobs(id,kind,resource_id,state) VALUES('test-running-job','deploy','application','running')"); e != nil {
+					t.Fatal(e)
+				}
+			}
+			if mode == "drain-admitted" || mode == "drain-expired" {
+				if _, e := s.Store.Pool.Exec(ctx, `INSERT INTO resources(id,kind,name,data)
+					VALUES('test-job-app','application','Job drain fixture','{"workload":"job"}');
+					INSERT INTO job_runs(id,app_id,release_id,state,trigger,policy)
+					VALUES('test-drained-run','test-job-app','test-release','retry_wait','manual','{}')`); e != nil {
 					t.Fatal(e)
 				}
 			}
@@ -61,6 +69,13 @@ func TestRunnerBackupRecoveryAndIdempotence(t *testing.T) {
 			o, e := s.Execute(ctx, p.ID, "admin", "long-backup-passphrase", "", false)
 			if e != nil {
 				t.Fatal(e)
+			}
+			if mode == "drain-expired" {
+				o.MaintenanceEntered = true
+				o.DrainDeadline = time.Now().Add(-time.Second)
+				if e = Save(ctx, s.Store, o); e != nil {
+					t.Fatal(e)
+				}
 			}
 			commands := []string{}
 			backups := 0
@@ -104,6 +119,16 @@ func TestRunnerBackupRecoveryAndIdempotence(t *testing.T) {
 				}
 				return nil
 			}}
+			if mode == "drain-admitted" {
+				runner.Pause = func(ctx context.Context, _ time.Duration) error {
+					allowed, err := s.Store.JobExecutionAllowed(ctx)
+					if err != nil || !allowed || !s.Store.Maintenance(ctx) {
+						t.Fatalf("updater waiting state did not allow admitted Job execution: %v, %v", allowed, err)
+					}
+					_, err = s.Store.Pool.Exec(ctx, "UPDATE job_runs SET state='succeeded',finished_at=now() WHERE id='test-drained-run'")
+					return err
+				}
+			}
 			if mode == "interrupted" {
 				func() {
 					defer func() {
@@ -119,7 +144,7 @@ func TestRunnerBackupRecoveryAndIdempotence(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			expected := map[string]string{"success": "succeeded", "health-failure": "rolled_back", "unsafe-recovery": "recovery_required", "pull-failure": "failed", "interrupted": "succeeded", "drain-cancelled": "failed"}[mode]
+			expected := map[string]string{"success": "succeeded", "health-failure": "rolled_back", "unsafe-recovery": "recovery_required", "pull-failure": "failed", "interrupted": "succeeded", "drain-cancelled": "failed", "drain-admitted": "succeeded", "drain-expired": "failed"}[mode]
 			if state.State != expected {
 				t.Fatal(state.State, state.Error, e)
 			}
@@ -134,11 +159,12 @@ func TestRunnerBackupRecoveryAndIdempotence(t *testing.T) {
 					t.Fatal("resumption incremented installation revision twice")
 				}
 			}
-			if (mode == "pull-failure" || mode == "drain-cancelled") && backups != 0 {
-				t.Fatal("backup ran after preflight failure")
+			wantBackups := 1
+			if mode == "pull-failure" || mode == "drain-cancelled" || mode == "drain-expired" {
+				wantBackups = 0
 			}
-			if mode != "pull-failure" && mode != "drain-cancelled" && backups != 1 {
-				t.Fatal(backups)
+			if backups != wantBackups {
+				t.Fatalf("created %d backups, want %d", backups, wantBackups)
 			}
 			if s.Store.Maintenance(ctx) != (mode == "unsafe-recovery") {
 				t.Fatal("incorrect maintenance state")
@@ -148,6 +174,13 @@ func TestRunnerBackupRecoveryAndIdempotence(t *testing.T) {
 				s.Store.Pool.QueryRow(ctx, "SELECT count(*) FROM jobs WHERE state='running'").Scan(&count)
 				if count != 1 || state.DrainDeadline.IsZero() {
 					t.Fatal("running deployment was terminated or drain deadline was lost")
+				}
+			}
+			if mode == "drain-expired" {
+				var jobState string
+				err = s.Store.Pool.QueryRow(ctx, "SELECT state FROM job_runs WHERE id='test-drained-run'").Scan(&jobState)
+				if err != nil || jobState != "retry_wait" || !strings.Contains(state.Error, "did not finish") {
+					t.Fatalf("expired drain changed the admitted Job or reported the wrong failure: %s, %s, %v", jobState, state.Error, err)
 				}
 			}
 			before := len(commands)

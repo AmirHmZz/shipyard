@@ -119,8 +119,15 @@ func (c *Controller) reconcileJob(ctx context.Context, app, id string) (result e
 		if err != nil {
 			return err
 		}
-		if !allowed || c.Store.Maintenance(ctx) {
+		if !allowed {
 			return errors.New("Job start was fenced by cancellation, deletion or maintenance")
+		}
+		allowed, err = c.Store.JobExecutionAllowed(ctx)
+		if err != nil {
+			return err
+		}
+		if !allowed {
+			return errors.New("Job start was fenced by maintenance")
 		}
 		return nil
 	}
@@ -154,10 +161,11 @@ func (c *Controller) reconcileJob(ctx context.Context, app, id string) (result e
 	if run.State == "retry_wait" && run.RetryAt != nil && time.Now().Before(*run.RetryAt) {
 		return nil
 	}
-	if (run.State == "queued" || run.State == "retry_wait") && c.Store.Maintenance(ctx) {
-		return nil
-	}
 	if run.State == "queued" || run.State == "retry_wait" {
+		allowed, err := c.Store.JobExecutionAllowed(ctx)
+		if err != nil || !allowed {
+			return err
+		}
 		tx, e := c.Store.Pool.Begin(ctx)
 		if e != nil {
 			return e
@@ -209,8 +217,9 @@ func (c *Controller) reconcileJob(ctx context.Context, app, id string) (result e
 		if a.State != "creating" {
 			return c.finishJobAttempt(ctx, run, a, "failed", nil)
 		}
-		if c.Store.Maintenance(ctx) {
-			return nil
+		allowed, err := c.Store.JobExecutionAllowed(ctx)
+		if err != nil || !allowed {
+			return err
 		}
 		if err = starter.CreateJob(ctx, &release, run, a); err != nil {
 			return err
@@ -230,14 +239,15 @@ func (c *Controller) reconcileJob(ctx context.Context, app, id string) (result e
 		if run.State == "cancelling" {
 			return c.finishJobAttempt(ctx, run, a, "cancelled", nil)
 		}
-		if c.Store.Maintenance(ctx) {
-			return nil
+		allowed, err := c.Store.JobExecutionAllowed(ctx)
+		if err != nil || !allowed {
+			return err
 		}
 		if err = c.prepareNetworks(ctx, &release, []model.NetworkContainer{{ID: container.ID, Service: release.App.JobTarget(), Replica: 1}}); err != nil {
 			return err
 		}
 		// This intent survives a lost start response; an exited container is never restarted.
-		if _, err = c.Store.Pool.Exec(ctx, "UPDATE job_attempts SET state='starting',started_at=COALESCE(started_at,now()),deadline=COALESCE(deadline,now()+make_interval(secs=>$3)) WHERE run_id=$1 AND number=$2", id, a.Number, run.Policy.TimeoutSeconds); err != nil {
+		if _, err = c.Store.Pool.Exec(ctx, "UPDATE job_attempts SET state='starting',started_at=NULL,deadline=NULL WHERE run_id=$1 AND number=$2", id, a.Number); err != nil {
 			return err
 		}
 		if err = starter.StartJob(ctx, release, a, container.ID); err != nil {
@@ -250,9 +260,15 @@ func (c *Controller) reconcileJob(ctx context.Context, app, id string) (result e
 		if e != nil {
 			return e
 		}
-		deadline := start.Add(time.Duration(run.Policy.TimeoutSeconds) * time.Second)
-		if err = c.Store.Pool.QueryRow(ctx, "UPDATE job_attempts SET state=CASE WHEN state IN ('creating','starting') THEN 'running' ELSE state END,started_at=COALESCE(started_at,$3),deadline=COALESCE(deadline,$4) WHERE run_id=$1 AND number=$2 RETURNING state,started_at,deadline", id, a.Number, start, deadline).Scan(&a.State, &a.StartedAt, &a.Deadline); err != nil {
-			return err
+		if !start.IsZero() {
+			deadline := start.Add(time.Duration(run.Policy.TimeoutSeconds) * time.Second)
+			if err = c.Store.Pool.QueryRow(ctx, `UPDATE job_attempts
+				SET state=CASE WHEN state IN ('creating','starting') THEN 'running' ELSE state END,
+				    started_at=CASE WHEN state IN ('creating','starting') THEN $3 ELSE COALESCE(started_at,$3) END,
+				    deadline=CASE WHEN state IN ('creating','starting') THEN $4 ELSE COALESCE(deadline,$4) END
+				WHERE run_id=$1 AND number=$2 RETURNING state,started_at,deadline`, id, a.Number, start, deadline).Scan(&a.State, &a.StartedAt, &a.Deadline); err != nil {
+				return err
+			}
 		}
 	}
 	timeout := a.Deadline != nil && !time.Now().Before(*a.Deadline)
@@ -305,10 +321,11 @@ func (c *Controller) reconcileJob(ctx context.Context, app, id string) (result e
 	}
 	outcome := "failed"
 	exit := container.State.ExitCode
-	if exit == 0 {
+	if exit == 0 && container.State.Status == "exited" && a.StartedAt != nil {
 		outcome = "succeeded"
 	}
-	if a.State == "timing_out" {
+	finished, _ := time.Parse(time.RFC3339Nano, container.State.FinishedAt)
+	if a.State == "timing_out" || (a.Deadline != nil && !finished.Before(*a.Deadline)) {
 		outcome = "timed_out"
 	}
 	if run.State == "cancelling" || a.State == "cancelling" {

@@ -82,7 +82,8 @@ func (a *API) jobRuns(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		next := ""
-		if len(rows) == 50 {
+		if len(rows) > db.JobRunPageSize {
+			rows = rows[:db.JobRunPageSize]
 			next = rows[len(rows)-1].ID
 		}
 		active, err := a.Store.ActiveJobRun(r.Context(), app.ID)
@@ -171,6 +172,12 @@ func (a *API) jobRunEvents(w http.ResponseWriter, r *http.Request) {
 		if !a.streamAccess(r, app, false) {
 			return
 		}
+		// Terminal status guarantees the final log writes are visible to the
+		// following query, including writes made since the previous poll.
+		run, err := a.Store.JobRun(r.Context(), app.ID, id)
+		if err != nil {
+			return
+		}
 		events, err := a.Store.JobEvents(r.Context(), id, after)
 		if err != nil {
 			return
@@ -178,10 +185,6 @@ func (a *API) jobRunEvents(w http.ResponseWriter, r *http.Request) {
 		for _, event := range events {
 			sendEvent(w, "log", event.ID, event)
 			after = event.ID
-		}
-		run, err := a.Store.JobRun(r.Context(), app.ID, id)
-		if err != nil {
-			return
 		}
 		if !run.Active() && !run.CleanupPending && len(events) == 500 {
 			continue

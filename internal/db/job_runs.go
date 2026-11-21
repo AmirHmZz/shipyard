@@ -12,6 +12,17 @@ import (
 )
 
 const ActiveJobStates = "('queued','running','retry_wait','cancelling')"
+const JobRunPageSize = 50
+const PlatformUpdateKey = "platform-update"
+
+// JobExecutionAllowed permits admitted runs to drain while scheduling is paused.
+func (s *Store) JobExecutionAllowed(ctx context.Context) (bool, error) {
+	var allowed bool
+	err := s.Pool.QueryRow(ctx, `SELECT NOT COALESCE((SELECT value::boolean FROM settings WHERE key='maintenance'),false)
+		OR COALESCE((SELECT value->>'state'='waiting' AND value->>'maintenanceEntered'='true'
+			AND (value->>'drainDeadline')::timestamptz > now() FROM settings WHERE key=$1),false)`, PlatformUpdateKey).Scan(&allowed)
+	return allowed, err
+}
 
 type JobBusyError struct{ RunID string }
 
@@ -135,7 +146,7 @@ func (s *Store) QueueJobRun(ctx context.Context, app, actor, key string) (model.
 		var id string
 		err = tx.QueryRow(ctx, "SELECT id FROM job_runs WHERE dedupe=$1", key).Scan(&id)
 		if err == nil {
-			return s.JobRun(ctx, app, id)
+			return readJobRun(ctx, tx, app, id)
 		}
 		if !errors.Is(err, pgx.ErrNoRows) {
 			return model.JobRun{}, err
@@ -198,11 +209,18 @@ func scanJobRun(row pgx.Row) (model.JobRun, error) {
 	return r, err
 }
 func (s *Store) JobRun(ctx context.Context, app, id string) (model.JobRun, error) {
-	r, err := scanJobRun(s.Pool.QueryRow(ctx, "SELECT "+runColumns+" FROM job_runs WHERE app_id=$1 AND id=$2", app, id))
+	return readJobRun(ctx, s.Pool, app, id)
+}
+
+func readJobRun(ctx context.Context, reader interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+	Query(context.Context, string, ...any) (pgx.Rows, error)
+}, app, id string) (model.JobRun, error) {
+	r, err := scanJobRun(reader.QueryRow(ctx, "SELECT "+runColumns+" FROM job_runs WHERE app_id=$1 AND id=$2", app, id))
 	if err != nil {
 		return r, err
 	}
-	rows, err := s.Pool.Query(ctx, "SELECT number,container,state,started_at,deadline,finished_at,exit_code,log_bytes,log_lines,logs_complete,cleaned FROM job_attempts WHERE run_id=$1 ORDER BY number", id)
+	rows, err := reader.Query(ctx, "SELECT number,container,state,started_at,deadline,finished_at,exit_code,log_bytes,log_lines,logs_complete,cleaned FROM job_attempts WHERE run_id=$1 ORDER BY number", id)
 	if err != nil {
 		return r, err
 	}
@@ -216,8 +234,10 @@ func (s *Store) JobRun(ctx context.Context, app, id string) (model.JobRun, error
 	}
 	return r, rows.Err()
 }
+
+// JobRuns includes one lookahead row when there is another page.
 func (s *Store) JobRuns(ctx context.Context, app, before string) ([]model.JobRun, error) {
-	rows, err := s.Pool.Query(ctx, "SELECT "+runColumns+" FROM job_runs WHERE app_id=$1 AND ($2='' OR (created_at,id)<(SELECT created_at,id FROM job_runs WHERE id=$2 AND app_id=$1)) ORDER BY created_at DESC,id DESC LIMIT 50", app, before)
+	rows, err := s.Pool.Query(ctx, "SELECT "+runColumns+" FROM job_runs WHERE app_id=$1 AND ($2='' OR (created_at,id)<(SELECT created_at,id FROM job_runs WHERE id=$2 AND app_id=$1)) ORDER BY created_at DESC,id DESC LIMIT $3", app, before, JobRunPageSize+1)
 	if err != nil {
 		return nil, err
 	}

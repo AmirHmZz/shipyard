@@ -353,6 +353,9 @@ func TestLinuxJobExecutionsRecoveryRetriesAndVersions(t *testing.T) {
 	if err = recovered.reconcileJob(ctx, app.ID, timed.ID); err != nil {
 		t.Fatal(err)
 	}
+	if err = recovered.reconcileJob(ctx, app.ID, timed.ID); err != nil {
+		t.Fatal(err)
+	}
 	_, _ = c.Store.Pool.Exec(ctx, "UPDATE job_attempts SET deadline=now()-interval '1 second' WHERE run_id=$1", timed.ID)
 	_ = wait(timed.ID, "timed_out")
 	if ids, e := deploy.Output(ctx, node, "docker", "ps", "-aq", "--filter", "label=shipyard.app="+app.ID); e != nil || ids != "" {

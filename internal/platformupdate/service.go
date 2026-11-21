@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-const OperationKey = "platform-update"
+const OperationKey = db.PlatformUpdateKey
 const JournalRoot = "/var/lib/shipyard/upgrades"
 
 type Plan struct {
