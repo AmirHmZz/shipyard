@@ -6,23 +6,33 @@ import (
 )
 
 func TestMigrationsRoundTripHistoryAndApproval(t *testing.T) {
+	const latest = 12
 	s := testStore(t)
 	ctx := context.Background()
 	catalog, e := MigrationCatalog()
 	if e != nil {
 		t.Fatal(e)
 	}
-	if len(catalog) != 11 {
+	if len(catalog) != latest {
 		t.Fatal("update this test with the new schema")
 	}
 	if _, e = s.Pool.Exec(ctx, "INSERT INTO users(id,email,name,password,disabled) VALUES('retained','retained@example.com','Retained','hash',true)"); e != nil {
 		t.Fatal(e)
 	}
+	if _, e = s.Pool.Exec(ctx, "INSERT INTO resources(id,kind,name) VALUES('mcp-project','project','MCP project')"); e != nil {
+		t.Fatal(e)
+	}
+	if _, _, e = s.IssueMCPToken(ctx, "retained", "Migration test", []string{"mcp-project"}, 30); e != nil {
+		t.Fatal(e)
+	}
+	if e = ApplyMigrations(ctx, s.Pool, 11, false); e == nil {
+		t.Fatal("MCP credential downgrade accepted without approval")
+	}
 	if e = ApplyMigrations(ctx, s.Pool, 1, false); e == nil {
 		t.Fatal("destructive downgrade accepted without approval")
 	}
 	state, e := MigrationState(ctx, s.Pool)
-	if e != nil || state.Current != 11 {
+	if e != nil || state.Current != latest {
 		t.Fatal(state, e)
 	}
 	if e = ApplyMigrations(ctx, s.Pool, 1, true); e != nil {
@@ -35,8 +45,14 @@ func TestMigrationsRoundTripHistoryAndApproval(t *testing.T) {
 	if _, e = Open(ctx, testURLForPool(t, s), s.Vault); e == nil {
 		t.Fatal("older schema was silently upgraded")
 	}
-	if e = ApplyMigrations(ctx, s.Pool, 11, true); e != nil {
+	if e = ApplyMigrations(ctx, s.Pool, latest, true); e != nil {
 		t.Fatal(e)
+	}
+	if tokens, err := s.MCPTokens(ctx); err != nil || len(tokens) != 0 {
+		t.Fatalf("round trip retained MCP tokens: %d, %v", len(tokens), err)
+	}
+	if e = s.Pool.QueryRow(ctx, "SELECT name FROM resources WHERE id='mcp-project'").Scan(&name); e != nil || name != "MCP project" {
+		t.Fatal("MCP project lost during round trip", name, e)
 	}
 	var disabled bool
 	if e = s.Pool.QueryRow(ctx, "SELECT disabled FROM users WHERE id='retained'").Scan(&disabled); e != nil || disabled {
