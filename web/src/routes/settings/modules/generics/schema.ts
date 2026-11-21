@@ -232,3 +232,37 @@ export const regenerateRecoveryCodesResponseSchema = z.object({
 });
 
 export const downloadUpdateBackupResponseSchema = blobResponseSchema;
+
+export const mcpProjectSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  teamName: z.string(),
+});
+
+const mcpTokenSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  projectIds: z.array(z.string()),
+  createdAt: z.string(),
+  expiresAt: z.string(),
+  revokedAt: z.optional(z.string()),
+});
+
+export const mcpTokenInventorySchema = z.object({
+  endpoint: z.string(),
+  tokens: z.array(mcpTokenSchema),
+  projects: z.array(mcpProjectSchema),
+});
+
+export const issuedMcpTokenSchema = z.object({
+  token: mcpTokenSchema,
+  secret: z.string(),
+});
+
+export const mcpTokenInputSchema = z.object({
+  name: z.string().check(z.trim(), z.minLength(1), z.maxLength(80)),
+  projectIds: z
+    .array(z.uuid())
+    .check(z.minLength(1, "Select at least one project."), z.maxLength(100)),
+  expiryDays: z.coerce.number().check(z.int(), z.minimum(1), z.maximum(365)),
+});

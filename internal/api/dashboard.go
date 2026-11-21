@@ -26,18 +26,25 @@ func (a *API) allowedOrigin(r *http.Request, origin string) bool {
 	return e == nil && origin != "" && (origin == s.Origin)
 }
 func (a *API) requestOrigin(r *http.Request) string {
-	if a.Control != nil && a.Control.Local != nil {
-		if s, e := a.Control.Dashboard(r.Context()); e == nil {
-			for _, origin := range []string{s.Origin} {
-				u, e := url.Parse(origin)
-				if e == nil && u.Scheme == "https" && u.Host == r.Host && r.Header.Get("X-Forwarded-Proto") == "https" && a.Control.DashboardProxyPeer(r.Context(), r.RemoteAddr) {
-					return origin
-				}
-			}
-
-		}
+	if origin := a.dashboardProxyOrigin(r); origin != "" {
+		return origin
 	}
 	return a.canonicalOrigin(r.Context())
+}
+
+func (a *API) dashboardProxyOrigin(r *http.Request) string {
+	if r.Header.Get("X-Forwarded-Proto") != "https" {
+		return ""
+	}
+	if a.Control != nil && a.Control.Local != nil {
+		if s, e := a.Control.Dashboard(r.Context()); e == nil {
+			u, e := url.Parse(s.Origin)
+			if e == nil && u.Scheme == "https" && u.Host == r.Host && a.Control.DashboardProxyPeer(r.Context(), r.RemoteAddr) {
+				return s.Origin
+			}
+		}
+	}
+	return ""
 }
 func (a *API) dashboardAccess(w http.ResponseWriter, r *http.Request) {
 	if !a.admin(w, r) {

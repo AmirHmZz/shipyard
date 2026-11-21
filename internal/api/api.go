@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/netip"
 	"strconv"
 	"strings"
 	"time"
@@ -35,16 +36,17 @@ import (
 )
 
 type API struct {
-	Updates        *platformupdate.Service
-	Store          *db.Store
-	Control        *control.Controller
-	Origin         string
-	BootstrapToken string
-	DatabaseURL    string
-	Logger         *slog.Logger
-	Telemetry      telemetry.Config
-	GitAuth        *gitauth.Service
-	limits         limiter
+	Updates         *platformupdate.Service
+	Store           *db.Store
+	Control         *control.Controller
+	Origin          string
+	BootstrapToken  string
+	DatabaseURL     string
+	Logger          *slog.Logger
+	Telemetry       telemetry.Config
+	GitAuth         *gitauth.Service
+	MCPTrustedProxy netip.Addr
+	limits          limiter
 }
 
 func respond(w http.ResponseWriter, status int, v any) {
@@ -92,6 +94,7 @@ func (a *API) err(w http.ResponseWriter, e error) {
 func (a *API) Router() http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID, middleware.Recoverer, sentryhttp.New(sentryhttp.Options{Repanic: true}).Handle, a.headers)
+	r.Handle("/mcp", a.mcpHandler())
 	r.Get("/api/v1/version", func(w http.ResponseWriter, r *http.Request) { respond(w, 200, buildinfo.Current()) })
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
@@ -241,6 +244,9 @@ func (a *API) Router() http.Handler {
 			r.Get("/notifications/{id}/delivery", a.notificationDelivery)
 			r.Get("/settings/alerts", a.alertSettings)
 			r.Get("/settings/dashboard-access", a.dashboardAccess)
+			r.Get("/settings/mcp-tokens", a.mcpTokens)
+			r.Post("/settings/mcp-tokens", a.issueMCPToken)
+			r.Delete("/settings/mcp-tokens/{id}", a.revokeMCPToken)
 			r.Put("/settings/dashboard-access", a.dashboardAccess)
 			r.Post("/settings/dashboard-access/retry", a.retryDashboard)
 			r.Put("/settings/alerts", a.alertSettings)
@@ -306,7 +312,8 @@ func (a *API) headers(next http.Handler) http.Handler {
 				return
 			}
 			jobCancel := r.Method == "POST" && strings.HasPrefix(r.URL.Path, "/api/v1/applications/") && strings.Contains(r.URL.Path, "/runs/") && strings.HasSuffix(r.URL.Path, "/cancel")
-			if a.Store.Maintenance(r.Context()) && !jobCancel && !strings.HasPrefix(r.URL.Path, "/api/v1/settings/updates") && r.URL.Path != "/api/v1/settings/maintenance" && r.URL.Path != "/api/v1/auth/login" && r.URL.Path != "/api/v1/auth/logout" && r.URL.Path != "/api/v1/backup" {
+			mcpRevoke := r.Method == "DELETE" && strings.HasPrefix(r.URL.Path, "/api/v1/settings/mcp-tokens/")
+			if a.Store.Maintenance(r.Context()) && !jobCancel && !mcpRevoke && !strings.HasPrefix(r.URL.Path, "/api/v1/settings/updates") && r.URL.Path != "/api/v1/settings/maintenance" && r.URL.Path != "/api/v1/auth/login" && r.URL.Path != "/api/v1/auth/logout" && r.URL.Path != "/api/v1/backup" {
 				fail(w, 503, "Shipyard is in maintenance mode")
 				return
 			}

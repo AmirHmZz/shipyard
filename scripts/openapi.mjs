@@ -797,6 +797,44 @@ schemas.DashboardAccessInput = object(
   },
   ["version", "domain"],
 );
+schemas.MCPProject = object({ id: str, name: str, teamName: str });
+schemas.MCPToken = object(
+  {
+    id: str,
+    name: str,
+    projectIds: { type: "array", items: str },
+    createdAt: { type: "string", format: "date-time" },
+    expiresAt: { type: "string", format: "date-time" },
+    revokedAt: { type: "string", format: "date-time" },
+  },
+  ["id", "name", "projectIds", "createdAt", "expiresAt"],
+);
+schemas.MCPTokenInput = input(
+  {
+    name: { type: "string", minLength: 1, maxLength: 80 },
+    projectIds: {
+      type: "array",
+      items: { type: "string", format: "uuid" },
+      minItems: 1,
+      maxItems: 100,
+      uniqueItems: true,
+    },
+    expiryDays: { type: "integer", minimum: 1, maximum: 365, default: 30 },
+  },
+  ["name", "projectIds"],
+);
+schemas.MCPTokens = object({
+  endpoint: str,
+  tokens: { type: "array", items: ref("MCPToken") },
+  projects: { type: "array", items: ref("MCPProject") },
+});
+schemas.MCPIssuedToken = object({
+  token: ref("MCPToken"),
+  secret: {
+    type: "string",
+    description: "Returned only when creating a token.",
+  },
+});
 schemas.MigrationDirection = object({
   classification: {
     type: "string",
@@ -1035,6 +1073,28 @@ add(
   "get",
   "Administrator dashboard ingress status",
   ref("DashboardAccess"),
+);
+add(
+  "/settings/mcp-tokens",
+  "get",
+  "List MCP token metadata and available projects",
+  ref("MCPTokens"),
+);
+add(
+  "/settings/mcp-tokens",
+  "post",
+  "Issue a project-scoped MCP token as a platform administrator",
+  ref("MCPIssuedToken"),
+  ref("MCPTokenInput"),
+);
+paths["/settings/mcp-tokens"].post.responses[201] =
+  paths["/settings/mcp-tokens"].post.responses[200];
+delete paths["/settings/mcp-tokens"].post.responses[200];
+add(
+  "/settings/mcp-tokens/{id}",
+  "delete",
+  "Revoke an MCP token as a platform administrator",
+  ref("Ok"),
 );
 add(
   "/settings/dashboard-access",

@@ -1,0 +1,11 @@
+{
+  "name": "MCP access",
+  "up": {
+    "classification": "non-destructive",
+    "impact": "Add project-scoped MCP credentials and indexes for retained log search."
+  },
+  "down": {
+    "classification": "destructive",
+    "impact": "Remove MCP credentials. Administrators must issue new credentials after upgrading again."
+  }
+}

@@ -34,6 +34,9 @@ export {
   downloadBackupResponseSchema,
   regenerateRecoveryCodesResponseSchema,
   downloadUpdateBackupResponseSchema,
+  issuedMcpTokenSchema,
+  mcpTokenInputSchema,
+  mcpTokenInventorySchema,
 } from "./schema";
 export type {
   PasswordValues,
@@ -45,6 +48,8 @@ export type {
   UpdateValues,
   UserAccessVariables,
   DashboardAccessValues,
+  McpProject,
+  McpTokenInput,
 } from "./types";
 export { maintenanceResponseSchema } from "./schema";
 export type { MaintenanceSnapshot } from "./types";

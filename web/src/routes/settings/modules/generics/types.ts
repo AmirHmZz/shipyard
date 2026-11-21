@@ -15,6 +15,8 @@ import type {
   totpDisableSchema,
   alertPolicySchema,
   updateFormSchema,
+  mcpProjectSchema,
+  mcpTokenInputSchema,
 } from "./schema";
 
 export type AlertPolicy = z.infer<typeof alertPolicyResponseSchema>;
@@ -27,6 +29,8 @@ export type Plan = z.infer<typeof versionChangePlanResponseSchema>;
 export type State = z.infer<typeof dashboardAccessResponseSchema>;
 
 export type User = z.infer<typeof userResponseSchema>;
+export type McpProject = z.infer<typeof mcpProjectSchema>;
+export type McpTokenInput = z.infer<typeof mcpTokenInputSchema>;
 
 export type PasswordValues = z.infer<typeof passwordFormSchema>;
 export type PassphraseValues = z.infer<typeof passphraseSchema>;

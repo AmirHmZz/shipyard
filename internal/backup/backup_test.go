@@ -75,6 +75,13 @@ func TestDatabaseBackupRestore(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
+	mcpToken, mcpSecret, e := store.IssueMCPToken(ctx, "test-admin", "Backup exclusion check", []string{project.ID}, 30)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if tokenID, err := store.MCPTokenID(ctx, secure.Hash(mcpSecret)); err != nil || tokenID != mcpToken.ID {
+		t.Fatalf("original installation did not recognize the token: %v", err)
+	}
 	directory := t.TempDir()
 	_ = os.WriteFile(filepath.Join(directory, "artifact"), []byte("durable file"), 0600)
 	encrypted, e := ExportWithFiles(ctx, store, source, directory, "strong backup passphrase", map[string][]byte{".env": []byte("encrypted-installation-credentials")})
@@ -99,6 +106,9 @@ func TestDatabaseBackupRestore(t *testing.T) {
 		t.Fatal(e)
 	}
 	defer restored.Pool.Close()
+	if tokens, err := restored.MCPTokens(ctx); err != nil || len(tokens) != 0 {
+		t.Fatalf("backup restored MCP credentials: %d, %v", len(tokens), err)
+	}
 	logoProject, e := restored.Resource(ctx, project.ID)
 	if e != nil || logoProject.LogoURL == nil || logoProject.SortOrder != project.SortOrder {
 		t.Fatal("logo metadata or ordering not restored", logoProject, e)

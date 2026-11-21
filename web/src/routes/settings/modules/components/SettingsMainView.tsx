@@ -4,6 +4,7 @@ import {
   History as HistoryIcon,
   ListTodo,
   LockKeyhole,
+  Plug,
   RefreshCw,
   ShieldCheck,
   Users,
@@ -20,6 +21,7 @@ import { Backup } from "./Backup";
 import { CertificateNetwork } from "./CertificateNetwork";
 import { DashboardAccess } from "./DashboardAccess";
 import { History } from "./History";
+import { McpAccess } from "./McpAccess";
 import { PasswordSettings } from "./PasswordSettings";
 import { Security } from "./Security";
 import { SystemUpdates } from "./SystemUpdates";
@@ -61,6 +63,10 @@ export function SettingsMainView({ session }: SettingsMainViewProps) {
                   <LockKeyhole aria-hidden="true" />
                   Dashboard access
                 </TabsTrigger>
+                <TabsTrigger value="mcp">
+                  <Plug aria-hidden="true" />
+                  MCP access
+                </TabsTrigger>
                 <TabsTrigger value="certificates">
                   <LockKeyhole aria-hidden="true" />
                   Certificates
@@ -100,6 +106,9 @@ export function SettingsMainView({ session }: SettingsMainViewProps) {
             </TabsContent>
             <TabsContent value="dashboard">
               <DashboardAccess />
+            </TabsContent>
+            <TabsContent value="mcp">
+              <McpAccess />
             </TabsContent>
             <TabsContent value="certificates">
               <CertificateNetwork />

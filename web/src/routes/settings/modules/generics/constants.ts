@@ -5,5 +5,6 @@ export const settingsKeys = {
   systemUpdates: ["system-updates"] as const,
   history: (type: string) => [type] as const,
   dashboardAccess: ["dashboard-access"] as const,
+  mcpTokens: ["mcp-tokens"] as const,
   alertPolicy: ["alert-policy"] as const,
 };

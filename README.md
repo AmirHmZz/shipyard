@@ -4,6 +4,8 @@ Configure [application automation and resource limits](docs/automation.md) for p
 
 For tasks that run to completion, see [Job applications](docs/jobs.md): manual and cron execution, retries, cancellation, and retained logs.
 
+Connect Codex and other agents to [Shipyard MCP](docs/mcp.md) for authenticated, project-scoped log access.
+
 A focused, self-hosted deployment control plane. Go + PostgreSQL, Vite/React/TypeScript, shadcn/ui + Tailwind, and HAProxy Community. Deploy to the native Linux installation host or independent Docker hosts over SSH; no Swarm, Kubernetes, Redis, database catalog, or deployment templates.
 
 ## Install

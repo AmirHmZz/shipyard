@@ -55,7 +55,8 @@ func ExportWithFiles(ctx context.Context, s *db.Store, databaseURL, dataDir, pas
 		return nil, e
 	}
 	var dump, stderr bytes.Buffer
-	cmd, e := pgCommand(ctx, "pg_dump", databaseURL, "--format=custom", "--no-owner", "--no-acl")
+	cmd, e := pgCommand(ctx, "pg_dump", databaseURL, "--format=custom", "--no-owner", "--no-acl",
+		"--exclude-table-data=public.mcp_tokens", "--exclude-table-data=public.mcp_token_projects")
 	if e != nil {
 		return nil, e
 	}

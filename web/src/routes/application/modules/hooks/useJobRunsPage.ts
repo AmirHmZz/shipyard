@@ -1,6 +1,7 @@
 import type { MouseEvent } from "react";
 
 import { useState } from "react";
+import { useSearchParams } from "react-router";
 
 import { canDeleteJobRun } from "../generics/automation";
 import { useCancelJobRun } from "./useCancelJobRun";
@@ -11,7 +12,8 @@ export function useJobRunsPage(id: string) {
   const [checked, setChecked] = useState<string[]>([]);
   const [deleting, setDeleting] = useState<string[]>([]);
   const [cursor, setCursor] = useState("");
-  const [selected, setSelected] = useState("");
+  const [params, setParams] = useSearchParams();
+  const selected = params.get("run") || "";
   const runs = useJobRuns(id, cursor);
   const latest = useJobRuns(id);
   const detail = useJobRun(id, selected);
@@ -24,6 +26,12 @@ export function useJobRunsPage(id: string) {
         Math.ceil((Date.parse(active.retryAt) - latest.dataUpdatedAt) / 1000),
       )
     : 0;
+  function setSelected(run: string) {
+    const next = new URLSearchParams(params);
+    if (run) next.set("run", run);
+    else next.delete("run");
+    setParams(next, { replace: true, preventScrollReset: true });
+  }
   function runNow() {
     start.mutate(crypto.randomUUID(), {
       onSuccess: function selectRun(run) {

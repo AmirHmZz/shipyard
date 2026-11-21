@@ -9,6 +9,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/netip"
 
 	"os"
 	"os/signal"
@@ -221,7 +222,15 @@ func run() error {
 		logger.Info("Path route cleanup complete", "deleted", count)
 		return err
 	}
-	app := &api.API{Store: store, Control: controller, Origin: strings.TrimRight(env("SHIPYARD_ORIGIN", "http://localhost:8080"), "/"), BootstrapToken: os.Getenv("SHIPYARD_BOOTSTRAP_TOKEN"), DatabaseURL: databaseURL, Logger: logger, Telemetry: telemetry.FromEnv()}
+	var mcpProxy netip.Addr
+	if value := os.Getenv("SHIPYARD_MCP_TRUSTED_PROXY"); value != "" {
+		var err error
+		mcpProxy, err = netip.ParseAddr(value)
+		if err != nil || mcpProxy.IsUnspecified() || mcpProxy.Zone() != "" {
+			return fmt.Errorf("SHIPYARD_MCP_TRUSTED_PROXY must be a specific IP address")
+		}
+	}
+	app := &api.API{Store: store, Control: controller, Origin: strings.TrimRight(env("SHIPYARD_ORIGIN", "http://localhost:8080"), "/"), BootstrapToken: os.Getenv("SHIPYARD_BOOTSTRAP_TOKEN"), DatabaseURL: databaseURL, Logger: logger, Telemetry: telemetry.FromEnv(), MCPTrustedProxy: mcpProxy}
 	updates := &platformupdate.Service{Store: store, Local: controller.Local, Self: controller.SelfContainer, DatabaseURL: databaseURL}
 	app.Updates = updates
 	go updates.Run(ctx)
