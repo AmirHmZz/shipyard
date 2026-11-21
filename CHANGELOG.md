@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.21.0] (2026-11-21)
+
+### Features
+
+- Connect Codex and other MCP clients to Shipyard over HTTPS. Seven read-only tools discover applications and runs, read deployment, Job, and current Docker logs, and search retained deployment and Job output.
+- Create and revoke expiring MCP tokens under **Settings → MCP access**. Each token grants access only to selected projects. Shipyard requires authentication even for tool discovery.
+- Resume an interrupted backup restore by retrying with the same archive, database URL, and data directory. Backup exports now enforce the same size limits as restores.
+
+### Bug Fixes
+
+- Correct Job history pagination, final log replay, and attempt start and timeout tracking. Preserve unsaved Job schedule edits and prompt for a reload when the saved schedule changes.
+- Protect releases that active Jobs or rollbacks still need. Retry interrupted release cleanup and allow already-admitted Jobs to finish during the updater's bounded maintenance window.
+- Collect disk usage from the configured Docker data directory and show unavailable disk metrics as missing readings.
+
+### Upgrade Notes
+
+- Migration 012 adds MCP credentials and indexes for retained log search. Use System updates, or back up the installation and run `shipyard migrate plan 12` and `shipyard migrate apply 12` before starting the new binary.
+- Downgrading to schema 11 discards MCP tokens. Restoring a Shipyard backup also requires issuing fresh MCP tokens.
+
 ## [0.20.0] (2026-11-18)
 
 ### Features
