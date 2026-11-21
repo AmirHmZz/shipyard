@@ -21,6 +21,34 @@ import (
 	"shipyard/internal/secure"
 )
 
+const (
+	backupEntryLimit   = 1 << 30
+	backupArchiveLimit = 2 << 30
+	restoreJournal     = ".shipyard-restore"
+)
+
+var (
+	errEntryTooLarge   = errors.New("backup entry exceeds the 1 GiB restore limit")
+	errArchiveTooLarge = errors.New("uncompressed backup exceeds the 2 GiB restore limit")
+)
+
+type boundedWriter struct {
+	dst       io.Writer
+	remaining int64
+	limitErr  error
+	exceeded  bool
+}
+
+func (w *boundedWriter) Write(p []byte) (int, error) {
+	if int64(len(p)) > w.remaining {
+		w.exceeded = true
+		return 0, w.limitErr
+	}
+	n, err := w.dst.Write(p)
+	w.remaining -= int64(n)
+	return n, err
+}
+
 type Manifest struct {
 	Version        int       `json:"version"`
 	CreatedAt      time.Time `json:"createdAt"`
@@ -42,35 +70,44 @@ func ExportWithFiles(ctx context.Context, s *db.Store, databaseURL, dataDir, pas
 	}
 	var archive bytes.Buffer
 	gz := gzip.NewWriter(&archive)
-	tw := tar.NewWriter(gz)
-	add := func(name string, b []byte) error {
-		if e := tw.WriteHeader(&tar.Header{Name: name, Mode: 0600, Size: int64(len(b))}); e != nil {
+	tw := tar.NewWriter(&boundedWriter{dst: gz, remaining: backupArchiveLimit, limitErr: errArchiveTooLarge})
+	add := func(name string, size int64, data io.Reader) error {
+		if size > backupEntryLimit {
+			return errEntryTooLarge
+		}
+		if e := tw.WriteHeader(&tar.Header{Name: name, Mode: 0600, Size: size}); e != nil {
 			return e
 		}
-		_, e := tw.Write(b)
+		_, e := io.Copy(tw, data)
 		return e
 	}
 	manifest, _ := json.Marshal(Manifest{Version: 1, CreatedAt: time.Now(), MasterKey: s.Vault.Key(), ProductVersion: buildinfo.Version, SchemaVersion: db.LatestSchema()})
-	if e := add("manifest.json", manifest); e != nil {
+	if e := add("manifest.json", int64(len(manifest)), bytes.NewReader(manifest)); e != nil {
 		return nil, e
 	}
-	var dump, stderr bytes.Buffer
+	var dump bytes.Buffer
 	cmd, e := pgCommand(ctx, "pg_dump", databaseURL, "--format=custom", "--no-owner", "--no-acl",
 		"--exclude-table-data=public.mcp_tokens", "--exclude-table-data=public.mcp_token_projects")
 	if e != nil {
 		return nil, e
 	}
-	cmd.Stdout = &dump
-	cmd.Stderr = &stderr
+	output := &boundedWriter{dst: &dump, remaining: backupEntryLimit, limitErr: errEntryTooLarge}
+	cmd.Stdout = output
 	if e := cmd.Run(); e != nil {
+		if output.exceeded {
+			return nil, errEntryTooLarge
+		}
 		return nil, fmt.Errorf("pg_dump failed: %w", e)
 	}
-	if e := add("database.dump", dump.Bytes()); e != nil {
+	if e := add("database.dump", int64(dump.Len()), &dump); e != nil {
 		return nil, e
 	}
 	if e := filepath.WalkDir(dataDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
+		}
+		if path == filepath.Join(dataDir, restoreJournal) {
+			return errors.New("finish the interrupted restore before exporting")
 		}
 		if d.IsDir() {
 			if d.Name() == "source" || strings.HasPrefix(d.Name(), "source-") {
@@ -78,18 +115,23 @@ func ExportWithFiles(ctx context.Context, s *db.Store, databaseURL, dataDir, pas
 			}
 			return nil
 		}
-		if d.Type()&os.ModeSymlink != 0 {
-			return errors.New("backup data directory contains a symlink")
+		if !d.Type().IsRegular() {
+			return errors.New("backup data directory contains a non-regular file")
 		}
 		rel, e := filepath.Rel(dataDir, path)
 		if e != nil {
 			return e
 		}
-		b, e := os.ReadFile(path)
+		f, e := os.Open(path)
 		if e != nil {
 			return e
 		}
-		return add("data/"+filepath.ToSlash(rel), b)
+		defer f.Close()
+		info, e := f.Stat()
+		if e != nil {
+			return e
+		}
+		return add("data/"+filepath.ToSlash(rel), info.Size(), f)
 	}); e != nil {
 		return nil, e
 	}
@@ -97,7 +139,7 @@ func ExportWithFiles(ctx context.Context, s *db.Store, databaseURL, dataDir, pas
 		if !filepath.IsLocal(name) || strings.Contains(name, "\\") {
 			return nil, errors.New("invalid backup extra path")
 		}
-		if e := add("data/installation/"+name, content); e != nil {
+		if e := add("data/installation/"+name, int64(len(content)), bytes.NewReader(content)); e != nil {
 			return nil, e
 		}
 	}
@@ -110,108 +152,79 @@ func ExportWithFiles(ctx context.Context, s *db.Store, databaseURL, dataDir, pas
 	return secure.EncryptBackup(passphrase, archive.Bytes())
 }
 
-// Restore targets a fresh database while the server is stopped. It never modifies remote application data.
-func Restore(ctx context.Context, databaseURL, dataDir, passphrase string, encrypted []byte) (string, error) {
-	if entries, e := os.ReadDir(dataDir); e == nil && len(entries) > 0 {
-		return "", errors.New("restore requires an empty data directory")
-	}
-	plain, e := secure.DecryptBackup(passphrase, encrypted)
-	if e != nil {
-		return "", errors.New("invalid backup or passphrase")
-	}
-	gz, e := gzip.NewReader(bytes.NewReader(plain))
-	if e != nil {
-		return "", e
-	}
-	defer gz.Close()
-	tr := tar.NewReader(io.LimitReader(gz, 2<<30))
+func readArchive(plain []byte, entryLimit, archiveLimit int64) (Manifest, []byte, map[string][]byte, error) {
 	var manifest Manifest
 	var dump []byte
 	files := map[string][]byte{}
+	gz, e := gzip.NewReader(bytes.NewReader(plain))
+	if e != nil {
+		return manifest, nil, nil, e
+	}
+	defer gz.Close()
+	limited := &io.LimitedReader{R: gz, N: archiveLimit + 1}
+	tr := tar.NewReader(limited)
 	for {
+		remaining := limited.N
 		h, e := tr.Next()
+		if limited.N == 0 {
+			return manifest, nil, nil, errArchiveTooLarge
+		}
 		if e == io.EOF {
+			if remaining-limited.N < 1024 {
+				return manifest, nil, nil, errors.New("backup archive is missing its tar end marker")
+			}
 			break
 		}
 		if e != nil {
-			return "", e
+			return manifest, nil, nil, e
 		}
-		if h.Typeflag != tar.TypeReg || h.Size > 1<<30 {
-			return "", errors.New("invalid backup entry")
+		if h.Typeflag != tar.TypeReg {
+			return manifest, nil, nil, errors.New("invalid backup entry")
 		}
-		b, e := io.ReadAll(io.LimitReader(tr, h.Size+1))
-		if e != nil {
-			return "", e
+		if h.Size > entryLimit {
+			return manifest, nil, nil, errEntryTooLarge
 		}
-		if int64(len(b)) != h.Size {
-			return "", errors.New("truncated backup entry")
+		if h.Size >= limited.N {
+			return manifest, nil, nil, errArchiveTooLarge
+		}
+		b := make([]byte, int(h.Size))
+		if _, e = io.ReadFull(tr, b); e != nil {
+			return manifest, nil, nil, e
 		}
 		switch h.Name {
 		case "manifest.json":
 			if e = json.Unmarshal(b, &manifest); e != nil {
-				return "", e
+				return manifest, nil, nil, e
 			}
 		case "database.dump":
 			dump = b
 		default:
 			if !strings.HasPrefix(h.Name, "data/") {
-				return "", errors.New("unknown backup entry")
+				return manifest, nil, nil, errors.New("unknown backup entry")
 			}
-			rel := strings.TrimPrefix(h.Name, "data/")
-			if !filepath.IsLocal(rel) || strings.Contains(rel, "\\") {
-				return "", errors.New("unsafe backup path")
+			rel := filepath.FromSlash(strings.TrimPrefix(h.Name, "data/"))
+			if !filepath.IsLocal(rel) || strings.Contains(h.Name, "\\") {
+				return manifest, nil, nil, errors.New("unsafe backup path")
+			}
+			rel = filepath.Clean(rel)
+			first, _, _ := strings.Cut(filepath.ToSlash(rel), "/")
+			if rel == "." || first == restoreJournal {
+				return manifest, nil, nil, errors.New("backup path conflicts with restore staging")
 			}
 			files[rel] = b
 		}
 	}
+	if _, e = io.Copy(io.Discard, limited); e != nil {
+		return manifest, nil, nil, e
+	}
+	if limited.N == 0 {
+		return manifest, nil, nil, errArchiveTooLarge
+	}
 	if manifest.Version != 1 || len(dump) == 0 {
-		return "", errors.New("unsupported or incomplete backup")
+		return manifest, nil, nil, errors.New("unsupported or incomplete backup")
 	}
-	if _, e = secure.New(manifest.MasterKey); e != nil {
-		return "", e
-	}
-	test, e := pgCommand(ctx, "psql", databaseURL, "-At", "-c", "SELECT count(*) FROM information_schema.tables WHERE table_schema='public'")
-	if e != nil {
-		return "", e
-	}
-	out, e := test.Output()
-	if e != nil {
-		return "", e
-	}
-	if strings.TrimSpace(string(out)) != "0" {
-		return "", errors.New("restore requires an empty target database")
-	}
-	cmd, e := pgCommand(ctx, "pg_restore", databaseURL, "--no-owner", "--no-acl", "--exit-on-error", "--single-transaction")
-	if e != nil {
-		return "", e
-	}
-	cmd.Stdin = bytes.NewReader(dump)
-	if e = cmd.Run(); e != nil {
-		return "", fmt.Errorf("pg_restore failed: %w", e)
-	}
-	cleanup, e := pgCommand(ctx, "psql", databaseURL, "-v", "ON_ERROR_STOP=1", "-c", "DELETE FROM settings WHERE key='platform-update' OR key LIKE 'platform-update:%' OR key LIKE 'platform-plan:%'; UPDATE settings SET value='true' WHERE key='maintenance'")
-	if e != nil {
-		return "", e
-	}
-	if e = cleanup.Run(); e != nil {
-		return "", e
-	}
-	if e = os.MkdirAll(dataDir, 0700); e != nil {
-		return "", e
-	}
-	for rel, b := range files {
-		target := filepath.Join(dataDir, filepath.FromSlash(rel))
-		if e = os.MkdirAll(filepath.Dir(target), 0700); e != nil {
-			return "", e
-		}
-		if e = os.WriteFile(target, b, 0600); e != nil {
-			return "", e
-		}
-	}
-	if e = os.WriteFile(filepath.Join(dataDir, "restored-master-key"), []byte(manifest.MasterKey), 0600); e != nil {
-		return "", e
-	}
-	return filepath.Join(dataDir, "restored-master-key"), nil
+	_, e = secure.New(manifest.MasterKey)
+	return manifest, dump, files, e
 }
 func pgCommand(ctx context.Context, tool, databaseURL string, args ...string) (*exec.Cmd, error) {
 	parsed, e := url.Parse(databaseURL)

@@ -4,6 +4,8 @@ Use **Settings → System updates** for routine upgrades and downgrades. Every o
 
 Administrators can also enable maintenance in Settings, wait for running jobs, and export an encrypted backup. Archives include PostgreSQL, durable control-plane files, certificate/account material and the master key. Version-change archives additionally contain the installation .env, Compose and release/installation manifests inside the encrypted payload. Protect the archive and its passphrase separately.
 
+Export enforces the restore limits of 1 GiB per entry and 2 GiB for the uncompressed archive.
+
 Application volumes, release images and remote workspaces are excluded. Preserve /var/lib/shipyard and Docker's application images/volumes separately when needed for application rollback. Restoring the panel cannot recreate missing application data.
 
 ## Fresh deploy and deployment history
@@ -28,7 +30,9 @@ Stop the control plane and any active updater. Use an **empty PostgreSQL databas
 shipyard restore /secure/path/backup.sybackup
 ```
 
-Enter the passphrase through stdin and end with EOF, or provide stdin from a secret-management tool. Do not place it in command arguments or logs. Restore refuses an existing database and restores PostgreSQL transactionally. It writes restored-master-key under the data directory with mode 0600. Set SHIPYARD_MASTER_KEY from that file before starting. Ensure restored control-plane files are readable by UID 10001.
+Enter the passphrase through stdin and end with EOF, or provide stdin from a secret-management tool. Do not place it in command arguments or logs. An initial restore requires an empty database and imports the backup in one PostgreSQL transaction. It writes restored-master-key under the data directory with mode 0600. Set SHIPYARD_MASTER_KEY from that file before starting. Ensure restored control-plane files are readable by UID 10001.
+
+If restore is interrupted, fix the reported error and rerun with the same archive, database URL, and data directory. Keep the control plane stopped and leave the restore journal and any published files in place so the retry can verify and reuse them.
 
 Version-change archives restore installation files under <data-directory>/installation/. Root must review and restore those files to /opt/shipyard, including the source release's digest-pinned images and original master key. Keep .env mode 0600, install.json mode 0640 root:10001, and the installation directory mode 0750 root:10001. Do not replace source images with a journal's pending target.
 
