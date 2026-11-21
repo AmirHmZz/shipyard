@@ -103,7 +103,11 @@ export function ServerCard({ server }: ServerCardProps) {
                 />
                 <ServerMetric
                   label="Disk"
-                  value={latest?.disk}
+                  value={
+                    (latest?.diskValid ?? latest?.valid)
+                      ? latest?.disk
+                      : undefined
+                  }
                   icon={<HardDrive />}
                 />
               </div>

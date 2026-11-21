@@ -618,6 +618,7 @@ Object.assign(schemas.Metric.properties, {
   status: str,
   valid: bool,
   cpuValid: bool,
+  diskValid: bool,
   memoryBytes: num,
   memoryTotalBytes: num,
   network: array(ref("IORate")),

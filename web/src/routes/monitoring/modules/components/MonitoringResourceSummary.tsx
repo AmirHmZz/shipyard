@@ -89,7 +89,9 @@ export function MonitoringResourceSummary({
         {server ? (
           <MonitoringStat
             label="Storage"
-            value={percent(latest?.valid ? latest.disk : undefined)}
+            value={percent(
+              (latest?.diskValid ?? latest?.valid) ? latest?.disk : undefined,
+            )}
             description="Latest usage"
             icon={HardDrive}
           />

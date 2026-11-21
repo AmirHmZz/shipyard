@@ -81,7 +81,10 @@ export function MonitoringCharts({
     ...point,
     cpu: point.online && point.cpuValid !== false ? point.cpu : null,
     memory: point.online && point.valid !== false ? point.memory : null,
-    disk: point.online && point.valid !== false ? point.disk : null,
+    disk:
+      point.online && (point.diskValid ?? point.valid !== false)
+        ? point.disk
+        : null,
   }));
   const networkData = rows.map((point) => {
     const io = point.network?.find((entry) => entry.name === selectedNetwork);

@@ -7,8 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -30,6 +28,7 @@ type Metric struct {
 	Status           string            `json:"status,omitempty"`
 	Valid            bool              `json:"valid"`
 	CPUValid         bool              `json:"cpuValid"`
+	DiskValid        *bool             `json:"diskValid,omitempty"`
 	MemoryBytes      uint64            `json:"memoryBytes"`
 	MemoryTotalBytes uint64            `json:"memoryTotalBytes"`
 	Network          []IORate          `json:"network"`
@@ -44,6 +43,14 @@ type Metric struct {
 	Availability     *float64          `json:"availability,omitempty"`
 	Samples          int               `json:"samples,omitempty"`
 }
+
+func (m Metric) diskKnown() bool {
+	if m.DiskValid != nil {
+		return *m.DiskValid
+	}
+	return m.Valid
+}
+
 type ContainerMetric struct {
 	ID          string   `json:"id"`
 	Name        string   `json:"name"`
@@ -58,10 +65,6 @@ type ContainerMetric struct {
 	DiskWrite   *float64 `json:"diskWrite"`
 }
 
-func percent(v string) float64 {
-	f, _ := strconv.ParseFloat(strings.TrimSuffix(strings.TrimSpace(v), "%"), 64)
-	return f
-}
 func (c *Controller) metrics(ctx context.Context, id string) error {
 	m, client := c.collectMetrics(ctx, id)
 	if client != nil {

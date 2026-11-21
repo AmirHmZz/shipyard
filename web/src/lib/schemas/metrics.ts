@@ -11,6 +11,7 @@ export const metricResponseSchema = z.object({
   cpu: z.number(),
   memory: z.number(),
   disk: z.number(),
+  diskValid: z.optional(z.boolean()),
   online: z.boolean(),
   at: z.string(),
   status: z.optional(z.string()),

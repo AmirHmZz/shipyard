@@ -7120,6 +7120,7 @@ export interface components {
             status?: string;
             valid?: boolean;
             cpuValid?: boolean;
+            diskValid?: boolean;
             memoryBytes?: number;
             memoryTotalBytes?: number;
             network?: components["schemas"]["IORate"][];
@@ -7207,6 +7208,7 @@ export interface components {
                 status?: string;
                 valid?: boolean;
                 cpuValid?: boolean;
+                diskValid?: boolean;
                 memoryBytes?: number;
                 memoryTotalBytes?: number;
                 network?: components["schemas"]["IORate"][];

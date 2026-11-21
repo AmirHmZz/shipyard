@@ -11823,6 +11823,9 @@
           "cpuValid": {
             "type": "boolean"
           },
+          "diskValid": {
+            "type": "boolean"
+          },
           "memoryBytes": {
             "type": "number"
           },
@@ -12155,6 +12158,9 @@
                 "type": "boolean"
               },
               "cpuValid": {
+                "type": "boolean"
+              },
+              "diskValid": {
                 "type": "boolean"
               },
               "memoryBytes": {

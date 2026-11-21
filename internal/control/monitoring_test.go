@@ -5,6 +5,10 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
 	"shipyard/internal/providers"
 	"shipyard/internal/testproxy"
 	"strings"
@@ -70,6 +74,50 @@ func TestMonitoringCountersResetAndApplicationAggregation(t *testing.T) {
 	stopped := aggregateApplication(server, nil, "app", "stopped")
 	if stopped.Online || stopped.Status != "stopped" {
 		t.Fatal(stopped)
+	}
+}
+
+func TestHostSampleSeparatesDiskAndCPUValidity(t *testing.T) {
+	at := time.Now()
+	_, previous := readHostCounters("BOOT same\nCPU 2200000000 5000000000\n", at)
+	m, current := readHostCounters("BOOT same\nCPU 2200000025 5000000100\nMEM 100 200\n", at.Add(time.Second))
+	applyHostRates(&m, current, previous)
+	if !m.CPUValid || m.CPU != 25 || !m.Valid || m.diskKnown() {
+		t.Fatalf("unexpected sample validity: %+v", m)
+	}
+	m, current = readHostCounters("BOOT same\nCPU 2.2e+09 5000000100\nDISK 0%\n", at.Add(time.Second))
+	applyHostRates(&m, current, previous)
+	if m.CPUValid || !m.diskKnown() || m.Disk != 0 {
+		t.Fatalf("invalid CPU and valid zero disk were not distinguished: %+v", m)
+	}
+}
+
+func TestHostMetricScriptMeasuresDockerDataRoot(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("host collector reads Linux /proc")
+	}
+	fakes := t.TempDir()
+	for name, script := range map[string]string{
+		"docker": "#!/bin/sh\nprintf '%s\\n' '/custom docker root'\n",
+		"df":     "#!/bin/sh\n[ \"$1\" = -P ] && [ \"$2\" = \"$EXPECTED_ROOT\" ] || exit 1\nprintf 'Filesystem Blocks Used Available Capacity Mounted\\n/dev/test 100 42 58 42%% /mount\\n'\n",
+	} {
+		if err := os.WriteFile(filepath.Join(fakes, name), []byte(script), 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, test := range []struct {
+		root, expected string
+	}{{"", "/custom docker root"}, {"/host/docker-root", "/host/docker-root"}} {
+		command := exec.Command("sh", "-c", hostMetricScript, "metrics", test.root)
+		command.Env = append(os.Environ(), "PATH="+fakes+":"+os.Getenv("PATH"), "EXPECTED_ROOT="+test.expected)
+		output, err := command.Output()
+		if err != nil {
+			t.Fatal(err)
+		}
+		point, _ := readHostCounters(string(output), time.Now())
+		if !point.diskKnown() || point.Disk != 42 {
+			t.Fatalf("disk collected from the wrong root %q: %+v", test.expected, point)
+		}
 	}
 }
 func TestMonitoringPoliciesIncidentsAndSelectedDestinations(t *testing.T) {
@@ -168,5 +216,30 @@ func TestMonitoringHistoryBucketsAndRangeValidation(t *testing.T) {
 	}
 	if _, err := c.MetricHistory(ctx, host.ID, "365d"); err == nil {
 		t.Fatal("unbounded range accepted")
+	}
+}
+
+func TestMonitoringHistoryExcludesInvalidMemoryAndDiskSamples(t *testing.T) {
+	c := testController(t)
+	ctx := context.Background()
+	host := resource(t, c, "server", "", "", model.Server{}, nil)
+	at := time.Now().UTC().Add(-time.Hour).Truncate(5 * time.Minute).Add(time.Minute)
+	noDisk := false
+	for _, point := range []Metric{
+		{Online: true, Valid: true, MemoryBytes: 800, Memory: 80, Disk: 70},
+		{Online: true, Valid: true, MemoryBytes: 400, Memory: 40, DiskValid: &noDisk},
+		{DiskValid: &noDisk},
+	} {
+		if _, err := c.Store.Pool.Exec(ctx, "INSERT INTO metrics(resource_id,data,created_at) VALUES($1,$2,$3)", host.ID, metricJSON(point), at); err != nil {
+			t.Fatal(err)
+		}
+	}
+	points, err := c.MetricHistory(ctx, host.ID, "7d")
+	if err != nil || len(points) != 1 {
+		t.Fatalf("expected one bucket: %+v, %v", points, err)
+	}
+	point := points[0]
+	if point.MemoryBytes != 600 || point.Memory != 60 || !point.diskKnown() || point.Disk != 70 {
+		t.Fatalf("invalid samples skewed history: %+v", point)
 	}
 }

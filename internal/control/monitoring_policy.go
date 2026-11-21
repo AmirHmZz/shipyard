@@ -194,7 +194,7 @@ func (c *Controller) evaluateMonitoring(ctx context.Context, r model.Resource, m
 	if r.Kind == "application" && (m.Status == "stopped" || m.Status == "idle" || m.Status == "not_deployed" || m.Status == "host_unavailable" || m.Status == "unknown") {
 		availability = false
 	}
-	high := enabled && m.Online && m.Valid && ((m.CPUValid && m.CPU >= p.CPU) || m.Memory >= p.Memory || (r.Kind == "server" && m.Disk >= p.Disk))
+	high := enabled && m.Online && m.Valid && ((m.CPUValid && m.CPU >= p.CPU) || m.Memory >= p.Memory || (r.Kind == "server" && m.diskKnown() && m.Disk >= p.Disk))
 	offline := availability && (!m.Online || r.Kind == "application" && m.Status == "degraded")
 	kind := "server.offline"
 	if r.Kind == "application" {
@@ -211,7 +211,7 @@ func (c *Controller) evaluateMonitoring(ctx context.Context, r model.Resource, m
 	if enabled && (!m.Online || !m.Valid) && m.Status != "stopped" && m.Status != "idle" && m.Status != "not_deployed" {
 		return nil
 	}
-	if enabled && m.Online && m.Valid && !m.CPUValid && !high {
+	if enabled && m.Online && m.Valid && (!m.CPUValid || (r.Kind == "server" && !m.diskKnown())) && !high {
 		return nil
 	}
 	return c.monitoringCondition(ctx, r, m, "resource.high", high, time.Duration(p.SustainedSeconds)*time.Second, p.Destinations)

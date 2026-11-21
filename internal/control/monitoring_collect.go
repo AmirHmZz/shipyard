@@ -51,7 +51,8 @@ func rate(current, previous uint64, seconds float64) *float64 {
 	return &v
 }
 func readHostCounters(text string, at time.Time) (Metric, counterSnapshot) {
-	m := Metric{At: at, Containers: []ContainerMetric{}, Network: []IORate{}, Devices: []IORate{}}
+	diskValid := false
+	m := Metric{At: at, DiskValid: &diskValid, Containers: []ContainerMetric{}, Network: []IORate{}, Devices: []IORate{}}
 	s := counterSnapshot{At: at, Network: map[string]ioCounter{}, Disk: map[string]ioCounter{}, Containers: map[string]containerCounter{}}
 	for _, line := range strings.Split(text, "\n") {
 		fields := strings.Fields(line)
@@ -69,8 +70,13 @@ func readHostCounters(text string, at time.Time) (Metric, counterSnapshot) {
 		case "BOOT":
 			s.Boot = fields[1]
 		case "CPU":
-			s.Used = number(1)
-			s.Total = number(2)
+			if len(fields) == 3 {
+				used, usedErr := strconv.ParseUint(fields[1], 10, 64)
+				total, totalErr := strconv.ParseUint(fields[2], 10, 64)
+				if usedErr == nil && totalErr == nil && used <= total {
+					s.Used, s.Total = used, total
+				}
+			}
 		case "MEM":
 			m.MemoryBytes = number(1)
 			m.MemoryTotalBytes = number(2)
@@ -79,7 +85,12 @@ func readHostCounters(text string, at time.Time) (Metric, counterSnapshot) {
 				m.Valid = true
 			}
 		case "DISK":
-			m.Disk = percent(fields[1])
+			if value, ok := strings.CutSuffix(fields[1], "%"); ok {
+				disk, err := strconv.ParseUint(value, 10, 64)
+				if err == nil {
+					m.Disk, diskValid = float64(disk), true
+				}
+			}
 		case "NET":
 			if len(fields) >= 4 && fields[1] != "lo" {
 				s.Network[fields[1]] = ioCounter{number(2), number(3)}
@@ -124,9 +135,13 @@ func applyHostRates(m *Metric, current, previous counterSnapshot) {
 
 const hostMetricScript = `set -eu
 printf 'BOOT '; cat /proc/sys/kernel/random/boot_id
-awk '/^cpu /{print "CPU",$2+$3+$4+$7+$8+$9,$2+$3+$4+$5+$6+$7+$8+$9}' /proc/stat
+awk '/^cpu /{printf "CPU %.0f %.0f\n",$2+$3+$4+$7+$8+$9,$2+$3+$4+$5+$6+$7+$8+$9}' /proc/stat
 awk '/MemTotal/{total=$2} /MemAvailable/{avail=$2} END{printf "MEM %.0f %.0f\n",(total-avail)*1024,total*1024}' /proc/meminfo
-df -P /var/lib/docker | awk 'NR==2{print "DISK",$5}'
+root=$1
+if [ -z "$root" ]; then root=$(docker info --format '{{.DockerRootDir}}' 2>/dev/null) || root=; fi
+if [ -n "$root" ] && disk=$(df -P "$root" 2>/dev/null); then
+ printf '%s\n' "$disk" | awk 'NR==2{print "DISK",$5}'
+fi
 awk 'NR>2{gsub(":"," ");print "NET",$1,$2,$10}' /proc/net/dev
 for disk in /sys/block/*; do
  name=${disk##*/}
@@ -180,18 +195,19 @@ func dockerMetricRequest(ctx context.Context, client *http.Client, path string, 
 }
 func (c *Controller) collectMetrics(ctx context.Context, id string) (Metric, remote.Node) {
 	at := time.Now().UTC()
-	m := Metric{ResourceID: id, At: at, Status: "offline", Containers: []ContainerMetric{}, Network: []IORate{}, Devices: []IORate{}}
+	diskValid := false
+	m := Metric{ResourceID: id, At: at, Status: "offline", DiskValid: &diskValid, Containers: []ContainerMetric{}, Network: []IORate{}, Devices: []IORate{}}
 	node, _, err := c.connect(ctx, id)
 	if err != nil {
 		return m, nil
 	}
 	m.Online = true
 	m.Status = "degraded"
-	script := hostMetricScript
+	dockerRoot := ""
 	if id == LocalServerID {
-		script = strings.ReplaceAll(script, "/var/lib/docker", "/host/docker-root")
+		dockerRoot = "/host/docker-root"
 	}
-	output, err := remote.Output(ctx, node, "sh", "-c", script)
+	output, err := remote.Output(ctx, node, "sh", "-c", hostMetricScript, "shipyard-metrics", dockerRoot)
 	var current counterSnapshot
 	if err == nil {
 		m, current = readHostCounters(output, at)
