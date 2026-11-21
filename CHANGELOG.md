@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.22.0] (2026-11-21)
+
+### Features
+
+- Redesign **Settings → MCP access** with a copyable HTTPS endpoint, a searchable project picker, and a token list that shows project access, status, and expiry.
+- Edit a token's allowed projects in place. Recreate an active, expired, or revoked token on the same record with a new secret and a fresh lifetime. Expired records stay listed until deleted.
+- Permanently delete token records from their action menus. Deletion invalidates the credential, and recreation invalidates the previous secret.
+
+### Bug Fixes
+
+- Keep HTTPS certificates available for configured domains during application outages. Ingress now serves distinct error pages for unknown domains and temporarily unavailable applications.
+- Preserve healthy ingress targets when individual application networks fail reconciliation.
+
 ## [0.21.0] (2026-11-21)
 
 ### Features
