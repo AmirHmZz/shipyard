@@ -1,10 +1,55 @@
 package proxy
 
 import (
+	"bufio"
+	"bytes"
+	"io"
+	"net/http"
 	"shipyard/internal/model"
 	"strings"
 	"testing"
 )
+
+func TestUnavailableHostnameKeepsTLSAndItsHostMapping(t *testing.T) {
+	b := Binding{ID: "docs", Route: model.Route{Protocol: "https", TLS: "terminate", Domain: "docs.example.com"}, Certificate: true}
+	maps, err := RoutingMaps([]Binding{b})
+	if err != nil || string(maps["hosts.map"]) != "docs.example.com b_docs\n" || string(maps["redirects.map"]) != "b_docs 1\n" {
+		t.Fatal(maps, err)
+	}
+	config, err := Render([]Binding{b})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, expected := range []string{
+		"bind 0.0.0.0:443 ssl crt /usr/local/etc/haproxy/certs/ strict-sni",
+		"backend b_docs\n  mode http\n  errorfiles shipyard\n  http-request return status 503 default-errorfiles",
+		"backend not_found\n  mode http\n  errorfiles shipyard\n  http-request return status 404 default-errorfiles",
+	} {
+		if !strings.Contains(config, expected) {
+			t.Error("missing", expected)
+		}
+	}
+}
+
+func TestErrorResponsesHaveValidHeadersAndHTML(t *testing.T) {
+	for _, page := range errorPages {
+		raw, err := renderErrorResponse(page)
+		if err != nil {
+			t.Fatal(err)
+		}
+		response, err := http.ReadResponse(bufio.NewReader(bytes.NewReader(raw)), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		body, err := io.ReadAll(response.Body)
+		response.Body.Close()
+		if err != nil || response.StatusCode != page.Code || response.ContentLength != int64(len(body)) || len(raw) > 8*1024 ||
+			response.Header.Get("Content-Type") != "text/html; charset=utf-8" || response.Header.Get("Cache-Control") != "no-store" ||
+			!bytes.Contains(body, []byte(page.Title)) || !bytes.HasSuffix(bytes.TrimSpace(body), []byte("</html>")) {
+			t.Fatalf("invalid error response for HTTP %d: %v", page.Code, err)
+		}
+	}
+}
 
 func TestProtocolsAndCollision(t *testing.T) {
 	bindings := []Binding{{ID: "web", Route: model.Route{Protocol: "https", TLS: "terminate", Domain: "app.example.com", TargetPort: 8080}, Targets: []model.Target{{Address: "127.0.0.1", Port: 18080}}, Certificate: true}, {ID: "grpc", Route: model.Route{Protocol: "grpc", TLS: "terminate", Domain: "grpc.example.com"}, Targets: []model.Target{{Address: "127.0.0.1", Port: 19090}}, Certificate: true}, {ID: "tcp", Route: model.Route{Protocol: "tcp", ListenPort: 15432, TLS: "passthrough"}, Targets: []model.Target{{Address: "127.0.0.1", Port: 25432}}}}
@@ -38,7 +83,7 @@ func TestIPv6ListenersAndWildcardPort(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, expected := range []string{"bind [::]:80 v6only", "bind [::]:443 v6only ssl", "bind [::]:15432 v6only", "map_reg(/usr/local/etc/haproxy/maps/wildcards.map,unavailable)"} {
+	for _, expected := range []string{"bind [::]:80 v6only", "bind [::]:443 v6only ssl", "bind [::]:15432 v6only", "map_reg(/usr/local/etc/haproxy/maps/wildcards.map,not_found)"} {
 		if !strings.Contains(config, expected) {
 			t.Fatal("missing IPv6/wildcard behavior", expected)
 		}
@@ -60,11 +105,11 @@ func TestRateLimitRendering(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, expected := range []string{
-		"backend b_app\n  mode http\n  balance roundrobin\n  acl rate_path_2 path -m str /api/login",
+		"backend b_app\n  mode http\n  errorfiles shipyard\n  balance roundrobin\n  acl rate_path_2 path -m str /api/login",
 		"acl rate_path_1 path -m str /api\n  acl rate_path_1 path -m beg /api/",
 		"acl rate_path_0 path -m beg /\n",
 		"track-sc0 src table rate_app_2 if { var(txn.shipyard_rate_rule) -m int eq 2 }",
-		"return status 429 content-type text/plain string Too_Many_Requests if { var(txn.shipyard_rate_rule) -m int eq 2 } { sc_http_req_rate(0) gt 3 }",
+		"return status 429 default-errorfiles if { var(txn.shipyard_rate_rule) -m int eq 2 } { sc_http_req_rate(0) gt 3 }",
 		"backend rate_app_2\n  mode http\n  stick-table type ipv6 size 10000 expire 120s store http_req_rate(60s)",
 	} {
 		if !strings.Contains(cfg, expected) {

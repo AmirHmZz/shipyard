@@ -81,13 +81,16 @@ func docker(t *testing.T, input io.Reader, args ...string) string {
 	}
 	return strings.TrimSpace(string(b))
 }
-func certificate(t *testing.T) ([]byte, *x509.CertPool) {
+func certificate(t *testing.T, names ...string) ([]byte, *x509.CertPool) {
 	t.Helper()
 	key, e := rsa.GenerateKey(rand.Reader, 2048)
 	if e != nil {
 		t.Fatal(e)
 	}
-	template := &x509.Certificate{SerialNumber: big.NewInt(44), Subject: pkix.Name{CommonName: "Shipyard integration"}, DNSNames: []string{"app.example.com", "grpc.example.com", "tcp.example.com", "compose.example.com", "raw.example.com", "*.example.com", "*.sub.example.com"}, NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(time.Hour), KeyUsage: x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment, ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}}
+	if len(names) == 0 {
+		names = []string{"app.example.com", "grpc.example.com", "tcp.example.com", "compose.example.com", "raw.example.com", "*.example.com", "*.sub.example.com"}
+	}
+	template := &x509.Certificate{SerialNumber: big.NewInt(44), Subject: pkix.Name{CommonName: "Shipyard integration"}, DNSNames: names, NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(time.Hour), KeyUsage: x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment, ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}}
 	der, e := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
 	if e != nil {
 		t.Fatal(e)

@@ -148,7 +148,7 @@ func TestLinuxNativeHostBootstrapDeployAndRecovery(t *testing.T) {
 	for _, check := range []struct {
 		host, path string
 		status     int
-	}{{"shipyard.example.com", "/.well-known/acme-challenge/" + challengeToken, 200}, {"wrong.example.com", "/.well-known/acme-challenge/" + challengeToken, 503}, {"shipyard.example.com", "/.well-known/acme-challenge/" + challengeToken + "/extra", 308}, {"shipyard.example.com", "/Xwell-known/acme-challenge/" + challengeToken, 308}, {"shipyard.example.com", "/api/v1/auth/status", 308}} {
+	}{{"shipyard.example.com", "/.well-known/acme-challenge/" + challengeToken, 200}, {"wrong.example.com", "/.well-known/acme-challenge/" + challengeToken, 404}, {"shipyard.example.com", "/.well-known/acme-challenge/" + challengeToken + "/extra", 308}, {"shipyard.example.com", "/Xwell-known/acme-challenge/" + challengeToken, 308}, {"shipyard.example.com", "/api/v1/auth/status", 308}} {
 		res, e := plainClient.Get("http://" + check.host + check.path)
 		if e != nil {
 			t.Fatal(e)

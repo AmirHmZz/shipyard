@@ -28,6 +28,55 @@ func testStore(t *testing.T) *Store {
 	t.Cleanup(s.Pool.Close)
 	return s
 }
+
+func TestReconcileRuntimePublishesVerifiedTargetsAndQueuesProxy(t *testing.T) {
+	s := testStore(t)
+	ctx := context.Background()
+	app, err := s.Save(ctx, "", model.ResourceInput{Kind: "application", Name: "routed app", Data: json.RawMessage(`{}`)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	release := model.Release{
+		ID: uuid.NewString(), AppID: app.ID, DeploymentID: uuid.NewString(), ServerID: "test-server",
+		Containers: []string{"original"}, Targets: []model.Target{{Service: "docs", Address: "192.0.2.4", Port: 8000}},
+	}
+	if _, err = s.Pool.Exec(ctx, "INSERT INTO deployments(id,app_id,snapshot) VALUES($1,$2,$3)", release.DeploymentID, app.ID, []byte{}); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.SaveRelease(ctx, release); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.Activate(ctx, release); err != nil {
+		t.Fatal(err)
+	}
+	degraded := release
+	degraded.Containers, degraded.Targets = nil, nil
+	for range 2 {
+		if err = s.ReconcileRuntime(ctx, degraded, "network_error"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	active, err := s.Active(ctx, app.ID)
+	if err != nil || len(active.Containers) != 0 || len(active.Targets) != 0 {
+		t.Fatal("verified empty runtime fell back to historical targets", active.Targets, err)
+	}
+	var status string
+	var verified bool
+	var jobs int
+	if err = s.Pool.QueryRow(ctx, `SELECT status, runtime @> '{"verified":true}'::jsonb,
+  (SELECT count(*) FROM jobs WHERE kind='proxy' AND resource_id=$2)
+FROM app_runtime WHERE app_id=$1`, app.ID, release.ServerID).Scan(&status, &verified, &jobs); err != nil || status != "network_error" || !verified || jobs != 1 {
+		t.Fatal(status, verified, jobs, err)
+	}
+	if err = s.ReconcileRuntime(ctx, release, "running"); err != nil {
+		t.Fatal(err)
+	}
+	active, err = s.Active(ctx, app.ID)
+	if err != nil || len(active.Targets) != 1 {
+		t.Fatal("recovered target missing", active.Targets, err)
+	}
+}
+
 func TestPermissionsSecretsAndOptimisticUpdates(t *testing.T) {
 	s := testStore(t)
 	ctx := context.Background()

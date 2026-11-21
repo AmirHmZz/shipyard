@@ -479,49 +479,56 @@ func (c *Controller) syncProxy(ctx context.Context, server string, candidate *mo
 }
 
 func (c *Controller) syncProxyLocked(ctx context.Context, server string, candidate *model.Release, overrides proxy.Bindings) error {
-	rows, e := c.Store.Pool.Query(ctx, "SELECT a.app_id FROM app_runtime a LEFT JOIN application_control c ON c.app_id=a.app_id WHERE a.status='running' AND COALESCE(c.desired_state,'running')='running'")
+	rows, e := c.Store.Pool.Query(ctx, `SELECT r.id, COALESCE(c.desired_state,'running')='running', COALESCE(a.status,''),
+  COALESCE(a.runtime @> '{"verified":true}'::jsonb, false)
+FROM resources r LEFT JOIN app_runtime a ON a.app_id=r.id LEFT JOIN application_control c ON c.app_id=r.id
+WHERE r.kind='application' AND r.data->>'serverId'=$1 AND r.data->>'deleting' IS DISTINCT FROM 'true'`, server)
 	if e != nil {
 		return e
 	}
-	ids := []string{}
+	type application struct {
+		id, status               string
+		desiredRunning, verified bool
+	}
+	var apps []application
 	for rows.Next() {
-		var id string
-		if rows.Scan(&id) == nil {
-			ids = append(ids, id)
+		var app application
+		if e = rows.Scan(&app.id, &app.desiredRunning, &app.status, &app.verified); e != nil {
+			rows.Close()
+			return e
 		}
+		apps = append(apps, app)
 	}
 	rows.Close()
-	releases := []model.Release{}
-	for _, id := range ids {
-		app, err := c.Store.Resource(ctx, id)
-		if errors.Is(err, pgx.ErrNoRows) || (err == nil && model.IsDeleting(app)) {
-			continue
-		}
-		if err != nil {
-			return err
-		}
-		r, e := c.Store.Active(ctx, id)
-		if e != nil {
-			return e
-		}
-		if r.ServerID == server && (candidate == nil || candidate.AppID != r.AppID) {
-			releases = append(releases, r)
-		}
-	}
-	if candidate != nil {
-		var stopped bool
-		if e = c.Store.Pool.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM application_control WHERE app_id=$1 AND desired_state='stopped')", candidate.AppID).Scan(&stopped); e != nil {
-			return e
-		}
-		if !stopped {
-			releases = append(releases, *candidate)
-		}
+	if e = rows.Err(); e != nil {
+		return e
 	}
 	bindings := []proxy.Binding{}
 	certs := map[string][]byte{}
-	ready := []string{}
-	for _, release := range releases {
-		routes, e := c.Store.Children(ctx, release.AppID, "route")
+	routingStates := map[string]string{}
+	for _, app := range apps {
+		var release model.Release
+		missingTargets := "unavailable"
+		// Runtime snapshots from before partial reconciliation can retain stale targets during a network error.
+		if app.desiredRunning && candidate != nil && candidate.AppID == app.id {
+			release = *candidate
+			missingTargets = "redeploy_required"
+		} else if app.desiredRunning && (app.status == "running" || app.status == "network_error" && app.verified) {
+			release, e = c.Store.Active(ctx, app.id)
+			if errors.Is(e, pgx.ErrNoRows) {
+				continue
+			}
+			if e != nil {
+				return e
+			}
+			if release.ServerID != server {
+				continue
+			}
+			if app.status == "running" {
+				missingTargets = "redeploy_required"
+			}
+		}
+		routes, e := c.Store.Children(ctx, app.id, "route")
 		if e != nil {
 			return e
 		}
@@ -566,28 +573,36 @@ func (c *Controller) syncProxyLocked(ctx context.Context, server string, candida
 					}
 				}
 			}
-			if len(targets) == 0 {
-				_, _ = c.Store.Pool.Exec(ctx, "UPDATE domain_state SET routing_state='redeploy_required' WHERE route_id=$1", rr.ID)
-				continue
-			}
 			b := proxy.Binding{ID: strings.ReplaceAll(rr.ID, "-", ""), FrontendID: rr.ID, Route: route, Targets: targets}
+			state := "ready"
+			if len(targets) == 0 {
+				state = missingTargets
+				if route.Protocol == "tcp" {
+					routingStates[rr.ID] = state
+					continue
+				}
+			}
 			if route.TLS == "terminate" {
 				var encrypted []byte
 				var expires *time.Time
 				e = c.Store.Pool.QueryRow(ctx, "SELECT certificate,expires_at FROM domain_state WHERE route_id=$1", rr.ID).Scan(&encrypted, &expires)
-				if e != nil || len(encrypted) == 0 || expires == nil || expires.Before(time.Now()) {
-					_, _ = c.Store.Pool.Exec(ctx, "UPDATE domain_state SET routing_state='waiting_certificate' WHERE route_id=$1", rr.ID)
-					continue
-				}
-				plain, e := c.Store.Vault.Open(encrypted, "certificate:"+rr.ID)
-				if e != nil {
+				if e != nil && !errors.Is(e, pgx.ErrNoRows) {
 					return e
 				}
-				certs[b.ID] = plain
-				b.Certificate = true
+				if len(encrypted) == 0 || expires == nil || !expires.After(time.Now()) {
+					state = "waiting_certificate"
+					b.Unavailable = true
+				} else {
+					plain, e := c.Store.Vault.Open(encrypted, "certificate:"+rr.ID)
+					if e != nil {
+						return e
+					}
+					certs[b.ID] = plain
+					b.Certificate = true
+				}
 			}
 			bindings = append(bindings, b)
-			ready = append(ready, rr.ID)
+			routingStates[rr.ID] = state
 		}
 	}
 	hostResource, e := c.Store.Resource(ctx, server)
@@ -613,7 +628,7 @@ func (c *Controller) syncProxyLocked(ctx context.Context, server string, candida
 		for _, id := range []string{s.RouteID, s.ActiveRouteID} {
 			for _, b := range bindings {
 				if b.Certificate && b.ID == strings.ReplaceAll(id, "-", "") {
-					ready = append(ready, id)
+					routingStates[id] = "ready"
 				}
 			}
 		}
@@ -634,8 +649,8 @@ func (c *Controller) syncProxyLocked(ctx context.Context, server string, candida
 	if e = proxy.Apply(ctx, client, config, certs, io.Discard, maps); e != nil {
 		return e
 	}
-	for _, id := range ready {
-		_, _ = c.Store.Pool.Exec(ctx, "UPDATE domain_state SET routing_state='ready',last_error='' WHERE route_id=$1", id)
+	for id, state := range routingStates {
+		_, _ = c.Store.Pool.Exec(ctx, "UPDATE domain_state SET routing_state=$2,last_error=CASE WHEN $2='ready' THEN '' ELSE last_error END WHERE route_id=$1", id, state)
 	}
 	return nil
 }

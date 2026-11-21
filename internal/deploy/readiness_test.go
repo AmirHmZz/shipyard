@@ -35,6 +35,41 @@ func TestPrivateHTTPReadinessUsesEveryReplicaWithoutProxyTargets(t *testing.T) {
 
 type readinessExecutor struct{ state string }
 
+type discoveryExecutor struct{ readinessExecutor }
+
+func (n discoveryExecutor) RunSeparated(_ context.Context, command string, _ io.Reader, output, _ io.Writer) error {
+	if strings.Contains(command, "'inspect'") {
+		_, err := io.WriteString(output, `[
+{"Id":"restarting","Config":{"Labels":{"com.docker.compose.service":"bridge","com.docker.compose.container-number":"1"}},"State":{"Status":"restarting"},"NetworkSettings":{"Networks":{"managed":{"IPAddress":"172.20.0.2"}}}},
+{"Id":"healthy","Config":{"Labels":{"com.docker.compose.service":"docs","com.docker.compose.container-number":"1"}},"State":{"Status":"running"},"NetworkSettings":{"Networks":{"managed":{"IPAddress":"172.20.0.3"}}}}
+]`)
+		return err
+	}
+	_, err := io.WriteString(output, "restarting\nhealthy\n")
+	return err
+}
+
+func TestDiscoverRunningKeepsOnlyVerifiedSiblingTargets(t *testing.T) {
+	engine := Engine{Remote: discoveryExecutor{}}
+	release := model.Release{
+		Routes: []model.Resource{
+			{Data: json.RawMessage(`{"service":"bridge","targetPort":8080}`)},
+			{Data: json.RawMessage(`{"service":"docs","targetPort":8000}`)},
+		},
+		Networks: []model.NetworkEndpoint{
+			{Service: "bridge", Replica: 1, DockerName: "managed", Ingress: true, IPv4: "172.20.0.2"},
+			{Service: "docs", Replica: 1, DockerName: "managed", Ingress: true, IPv4: "172.20.0.3"},
+		},
+	}
+	err := engine.DiscoverRunning(context.Background(), &release)
+	if err == nil || len(release.Containers) != 2 || len(release.Targets) != 1 || release.Targets[0].Service != "docs" || release.Targets[0].Port != 8000 {
+		t.Fatal(release.Containers, release.Targets, err)
+	}
+	if err := engine.Discover(context.Background(), &release); err != nil || len(release.Targets) != 2 {
+		t.Fatal("deployment discovery changed", release.Targets, err)
+	}
+}
+
 func (n readinessExecutor) Close() error { return nil }
 func (n readinessExecutor) Run(ctx context.Context, command string, input io.Reader, output io.Writer) error {
 	return n.RunSeparated(ctx, command, input, output, io.Discard)

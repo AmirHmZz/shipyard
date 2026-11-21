@@ -290,7 +290,7 @@ volumes:
 	body, _ := io.ReadAll(response.Body)
 	response.Body.Close()
 	lastStatus = response.StatusCode
-	if lastStatus != http.StatusServiceUnavailable || string(body) != "No_healthy_application" {
+	if lastStatus != http.StatusNotFound || !strings.Contains(string(body), "Site not found") {
 		t.Fatal("deleted hostname is still routed", lastStatus, body)
 	}
 	t.Log("Direct Compose without Git: immutable queued YAML, image-only and inline builds, exact-image rollback, health recovery and volume preservation passed")

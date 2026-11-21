@@ -138,24 +138,13 @@ func (c *Controller) metrics(ctx context.Context, id string) error {
 						status = "stopped"
 					}
 					if m.Online && client != nil && (status == "running" || status == "network_error") {
-						before, _ := json.Marshal(release.Targets)
 						engine := deploy.Engine{Remote: client, Log: io.Discard}
-						if err = engine.Discover(ctx, &release); err != nil {
-							_, _ = c.Store.Pool.Exec(ctx, "UPDATE app_runtime SET status='network_error' WHERE app_id=$1", resource.ID)
-							if status != "network_error" {
-								_ = c.Store.Enqueue(ctx, "proxy", id, "network-error:"+db.NowID(), nil)
-							}
+						status = "running"
+						if engine.DiscoverRunning(ctx, &release) != nil {
 							status = "network_error"
-						} else {
-							after, _ := json.Marshal(release.Targets)
-							if string(before) != string(after) || status == "network_error" {
-								if err = c.Store.UpdateRuntime(ctx, release); err != nil {
-									return err
-								}
-								_, _ = c.Store.Pool.Exec(ctx, "UPDATE app_runtime SET status='running' WHERE app_id=$1", resource.ID)
-								_ = c.Store.Enqueue(ctx, "proxy", id, "network-reconciled:"+db.NowID(), nil)
-							}
-							status = "running"
+						}
+						if err = c.Store.ReconcileRuntime(ctx, release, status); err != nil {
+							return err
 						}
 					}
 				}

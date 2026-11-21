@@ -498,23 +498,40 @@ func (e *Engine) inspect(ctx context.Context, r model.Release) ([]container, err
 	return containers, err
 }
 func (e *Engine) Discover(ctx context.Context, r *model.Release) error {
+	return e.discover(ctx, r, false)
+}
+
+// DiscoverRunning retains verified targets even when other containers have lost
+// their network attachments. The returned error still reports degraded runtime.
+func (e *Engine) DiscoverRunning(ctx context.Context, r *model.Release) error {
+	return e.discover(ctx, r, true)
+}
+
+func (e *Engine) discover(ctx context.Context, r *model.Release, runningOnly bool) error {
+	r.Targets = nil
 	containers, err := e.inspect(ctx, *r)
 	if err != nil {
 		return err
 	}
 	r.Containers = nil
-	r.Targets = nil
+	var discoveryErr error
 	for _, c := range containers {
 		r.Containers = append(r.Containers, c.ID)
 		service := c.Config.Labels["com.docker.compose.service"]
 		replica, _ := strconv.Atoi(c.Config.Labels["com.docker.compose.container-number"])
+		start := len(r.Targets)
 		for _, ep := range r.Networks {
 			if ep.Service != service || ep.Replica != replica {
 				continue
 			}
 			actual, ok := c.NetworkSettings.Networks[ep.DockerName]
-			if !ok || ep.IPv4 != "" && actual.IPAddress != ep.IPv4 || ep.IPv6 != "" && actual.GlobalIPv6Address != ep.IPv6 {
-				return errors.New("container does not have its reserved ingress address")
+			if !ok || ep.IPv4 != "" && actual.IPAddress != ep.IPv4 || ep.IPv6 != "" && actual.GlobalIPv6Address != ep.IPv6 || runningOnly && c.State.Status != "running" {
+				discoveryErr = errors.New("container does not have its reserved ingress address")
+				if !runningOnly {
+					return discoveryErr
+				}
+				r.Targets = r.Targets[:start]
+				break
 			}
 			if !ep.Ingress {
 				continue
@@ -527,6 +544,9 @@ func (e *Engine) Discover(ctx context.Context, r *model.Release) error {
 				r.Targets = append(r.Targets, model.Target{Service: service, Container: c.ID, Port: port, Address: address, NetworkID: ep.NetworkID})
 			}
 		}
+	}
+	if discoveryErr != nil {
+		return discoveryErr
 	}
 	for _, route := range r.Routes {
 		v, _ := model.Decode[model.Route](route)

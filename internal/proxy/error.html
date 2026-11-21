@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{{.Code}} · {{.Title}}</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --background: #eef4f5;
+      --surface: #fff;
+      --ink: #14282e;
+      --muted: #496168;
+      --line: #d8e5e7;
+      --accent: #006755;
+      --wash: #e0f5ef;
+      --shadow: #163c4112;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --background: #101a1e;
+        --surface: #17262b;
+        --ink: #eff9f8;
+        --muted: #adc4c6;
+        --line: #2e474d;
+        --accent: #83dfc6;
+        --wash: #193d37;
+        --shadow: #0004;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      min-block-size: 100vh;
+      min-block-size: 100svh;
+      margin: 0;
+      padding: clamp(1rem, 5vw, 4rem);
+      display: grid;
+      place-items: center;
+      background: radial-gradient(ellipse at 85% 5%, var(--wash), transparent 55%), var(--background);
+      color: var(--ink);
+      font: 1rem/1.6 system-ui, sans-serif;
+    }
+    main {
+      inline-size: min(100%, 42rem);
+      padding: clamp(1.5rem, 6vw, 3.75rem);
+      border: 1px solid var(--line);
+      border-radius: 1.5rem;
+      background: var(--surface);
+      box-shadow: 0 1.25rem 4rem var(--shadow);
+    }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+    .brand { font-size: 1rem; font-weight: 720; letter-spacing: -0.025em; }
+    .code {
+      color: var(--accent);
+      background: var(--wash);
+      border-radius: 0.5rem;
+      padding: 0.22rem 0.58rem;
+      font: 700 0.8rem/1.5 ui-monospace, monospace;
+      white-space: nowrap;
+    }
+    section { margin-block-start: clamp(2rem, 7vw, 4rem); }
+    h1 {
+      max-inline-size: 13ch;
+      margin: 0;
+      font-size: clamp(2rem, 7vw, 3.75rem);
+      line-height: 1.06;
+      letter-spacing: -0.045em;
+      text-wrap: balance;
+      overflow-wrap: anywhere;
+    }
+    p { max-inline-size: 45ch; margin: 1rem 0 0; color: var(--muted); }
+    footer { margin-block-start: 2rem; padding-block-start: 1.1rem; border-block-start: 1px solid var(--line); }
+    footer p { margin: 0; font-size: 0.925rem; }
+  </style>
+</head>
+<body>
+  <main>
+    <header><span class="brand">Shipyard</span><span class="code">HTTP {{.Code}}</span></header>
+    <section aria-labelledby="error-title">
+      <h1 id="error-title">{{.Title}}</h1>
+      <p>{{.Message}}</p>
+    </section>
+    <footer><p>{{.NextStep}}</p></footer>
+  </main>
+</body>
+</html>

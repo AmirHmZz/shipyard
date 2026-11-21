@@ -62,6 +62,8 @@ if [ -f previous.cfg ]; then
   if [ -d previous-certs ]; then cp -a previous-certs certs; else mkdir certs; fi
   rm -rf maps
   if [ -d previous-maps ]; then cp -a previous-maps maps; else mkdir maps; fi
+  rm -rf errors
+  if [ -d previous-errors ]; then cp -a previous-errors errors; fi
   if [ "$(docker inspect -f '{{.State.Running}}' shipyard-haproxy 2>/dev/null || true)" = true ]; then
     docker kill --signal USR2 shipyard-haproxy >/dev/null
   else
@@ -73,6 +75,7 @@ else
   rm -f haproxy.cfg
   rm -rf certs
   rm -rf maps
+  rm -rf errors
 fi`
 	generation, err := deploy.Output(ctx, r, "sh", "-c", script)
 	if err != nil {

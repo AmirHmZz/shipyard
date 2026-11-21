@@ -627,8 +627,9 @@ func (s *Store) Active(ctx context.Context, app string) (model.Release, error) {
 	var live struct {
 		Containers []string       `json:"containers"`
 		Targets    []model.Target `json:"targets"`
+		Verified   bool           `json:"verified"`
 	}
-	if json.Unmarshal(runtime, &live) == nil && len(live.Containers) > 0 {
+	if json.Unmarshal(runtime, &live) == nil && (live.Verified || len(live.Containers) > 0) {
 		r.Containers = live.Containers
 		r.Targets = live.Targets
 	}
@@ -638,6 +639,24 @@ func (s *Store) UpdateRuntime(ctx context.Context, r model.Release) error {
 	b, _ := json.Marshal(map[string]any{"containers": r.Containers, "targets": r.Targets})
 	_, e := s.Pool.Exec(ctx, "UPDATE app_runtime SET runtime=$2,updated_at=now() WHERE app_id=$1 AND release_id=$3", r.AppID, b, r.ID)
 	return e
+}
+
+// ReconcileRuntime publishes the discovered targets and their proxy update atomically.
+func (s *Store) ReconcileRuntime(ctx context.Context, r model.Release, status string) error {
+	live := map[string]any{"containers": r.Containers, "targets": r.Targets}
+	if status == "network_error" {
+		live["verified"] = true
+	}
+	runtime, _ := json.Marshal(live)
+	_, err := s.Pool.Exec(ctx, `WITH changed AS (
+  UPDATE app_runtime SET runtime=$2, status=$4, updated_at=now()
+  WHERE app_id=$1 AND release_id=$3 AND status IN ('running','network_error')
+    AND (status<>$4 OR runtime IS DISTINCT FROM $2)
+  RETURNING app_id
+)
+INSERT INTO jobs (id, kind, resource_id, payload, dedupe)
+SELECT $5, 'proxy', $6, 'null'::jsonb, $5 FROM changed`, r.AppID, runtime, r.ID, status, uuid.NewString(), r.ServerID)
+	return err
 }
 func (s *Store) SaveRelease(ctx context.Context, r model.Release) error {
 	b, e := json.Marshal(model.ReleaseEnvelope{Release: r, Env: r.Env, BuildSecrets: r.BuildSecrets})

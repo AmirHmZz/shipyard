@@ -13,7 +13,7 @@ import (
 func RoutingMaps(bindings []Binding) (map[string][]byte, error) {
 	entries := append([]Binding(nil), bindings...)
 	for i := range entries {
-		if entries[i].Route.Protocol == "tcp" || len(entries[i].Targets) == 0 {
+		if entries[i].Route.Protocol == "tcp" {
 			continue
 		}
 		domain, err := model.Domain(entries[i].Route.Domain)
@@ -31,7 +31,7 @@ func RoutingMaps(bindings []Binding) (map[string][]byte, error) {
 	var hosts, wildcards, redirects strings.Builder
 	seen := map[string]bool{}
 	for _, b := range entries {
-		if b.Route.Protocol == "tcp" || len(b.Targets) == 0 {
+		if b.Route.Protocol == "tcp" {
 			continue
 		}
 		if !safeID(b.ID) {
@@ -54,8 +54,8 @@ func RoutingMaps(bindings []Binding) (map[string][]byte, error) {
 		} else {
 			hosts.WriteString(domain + " " + backend + "\n")
 		}
-		if b.Certificate {
-			redirects.WriteString("b_" + b.ID + " 1\n")
+		if b.Certificate && !b.Unavailable {
+			redirects.WriteString(backend + " 1\n")
 		}
 	}
 	return map[string][]byte{"hosts.map": []byte(hosts.String()), "wildcards.map": []byte(wildcards.String()), "redirects.map": []byte(redirects.String())}, nil

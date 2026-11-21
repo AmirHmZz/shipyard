@@ -54,16 +54,17 @@ func Render(bindings []Binding, options ...Options) (string, error) {
 		}
 	}
 	cfg.WriteString("global\n  log stdout format raw local0\n  master-worker\n  maxconn 4096\n  hard-stop-after 1h\n  stats socket /var/lib/haproxy/admin.sock mode 600 level admin\n\ndefaults\n  log global\n  timeout connect 5s\n  timeout client 1h\n  timeout server 1h\n  timeout tunnel 1h\n\n")
+	renderErrorConfig(&cfg)
 	hasCert := false
 	for _, b := range bindings {
-		if b.Certificate && !b.Unavailable && b.Route.Protocol != "tcp" {
+		if b.Certificate && b.Route.Protocol != "tcp" {
 			hasCert = true
 		}
 	}
-	cfg.WriteString("frontend web\n  mode http\n")
+	cfg.WriteString("frontend web\n  mode http\n  errorfiles shipyard\n")
 	bind("web", 80, "")
 	if hasCert {
-		bind("web", 443, " ssl crt /usr/local/etc/haproxy/certs/ alpn h2,http/1.1")
+		bind("web", 443, " ssl crt /usr/local/etc/haproxy/certs/ strict-sni alpn h2,http/1.1")
 	}
 	cfg.WriteString("  option httplog\n  http-request set-header X-Forwarded-Proto https if { ssl_fc }\n  http-request set-header X-Forwarded-Proto http unless { ssl_fc }\n  option forwardfor\n")
 	if opts.Challenge != nil && len(opts.Challenge.Domains) > 0 {
@@ -107,17 +108,14 @@ func Render(bindings []Binding, options ...Options) (string, error) {
 			continue
 		}
 	}
-	cfg.WriteString("  http-request set-var(txn.shipyard_host) req.hdr(host),lower,field(1,:),regsub(\\.$,,)\n  http-request set-var(txn.shipyard_backend) var(txn.shipyard_host),map(/usr/local/etc/haproxy/maps/hosts.map)\n  http-request set-var(txn.shipyard_backend) var(txn.shipyard_host),map_reg(/usr/local/etc/haproxy/maps/wildcards.map,unavailable) unless { var(txn.shipyard_backend) -m found }\n  http-request redirect scheme https code 308 if !{ ssl_fc } !{ var(txn.acme_request) -m bool } { var(txn.shipyard_backend),map(/usr/local/etc/haproxy/maps/redirects.map,0) -m int eq 1 }\n  use_backend %[var(txn.shipyard_backend)]\n")
-	cfg.WriteString("  default_backend unavailable\n\nbackend unavailable\n  mode http\n  http-request return status 503 content-type text/plain string No_healthy_application\n\n")
+	cfg.WriteString("  http-request set-var(txn.shipyard_host) req.hdr(host),lower,field(1,:),regsub(\\.$,,)\n  http-request set-var(txn.shipyard_backend) var(txn.shipyard_host),map(/usr/local/etc/haproxy/maps/hosts.map)\n  http-request set-var(txn.shipyard_backend) var(txn.shipyard_host),map_reg(/usr/local/etc/haproxy/maps/wildcards.map,not_found) unless { var(txn.shipyard_backend) -m found }\n  http-request redirect scheme https code 308 if !{ ssl_fc } !{ var(txn.acme_request) -m bool } { var(txn.shipyard_backend),map(/usr/local/etc/haproxy/maps/redirects.map,0) -m int eq 1 }\n  use_backend %[var(txn.shipyard_backend)]\n  default_backend not_found\n\n")
+	cfg.WriteString("backend not_found\n  mode http\n  errorfiles shipyard\n  http-request return status 404 default-errorfiles\n\nbackend unavailable\n  mode http\n  errorfiles shipyard\n  http-request return status 503 default-errorfiles\n\n")
 	if opts.Challenge != nil && len(opts.Challenge.Domains) > 0 {
 		cfg.WriteString(fmt.Sprintf("backend shipyard_acme\n  mode http\n  server dashboard %s check\n\n", net.JoinHostPort(opts.Challenge.Target.Address, strconv.Itoa(opts.Challenge.Target.Port))))
 	}
 	for _, b := range bindings {
 		r := b.Route
-		if len(b.Targets) == 0 || b.Unavailable {
-			continue
-		}
-		if r.Protocol == "tcp" && r.TLS == "terminate" && !b.Certificate {
+		if b.Unavailable || r.Protocol == "tcp" && (len(b.Targets) == 0 || r.TLS == "terminate" && !b.Certificate) {
 			continue
 		}
 		if r.Protocol == "tcp" {
@@ -140,7 +138,12 @@ func Render(bindings []Binding, options ...Options) (string, error) {
 		if r.Protocol == "tcp" {
 			cfg.WriteString("  mode tcp\n  balance leastconn\n")
 		} else {
-			cfg.WriteString("  mode http\n  balance roundrobin\n")
+			cfg.WriteString("  mode http\n  errorfiles shipyard\n")
+			if len(b.Targets) == 0 {
+				cfg.WriteString("  http-request return status 503 default-errorfiles\n\n")
+				continue
+			}
+			cfg.WriteString("  balance roundrobin\n")
 			renderRateLimitActions(&cfg, b)
 		}
 		for i, t := range b.Targets {
@@ -198,7 +201,7 @@ func Apply(ctx context.Context, r remote.Executor, config string, certs map[stri
 	if len(routingMaps) > 0 {
 		maps = routingMaps[0]
 	}
-	if e := r.Run(ctx, remote.Command("mkdir", "-p", stage+"/maps"), nil, log); e != nil {
+	if e := r.Run(ctx, remote.Command("mkdir", "-p", stage+"/maps", stage+"/errors"), nil, log); e != nil {
 		return e
 	}
 	for name, content := range maps {
@@ -214,6 +217,15 @@ func Apply(ctx context.Context, r remote.Executor, config string, certs map[stri
 			return errors.New("invalid certificate ID")
 		}
 		if e := deploy.Write(ctx, r, stage+"/certs/"+id+".pem", cert); e != nil {
+			return e
+		}
+	}
+	for _, page := range errorPages {
+		response, err := renderErrorResponse(page)
+		if err != nil {
+			return err
+		}
+		if e := deploy.Write(ctx, r, fmt.Sprintf("%s/errors/%d.http", stage, page.Code), response); e != nil {
 			return e
 		}
 	}
@@ -237,11 +249,15 @@ rm -rf previous-certs
 if [ -d certs ]; then cp -a certs previous-certs; fi
 rm -rf previous-maps
 if [ -d maps ]; then cp -a maps previous-maps; fi
+rm -rf previous-errors
+if [ -d errors ]; then cp -a errors previous-errors; fi
 printf '%s\n' ` + remote.Quote(pending) + ` > pending
 rm -rf certs
 cp -a ` + remote.Quote(stage+"/certs") + ` certs
 rm -rf maps
 cp -a ` + remote.Quote(stage+"/maps") + ` maps
+rm -rf errors
+cp -a ` + remote.Quote(stage+"/errors") + ` errors
 cp ` + remote.Quote(stage+"/haproxy.cfg") + ` candidate.cfg
 mv candidate.cfg haproxy.cfg
 if [ "$(docker inspect -f '{{.State.Running}}' shipyard-haproxy 2>/dev/null || true)" = true ]; then

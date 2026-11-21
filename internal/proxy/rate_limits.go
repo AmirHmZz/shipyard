@@ -36,7 +36,7 @@ func renderRateLimitActions(cfg *strings.Builder, b Binding) {
 		fmt.Fprintf(cfg, "  http-request set-var(txn.shipyard_rate_rule) int(%d) if %s !{ var(txn.shipyard_rate_rule) -m found }\n", i, acl)
 		condition := fmt.Sprintf("{ var(txn.shipyard_rate_rule) -m int eq %d }", i)
 		fmt.Fprintf(cfg, "  http-request track-sc0 src table rate_%s_%d if %s\n", b.ID, i, condition)
-		fmt.Fprintf(cfg, "  http-request return status 429 content-type text/plain string Too_Many_Requests if %s { sc_http_req_rate(0) gt %d }\n", condition, rule.Requests)
+		fmt.Fprintf(cfg, "  http-request return status 429 default-errorfiles if %s { sc_http_req_rate(0) gt %d }\n", condition, rule.Requests)
 	}
 }
 

@@ -88,6 +88,10 @@ func TestLinuxHostnameMapsAndRecovery(t *testing.T) {
 		{Path: "/recover", Match: "exact", Requests: 1, WindowSeconds: 2},
 		{Path: "/after-failure", Match: "exact", Requests: 1, WindowSeconds: 60},
 	}
+	const offlineHost = "offline.example.net"
+	bindings = append(bindings, proxy.Binding{ID: "offline", Certificate: true, Route: model.Route{Protocol: "https", TLS: "terminate", Domain: offlineHost}})
+	offlineBundle, offlinePool := certificate(t, offlineHost)
+	certs["offline"] = offlineBundle
 	config, err := proxy.Render(bindings, proxy.Options{IPv6: true})
 	if err != nil {
 		t.Fatal(err)
@@ -107,13 +111,14 @@ func TestLinuxHostnameMapsAndRecovery(t *testing.T) {
 			req.Host = hostname
 			res, err := httpClient.Do(req)
 			if err == nil {
-				var body map[string]string
-				_ = json.NewDecoder(res.Body).Decode(&body)
+				body, _ := io.ReadAll(res.Body)
 				res.Body.Close()
-				if expected == "" && res.StatusCode == 503 {
+				if expected == "" && res.StatusCode == 404 && strings.Contains(string(body), "Site not found") {
 					return
 				}
-				if body["version"] == expected && body["path"] == "/api/unchanged" {
+				var upstream map[string]string
+				_ = json.Unmarshal(body, &upstream)
+				if expected != "" && upstream["version"] == expected && upstream["path"] == "/api/unchanged" {
 					return
 				}
 			}
@@ -127,6 +132,29 @@ func TestLinuxHostnameMapsAndRecovery(t *testing.T) {
 	check("example.com", "")
 	check("badexample.com", "")
 	check("unknown.test", "")
+	request, _ := http.NewRequestWithContext(ctx, "GET", "https://"+net.JoinHostPort(host, "443")+"/", nil)
+	request.Host = offlineHost
+	offlineTLS := httpClient.Transport.(*http.Transport).Clone()
+	offlineTLS.TLSClientConfig.RootCAs = offlinePool
+	offlineTLS.TLSClientConfig.ServerName = offlineHost
+	defer offlineTLS.CloseIdleConnections()
+	response, err := (&http.Client{Timeout: httpClient.Timeout, Transport: offlineTLS}).Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(response.Body)
+	response.Body.Close()
+	if response.StatusCode != 503 || !strings.Contains(string(body), "Service unavailable") || response.Header.Get("Content-Type") != "text/html; charset=utf-8" {
+		t.Fatal("unavailable route did not retain HTTPS and serve the custom 503 page", response.Status, string(body))
+	}
+	unknownSNI := httpClient.Transport.(*http.Transport).Clone()
+	unknownSNI.TLSClientConfig.ServerName = "unknown.test"
+	unknownSNI.TLSClientConfig.InsecureSkipVerify = true // Check server-side rejection independent of client validation.
+	defer unknownSNI.CloseIdleConnections()
+	if res, err := (&http.Client{Timeout: httpClient.Timeout, Transport: unknownSNI}).Do(request); err == nil {
+		res.Body.Close()
+		t.Fatal("unmatched SNI negotiated TLS with a fallback certificate")
+	}
 	rateStatus := func(c *http.Client, hostname, path string, want int) bool {
 		t.Helper()
 		req, err := http.NewRequestWithContext(ctx, "GET", "https://"+net.JoinHostPort(host, "443")+path, nil)
@@ -189,7 +217,7 @@ func TestLinuxHostnameMapsAndRecovery(t *testing.T) {
 		t.Fatal("invalid map regex accepted")
 	}
 	check("api.example.com", "exact")
-	if err = client.Run(ctx, "cd /var/lib/shipyard/proxy && cp haproxy.cfg previous.cfg && rm -rf previous-certs previous-maps && cp -a certs previous-certs && cp -a maps previous-maps && echo existing > pending", nil, io.Discard); err != nil {
+	if err = client.Run(ctx, "cd /var/lib/shipyard/proxy && cp haproxy.cfg previous.cfg && rm -rf previous-certs previous-maps previous-errors && cp -a certs previous-certs && cp -a maps previous-maps && cp -a errors previous-errors && echo existing > pending", nil, io.Discard); err != nil {
 		t.Fatal(err)
 	}
 	if err = deploy.Write(ctx, client, remote.Root+"/proxy/maps/wildcards.map", []byte("[( b_bad\n")); err != nil {
