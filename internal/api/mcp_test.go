@@ -143,7 +143,7 @@ func TestMCPAuthenticationAndScope(t *testing.T) {
 		}
 		defer res.Body.Close()
 		content, err := io.ReadAll(res.Body)
-		if err != nil || res.Header.Get("Cache-Control") != "no-store" {
+		if err != nil || !slices.Contains(strings.Split(res.Header.Get("Cache-Control"), ", "), "no-store") {
 			t.Fatalf("invalid protected response: %v %+v", err, res.Header)
 		}
 		return res.StatusCode, string(content)
@@ -448,9 +448,9 @@ func TestMCPAuthenticationAndScope(t *testing.T) {
 	forbid(memberCall("list_applications", map[string]any{"projectId": foreign}), other)
 	forbid(memberCall("search_logs", map[string]any{"query": "100%"}), "100% hidden failure")
 	removeRuntimeAccess.Store(true)
-	runtime := memberCall("read_runtime_logs", map[string]any{"applicationId": app})
-	requireContains(runtime, "Resource not found")
-	forbid(runtime, "password=")
+	deniedRuntime := memberCall("read_runtime_logs", map[string]any{"applicationId": app})
+	requireContains(deniedRuntime, "Resource not found")
+	forbid(deniedRuntime, "password=")
 	removeRuntimeAccess.Store(false)
 	forbid(memberCall("list_applications", map[string]any{}), app)
 	exec("DELETE FROM project_members WHERE user_id=$1 AND project_id=$2", viewer, project2)

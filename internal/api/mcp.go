@@ -35,6 +35,27 @@ type mcpInputError string
 
 func (e mcpInputError) Error() string { return string(e) }
 
+// The MCP SDK sets its own caching headers. Apply the no-store policy at the
+// point headers are sent, preserving the SDK's proxy no-transform directive.
+type mcpResponseWriter struct{ http.ResponseWriter }
+
+func (w mcpResponseWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
+
+func (w mcpResponseWriter) WriteHeader(status int) {
+	w.Header().Set("Cache-Control", "no-store, no-transform")
+	w.ResponseWriter.WriteHeader(status)
+}
+
+func (w mcpResponseWriter) Write(p []byte) (int, error) {
+	w.Header().Set("Cache-Control", "no-store, no-transform")
+	return w.ResponseWriter.Write(p)
+}
+
+func (w mcpResponseWriter) FlushError() error {
+	w.Header().Set("Cache-Control", "no-store, no-transform")
+	return http.NewResponseController(w.ResponseWriter).Flush()
+}
+
 func (a *API) mcpHandler() http.Handler {
 	server := mcp.NewServer(&mcp.Implementation{Name: "Shipyard", Version: buildinfo.Version}, nil)
 	addMCPTool(a, server, "list_applications", "Find applications and jobs in authorized projects.", a.mcpApplications, nil)
@@ -88,7 +109,7 @@ func (a *API) mcpHandler() http.Handler {
 		if response.SetReadDeadline(deadline) == nil {
 			defer response.SetReadDeadline(time.Time{})
 		}
-		handler.ServeHTTP(w, r.WithContext(context.WithValue(ctx, mcpTokenContextKey{}, mcpCredential{id: id, hash: hash})))
+		handler.ServeHTTP(mcpResponseWriter{w}, r.WithContext(context.WithValue(ctx, mcpTokenContextKey{}, mcpCredential{id: id, hash: hash})))
 	})
 }
 
