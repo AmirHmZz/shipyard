@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"shipyard/internal/db"
 	"shipyard/internal/model"
 	"shipyard/internal/outbound"
 	"shipyard/internal/providers"
@@ -415,6 +416,9 @@ func (c *Controller) DeleteDomain(ctx context.Context, id string) error {
 		return e
 	}
 	defer unlock()
+	if e = db.CheckMCPWrite(ctx, c.Store.Pool); e != nil {
+		return e
+	}
 	state, e = c.DomainState(ctx, id)
 	if e != nil {
 		return e

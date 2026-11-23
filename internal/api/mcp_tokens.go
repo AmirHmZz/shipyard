@@ -25,15 +25,13 @@ type mcpIssuedToken struct {
 }
 
 func (a *API) mcpTokens(w http.ResponseWriter, r *http.Request) {
-	if !a.admin(w, r) {
-		return
-	}
-	tokens, err := a.Store.MCPTokens(r.Context())
+	actor := user(r).ID
+	tokens, err := a.Store.MCPTokens(r.Context(), actor)
 	if err != nil {
 		a.err(w, err)
 		return
 	}
-	projects, err := a.Store.MCPProjects(r.Context())
+	projects, err := a.Store.MCPProjects(r.Context(), actor)
 	if err != nil {
 		a.err(w, err)
 		return
@@ -46,13 +44,11 @@ func (a *API) mcpTokens(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) issueMCPToken(w http.ResponseWriter, r *http.Request) {
-	if !a.admin(w, r) {
-		return
-	}
 	var input struct {
-		Name       string   `json:"name"`
-		ProjectIDs []string `json:"projectIds"`
-		ExpiryDays *int     `json:"expiryDays"`
+		Name               string                   `json:"name"`
+		ProjectIDs         []string                 `json:"projectIds"`
+		ProjectPermissions db.MCPProjectPermissions `json:"projectPermissions"`
+		ExpiryDays         *int                     `json:"expiryDays"`
 	}
 	if !decode(w, r, &input) {
 		return
@@ -62,14 +58,14 @@ func (a *API) issueMCPToken(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusBadRequest, "Enter a token name of 1–80 characters")
 		return
 	}
-	if !validateMCPProjects(w, input.ProjectIDs) {
+	if !validateMCPProjects(w, input.ProjectIDs) || !validateMCPPermissions(w, input.ProjectIDs, input.ProjectPermissions) {
 		return
 	}
 	days, ok := mcpExpiryDays(w, input.ExpiryDays)
 	if !ok {
 		return
 	}
-	token, secret, err := a.Store.IssueMCPToken(r.Context(), user(r).ID, input.Name, input.ProjectIDs, days)
+	token, secret, err := a.Store.IssueMCPTokenWithPermissions(r.Context(), user(r).ID, input.Name, input.ProjectIDs, input.ProjectPermissions, days)
 	if err != nil {
 		a.mcpTokenError(w, err)
 		return
@@ -96,6 +92,24 @@ func validateMCPProjects(w http.ResponseWriter, projects []string) bool {
 	return true
 }
 
+func validateMCPPermissions(w http.ResponseWriter, projects []string, permissions db.MCPProjectPermissions) bool {
+	for project, grants := range permissions {
+		if !slices.Contains(projects, project) || len(grants) == 0 {
+			fail(w, 400, "Assign permissions to selected projects")
+			return false
+		}
+		seen := make(map[string]bool, len(grants))
+		for _, grant := range grants {
+			if seen[grant] || !slices.Contains([]string{db.MCPConfigure, db.MCPLifecycle, db.MCPFreshDeploy, db.MCPCleanup}, grant) {
+				fail(w, 400, "Select each supported permission once per project")
+				return false
+			}
+			seen[grant] = true
+		}
+	}
+	return true
+}
+
 func mcpExpiryDays(w http.ResponseWriter, expiryDays *int) (int, bool) {
 	days := 30
 	if expiryDays != nil {
@@ -111,18 +125,15 @@ func mcpExpiryDays(w http.ResponseWriter, expiryDays *int) (int, bool) {
 func (a *API) mcpTokenError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, db.ErrMCPProject):
-		fail(w, http.StatusBadRequest, "Select existing projects")
+		fail(w, http.StatusBadRequest, "Select projects you can access")
 	case errors.Is(err, db.ErrMCPNoProjects):
-		fail(w, http.StatusConflict, "Assign at least one project before recreating the token")
+		fail(w, http.StatusConflict, "Select at least one accessible project before recreating the token")
 	default:
 		a.err(w, err)
 	}
 }
 
-func (a *API) managedMCPTokenID(w http.ResponseWriter, r *http.Request) string {
-	if !a.admin(w, r) {
-		return ""
-	}
+func managedMCPTokenID(w http.ResponseWriter, r *http.Request) string {
 	id := chi.URLParam(r, "id")
 	if uuid.Validate(id) != nil {
 		fail(w, http.StatusBadRequest, "Invalid token ID")
@@ -132,17 +143,18 @@ func (a *API) managedMCPTokenID(w http.ResponseWriter, r *http.Request) string {
 }
 
 func (a *API) updateMCPTokenAccess(w http.ResponseWriter, r *http.Request) {
-	id := a.managedMCPTokenID(w, r)
+	id := managedMCPTokenID(w, r)
 	if id == "" {
 		return
 	}
 	var input struct {
-		ProjectIDs []string `json:"projectIds"`
+		ProjectIDs         []string                 `json:"projectIds"`
+		ProjectPermissions db.MCPProjectPermissions `json:"projectPermissions"`
 	}
-	if !decode(w, r, &input) || !validateMCPProjects(w, input.ProjectIDs) {
+	if !decode(w, r, &input) || !validateMCPProjects(w, input.ProjectIDs) || !validateMCPPermissions(w, input.ProjectIDs, input.ProjectPermissions) {
 		return
 	}
-	if err := a.Store.UpdateMCPTokenAccess(r.Context(), user(r).ID, id, input.ProjectIDs); err != nil {
+	if err := a.Store.UpdateMCPTokenAccess(r.Context(), user(r).ID, id, input.ProjectIDs, input.ProjectPermissions); err != nil {
 		a.mcpTokenError(w, err)
 		return
 	}
@@ -150,7 +162,7 @@ func (a *API) updateMCPTokenAccess(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) recreateMCPToken(w http.ResponseWriter, r *http.Request) {
-	id := a.managedMCPTokenID(w, r)
+	id := managedMCPTokenID(w, r)
 	if id == "" {
 		return
 	}
@@ -173,7 +185,7 @@ func (a *API) recreateMCPToken(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) revokeMCPToken(w http.ResponseWriter, r *http.Request) {
-	id := a.managedMCPTokenID(w, r)
+	id := managedMCPTokenID(w, r)
 	if id == "" {
 		return
 	}
@@ -185,7 +197,7 @@ func (a *API) revokeMCPToken(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) deleteMCPToken(w http.ResponseWriter, r *http.Request) {
-	id := a.managedMCPTokenID(w, r)
+	id := managedMCPTokenID(w, r)
 	if id == "" {
 		return
 	}

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"shipyard/internal/model"
 )
 
 // Scope is resolved from the current application ancestry, inside the same
@@ -13,23 +14,22 @@ import (
 // authenticated before recreation cannot use the replacement credential's grants.
 const mcpScope = `WITH scoped_apps AS (
 	SELECT a.id,a.name,env.id AS environment_id,env.name AS environment_name,
-		p.id AS project_id,p.name AS project_name,a.data->>'workload' AS workload
-	FROM mcp_tokens AS token JOIN mcp_token_projects AS scope ON scope.token_id=token.id
-	JOIN resources p ON p.id=scope.project_id AND p.kind='project'
+		p.id AS project_id,p.name AS project_name,a.data->>'workload' AS workload,p.permissions,p.token_id
+	FROM (` + mcpAuthorizedProjects + `) p
 	JOIN resources env ON env.parent_id=p.id AND env.kind='environment' AND env.team_id=p.team_id
 	JOIN resources a ON a.parent_id=env.id AND a.kind='application' AND a.team_id=p.team_id
-	WHERE token.token_hash=$1 AND token.revoked_at IS NULL AND token.expires_at>now()
 )`
 
 type MCPApplication struct {
-	ID            string `json:"id"`
-	Name          string `json:"name"`
-	ProjectID     string `json:"projectId"`
-	ProjectName   string `json:"projectName"`
-	EnvironmentID string `json:"environmentId"`
-	Environment   string `json:"environmentName"`
-	Type          string `json:"type"`
-	DashboardURL  string `json:"dashboardUrl"`
+	ID            string   `json:"id"`
+	Name          string   `json:"name"`
+	ProjectID     string   `json:"projectId"`
+	ProjectName   string   `json:"projectName"`
+	EnvironmentID string   `json:"environmentId"`
+	Environment   string   `json:"environmentName"`
+	Type          string   `json:"type"`
+	Permissions   []string `json:"permissions"`
+	DashboardURL  string   `json:"dashboardUrl"`
 }
 
 type MCPApplicationFilter struct {
@@ -39,7 +39,7 @@ type MCPApplicationFilter struct {
 
 func (s *Store) MCPApplications(ctx context.Context, tokenHash string, f MCPApplicationFilter) ([]MCPApplication, error) {
 	rows, err := s.Pool.Query(ctx, mcpScope+`
-		SELECT id,name,project_id,project_name,environment_id,environment_name,CASE WHEN workload='job' THEN 'job' ELSE 'application' END
+		SELECT id,name,project_id,project_name,environment_id,environment_name,CASE WHEN workload='job' THEN 'job' ELSE 'application' END,permissions
 		FROM scoped_apps WHERE ($2='' OR project_id=$2) AND ($3='' OR environment_id=$3)
 		AND ($4='' OR strpos(lower(name),lower($4))>0)
 		AND ($5='' OR lower(project_name)=lower($5)) AND ($6='' OR lower(environment_name)=lower($6))
@@ -50,7 +50,7 @@ func (s *Store) MCPApplications(ctx context.Context, tokenHash string, f MCPAppl
 	}
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (MCPApplication, error) {
 		var item MCPApplication
-		err := row.Scan(&item.ID, &item.Name, &item.ProjectID, &item.ProjectName, &item.EnvironmentID, &item.Environment, &item.Type)
+		err := row.Scan(&item.ID, &item.Name, &item.ProjectID, &item.ProjectName, &item.EnvironmentID, &item.Environment, &item.Type, &item.Permissions)
 		return item, err
 	})
 }
@@ -207,4 +207,54 @@ func scanMCPLogLine(row pgx.CollectableRow) (MCPLogLine, error) {
 func (s *Store) MCPCheckApplication(ctx context.Context, tokenHash, app string) error {
 	var id string
 	return s.Pool.QueryRow(ctx, mcpScope+" SELECT id FROM scoped_apps WHERE id=$2", tokenHash, app).Scan(&id)
+}
+
+type MCPApplicationOption struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	Kind string `json:"kind"`
+}
+
+func (s *Store) MCPApplicationOptions(ctx context.Context, tokenHash, projectID, after string, limit int) ([]MCPApplicationOption, error) {
+	rows, err := s.Pool.Query(ctx, `WITH project AS (`+mcpAuthorizedProjects+`),
+	options AS (
+		SELECT env.id,env.name,env.kind FROM project p JOIN resources env ON env.parent_id=p.id AND env.team_id=p.team_id
+		WHERE p.id=$2 AND env.kind='environment' AND env.data->>'deleting' IS DISTINCT FROM 'true'
+		UNION
+		SELECT r.id,r.name,r.kind FROM project p JOIN resource_grants g ON g.team_id=p.team_id
+		JOIN resources r ON r.id=g.resource_id
+		WHERE p.id=$2 AND r.kind IN ('server','git','registry','network','zone') AND r.data->>'deleting' IS DISTINCT FROM 'true'
+	) SELECT id,name,kind FROM options WHERE id>$3 ORDER BY id LIMIT $4`, tokenHash, projectID, after, limit)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (MCPApplicationOption, error) {
+		var item MCPApplicationOption
+		err := row.Scan(&item.ID, &item.Name, &item.Kind)
+		return item, err
+	})
+}
+
+func (s *Store) MCPApplicationDetails(ctx context.Context, tokenHash, app string) (model.Resource, []string, error) {
+	var permissions []string
+	err := s.Pool.QueryRow(ctx, mcpScope+" SELECT permissions FROM scoped_apps WHERE id=$2", tokenHash, app).Scan(&permissions)
+	if err != nil {
+		return model.Resource{}, nil, err
+	}
+	resource, err := s.Resource(ctx, app)
+	if err != nil {
+		return model.Resource{}, nil, err
+	}
+	if err := s.MCPCheckApplication(ctx, tokenHash, app); err != nil {
+		return model.Resource{}, nil, err
+	}
+	return s.Public(resource), permissions, nil
+}
+
+func (s *Store) MCPReadOwner(ctx context.Context, tokenHash, app string) (model.User, error) {
+	var owner model.User
+	err := s.Pool.QueryRow(ctx, mcpScope+` SELECT u.id,u.admin FROM scoped_apps app
+		JOIN mcp_tokens token ON token.id=app.token_id JOIN users u ON u.id=token.owner_id WHERE app.id=$2`,
+		tokenHash, app).Scan(&owner.ID, &owner.Admin)
+	return owner, err
 }

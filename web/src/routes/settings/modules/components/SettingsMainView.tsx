@@ -63,10 +63,6 @@ export function SettingsMainView({ session }: SettingsMainViewProps) {
                   <LockKeyhole aria-hidden="true" />
                   Dashboard access
                 </TabsTrigger>
-                <TabsTrigger value="mcp">
-                  <Plug aria-hidden="true" />
-                  MCP access
-                </TabsTrigger>
                 <TabsTrigger value="certificates">
                   <LockKeyhole aria-hidden="true" />
                   Certificates
@@ -89,6 +85,10 @@ export function SettingsMainView({ session }: SettingsMainViewProps) {
                 </TabsTrigger>
               </>
             )}
+            <TabsTrigger value="mcp">
+              <Plug aria-hidden="true" />
+              MCP access
+            </TabsTrigger>
             <TabsTrigger value="audit">
               <HistoryIcon aria-hidden="true" />
               Audit log
@@ -99,6 +99,9 @@ export function SettingsMainView({ session }: SettingsMainViewProps) {
           <Security session={session} />
           <PasswordSettings />
         </TabsContent>
+        <TabsContent value="mcp">
+          <McpAccess />
+        </TabsContent>
         {session.user.admin && (
           <>
             <TabsContent value="updates">
@@ -106,9 +109,6 @@ export function SettingsMainView({ session }: SettingsMainViewProps) {
             </TabsContent>
             <TabsContent value="dashboard">
               <DashboardAccess />
-            </TabsContent>
-            <TabsContent value="mcp">
-              <McpAccess />
             </TabsContent>
             <TabsContent value="certificates">
               <CertificateNetwork />

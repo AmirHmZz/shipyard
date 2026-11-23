@@ -4,12 +4,14 @@ import { useEffect, useState } from "react";
 import { CopyButton, ErrorState, Loading } from "@/components/Shared";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { useAccount } from "@/lib/session";
 
 import { useMcpTokenActions, useMcpTokens } from "../hooks";
 import { McpTokenDialog } from "./McpTokenDialog";
 import { McpTokenRow } from "./McpTokenRow";
 
 export function McpAccess() {
+  const account = useAccount();
   const inventory = useMcpTokens();
   const actions = useMcpTokenActions();
   const [now, setNow] = useState(Date.now);
@@ -26,7 +28,7 @@ export function McpAccess() {
   const projectNames = new Map(
     projects.map((project) => [
       project.id,
-      `${project.teamName} / ${project.name}`,
+      project.teamName ? `${project.teamName} / ${project.name}` : project.name,
     ]),
   );
   const actionId =
@@ -43,8 +45,8 @@ export function McpAccess() {
           <div className="flex min-w-0 flex-col gap-1">
             <h2 className="font-semibold">MCP connection</h2>
             <p className="text-sm text-muted-foreground">
-              Connect an agent to read deployment, job, and runtime logs from
-              its allowed projects.
+              Give an agent access to selected projects and choose which
+              application actions it can perform.
             </p>
           </div>
         </div>
@@ -82,7 +84,7 @@ export function McpAccess() {
             </h2>
             {tokens.length > 0 && projects.length === 0 && (
               <p className="mt-1 text-sm text-muted-foreground">
-                Create a project before issuing a token.
+                You need project read access to create a token.
               </p>
             )}
           </div>
@@ -102,7 +104,7 @@ export function McpAccess() {
             <h3 className="text-sm font-semibold">No MCP tokens</h3>
             <p className="text-sm text-muted-foreground">
               {projects.length === 0
-                ? "Create a project before issuing a token."
+                ? "You need project read access to create a token."
                 : "Create a token for the agent you want to connect."}
             </p>
           </div>
@@ -121,6 +123,8 @@ export function McpAccess() {
                 <McpTokenRow
                   key={token.id}
                   token={token}
+                  owned={token.ownerId === account.id}
+                  canSelectProjects={projects.length > 0}
                   now={Math.max(now, inventory.dataUpdatedAt)}
                   projectNames={projectNames}
                   onAction={actions.openTokenAction}

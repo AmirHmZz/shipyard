@@ -8,3 +8,10 @@ export const settingsKeys = {
   mcpTokens: ["mcp-tokens"] as const,
   alertPolicy: ["alert-policy"] as const,
 };
+
+export const mcpPermissionLabels = {
+  configure: "Configuration",
+  lifecycle: "Lifecycle",
+  freshDeploy: "Fresh deploy",
+  cleanup: "Cleanup",
+} as const;

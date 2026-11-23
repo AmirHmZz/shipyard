@@ -42,6 +42,9 @@ func (c *Controller) QueueDeploymentDeletion(ctx context.Context, id, actor stri
 	if _, err = tx.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended('resource-tree',0))"); err != nil {
 		return "", err
 	}
+	if err = db.CheckMCPWrite(ctx, tx); err != nil {
+		return "", err
+	}
 	var app, state string
 	if err = tx.QueryRow(ctx, "SELECT app_id,state FROM deployments WHERE id=$1", id).Scan(&app, &state); err != nil {
 		return "", err

@@ -46,7 +46,8 @@ export function McpTokenDialog({
   const copy = {
     create: {
       title: "Create MCP token",
-      description: "Give an agent read-only access to the projects you select.",
+      description:
+        "Choose which projects an agent can read. You can also enable application actions for each project.",
     },
     edit: {
       title: "Edit project access",
@@ -58,7 +59,7 @@ export function McpTokenDialog({
     },
     revoke: {
       title: "Revoke token",
-      description: `Agents using ${name} will lose access immediately. You can recreate the token from this record later.`,
+      description: `Agents using ${name} will lose access immediately. The owner can recreate the token from this record later.`,
     },
     delete: {
       title: "Delete token record",
@@ -136,6 +137,7 @@ export function McpTokenDialog({
             mode={mode}
             projects={projects}
             projectIds={token?.projectIds ?? []}
+            projectPermissions={token?.projectPermissions ?? {}}
             pending={pending}
             onSubmit={onSubmit}
             onCancel={onClose}

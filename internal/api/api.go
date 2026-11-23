@@ -481,6 +481,9 @@ func (a *API) saveResource(w http.ResponseWriter, r *http.Request) {
 	previousReadinessMode := ""
 	if creating {
 		id = uuid.NewString()
+		if createID := db.MCPWrite(r.Context()).CreateID; createID != "" {
+			id = createID
+		}
 	} else {
 		old, ok := a.get(w, r, true)
 		if !ok {
@@ -823,7 +826,7 @@ func (a *API) deleteResource(w http.ResponseWriter, r *http.Request) {
 		fail(w, 409, "Resource is still referenced by an application or route")
 		return
 	}
-	_, e = a.Store.Pool.Exec(r.Context(), "DELETE FROM resources WHERE id=$1", v.ID)
+	e = a.Store.DeleteResourceRecord(r.Context(), v.ID)
 	if e != nil {
 		a.err(w, e)
 		return
@@ -1223,7 +1226,7 @@ func (a *API) syncDomain(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	e := a.Store.Enqueue(r.Context(), "domain", v.ID, uuid.NewString(), in)
+	e := a.Store.QueueDomainSync(r.Context(), v.ID, in)
 	if e != nil {
 		a.err(w, e)
 		return

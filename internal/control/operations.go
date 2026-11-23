@@ -245,6 +245,9 @@ func (c *Controller) Action(ctx context.Context, app model.Resource, action stri
 		return e
 	}
 	defer lock.Exec(context.WithoutCancel(ctx), "SELECT pg_advisory_unlock(hashtextextended($1,0))", key)
+	if e = db.CheckMCPWrite(ctx, lock); e != nil {
+		return e
+	}
 	return c.actionLocked(ctx, app, action, true)
 }
 
@@ -290,6 +293,9 @@ func (c *Controller) actionLocked(ctx context.Context, app model.Resource, actio
 	}
 	defer client.Close()
 	engine := deploy.Engine{Remote: client, Log: io.Discard, Dial: client.DialContext, PrepareNetworks: c.prepareNetworks, ValidateConfig: c.validateRenderedNetworks}
+	if e = db.CheckMCPWrite(ctx, c.Store.Pool); e != nil {
+		return e
+	}
 	if action == "start" {
 		e = engine.Start(ctx, &r)
 		if e == nil {

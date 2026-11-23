@@ -124,6 +124,9 @@ func TestDatabaseBackupRestore(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
+	if _, e = store.Pool.Exec(ctx, "INSERT INTO users(id,email,name,password,admin) VALUES('test-admin','admin@example.test','Admin','hash',true)"); e != nil {
+		t.Fatal(e)
+	}
 	mcpToken, mcpSecret, e := store.IssueMCPToken(ctx, "test-admin", "Backup exclusion check", []string{project.ID}, 30)
 	if e != nil {
 		t.Fatal(e)
@@ -172,7 +175,7 @@ func TestDatabaseBackupRestore(t *testing.T) {
 		t.Fatal(e)
 	}
 	defer restored.Pool.Close()
-	if tokens, err := restored.MCPTokens(ctx); err != nil || len(tokens) != 0 {
+	if tokens, err := restored.MCPTokens(ctx, "test-admin"); err != nil || len(tokens) != 0 {
 		t.Fatalf("backup restored MCP credentials: %d, %v", len(tokens), err)
 	}
 	logoProject, e := restored.Resource(ctx, project.ID)

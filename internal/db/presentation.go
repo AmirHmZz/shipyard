@@ -41,6 +41,9 @@ func (s *Store) SaveLogo(ctx context.Context, id, revision string, image []byte)
 	if _, err = lockPresentation(ctx, tx, id); err != nil {
 		return err
 	}
+	if err = CheckMCPWrite(ctx, tx); err != nil {
+		return err
+	}
 	if image == nil {
 		_, err = tx.Exec(ctx, "DELETE FROM resource_logos WHERE resource_id=$1", id)
 	} else {
@@ -61,6 +64,9 @@ func (s *Store) MoveResource(ctx context.Context, id string, before *string) err
 	defer tx.Rollback(ctx)
 	r, err := lockPresentation(ctx, tx, id)
 	if err != nil {
+		return err
+	}
+	if err = CheckMCPWrite(ctx, tx); err != nil {
 		return err
 	}
 	var app model.App

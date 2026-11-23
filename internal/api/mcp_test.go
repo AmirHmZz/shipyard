@@ -33,6 +33,7 @@ type mcpTestTransport struct {
 type mcpRuntimeNode struct {
 	remote.Node
 	calls atomic.Int32
+	onRun func()
 }
 
 func (*mcpRuntimeNode) Close() error { return nil }
@@ -41,6 +42,9 @@ func (n *mcpRuntimeNode) Run(_ context.Context, command string, _ io.Reader, out
 	n.calls.Add(1)
 	if command != remote.Command("docker", "logs", "--timestamps", "--tail", "100", "--", "web-1") {
 		panic("unexpected Docker command")
+	}
+	if n.onRun != nil {
+		n.onRun()
 	}
 	_, err := io.WriteString(output, "2026-01-01T12:00:00.125Z ready, password=private-value\n")
 	return err
@@ -104,7 +108,12 @@ func TestMCPAuthenticationAndScope(t *testing.T) {
 		t.Fatal(err)
 	}
 	exec("INSERT INTO app_runtime(app_id,release_id) VALUES($1,$2)", app, release.ID)
-	node := &mcpRuntimeNode{}
+	var removeRuntimeAccess atomic.Bool
+	node := &mcpRuntimeNode{onRun: func() {
+		if removeRuntimeAccess.Load() {
+			exec("DELETE FROM project_members WHERE user_id=$1 AND project_id=$2", viewer, project)
+		}
+	}}
 	a.Control.DialNode = func(context.Context, model.Server, map[string]string) (remote.Node, error) { return node, nil }
 
 	request := func(server *httptest.Server, method, path, body, token, cookie, csrf, origin string) (int, string) {
@@ -150,7 +159,7 @@ func TestMCPAuthenticationAndScope(t *testing.T) {
 	status, body := request(tls, "POST", settings, string(create), "", "admin-cookie", "", "")
 	check(status, 403, body)
 	status, body = request(tls, "POST", settings, string(create), "", "viewer-cookie", "csrf", "")
-	check(status, 403, body)
+	check(status, 400, body)
 	status, body = request(tls, "POST", settings, string(create), "", "admin-cookie", "csrf", "")
 	check(status, 201, body)
 	var issued mcpIssuedToken
@@ -213,8 +222,8 @@ func TestMCPAuthenticationAndScope(t *testing.T) {
 	}
 	defer session.Close()
 	tools, err := session.ListTools(ctx, nil)
-	if err != nil || len(tools.Tools) != 7 {
-		t.Fatalf("cannot list all seven tools: %+v %v", tools, err)
+	if err != nil || len(tools.Tools) != 16 {
+		t.Fatalf("cannot list all MCP tools: %+v %v", tools, err)
 	}
 	call := func(name string, input map[string]any, wantError bool) string {
 		t.Helper()
@@ -306,7 +315,7 @@ func TestMCPAuthenticationAndScope(t *testing.T) {
 		{"DELETE", path + "/record", ""},
 	} {
 		status, body = request(tls, mutation.method, mutation.path, mutation.body, "", "viewer-cookie", "csrf", "")
-		check(status, 403, body)
+		check(status, 404, body)
 		status, body = request(tls, mutation.method, mutation.path, mutation.body, "", "admin-cookie", "", "")
 		check(status, 403, body)
 	}
@@ -320,7 +329,7 @@ func TestMCPAuthenticationAndScope(t *testing.T) {
 	apps = call("list_applications", map[string]any{}, false)
 	requireContains(apps, other, app)
 	forbid(apps, job)
-	tokens, err := a.Store.MCPTokens(ctx)
+	tokens, err := a.Store.MCPTokens(ctx, admin)
 	if err != nil || len(tokens) != 1 || !tokens[0].ExpiresAt.Equal(issued.Token.ExpiresAt) {
 		t.Fatalf("access update changed the original expiry: %+v %v", tokens, err)
 	}
@@ -387,6 +396,94 @@ func TestMCPAuthenticationAndScope(t *testing.T) {
 		AND action IN ('mcp.token_access_updated','mcp.token_recreated','mcp.token_deleted')`, admin, issued.Token.ID).Scan(&auditRows); err != nil || auditRows != 5 {
 		t.Fatalf("expected five successful management actions in audit history, got %d: %v", auditRows, err)
 	}
+
+	exec("UPDATE resources SET parent_id=$1 WHERE id=$2", env, app)
+	exec("INSERT INTO project_members(project_id,user_id,role) VALUES($1,$3,'viewer'),($2,$3,'operator')", project, project2, viewer)
+	issue := func(cookie string, projectIDs ...string) mcpIssuedToken {
+		t.Helper()
+		payload, _ := json.Marshal(map[string]any{"name": "Owned token", "projectIds": projectIDs})
+		status, body := request(tls, "POST", settings, string(payload), "", cookie, "csrf", "")
+		check(status, 201, body)
+		var credential mcpIssuedToken
+		if err := json.Unmarshal([]byte(body), &credential); err != nil {
+			t.Fatal(err)
+		}
+		return credential
+	}
+	adminToken := issue("admin-cookie", foreign)
+	memberToken := issue("viewer-cookie", project, project2)
+	if memberToken.Token.OwnerID == nil || *memberToken.Token.OwnerID != viewer {
+		t.Fatal("issued token does not belong to the signed-in user")
+	}
+	memberPath := settings + "/" + memberToken.Token.ID
+	status, body = request(tls, "GET", settings, "", "", "viewer-cookie", "", "")
+	check(status, 200, body)
+	requireContains(body, memberToken.Token.ID, project, project2)
+	forbid(body, adminToken.Token.ID, foreign, memberToken.Secret, secure.Hash(memberToken.Secret))
+	status, body = request(tls, "GET", settings, "", "", "admin-cookie", "", "")
+	check(status, 200, body)
+	requireContains(body, adminToken.Token.ID, memberToken.Token.ID, "Viewer")
+	forbid(body, memberToken.Secret, secure.Hash(memberToken.Secret))
+	for _, mutation := range []struct{ method, path, body string }{
+		{"PATCH", memberPath, access(foreign)},
+		{"POST", memberPath + "/recreate", `{}`},
+	} {
+		status, body = request(tls, mutation.method, mutation.path, mutation.body, "", "admin-cookie", "csrf", "")
+		check(status, 404, body)
+	}
+	status, body = request(tls, "DELETE", settings+"/"+adminToken.Token.ID, "", "", "viewer-cookie", "csrf", "")
+	check(status, 404, body)
+	status, body = request(tls, "PATCH", memberPath, access(foreign), "", "viewer-cookie", "csrf", "")
+	check(status, 400, body)
+
+	memberCall := func(name string, args map[string]any) string {
+		t.Helper()
+		payload, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": 1, "method": "tools/call",
+			"params": map[string]any{"name": name, "arguments": args}})
+		status, body := request(tls, "POST", "/mcp", string(payload), memberToken.Secret, "", "", "")
+		check(status, 200, body)
+		return body
+	}
+	requireContains(memberCall("list_applications", map[string]any{}), app, job)
+	forbid(memberCall("list_applications", map[string]any{"projectId": foreign}), other)
+	forbid(memberCall("search_logs", map[string]any{"query": "100%"}), "100% hidden failure")
+	removeRuntimeAccess.Store(true)
+	runtime := memberCall("read_runtime_logs", map[string]any{"applicationId": app})
+	requireContains(runtime, "Resource not found")
+	forbid(runtime, "password=")
+	removeRuntimeAccess.Store(false)
+	forbid(memberCall("list_applications", map[string]any{}), app)
+	exec("DELETE FROM project_members WHERE user_id=$1 AND project_id=$2", viewer, project2)
+	status, body = request(tls, "POST", "/mcp", discovery, memberToken.Secret, "", "", "")
+	check(status, 401, body)
+	status, body = request(tls, "POST", memberPath+"/recreate", `{}`, "", "viewer-cookie", "csrf", "")
+	check(status, 409, body)
+
+	exec("INSERT INTO team_members(team_id,user_id,role) VALUES($1,$2,'owner')", team, viewer)
+	requireContains(memberCall("list_applications", map[string]any{}), app, job)
+	forbid(memberCall("list_applications", map[string]any{}), other)
+	exec("UPDATE users SET admin=false WHERE id=$1", admin)
+	status, body = request(tls, "POST", "/mcp", discovery, adminToken.Secret, "", "", "")
+	check(status, 401, body)
+	exec("UPDATE users SET admin=true WHERE id=$1", admin)
+	exec("UPDATE users SET disabled=true WHERE id=$1", viewer)
+	status, body = request(tls, "POST", "/mcp", discovery, memberToken.Secret, "", "", "")
+	check(status, 401, body)
+	exec("UPDATE users SET disabled=false WHERE id=$1", viewer)
+	requireContains(memberCall("list_applications", map[string]any{}), app)
+	status, body = request(tls, "DELETE", memberPath, "", "", "admin-cookie", "csrf", "")
+	check(status, 200, body)
+	status, body = request(tls, "POST", "/mcp", discovery, memberToken.Secret, "", "", "")
+	check(status, 401, body)
+	status, body = request(tls, "DELETE", memberPath+"/record", "", "", "admin-cookie", "csrf", "")
+	check(status, 200, body)
+	memberToken = issue("viewer-cookie", project)
+	exec("DELETE FROM users WHERE id=$1", viewer)
+	status, body = request(tls, "POST", "/mcp", discovery, memberToken.Secret, "", "", "")
+	check(status, 401, body)
+	status, body = request(tls, "GET", settings, "", "", "admin-cookie", "", "")
+	check(status, 200, body)
+	forbid(body, memberToken.Token.ID)
 }
 
 func TestMCPManagedDashboardProxyTLSBoundary(t *testing.T) {

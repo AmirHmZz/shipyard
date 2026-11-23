@@ -75,6 +75,9 @@ func (c *Controller) queueStop(ctx context.Context, app model.Resource, manual b
 	if _, err = tx.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended('resource-tree',0))"); err != nil {
 		return err
 	}
+	if err = db.CheckMCPWrite(ctx, tx); err != nil {
+		return err
+	}
 	var deleting bool
 	if err = tx.QueryRow(ctx, "SELECT COALESCE(data->>'deleting','false')='true' FROM resources WHERE id=$1", app.ID).Scan(&deleting); err != nil {
 		return err
@@ -299,6 +302,9 @@ func (c *Controller) resumeApplication(ctx context.Context, appID string, manual
 	}
 	defer tx.Rollback(ctx)
 	if _, err = tx.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended('resource-tree',0))"); err != nil {
+		return err
+	}
+	if err = db.CheckMCPWrite(ctx, tx); err != nil {
 		return err
 	}
 	if len(expected) > 0 {

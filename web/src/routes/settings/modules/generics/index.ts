@@ -2,7 +2,7 @@ export type { AlertPolicy } from "./types";
 export type { Status, Plan } from "./types";
 export type { State } from "./types";
 export type { User } from "./types";
-export { settingsKeys } from "./constants";
+export { mcpPermissionLabels, settingsKeys } from "./constants";
 
 export {
   passwordFormSchema,

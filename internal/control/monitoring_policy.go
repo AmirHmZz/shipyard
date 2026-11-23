@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"shipyard/internal/db"
 	"shipyard/internal/model"
 )
 
@@ -157,6 +158,9 @@ func (c *Controller) SetMonitoringPolicy(ctx context.Context, r model.Resource, 
 	}
 	defer tx.Rollback(ctx)
 	if _, err = tx.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended('resource-tree',0))"); err != nil {
+		return err
+	}
+	if err = db.CheckMCPWrite(ctx, tx); err != nil {
 		return err
 	}
 	if v.Mode == "inherit" {

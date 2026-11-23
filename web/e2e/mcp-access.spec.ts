@@ -1,17 +1,30 @@
+import type { BrowserContext, Page } from "@playwright/test";
+
 import { expect, test } from "@playwright/test";
 
 import { buildInfoFixture } from "./build-info";
 
-test("admin creates, edits, revokes, recreates and deletes MCP tokens", async ({
-  page,
-  context,
-}) => {
+for (const admin of [true, false]) {
+  test(`${admin ? "admin" : "member"} manages their MCP tokens`, ({
+    page,
+    context,
+  }) => manageMcpTokens(page, context, admin));
+}
+
+async function manageMcpTokens(
+  page: Page,
+  context: BrowserContext,
+  admin: boolean,
+) {
   const projectId = "10000000-0000-4000-8000-000000000001";
   const secondProject = "10000000-0000-4000-8000-000000000002";
   const token = {
     id: "20000000-0000-4000-8000-000000000001",
     name: "Incident triage",
+    ownerId: "actor",
+    ownerName: admin ? "Admin" : "Member",
     projectIds: [projectId, secondProject],
+    projectPermissions: { [projectId]: ["configure"] },
     createdAt: "2026-11-21T00:00:00Z",
     expiresAt: "2026-12-21T00:00:00Z",
   };
@@ -24,6 +37,15 @@ test("admin creates, edits, revokes, recreates and deletes MCP tokens", async ({
     expiresAt: "2026-10-31T00:00:00Z",
   };
   const secret = "syd_mcp_test-fixture";
+  const otherToken = {
+    ...token,
+    id: "20000000-0000-4000-8000-000000000003",
+    name: "Infrastructure watcher",
+    ownerId: "another-user",
+    ownerName: "Other owner",
+    projectIds: [],
+    projectPermissions: {},
+  };
   const replacement = "syd_mcp_recreated-fixture";
   let issued = false;
   let revoked = false;
@@ -44,9 +66,9 @@ test("admin creates, edits, revokes, recreates and deletes MCP tokens", async ({
         json: {
           user: {
             id: "actor",
-            name: "Admin",
-            email: "admin@example.test",
-            admin: true,
+            name: token.ownerName,
+            email: "actor@example.test",
+            admin,
             totp: false,
           },
           csrf: "mcp-test-csrf",
@@ -60,6 +82,7 @@ test("admin creates, edits, revokes, recreates and deletes MCP tokens", async ({
         expect(request.postDataJSON()).toEqual({
           name: token.name,
           projectIds: token.projectIds,
+          projectPermissions: token.projectPermissions,
           expiryDays: 30,
         });
         issued = true;
@@ -69,15 +92,27 @@ test("admin creates, edits, revokes, recreates and deletes MCP tokens", async ({
         json: {
           endpoint: "https://shipyard.example.test/mcp",
           projects: [
-            { id: projectId, name: "Production", teamName: "Operations" },
-            { id: secondProject, name: "Tools", teamName: "Platform" },
+            {
+              id: projectId,
+              name: "Production",
+              teamName: "Operations",
+              canWrite: true,
+            },
+            {
+              id: secondProject,
+              name: "Tools",
+              teamName: "Platform",
+              canWrite: admin,
+            },
           ],
           tokens: [
+            ...(admin ? [otherToken] : []),
             ...(issued
               ? [
                   {
                     ...token,
                     projectIds: edited ? [secondProject] : token.projectIds,
+                    projectPermissions: edited ? {} : token.projectPermissions,
                     revokedAt: revoked ? "2026-11-21T13:01:00Z" : undefined,
                   },
                 ]
@@ -99,7 +134,9 @@ test("admin creates, edits, revokes, recreates and deletes MCP tokens", async ({
     if (path.endsWith("/settings/mcp-tokens/" + token.id)) {
       expect(request.headers()["x-csrf-token"]).toBe("mcp-test-csrf");
       if (request.method() === "PATCH") {
-        expect(request.postDataJSON()).toEqual({ projectIds: [secondProject] });
+        expect(request.postDataJSON()).toEqual({
+          projectIds: [secondProject],
+        });
         edited = true;
       } else {
         expect(request.method()).toBe("DELETE");
@@ -139,6 +176,29 @@ test("admin creates, edits, revokes, recreates and deletes MCP tokens", async ({
   );
 
   const dialog = page.getByRole("dialog");
+  const otherActions = page.getByRole("button", {
+    name: `Actions for ${otherToken.name}`,
+  });
+  if (admin) {
+    await expect(page.getByText(otherToken.ownerName)).toBeVisible();
+    await expect(page.getByText("No project access")).toBeVisible();
+    await otherActions.click();
+    await expect(
+      page.getByRole("menuitem", { name: "Edit access" }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("menuitem", { name: "Recreate token" }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("menuitem", { name: "Revoke token" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("menuitem", { name: "Delete record" }),
+    ).toBeVisible();
+    await page.keyboard.press("Escape");
+  } else {
+    await expect(otherActions).toHaveCount(0);
+  }
   const tokenRow = page.getByRole("listitem").filter({ hasText: token.name });
   const expiredRow = page
     .getByRole("listitem")
@@ -150,6 +210,20 @@ test("admin creates, edits, revokes, recreates and deletes MCP tokens", async ({
     .getByRole("checkbox", { name: "Operations / Production" })
     .check();
   await dialog.getByRole("checkbox", { name: "Platform / Tools" }).check();
+  const productionGrants = dialog.getByRole("group", {
+    name: "Application permissions for Production",
+  });
+  await expect(
+    productionGrants.getByRole("checkbox", { name: "Fresh deploy" }),
+  ).not.toBeChecked();
+  await productionGrants
+    .getByRole("checkbox", { name: "Configuration" })
+    .check();
+  if (!admin) {
+    await expect(
+      dialog.getByRole("group", { name: "Application permissions for Tools" }),
+    ).toHaveCount(0);
+  }
   await dialog.getByRole("button", { name: "Create token" }).click();
   const displayed = dialog.getByLabel(
     "Copy this token now. It is displayed once.",
@@ -211,4 +285,4 @@ test("admin creates, edits, revokes, recreates and deletes MCP tokens", async ({
   ).toBeVisible();
   await dialog.getByRole("button", { name: "Delete record" }).click();
   await expect(expiredRow).toHaveCount(0);
-});
+}

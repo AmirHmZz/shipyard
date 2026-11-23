@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased]
+
+### Features
+
+- Let signed-in users create read-only MCP tokens for selected projects they can currently read. Platform administrators can view, revoke, and delete tokens across accounts.
+- Manage applications through MCP with separate project grants for configuration, lifecycle, Fresh deploy, and cleanup.
+
+### Upgrade Notes
+
+- Migration 013 revokes every existing MCP credential and retains its record for administrator cleanup. Create new tokens in **Settings → MCP access** and update each MCP client after the upgrade. Downgrading to schema 12 with data-loss approval deletes user-owned tokens.
+- Migration 014 adds application write grants. Existing user-owned tokens keep their secrets and project read scope. Enable write grants in **Settings → MCP access**.
+
 ## [0.22.0] (2026-11-21)
 
 ### Features

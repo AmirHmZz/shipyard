@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/google/uuid"
+	"shipyard/internal/db"
 	"shipyard/internal/model"
 )
 
@@ -19,6 +20,9 @@ func (c *Controller) DisablePreviews(ctx context.Context, app string) error {
 	}
 	defer tx.Rollback(ctx)
 	if _, e = tx.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended('resource-tree',0))"); e != nil {
+		return e
+	}
+	if e = db.CheckMCPWrite(ctx, tx); e != nil {
 		return e
 	}
 	rows, e := tx.Query(ctx, "UPDATE resources SET data=jsonb_set(data,'{previewClosed}','true'),version=version+1 WHERE kind='application' AND data->>'previewOf'=$1 RETURNING id", app)

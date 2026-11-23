@@ -5,20 +5,37 @@ import { useState } from "react";
 
 import { Input } from "@/components/ui/input";
 
-import type { McpProject } from "../generics";
+import type { McpProject, McpToken } from "../generics";
+
+const writePermissions = [
+  ["configure", "Configuration"],
+  ["lifecycle", "Lifecycle"],
+  ["freshDeploy", "Fresh deploy"],
+  ["cleanup", "Cleanup"],
+] as const;
 
 export type McpProjectPickerProps = {
   projects: McpProject[];
   projectIds: string[];
+  projectPermissions: McpToken["projectPermissions"];
   pending: boolean;
 };
 export function McpProjectPicker({
   projects,
   projectIds,
+  projectPermissions,
   pending,
 }: McpProjectPickerProps) {
   const [filter, setFilter] = useState("");
   const [selection, setSelection] = useState(() => new Set(projectIds));
+  const [grants, setGrants] = useState(
+    () =>
+      new Set(
+        Object.entries(projectPermissions).flatMap(([id, permissions]) =>
+          permissions.map((permission) => `${id}:${permission}`),
+        ),
+      ),
+  );
   const selectedIds = projects.flatMap(({ id }) =>
     selection.has(id) ? [id] : [],
   );
@@ -36,6 +53,16 @@ export function McpProjectPicker({
   function selectProject(event: ChangeEvent<HTMLInputElement>) {
     const { checked, value } = event.currentTarget;
     setSelection((previous) => {
+      const next = new Set(previous);
+      if (checked) next.add(value);
+      else next.delete(value);
+      return next;
+    });
+  }
+
+  function selectGrant(event: ChangeEvent<HTMLInputElement>) {
+    const { checked, value } = event.currentTarget;
+    setGrants((previous) => {
       const next = new Set(previous);
       if (checked) next.add(value);
       else next.delete(value);
@@ -70,24 +97,47 @@ export function McpProjectPicker({
             </p>
           )}
           {visible.map((project) => (
-            <label
-              key={project.id}
-              className="flex cursor-pointer items-center gap-3 px-3 py-2.5 text-sm hover:bg-muted/50"
-            >
-              <input
-                type="checkbox"
-                value={project.id}
-                checked={selection.has(project.id)}
-                onChange={selectProject}
-                className="size-4 shrink-0 accent-primary"
-              />
-              <span className="min-w-0 wrap-break-word">
-                <span className="text-muted-foreground">
-                  {project.teamName} /{" "}
+            <div key={project.id}>
+              <label className="flex cursor-pointer items-center gap-3 px-3 py-2.5 text-sm hover:bg-muted/50">
+                <input
+                  type="checkbox"
+                  value={project.id}
+                  checked={selection.has(project.id)}
+                  onChange={selectProject}
+                  className="size-4 shrink-0 accent-primary"
+                />
+                <span className="min-w-0 wrap-break-word">
+                  {project.teamName && (
+                    <span className="text-muted-foreground">
+                      {project.teamName} /{" "}
+                    </span>
+                  )}
+                  {project.name}
                 </span>
-                {project.name}
-              </span>
-            </label>
+              </label>
+              {project.canWrite && selection.has(project.id) && (
+                <fieldset className="flex flex-wrap gap-x-4 gap-y-2 px-3 pb-3 pl-10 text-xs">
+                  <legend className="mb-1 text-muted-foreground">
+                    Application permissions for {project.name}
+                  </legend>
+                  {writePermissions.map(([permission, label]) => (
+                    <label
+                      key={permission}
+                      className="flex items-center gap-1.5"
+                    >
+                      <input
+                        type="checkbox"
+                        value={`${project.id}:${permission}`}
+                        checked={grants.has(`${project.id}:${permission}`)}
+                        onChange={selectGrant}
+                        className="accent-primary"
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </fieldset>
+              )}
+            </div>
           ))}
         </div>
         <div
@@ -100,6 +150,21 @@ export function McpProjectPicker({
       {selectedIds.map((id) => (
         <input key={id} type="hidden" name="projectIds" value={id} />
       ))}
+      {projects
+        .filter((project) => project.canWrite && selection.has(project.id))
+        .flatMap((project) =>
+          writePermissions
+            .map(([permission]) => `${project.id}:${permission}`)
+            .filter((grant) => grants.has(grant))
+            .map((grant) => (
+              <input
+                key={grant}
+                type="hidden"
+                name="projectPermission"
+                value={grant}
+              />
+            )),
+        )}
     </fieldset>
   );
 }

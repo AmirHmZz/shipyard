@@ -205,6 +205,9 @@ func (s *Store) save(ctx context.Context, id string, in model.ResourceInput, che
 	if _, err = tx.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended('resource-tree',0))"); err != nil {
 		return model.Resource{}, err
 	}
+	if err = CheckMCPWrite(ctx, tx); err != nil {
+		return model.Resource{}, err
+	}
 	if id == "" {
 		id = uuid.NewString()
 	}

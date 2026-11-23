@@ -57,6 +57,9 @@ func (s *Store) SaveAutomation(ctx context.Context, app string, p model.Automati
 	if _, err = tx.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended('resource-tree',0))"); err != nil {
 		return err
 	}
+	if err = CheckMCPWrite(ctx, tx); err != nil {
+		return err
+	}
 	var raw []byte
 	if err = tx.QueryRow(ctx, "SELECT data FROM resources WHERE id=$1 AND kind='application'", app).Scan(&raw); err != nil {
 		return err

@@ -73,6 +73,15 @@ export function useMcpTokenActions() {
     if (pending || !action) return;
     const data = new FormData(event.currentTarget);
     const projectIds = data.getAll("projectIds");
+    const permissions: Record<string, unknown[]> = {};
+    for (const entry of data.getAll("projectPermission")) {
+      if (typeof entry !== "string") continue;
+      const [project, permission] = entry.split(":");
+      if (project && permission) (permissions[project] ??= []).push(permission);
+    }
+    const projectPermissions = Object.keys(permissions).length
+      ? permissions
+      : undefined;
     const expiryDays = data.get("expiryDays");
 
     switch (action.kind) {
@@ -80,6 +89,7 @@ export function useMcpTokenActions() {
         const parsed = z.safeParse(mcpTokenInputSchema, {
           name: data.get("name"),
           projectIds,
+          projectPermissions,
           expiryDays,
         });
         if (parsed.success) issue.mutate(parsed.data);
@@ -87,7 +97,10 @@ export function useMcpTokenActions() {
         break;
       }
       case "edit": {
-        const parsed = z.safeParse(mcpTokenAccessSchema, { projectIds });
+        const parsed = z.safeParse(mcpTokenAccessSchema, {
+          projectIds,
+          projectPermissions,
+        });
         if (parsed.success)
           edit.mutate({ id: action.id, ...parsed.data }, { onSuccess: close });
         else toastValidationError(parsed.error);

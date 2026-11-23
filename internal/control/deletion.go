@@ -41,6 +41,9 @@ func (c *Controller) QueueDeletion(ctx context.Context, resource model.Resource,
 	if _, err = tx.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended('resource-tree',0))"); err != nil {
 		return "", err
 	}
+	if err = db.CheckMCPWrite(ctx, tx); err != nil {
+		return "", err
+	}
 	var raw []byte
 	if err = tx.QueryRow(ctx, "SELECT data FROM resources WHERE id=$1 FOR UPDATE", resource.ID).Scan(&raw); err != nil {
 		return "", err

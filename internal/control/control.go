@@ -162,6 +162,10 @@ func (c *Controller) queue(ctx context.Context, app model.Resource, ref, rollbac
 	if key != "" {
 		id = uuid.NewSHA1(uuid.NameSpaceURL, []byte(key+":"+app.ID)).String()
 	}
+	mcpDeploymentID := db.MCPWrite(ctx).DeploymentID
+	if mcpDeploymentID != "" {
+		id = mcpDeploymentID
+	}
 	b, e := json.Marshal(snapshot)
 	if e != nil {
 		return model.Deployment{}, e
@@ -177,6 +181,21 @@ func (c *Controller) queue(ctx context.Context, app model.Resource, ref, rollbac
 	defer tx.Rollback(ctx)
 	if _, e = tx.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended('resource-tree',0))"); e != nil {
 		return model.Deployment{}, e
+	}
+	if e = db.CheckMCPWrite(ctx, tx); e != nil {
+		return model.Deployment{}, e
+	}
+	if mcpDeploymentID != "" {
+		var exists bool
+		if e = tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM deployments WHERE id=$1 AND app_id=$2)", id, app.ID).Scan(&exists); e != nil {
+			return model.Deployment{}, e
+		}
+		if exists {
+			if e = tx.Rollback(ctx); e != nil {
+				return model.Deployment{}, e
+			}
+			return c.Store.Deployment(ctx, id)
+		}
 	}
 	var deleting bool
 	if e = tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM resources WHERE (id=$1 OR id=$2) AND data->>'deleting'='true')", app.ID, spec.ServerID).Scan(&deleting); e != nil {
@@ -205,7 +224,7 @@ func (c *Controller) queue(ctx context.Context, app model.Resource, ref, rollbac
 	if freshBusy {
 		return model.Deployment{}, fmt.Errorf("%w: Fresh deploy recovery is still in progress", db.ErrConflict)
 	}
-	if snapshot.Fresh {
+	if snapshot.Fresh || mcpDeploymentID != "" {
 		var version int
 		if e = tx.QueryRow(ctx, "SELECT version FROM resources WHERE id=$1", app.ID).Scan(&version); e != nil {
 			return model.Deployment{}, e

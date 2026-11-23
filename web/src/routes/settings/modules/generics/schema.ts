@@ -237,12 +237,21 @@ export const mcpProjectSchema = z.object({
   id: z.string(),
   name: z.string(),
   teamName: z.string(),
+  canWrite: z.boolean(),
 });
+
+const mcpProjectPermissionsSchema = z.record(
+  z.string(),
+  z.array(z.enum(["configure", "lifecycle", "freshDeploy", "cleanup"])),
+);
 
 export const mcpTokenSchema = z.object({
   id: z.string(),
   name: z.string(),
+  ownerId: z.nullable(z.string()),
+  ownerName: z.nullable(z.string()),
   projectIds: z.array(z.string()),
+  projectPermissions: mcpProjectPermissionsSchema,
   createdAt: z.string(),
   expiresAt: z.string(),
   revokedAt: z.optional(z.string()),
@@ -263,6 +272,7 @@ export const mcpTokenAccessSchema = z.object({
   projectIds: z
     .array(z.uuid())
     .check(z.minLength(1, "Select at least one project."), z.maxLength(100)),
+  projectPermissions: z.optional(mcpProjectPermissionsSchema),
 });
 
 export const mcpTokenRecreationSchema = z.object({

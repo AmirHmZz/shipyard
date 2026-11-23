@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { DialogFooter } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
 
-import type { McpProject } from "../generics";
+import type { McpProject, McpToken } from "../generics";
 
 import { McpProjectPicker } from "./McpProjectPicker";
 
@@ -13,6 +13,7 @@ export type McpTokenFormProps = {
   mode: "create" | "edit" | "recreate";
   projects: McpProject[];
   projectIds: string[];
+  projectPermissions: McpToken["projectPermissions"];
   pending: boolean;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onCancel: () => void;
@@ -21,6 +22,7 @@ export function McpTokenForm({
   mode,
   projects,
   projectIds,
+  projectPermissions,
   pending,
   onSubmit,
   onCancel,
@@ -68,6 +70,7 @@ export function McpTokenForm({
         <McpProjectPicker
           projects={projects}
           projectIds={projectIds}
+          projectPermissions={projectPermissions}
           pending={pending}
         />
       )}

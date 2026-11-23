@@ -11,7 +11,10 @@ export function useEditMcpTokenAccess() {
     method: "PATCH",
     path: ({ id }: McpTokenAccess & { id: string }) =>
       apiPath`/settings/mcp-tokens/${id}`,
-    body: ({ projectIds }) => ({ projectIds }),
+    body: ({ projectIds, projectPermissions }) => ({
+      projectIds,
+      projectPermissions,
+    }),
     schema: okResponseSchema,
     invalidate: [settingsKeys.mcpTokens],
     meta: { successMessage: "Project access updated" },

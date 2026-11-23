@@ -105,6 +105,9 @@ func lockJobApp(ctx context.Context, tx pgx.Tx, app string) error {
 	if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended('resource-tree',0))"); err != nil {
 		return err
 	}
+	if err := CheckMCPWrite(ctx, tx); err != nil {
+		return err
+	}
 	var maintenance bool
 	if err := tx.QueryRow(ctx, "SELECT COALESCE((SELECT value::text='true' FROM settings WHERE key='maintenance'),false)").Scan(&maintenance); err != nil {
 		return err
@@ -281,8 +284,18 @@ func (s *Store) JobEvents(ctx context.Context, run string, after int64) ([]model
 	return out, rows.Err()
 }
 func (s *Store) CancelJobRun(ctx context.Context, app, id string) error {
-	_, err := s.Pool.Exec(ctx, "UPDATE job_runs SET state=CASE WHEN state IN ('queued','retry_wait') THEN 'cancelled' ELSE 'cancelling' END,finished_at=CASE WHEN state IN ('queued','retry_wait') THEN now() ELSE finished_at END,cleanup_pending=EXISTS(SELECT 1 FROM job_attempts WHERE run_id=$2 AND NOT cleaned) WHERE app_id=$1 AND id=$2 AND state IN "+ActiveJobStates, app, id)
-	return err
+	tx, err := s.Pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	if err := CheckMCPWrite(ctx, tx); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, "UPDATE job_runs SET state=CASE WHEN state IN ('queued','retry_wait') THEN 'cancelled' ELSE 'cancelling' END,finished_at=CASE WHEN state IN ('queued','retry_wait') THEN now() ELSE finished_at END,cleanup_pending=EXISTS(SELECT 1 FROM job_attempts WHERE run_id=$2 AND NOT cleaned) WHERE app_id=$1 AND id=$2 AND state IN "+ActiveJobStates, app, id); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 // DispatchJobSchedules atomically advances cursors and reserves execution slots.

@@ -2,11 +2,15 @@ package db
 
 import (
 	"context"
+	"errors"
 	"testing"
+
+	"github.com/jackc/pgx/v5"
+	"shipyard/internal/secure"
 )
 
 func TestMigrationsRoundTripHistoryAndApproval(t *testing.T) {
-	const latest = 12
+	const latest = 14
 	s := testStore(t)
 	ctx := context.Background()
 	catalog, e := MigrationCatalog()
@@ -22,7 +26,10 @@ func TestMigrationsRoundTripHistoryAndApproval(t *testing.T) {
 	if _, e = s.Pool.Exec(ctx, "INSERT INTO resources(id,kind,name) VALUES('mcp-project','project','MCP project')"); e != nil {
 		t.Fatal(e)
 	}
-	if _, _, e = s.IssueMCPToken(ctx, "retained", "Migration test", []string{"mcp-project"}, 30); e != nil {
+	if _, e = s.Pool.Exec(ctx, "INSERT INTO users(id,email,name,password,admin) VALUES('issuer','issuer@example.com','Issuer','hash',true)"); e != nil {
+		t.Fatal(e)
+	}
+	if _, _, e = s.IssueMCPToken(ctx, "issuer", "Migration test", []string{"mcp-project"}, 30); e != nil {
 		t.Fatal(e)
 	}
 	if e = ApplyMigrations(ctx, s.Pool, 11, false); e == nil {
@@ -48,7 +55,7 @@ func TestMigrationsRoundTripHistoryAndApproval(t *testing.T) {
 	if e = ApplyMigrations(ctx, s.Pool, latest, true); e != nil {
 		t.Fatal(e)
 	}
-	if tokens, err := s.MCPTokens(ctx); err != nil || len(tokens) != 0 {
+	if tokens, err := s.MCPTokens(ctx, "issuer"); err != nil || len(tokens) != 0 {
 		t.Fatalf("round trip retained MCP tokens: %d, %v", len(tokens), err)
 	}
 	if e = s.Pool.QueryRow(ctx, "SELECT name FROM resources WHERE id='mcp-project'").Scan(&name); e != nil || name != "MCP project" {
@@ -63,6 +70,63 @@ func TestMigrationsRoundTripHistoryAndApproval(t *testing.T) {
 	}
 	if _, e = MigrationState(ctx, s.Pool); e == nil {
 		t.Fatal("migration tampering accepted")
+	}
+}
+
+func TestMCPTokenOwnershipMigration(t *testing.T) {
+	s := testStore(t)
+	ctx := t.Context()
+	if err := ApplyMigrations(ctx, s.Pool, 12, true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Pool.Exec(ctx, `
+		INSERT INTO users(id,email,name,password,admin) VALUES('admin','admin@example.test','Admin','hash',true);
+		INSERT INTO resources(id,kind,name) VALUES('project','project','Project');
+		INSERT INTO mcp_tokens(id,name,token_hash,expires_at) VALUES('legacy','Legacy','legacy-hash',now()+interval '1 day');
+		INSERT INTO mcp_token_projects(token_id,project_id) VALUES('legacy','project');`); err != nil {
+		t.Fatal(err)
+	}
+	if err := ApplyMigrations(ctx, s.Pool, 13, false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Pool.Exec(ctx, `
+		INSERT INTO mcp_tokens(id,name,token_hash,expires_at,owner_id) VALUES('owned','Owned','owned-hash',now()+interval '1 day','admin');
+		INSERT INTO mcp_token_projects(token_id,project_id) VALUES('owned','project');`); err != nil {
+		t.Fatal(err)
+	}
+	if err := ApplyMigrations(ctx, s.Pool, 14, false); err != nil {
+		t.Fatal(err)
+	}
+	if id, err := s.MCPTokenID(ctx, "owned-hash"); err != nil || id != "owned" {
+		t.Fatalf("existing owned credential changed during grant migration: %q %v", id, err)
+	}
+	if _, err := s.MCPTokenID(ctx, "legacy-hash"); !errors.Is(err, pgx.ErrNoRows) {
+		t.Fatal("legacy credential survived the upgrade", err)
+	}
+	tokens, err := s.MCPTokens(ctx, "admin")
+	if err != nil || len(tokens) != 2 || tokens[0].ID != "owned" || len(tokens[0].ProjectPermissions) != 0 ||
+		tokens[1].ID != "legacy" || tokens[1].OwnerID != nil || tokens[1].RevokedAt == nil {
+		t.Fatalf("expected a revoked legacy record: %+v %v", tokens, err)
+	}
+	if _, _, err := s.RecreateMCPToken(ctx, "admin", "legacy", 30); !errors.Is(err, pgx.ErrNoRows) {
+		t.Fatal("legacy token could be recreated", err)
+	}
+	_, secret, err := s.IssueMCPToken(ctx, "admin", "Replacement", []string{"project"}, 30)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ApplyMigrations(ctx, s.Pool, 12, false); err == nil {
+		t.Fatal("downgrade accepted without data-loss approval")
+	}
+	if err := ApplyMigrations(ctx, s.Pool, 12, true); err != nil {
+		t.Fatal(err)
+	}
+	var legacyRevoked, replacementExists bool
+	err = s.Pool.QueryRow(ctx, `SELECT
+		EXISTS (SELECT 1 FROM mcp_tokens WHERE id='legacy' AND revoked_at IS NOT NULL),
+		EXISTS (SELECT 1 FROM mcp_tokens WHERE token_hash=$1)`, secure.Hash(secret)).Scan(&legacyRevoked, &replacementExists)
+	if err != nil || !legacyRevoked || replacementExists {
+		t.Fatalf("unexpected credentials after downgrade: legacy revoked=%t, replacement exists=%t: %v", legacyRevoked, replacementExists, err)
 	}
 }
 func testURLForPool(t *testing.T, s *Store) string { t.Helper(); return s.Pool.Config().ConnString() }

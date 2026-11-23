@@ -620,7 +620,7 @@
     },
     "/settings/mcp-tokens": {
       "get": {
-        "summary": "List MCP token metadata and available projects",
+        "summary": "List owned MCP tokens and readable projects, with all tokens visible to platform administrators",
         "parameters": [],
         "responses": {
           "200": {
@@ -672,7 +672,7 @@
         }
       },
       "post": {
-        "summary": "Issue a project-scoped MCP token as a platform administrator",
+        "summary": "Issue an MCP token limited to projects the signed-in user can read",
         "parameters": [],
         "responses": {
           "201": {
@@ -742,7 +742,7 @@
     },
     "/settings/mcp-tokens/{id}": {
       "patch": {
-        "summary": "Replace an MCP token's allowed projects as a platform administrator",
+        "summary": "Replace the selected projects on an owned MCP token",
         "parameters": [
           {
             "in": "path",
@@ -813,7 +813,7 @@
         }
       },
       "delete": {
-        "summary": "Revoke an MCP token as a platform administrator",
+        "summary": "Revoke an MCP token as its owner or a platform administrator",
         "parameters": [
           {
             "in": "path",
@@ -882,7 +882,7 @@
     },
     "/settings/mcp-tokens/{id}/recreate": {
       "post": {
-        "summary": "Replace an MCP token's secret and reset its lifetime as a platform administrator",
+        "summary": "Replace an owned MCP token's secret and reset its lifetime",
         "parameters": [
           {
             "in": "path",
@@ -961,7 +961,7 @@
     },
     "/settings/mcp-tokens/{id}/record": {
       "delete": {
-        "summary": "Permanently delete an MCP token record as a platform administrator",
+        "summary": "Permanently delete an MCP token record as its owner or a platform administrator",
         "parameters": [
           {
             "in": "path",
@@ -12905,13 +12905,35 @@
           },
           "teamName": {
             "type": "string"
+          },
+          "canWrite": {
+            "type": "boolean"
           }
         },
         "required": [
           "id",
           "name",
-          "teamName"
+          "teamName",
+          "canWrite"
         ]
+      },
+      "MCPProjectPermissions": {
+        "type": "object",
+        "description": "Write permissions keyed by selected project ID.",
+        "additionalProperties": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "configure",
+              "lifecycle",
+              "freshDeploy",
+              "cleanup"
+            ]
+          }
+        }
       },
       "MCPToken": {
         "type": "object",
@@ -12922,11 +12944,24 @@
           "name": {
             "type": "string"
           },
+          "ownerId": {
+            "type": "string",
+            "description": "Null for a revoked token that predates ownership.",
+            "nullable": true
+          },
+          "ownerName": {
+            "type": "string",
+            "nullable": true
+          },
           "projectIds": {
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "description": "Selected projects the owner can currently read."
+          },
+          "projectPermissions": {
+            "$ref": "#/components/schemas/MCPProjectPermissions"
           },
           "createdAt": {
             "type": "string",
@@ -12944,7 +12979,10 @@
         "required": [
           "id",
           "name",
+          "ownerId",
+          "ownerName",
           "projectIds",
+          "projectPermissions",
           "createdAt",
           "expiresAt"
         ]
@@ -12966,6 +13004,9 @@
             "minItems": 1,
             "maxItems": 100,
             "uniqueItems": true
+          },
+          "projectPermissions": {
+            "$ref": "#/components/schemas/MCPProjectPermissions"
           },
           "expiryDays": {
             "type": "integer",
@@ -12992,6 +13033,9 @@
             "minItems": 1,
             "maxItems": 100,
             "uniqueItems": true
+          },
+          "projectPermissions": {
+            "$ref": "#/components/schemas/MCPProjectPermissions"
           }
         },
         "required": [

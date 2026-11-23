@@ -1,0 +1,11 @@
+{
+  "name": "User-owned MCP tokens",
+  "up": {
+    "classification": "non-destructive",
+    "impact": "Revoke every existing MCP credential and retain its record. Users must issue replacement credentials and update their MCP clients."
+  },
+  "down": {
+    "classification": "destructive",
+    "impact": "Delete all user-owned MCP token records and invalidate their credentials. Previously revoked records remain revoked."
+  }
+}

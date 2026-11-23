@@ -798,17 +798,54 @@ schemas.DashboardAccessInput = object(
   },
   ["version", "domain"],
 );
-schemas.MCPProject = object({ id: str, name: str, teamName: str });
+schemas.MCPProject = object({
+  id: str,
+  name: str,
+  teamName: str,
+  canWrite: bool,
+});
+schemas.MCPProjectPermissions = {
+  type: "object",
+  description: "Write permissions keyed by selected project ID.",
+  additionalProperties: {
+    type: "array",
+    minItems: 1,
+    uniqueItems: true,
+    items: {
+      type: "string",
+      enum: ["configure", "lifecycle", "freshDeploy", "cleanup"],
+    },
+  },
+};
 schemas.MCPToken = object(
   {
     id: str,
     name: str,
-    projectIds: { type: "array", items: str },
+    ownerId: nullable({
+      ...str,
+      description: "Null for a revoked token that predates ownership.",
+    }),
+    ownerName: nullable(str),
+    projectIds: {
+      type: "array",
+      items: str,
+      description: "Selected projects the owner can currently read.",
+    },
+    projectPermissions: ref("MCPProjectPermissions"),
     createdAt: { type: "string", format: "date-time" },
     expiresAt: { type: "string", format: "date-time" },
     revokedAt: { type: "string", format: "date-time" },
   },
-  ["id", "name", "projectIds", "createdAt", "expiresAt"],
+  [
+    "id",
+    "name",
+    "ownerId",
+    "ownerName",
+    "projectIds",
+    "projectPermissions",
+    "createdAt",
+    "expiresAt",
+  ],
 );
 const mcpTokenAccess = {
   projectIds: {
@@ -818,6 +855,7 @@ const mcpTokenAccess = {
     maxItems: 100,
     uniqueItems: true,
   },
+  projectPermissions: ref("MCPProjectPermissions"),
 };
 const mcpTokenExpiry = {
   expiryDays: { type: "integer", minimum: 1, maximum: 365, default: 30 },
@@ -830,7 +868,7 @@ schemas.MCPTokenInput = input(
   },
   ["name", "projectIds"],
 );
-schemas.MCPTokenAccessInput = input(mcpTokenAccess);
+schemas.MCPTokenAccessInput = input(mcpTokenAccess, ["projectIds"]);
 schemas.MCPTokenRecreationInput = input(mcpTokenExpiry, []);
 schemas.MCPTokens = object({
   endpoint: str,
@@ -1086,13 +1124,13 @@ add(
 add(
   "/settings/mcp-tokens",
   "get",
-  "List MCP token metadata and available projects",
+  "List owned MCP tokens and readable projects, with all tokens visible to platform administrators",
   ref("MCPTokens"),
 );
 add(
   "/settings/mcp-tokens",
   "post",
-  "Issue a project-scoped MCP token as a platform administrator",
+  "Issue an MCP token limited to projects the signed-in user can read",
   ref("MCPIssuedToken"),
   ref("MCPTokenInput"),
 );
@@ -1102,27 +1140,27 @@ delete paths["/settings/mcp-tokens"].post.responses[200];
 add(
   "/settings/mcp-tokens/{id}",
   "patch",
-  "Replace an MCP token's allowed projects as a platform administrator",
+  "Replace the selected projects on an owned MCP token",
   ref("Ok"),
   ref("MCPTokenAccessInput"),
 );
 add(
   "/settings/mcp-tokens/{id}",
   "delete",
-  "Revoke an MCP token as a platform administrator",
+  "Revoke an MCP token as its owner or a platform administrator",
   ref("Ok"),
 );
 add(
   "/settings/mcp-tokens/{id}/recreate",
   "post",
-  "Replace an MCP token's secret and reset its lifetime as a platform administrator",
+  "Replace an owned MCP token's secret and reset its lifetime",
   ref("MCPIssuedToken"),
   ref("MCPTokenRecreationInput"),
 );
 add(
   "/settings/mcp-tokens/{id}/record",
   "delete",
-  "Permanently delete an MCP token record as a platform administrator",
+  "Permanently delete an MCP token record as its owner or a platform administrator",
   ref("Ok"),
 );
 for (const [path, method] of [

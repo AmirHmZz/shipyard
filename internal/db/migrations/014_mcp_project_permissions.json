@@ -1,0 +1,11 @@
+{
+  "name": "MCP application permissions",
+  "up": {
+    "classification": "non-destructive",
+    "impact": "Add optional application write grants. Existing tokens retain their read access and secrets."
+  },
+  "down": {
+    "classification": "non-destructive",
+    "impact": "Remove MCP write grants. Existing tokens retain their read access and secrets."
+  }
+}

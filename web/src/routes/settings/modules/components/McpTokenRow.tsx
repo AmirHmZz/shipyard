@@ -23,14 +23,20 @@ import { cn } from "@/lib/utils";
 
 import type { McpToken } from "../generics";
 
+import { mcpPermissionLabels } from "../generics";
+
 export type McpTokenRowProps = {
   token: McpToken;
+  owned: boolean;
+  canSelectProjects: boolean;
   projectNames: Map<string, string>;
   now: number;
   onAction: (event: MouseEvent<HTMLDivElement>) => void;
 };
 export function McpTokenRow({
   token,
+  owned,
+  canSelectProjects,
   projectNames,
   now,
   onAction,
@@ -40,9 +46,14 @@ export function McpTokenRow({
   let status = "Active";
   if (token.revokedAt) status = "Revoked";
   else if (date.getTime() <= now) status = "Expired";
-  const otherProjects = token.projectIds
-    .slice(2)
-    .map((id) => projectNames.get(id) ?? "Unavailable project");
+  else if (token.projectIds.length === 0) status = "No project access";
+  const otherProjects = token.projectIds.slice(2).map((id) => {
+    const name = projectNames.get(id) ?? "Unavailable project";
+    const grants = token.projectPermissions[id]?.map(
+      (permission) => mcpPermissionLabels[permission],
+    );
+    return grants?.length ? `${name} (${grants.join(", ")})` : name;
+  });
 
   return (
     <li className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-3 px-4 py-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_minmax(7rem,0.6fr)_auto] lg:items-center lg:gap-x-5">
@@ -50,9 +61,14 @@ export function McpTokenRow({
         <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border bg-muted/40 text-muted-foreground">
           <KeyRound className="size-4" aria-hidden="true" />
         </div>
-        <h3 className="min-w-0 text-sm font-semibold wrap-break-word">
-          {token.name}
-        </h3>
+        <div className="min-w-0 wrap-break-word">
+          <h3 className="text-sm font-semibold">{token.name}</h3>
+          {!owned && (
+            <p className="text-xs text-muted-foreground">
+              {token.ownerName ?? "Legacy token"}
+            </p>
+          )}
+        </div>
       </div>
       <div className="col-span-2 row-start-2 flex min-w-0 flex-wrap items-center gap-1.5 lg:col-span-1 lg:row-start-auto">
         {token.projectIds.slice(0, 2).map((id) => (
@@ -66,6 +82,13 @@ export function McpTokenRow({
             />
             <span className="min-w-0 wrap-break-word">
               {projectNames.get(id) ?? "Unavailable project"}
+              {Boolean(token.projectPermissions[id]?.length) && (
+                <span className="block text-muted-foreground">
+                  {token.projectPermissions[id]
+                    ?.map((permission) => mcpPermissionLabels[permission])
+                    .join(", ")}
+                </span>
+              )}
             </span>
           </span>
         ))}
@@ -99,7 +122,7 @@ export function McpTokenRow({
           {status}
         </Badge>
         <span className="text-xs text-muted-foreground">
-          {status === "Active" && "Expires "}
+          {!token.revokedAt && date.getTime() > now && "Expires "}
           <time dateTime={statusDate} title={date.toLocaleString()}>
             {date.toLocaleDateString(undefined, { dateStyle: "medium" })}
           </time>
@@ -118,22 +141,27 @@ export function McpTokenRow({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-40">
-            <DropdownMenuItem
-              data-token={token.id}
-              data-action="edit"
-              onClick={onAction}
-            >
-              <SlidersHorizontal aria-hidden="true" /> Edit access
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              data-token={token.id}
-              data-action="recreate"
-              onClick={onAction}
-              disabled={token.projectIds.length === 0}
-            >
-              <RefreshCw aria-hidden="true" /> Recreate token
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
+            {owned && (
+              <>
+                <DropdownMenuItem
+                  data-token={token.id}
+                  data-action="edit"
+                  onClick={onAction}
+                  disabled={!canSelectProjects}
+                >
+                  <SlidersHorizontal aria-hidden="true" /> Edit access
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  data-token={token.id}
+                  data-action="recreate"
+                  onClick={onAction}
+                  disabled={token.projectIds.length === 0}
+                >
+                  <RefreshCw aria-hidden="true" /> Recreate token
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            )}
             {!token.revokedAt && (
               <DropdownMenuItem
                 data-token={token.id}

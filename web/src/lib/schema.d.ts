@@ -440,7 +440,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List MCP token metadata and available projects */
+        /** List owned MCP tokens and readable projects, with all tokens visible to platform administrators */
         get: {
             parameters: {
                 query?: never;
@@ -474,7 +474,7 @@ export interface paths {
             };
         };
         put?: never;
-        /** Issue a project-scoped MCP token as a platform administrator */
+        /** Issue an MCP token limited to projects the signed-in user can read */
         post: {
             parameters: {
                 query?: never;
@@ -527,7 +527,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Revoke an MCP token as a platform administrator */
+        /** Revoke an MCP token as its owner or a platform administrator */
         delete: {
             parameters: {
                 query?: never;
@@ -564,7 +564,7 @@ export interface paths {
         };
         options?: never;
         head?: never;
-        /** Replace an MCP token's allowed projects as a platform administrator */
+        /** Replace the selected projects on an owned MCP token */
         patch: {
             parameters: {
                 query?: never;
@@ -614,7 +614,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Replace an MCP token's secret and reset its lifetime as a platform administrator */
+        /** Replace an owned MCP token's secret and reset its lifetime */
         post: {
             parameters: {
                 query?: never;
@@ -669,7 +669,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Permanently delete an MCP token record as a platform administrator */
+        /** Permanently delete an MCP token record as its owner or a platform administrator */
         delete: {
             parameters: {
                 query?: never;
@@ -7477,11 +7477,21 @@ export interface components {
             id: string;
             name: string;
             teamName: string;
+            canWrite: boolean;
+        };
+        /** @description Write permissions keyed by selected project ID. */
+        MCPProjectPermissions: {
+            [key: string]: ("configure" | "lifecycle" | "freshDeploy" | "cleanup")[];
         };
         MCPToken: {
             id: string;
             name: string;
+            /** @description Null for a revoked token that predates ownership. */
+            ownerId: string | null;
+            ownerName: string | null;
+            /** @description Selected projects the owner can currently read. */
             projectIds: string[];
+            projectPermissions: components["schemas"]["MCPProjectPermissions"];
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -7492,11 +7502,13 @@ export interface components {
         MCPTokenInput: {
             name: string;
             projectIds: string[];
+            projectPermissions?: components["schemas"]["MCPProjectPermissions"];
             /** @default 30 */
             expiryDays: number;
         };
         MCPTokenAccessInput: {
             projectIds: string[];
+            projectPermissions?: components["schemas"]["MCPProjectPermissions"];
         };
         MCPTokenRecreationInput: {
             /** @default 30 */
