@@ -38,7 +38,7 @@ async function fixture(page: Page, writable = true, provider = "gitea") {
       name: "Production",
     },
     resource("server", "server"),
-    resource("git", "git", "", { provider }),
+    { ...resource("git", "git", "", { provider }), teamId: "" },
     resource("zone", "zone", "dns", { domain: "example.com" }),
     resource("other-zone", "zone", "dns", { domain: "example.org" }),
     resource("app", "application", "env", {

@@ -95,7 +95,10 @@ async function setup(
           resource("project", "project", "team"),
           resource("environment", "environment", "project"),
           resource("server", "server"),
-          resource("git", "git", "", { provider: "gitea" }),
+          {
+            ...resource("git", "git", "", { provider: "gitea" }),
+            teamId: "",
+          },
           ...(existing ? [{ ...app, version: document.version }] : []),
         ],
       });
