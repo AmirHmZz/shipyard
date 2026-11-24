@@ -22,12 +22,17 @@ import { useReconnectGit } from "./useReconnectGit";
 import { useSaveGiteaInstance } from "./useSaveGiteaInstance";
 import { useStartGitSetup } from "./useStartGitSetup";
 
-export function useGitConnectionForm(existing?: Resource) {
+export function useGitConnectionForm(
+  admin: boolean,
+  teams: Resource[],
+  existing?: Resource,
+) {
   const changes = useConfigurationChanges();
+  const firstTeamId = !admin && teams.length === 1 ? teams[0]?.id : undefined;
   const [state, dispatch] = useReducer(
     gitConnectionReducer,
     existing,
-    initialGitConnectionState,
+    (resource) => initialGitConnectionState(resource, firstTeamId),
   );
   const startSetup = useStartGitSetup();
   const reconnect = useReconnectGit(existing?.id ?? "");
@@ -44,8 +49,13 @@ export function useGitConnectionForm(existing?: Resource) {
     saveInstance.error ||
     createWebhook.error;
   const error = mutationError ? describeError(mutationError) : "";
-  const instances = useGiteaInstances(state.provider);
-  const config = useGitSetupConfig();
+  const canConnect = admin || teams.some((team) => team.id === state.teamId);
+  const instances = useGiteaInstances(
+    state.provider,
+    state.teamId,
+    canConnect && (admin || !existing),
+  );
+  const config = useGitSetupConfig(admin);
   const status = useGitSetupStatus(existing);
   const callback = config.data?.giteaCallback || "";
   const selected = instances.data?.find(
@@ -68,6 +78,14 @@ export function useGitConnectionForm(existing?: Resource) {
   function setOwner(value: string) {
     dispatch({ type: "field_changed", field: "owner", value });
   }
+  function setTeamId(value: string) {
+    dispatch({
+      type: "field_changed",
+      field: "teamId",
+      value: value === "shared" ? "" : value,
+    });
+    resetErrors();
+  }
   function setInstanceId(value: string) {
     dispatch({ type: "field_changed", field: "instanceId", value });
   }
@@ -79,13 +97,16 @@ export function useGitConnectionForm(existing?: Resource) {
     followGitSetup(result);
   }
   function connect() {
-    if (busy) return;
+    if (busy || !canConnect) return;
     resetErrors();
     if (existing) {
       reconnect.mutate(undefined, { onSuccess: completeConnection });
       return;
     }
-    const parsed = gitSetupSchema.safeParse(state);
+    const parsed = gitSetupSchema.safeParse({
+      ...state,
+      teamId: state.teamId || undefined,
+    });
     if (!parsed.success) {
       toastValidationError(parsed.error);
       return;
@@ -96,6 +117,7 @@ export function useGitConnectionForm(existing?: Resource) {
     state,
     derived: {
       busy,
+      canConnect,
       error,
       instances,
       config,
@@ -111,6 +133,7 @@ export function useGitConnectionForm(existing?: Resource) {
       setProvider,
       setName,
       setOwner,
+      setTeamId,
       setInstanceId,
       setInstanceForm,
       connect,

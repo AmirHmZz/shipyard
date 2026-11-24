@@ -29,7 +29,9 @@ func (q *Queries) Heartbeat(ctx context.Context, arg HeartbeatParams) (int64, er
 }
 
 const resourceGranted = `-- name: ResourceGranted :one
-SELECT EXISTS(SELECT 1 FROM resource_grants WHERE resource_id=$1 AND team_id=$2)
+SELECT EXISTS(SELECT 1 FROM resources r WHERE r.id=$1 AND
+  CASE WHEN r.kind='git' AND r.team_id<>'' THEN r.team_id=$2
+  ELSE EXISTS(SELECT 1 FROM resource_grants WHERE resource_id=r.id AND team_id=$2) END)
 `
 
 type ResourceGrantedParams struct {

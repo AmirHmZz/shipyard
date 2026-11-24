@@ -111,6 +111,10 @@ export function useResourceFormController({
     dispatch({ type: "parent_changed", value });
   }
   function setProject(value: string) {
+    const connection = resources.find((resource) => resource.id === data.gitId);
+    const nextProject = resources.find((resource) => resource.id === value);
+    if (connection?.teamId && connection.teamId !== nextProject?.teamId)
+      update("gitId", "");
     dispatch({ type: "project_changed", value });
   }
   function setTeam(value: string) {

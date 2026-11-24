@@ -8,12 +8,18 @@ import { providerName } from "@/lib/providers";
 import { text } from "@/lib/resource-fields";
 import { useAdmin } from "@/lib/session";
 
+import { isDeletableIntegration } from "../generics/isDeletableIntegration";
 import { NotificationDelivery } from "./NotificationDelivery";
-export type IntegrationConnectionProps = { resource: Resource };
+export type IntegrationConnectionProps = {
+  resource: Resource;
+  teamName?: string;
+};
 export function IntegrationConnection({
   resource,
+  teamName,
 }: IntegrationConnectionProps) {
   const admin = useAdmin();
+  const sharedGit = resource.kind === "git" && !resource.teamId;
   return (
     <div className="flex flex-wrap items-center justify-between gap-4 border-t px-6 py-5">
       <div className="flex min-w-0 items-center gap-4">
@@ -36,6 +42,7 @@ export function IntegrationConnection({
                   resource.data,
                   resource.kind === "registry" ? "hostname" : "url",
                 )}
+            {resource.kind === "git" && teamName && ` · ${teamName}`}
           </p>
         </div>
       </div>
@@ -43,7 +50,7 @@ export function IntegrationConnection({
         {admin && resource.kind === "webhook" && (
           <NotificationDelivery id={resource.id} />
         )}
-        {(resource.kind === "git" || resource.kind === "registry") && (
+        {(sharedGit || resource.kind === "registry") && (
           <Button
             disabled={!resource.canWrite}
             variant="outline"
@@ -64,7 +71,7 @@ export function IntegrationConnection({
         >
           Configure
         </Button>
-        {["registry", "proxy", "webhook"].includes(resource.kind) && (
+        {isDeletableIntegration(resource) && (
           <Button
             disabled={!resource.canWrite}
             variant="outline"

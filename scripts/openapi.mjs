@@ -1300,6 +1300,11 @@ add(
       provider: { enum: ["github", "gitea"] },
       owner: str,
       instanceId: str,
+      teamId: {
+        ...str,
+        description:
+          "Team that owns the connection. Required for team owners. Platform administrators may omit this field to create a shared connection.",
+      },
     },
     ["name", "provider"],
   ),
@@ -1310,6 +1315,12 @@ add(
   "List configured Gitea OAuth instances",
   array(ref("GiteaInstance")),
 );
+paths["/git/gitea/instances"].get.parameters.push({
+  name: "teamId",
+  in: "query",
+  schema: str,
+  description: "Required for team owners. Must be a team the caller owns.",
+});
 add(
   "/git/gitea/instances",
   "put",

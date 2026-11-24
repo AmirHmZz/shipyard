@@ -4,7 +4,14 @@ import { expect, test } from "@playwright/test";
 
 import { buildInfoFixture } from "./build-info";
 
-async function setup(page: Page, existing = false, admin = true) {
+type TeamFixture = { id: string; name: string; canWrite: boolean };
+
+async function setup(
+  page: Page,
+  existing = false,
+  admin = true,
+  teams: TeamFixture[] = [],
+) {
   const writes: { path: string; body: Record<string, unknown> }[] = [];
   const instance = {
     id: "instance",
@@ -14,7 +21,7 @@ async function setup(page: Page, existing = false, admin = true) {
     configured: true,
   };
   let secretConfigured = false;
-  let configuredInstances = existing ? [instance] : [];
+  let configuredInstances = existing || teams.length ? [instance] : [];
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
@@ -37,30 +44,44 @@ async function setup(page: Page, existing = false, admin = true) {
       });
     if (path.endsWith("/resources"))
       return route.fulfill({
-        json: existing
-          ? [
-              {
-                parentId: "",
-                teamId: "",
-                variables: {},
-                createdAt: "2026-10-19T00:00:00Z",
-                updatedAt: "2026-10-19T00:00:00Z",
-                id: "git",
-                kind: "git",
-                name: "Team code",
-                data: {
-                  provider: "gitea",
-                  url: instance.url,
-                  instanceId: "instance",
-                  authMethod: "oauth",
-                  status: "ready",
+        json: [
+          ...teams.map((team) => ({
+            ...team,
+            kind: "team",
+            parentId: "",
+            teamId: team.id,
+            data: {},
+            variables: {},
+            secretKeys: [],
+            createdAt: "2026-10-19T00:00:00Z",
+            updatedAt: "2026-10-19T00:00:00Z",
+            version: 1,
+          })),
+          ...(existing
+            ? [
+                {
+                  parentId: teams[0]?.id || "",
+                  teamId: teams[0]?.id || "",
+                  variables: {},
+                  createdAt: "2026-10-19T00:00:00Z",
+                  updatedAt: "2026-10-19T00:00:00Z",
+                  id: "git",
+                  kind: "git",
+                  name: "Team code",
+                  data: {
+                    provider: "gitea",
+                    url: instance.url,
+                    instanceId: "instance",
+                    authMethod: "oauth",
+                    status: "ready",
+                  },
+                  canWrite: admin || !!teams[0]?.canWrite,
+                  secretKeys: ["oauth_token"],
+                  version: 1,
                 },
-                canWrite: admin,
-                secretKeys: ["oauth_token"],
-                version: 1,
-              },
-            ]
-          : [],
+              ]
+            : []),
+        ],
       });
     if (path.endsWith("/git/setup/config"))
       return route.fulfill({
@@ -229,13 +250,88 @@ test("Gitea webhook secrets are shown once and reconnection stays manual for web
   expect(styles.color).not.toBe("auto");
 });
 
-test("non-administrators cannot start provider setup", async ({ page }) => {
-  await setup(page, false, false);
+test("operators can see their team connection but cannot manage it", async ({
+  page,
+}) => {
+  await setup(page, true, false, [
+    { id: "team", name: "Delivery", canWrite: false },
+  ]);
+  const source = page.getByRole("region", {
+    name: "Source control",
+    exact: true,
+  });
+  await expect(source.getByText("Gitea · Delivery")).toBeVisible();
   await expect(
-    page
-      .getByRole("region", { name: "Source control", exact: true })
-      .getByRole("button", { name: "Add connection", exact: true }),
+    source.getByRole("button", { name: "Add connection", exact: true }),
   ).toBeDisabled();
+  await expect(
+    source.getByRole("button", { name: "Configure", exact: true }),
+  ).toBeDisabled();
+  await expect(
+    source.getByRole("button", { name: "Delete", exact: true }),
+  ).toBeDisabled();
+  await page.goto("/configure/source-control/git");
+  await expect(
+    page.getByText(
+      "Team owner access is required to configure this Git connection.",
+    ),
+  ).toBeVisible();
+});
+
+test("team owners can authorize a registered Gitea instance for their team", async ({
+  page,
+}) => {
+  const writes = await setup(page, true, false, [
+    { id: "team", name: "Delivery", canWrite: true },
+    { id: "other-team", name: "Operations", canWrite: false },
+  ]);
+  const source = page.getByRole("region", {
+    name: "Source control",
+    exact: true,
+  });
+  await expect(
+    source.getByRole("button", { name: "Team access", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    source.getByRole("button", { name: "Delete", exact: true }),
+  ).toBeEnabled();
+  await source
+    .getByRole("button", { name: "Add connection", exact: true })
+    .click();
+  const dialog = page.getByRole("main");
+  await expect(dialog.getByLabel("Team access", { exact: true })).toHaveText(
+    "Delivery",
+  );
+  await dialog.getByLabel("Team access", { exact: true }).click();
+  await expect(page.getByRole("option", { name: "Operations" })).toHaveCount(0);
+  await page.getByRole("option", { name: "Delivery" }).click();
+  await expect(
+    dialog.getByRole("button", { name: "Advanced: manual credentials" }),
+  ).toHaveCount(0);
+  await dialog.getByLabel("Connection name").fill("Team Gitea");
+  await dialog.getByLabel("Provider", { exact: true }).click();
+  const instanceRequest = page.waitForRequest(
+    "**/git/gitea/instances?teamId=team",
+  );
+  await page.getByRole("option", { name: "Gitea", exact: true }).click();
+  await instanceRequest;
+  await expect(
+    dialog.getByRole("button", { name: "Add instance", exact: true }),
+  ).toHaveCount(0);
+  await dialog.getByLabel("Gitea instance", { exact: true }).click();
+  await page
+    .getByRole("option", { name: "Gitea instance", exact: true })
+    .click();
+  await dialog
+    .getByRole("button", { name: "Authorize Gitea", exact: true })
+    .click();
+  await expect(
+    dialog.getByText("Authorization cancelled; try again.", { exact: true }),
+  ).toBeVisible();
+  expect(writes.at(-1)?.body).toMatchObject({
+    teamId: "team",
+    instanceId: "instance",
+  });
 });
 
 test("GitHub submits the manifest to the provider and returns to integration status", async ({
@@ -285,6 +381,89 @@ test("GitHub submits the manifest to the provider and returns to integration sta
   });
   await page.getByRole("link", { name: "Install repositories" }).click();
   await expect(page.getByText(/Git connection authorized\./)).toBeVisible();
+});
+
+test("application setup lists ready Git connections for its team and shared options", async ({
+  page,
+}) => {
+  await setup(page);
+  const resource = {
+    teamId: "team",
+    parentId: "team",
+    canWrite: true,
+    data: {},
+    variables: {},
+    secretKeys: [],
+    createdAt: "2026-10-19T00:00:00Z",
+    updatedAt: "2026-10-19T00:00:00Z",
+    version: 1,
+  };
+  const project = {
+    ...resource,
+    id: "project",
+    kind: "project",
+    name: "Project",
+  };
+  const environment = {
+    ...resource,
+    id: "environment",
+    kind: "environment",
+    name: "Production",
+    parentId: project.id,
+  };
+  const ready = {
+    ...resource,
+    id: "ready",
+    kind: "git",
+    name: "Ready team Git",
+    data: { provider: "github", status: "ready" },
+  };
+  await page.route(
+    (endpoint) => endpoint.pathname === "/api/v1/resources",
+    (route) =>
+      route.fulfill({
+        json: [
+          project,
+          environment,
+          ready,
+          {
+            ...ready,
+            id: "pending",
+            name: "Pending team Git",
+            data: { ...ready.data, status: "pending" },
+          },
+          {
+            ...ready,
+            id: "foreign",
+            name: "Other team Git",
+            teamId: "other-team",
+            parentId: "other-team",
+          },
+          {
+            ...ready,
+            id: "shared",
+            name: "Shared Git",
+            teamId: "",
+            parentId: "",
+            data: { provider: "github" },
+          },
+        ],
+      }),
+  );
+  await page.goto("/configure/application/new?parent=environment");
+  await page.getByRole("combobox", { name: "Select git", exact: true }).click();
+  await expect(
+    page.getByRole("option", { name: "Ready team Git", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("option", { name: "Shared Git", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("option", { name: "Pending team Git", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("option", { name: "Other team Git", exact: true }),
+  ).toHaveCount(0);
 });
 
 test("Gitea reconnect redirects for browser consent and returns successfully", async ({

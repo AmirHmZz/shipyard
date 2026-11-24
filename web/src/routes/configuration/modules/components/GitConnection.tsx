@@ -14,6 +14,7 @@ import {
 import { FormField } from "@/components/FormField";
 import { InputField } from "@/components/InputField";
 import { ProviderName } from "@/components/ProviderName";
+import { SelectControl } from "@/components/SelectControl";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,11 +36,15 @@ import { GitWebhookConfiguration } from "./GitWebhookConfiguration";
 
 export type GitConnectionProps = {
   existing?: Resource;
+  admin: boolean;
+  teams: Resource[];
   onClose: () => void;
   onManual: () => void;
 };
 export function GitConnection({
   existing,
+  admin,
+  teams,
   onClose,
   onManual,
 }: GitConnectionProps) {
@@ -65,10 +70,24 @@ export function GitConnection({
     if (selected) setInstanceForm({ ...selected, clientSecret: "" });
   }
 
-  const { state, derived, handlers } = useGitConnectionForm(existing);
-  const { provider, name, owner, instanceId, instanceForm } = state;
+  const { state, derived, handlers } = useGitConnectionForm(
+    admin,
+    teams,
+    existing,
+  );
+  const { provider, name, owner, instanceId, instanceForm, teamId } = state;
+  const teamOptions = teams.map((team) => ({
+    value: team.id,
+    label: team.name,
+  }));
+  if (admin)
+    teamOptions.unshift({
+      value: "shared",
+      label: "Shared with granted teams",
+    });
   const {
     busy,
+    canConnect,
     error,
     instances,
     config,
@@ -84,6 +103,7 @@ export function GitConnection({
     setProvider,
     setName,
     setOwner,
+    setTeamId,
     setInstanceId,
     setInstanceForm,
     connect,
@@ -111,6 +131,18 @@ export function GitConnection({
                 onChange: handleInputChange,
               }}
             />
+            <FormField
+              label={<>Team access</>}
+              labelProps={{ htmlFor: "git-team" }}
+            >
+              <SelectControl
+                value={teamId || (admin ? "shared" : "")}
+                onValueChange={setTeamId}
+                options={teamOptions}
+                placeholder="Select a team"
+                triggerProps={{ id: "git-team", className: "w-full" }}
+              />
+            </FormField>
             <FormField
               label={<>Provider</>}
               labelProps={{ htmlFor: "git-provider" }}
@@ -193,22 +225,29 @@ export function GitConnection({
                 </AlertDescription>
               </Alert>
             )}
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={handleButtonClick}>
-                <Plus />
-                Add instance
-              </Button>
-              {selected && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleButtonClick2}
-                >
-                  <Settings2 />
-                  Edit instance
+            {admin && (
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" onClick={handleButtonClick}>
+                  <Plus />
+                  Add instance
                 </Button>
-              )}
-            </div>
+                {selected && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleButtonClick2}
+                  >
+                    <Settings2 />
+                    Edit instance
+                  </Button>
+                )}
+              </div>
+            )}
+            {!admin && instances.data?.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                Ask a platform administrator to register a Gitea instance.
+              </p>
+            )}
             {instanceForm && (
               <GiteaInstanceEditor
                 instanceForm={instanceForm}
@@ -246,10 +285,12 @@ export function GitConnection({
         )}
         <GitConnectionActions
           onManual={onManual}
+          allowManual={admin && !teamId}
           onClose={onClose}
           existing={existing}
           provider={provider}
           busy={busy}
+          canConnect={canConnect}
           name={name}
           instanceId={instanceId}
           instanceForm={instanceForm}

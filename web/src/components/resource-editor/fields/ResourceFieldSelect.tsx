@@ -1,3 +1,5 @@
+import type { Resource } from "@/lib/api/types";
+
 import { ProviderLogo } from "@/components/ProviderName";
 import { useResourceForm } from "@/components/resource-forms/controller";
 import { SelectControl } from "@/components/SelectControl";
@@ -17,10 +19,22 @@ export function ResourceFieldSelect(props: ResourceFieldSelectProps) {
 
   const { resources, f } = props;
   const {
-    state: { data },
+    state: { data, parent, project },
     handlers: { update },
     derived: { formId },
   } = useResourceForm();
+  const teamId = resources.find(
+    (resource) => resource.id === (parent || project),
+  )?.teamId;
+  function availableResource(resource: Resource) {
+    if (resource.kind !== f.resource) return false;
+    if (resource.kind !== "git" || !resource.teamId) return true;
+    return (
+      resource.teamId === teamId &&
+      (resource.data.status === "ready" ||
+        resource.id === props.existing?.data.gitId)
+    );
+  }
   if (f.options)
     return (
       <SelectControl
@@ -55,20 +69,18 @@ export function ResourceFieldSelect(props: ResourceFieldSelectProps) {
           ...(f.resource === "proxy"
             ? [{ value: "__direct__", label: "Direct connection" }]
             : []),
-          ...resources
-            .filter((r) => r.kind === f.resource)
-            .map((r) => ({
-              value: r.id,
-              label:
-                f.resource === "git" ? (
-                  <span className="inline-flex min-w-0 items-center gap-2">
-                    <ProviderLogo provider={String(r.data.provider || "")} />
-                    <span className="truncate">{r.name}</span>
-                  </span>
-                ) : (
-                  r.name
-                ),
-            })),
+          ...resources.filter(availableResource).map((r) => ({
+            value: r.id,
+            label:
+              f.resource === "git" ? (
+                <span className="inline-flex min-w-0 items-center gap-2">
+                  <ProviderLogo provider={String(r.data.provider || "")} />
+                  <span className="truncate">{r.name}</span>
+                </span>
+              ) : (
+                r.name
+              ),
+          })),
         ]}
         placeholder={`Select ${f.resource}`}
         disabled={false}

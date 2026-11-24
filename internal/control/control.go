@@ -91,7 +91,7 @@ func (c *Controller) queue(ctx context.Context, app model.Resource, ref, rollbac
 		return model.Deployment{}, errors.New("preview requires approval for this exact commit")
 	}
 	if !c.Store.TeamGranted(ctx, app.TeamID, spec.ServerID) || (spec.Source != "compose" && !c.Store.TeamGranted(ctx, app.TeamID, spec.GitID)) {
-		return model.Deployment{}, errors.New("server and Git connection must be granted to this team")
+		return model.Deployment{}, errors.New("server and Git connection must be available to this team")
 	}
 	snapshot := DeploymentSnapshot{Resource: c.Store.Public(app), App: spec, Env: map[string]string{}, BuildSecrets: map[string]string{}, Ref: ref, SecretValues: []string{}}
 	snapshot.Registries, e = c.Store.RegistryCredentials(ctx, app.TeamID)

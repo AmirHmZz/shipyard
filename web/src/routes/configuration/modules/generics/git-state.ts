@@ -8,6 +8,7 @@ export type GitConnectionState = {
   provider: string;
   name: string;
   owner: string;
+  teamId: string;
   instanceId: string;
   instanceForm: InstanceDraft | null;
 };
@@ -15,17 +16,19 @@ export type GitConnectionAction =
   | { type: "provider_changed"; value: string }
   | {
       type: "field_changed";
-      field: "name" | "owner" | "instanceId";
+      field: "name" | "owner" | "instanceId" | "teamId";
       value: string;
     }
   | { type: "instance_form_changed"; value: InstanceDraft | null };
 export function initialGitConnectionState(
   existing?: Resource,
+  teamId = "",
 ): GitConnectionState {
   return {
     provider: text(existing?.data || {}, "provider", "github"),
     name: existing?.name || "",
     owner: "",
+    teamId: existing?.teamId || teamId,
     instanceId: text(existing?.data || {}, "instanceId"),
     instanceForm: null,
   };

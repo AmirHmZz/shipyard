@@ -5,11 +5,16 @@ import {
   getGiteaInstancesResponseSchema,
 } from "../generics";
 
-export function useGiteaInstances(provider: string) {
+export function useGiteaInstances(
+  provider: string,
+  teamId = "",
+  enabled = true,
+) {
+  const query = teamId ? `?${new URLSearchParams({ teamId })}` : "";
   return useApiQuery({
-    queryKey: configurationKeys.giteaInstances,
-    path: "/git/gitea/instances",
+    queryKey: [...configurationKeys.giteaInstances, teamId],
+    path: `/git/gitea/instances${query}`,
     schema: getGiteaInstancesResponseSchema,
-    enabled: provider === "gitea",
+    enabled: enabled && provider === "gitea",
   });
 }

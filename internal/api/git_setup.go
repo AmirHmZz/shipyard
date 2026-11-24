@@ -24,25 +24,37 @@ func sessionHash(r *http.Request) string {
 	}
 	return secure.Hash(cookie.Value)
 }
-func (a *API) gitSetupStart(w http.ResponseWriter, r *http.Request) {
-	if !a.admin(w, r) {
-		return
+func (a *API) gitTeamSetupAccess(w http.ResponseWriter, r *http.Request, teamID string) bool {
+	if teamID == "" {
+		return a.admin(w, r)
 	}
+	actor := user(r)
+	team, err := a.Store.Resource(r.Context(), teamID)
+	if err != nil || team.Kind != "team" || (!actor.Admin && !a.Store.TeamOwner(r.Context(), actor.ID, teamID)) {
+		fail(w, 403, "Team owner access required")
+		return false
+	}
+	return true
+}
+
+func (a *API) gitSetupStart(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		Name       string `json:"name"`
 		Provider   string `json:"provider"`
 		Owner      string `json:"owner"`
 		InstanceID string `json:"instanceId"`
+		TeamID     string `json:"teamId"`
 	}
-	if !decode(w, r, &input) {
+	if !decode(w, r, &input) || !a.gitTeamSetupAccess(w, r, input.TeamID) {
 		return
 	}
 	var result gitauth.Start
 	var err error
 	if input.Provider == "github" {
-		result, err = a.gitAuth().StartGitHub(r.Context(), user(r).ID, sessionHash(r), input.Name, input.Owner)
+		result, err = a.gitAuth().StartGitHub(r.Context(), user(r).ID, sessionHash(r), input.Name, input.Owner, input.TeamID)
 	} else if input.Provider == "gitea" {
-		result, err = a.gitAuth().StartGitea(r.Context(), user(r).ID, sessionHash(r), input.Name, input.InstanceID, "")
+		result, err = a.gitAuth().StartGitea(r.Context(), user(r).ID, sessionHash(r), input.InstanceID,
+			model.Resource{Name: input.Name, TeamID: input.TeamID, ParentID: input.TeamID})
 	} else {
 		fail(w, 400, "Unsupported Git provider")
 		return
@@ -51,21 +63,24 @@ func (a *API) gitSetupStart(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, err.Error())
 		return
 	}
-	_ = a.Store.Audit(r.Context(), user(r).ID, "git.setup_started", result.ConnectionID, "", nil)
+	_ = a.Store.Audit(r.Context(), user(r).ID, "git.setup_started", result.ConnectionID, input.TeamID, nil)
 	a.gitRedirectCookie(w, r)
 	respond(w, 200, result)
 }
 func (a *API) gitInstances(w http.ResponseWriter, r *http.Request) {
-	if !a.admin(w, r) {
-		return
-	}
 	if r.Method == "GET" {
+		if !a.gitTeamSetupAccess(w, r, r.URL.Query().Get("teamId")) {
+			return
+		}
 		instances, err := a.gitAuth().Instances(r.Context())
 		if err != nil {
 			a.err(w, err)
 			return
 		}
 		respond(w, 200, instances)
+		return
+	}
+	if !a.admin(w, r) {
 		return
 	}
 	var input struct {
@@ -87,9 +102,6 @@ func (a *API) gitInstances(w http.ResponseWriter, r *http.Request) {
 	respond(w, 200, v)
 }
 func (a *API) gitSetupStatus(w http.ResponseWriter, r *http.Request) {
-	if !a.admin(w, r) {
-		return
-	}
 	v, ok := a.get(w, r, true)
 	if !ok {
 		return
@@ -106,9 +118,6 @@ func (a *API) gitSetupStatus(w http.ResponseWriter, r *http.Request) {
 	respond(w, 200, status)
 }
 func (a *API) gitReconnect(w http.ResponseWriter, r *http.Request) {
-	if !a.admin(w, r) {
-		return
-	}
 	v, ok := a.get(w, r, true)
 	if !ok {
 		return
@@ -128,7 +137,7 @@ func (a *API) gitReconnect(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, "Reconnect is available for Gitea OAuth connections")
 		return
 	}
-	result, err := a.gitAuth().StartGitea(r.Context(), user(r).ID, sessionHash(r), v.Name, spec.InstanceID, v.ID)
+	result, err := a.gitAuth().StartGitea(r.Context(), user(r).ID, sessionHash(r), spec.InstanceID, v)
 	if err != nil {
 		fail(w, 400, err.Error())
 		return
@@ -145,9 +154,6 @@ func (a *API) gitRedirectCookie(w http.ResponseWriter, r *http.Request) {
 	}
 }
 func (a *API) gitSigningSecret(w http.ResponseWriter, r *http.Request) {
-	if !a.admin(w, r) {
-		return
-	}
 	v, ok := a.get(w, r, true)
 	if !ok {
 		return
@@ -161,13 +167,10 @@ func (a *API) gitSigningSecret(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, err.Error())
 		return
 	}
-	_ = a.Store.Audit(r.Context(), user(r).ID, "git.webhook_secret_replaced", v.ID, "", nil)
+	_ = a.Store.Audit(r.Context(), user(r).ID, "git.webhook_secret_replaced", v.ID, v.TeamID, nil)
 	respond(w, 200, map[string]string{"secret": secret})
 }
 func (a *API) gitCallback(w http.ResponseWriter, r *http.Request) {
-	if !a.admin(w, r) {
-		return
-	}
 	service := a.gitAuth()
 	state := r.URL.Query().Get("state")
 	code := r.URL.Query().Get("code")
@@ -175,13 +178,13 @@ func (a *API) gitCallback(w http.ResponseWriter, r *http.Request) {
 	var err error
 	if kind == "github" {
 		var next string
-		next, err = service.GitHubCallback(r.Context(), user(r).ID, sessionHash(r), state, code)
+		next, err = service.GitHubCallback(r.Context(), user(r), sessionHash(r), state, code)
 		if err == nil {
 			http.Redirect(w, r, next, http.StatusSeeOther)
 			return
 		}
 	} else if kind == "gitea" {
-		err = service.GiteaCallback(r.Context(), user(r).ID, sessionHash(r), state, code)
+		err = service.GiteaCallback(r.Context(), user(r), sessionHash(r), state, code)
 	} else {
 		fail(w, 400, "Unsupported Git provider")
 		return
@@ -189,10 +192,7 @@ func (a *API) gitCallback(w http.ResponseWriter, r *http.Request) {
 	a.finishGitCallback(w, r, err)
 }
 func (a *API) githubInstall(w http.ResponseWriter, r *http.Request) {
-	if !a.admin(w, r) {
-		return
-	}
-	err := a.gitAuth().GitHubInstall(r.Context(), user(r).ID, sessionHash(r), r.URL.Query().Get("state"), r.URL.Query().Get("installation_id"))
+	err := a.gitAuth().GitHubInstall(r.Context(), user(r), sessionHash(r), r.URL.Query().Get("state"), r.URL.Query().Get("installation_id"))
 	a.finishGitCallback(w, r, err)
 }
 func (a *API) finishGitCallback(w http.ResponseWriter, r *http.Request, err error) {

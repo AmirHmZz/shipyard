@@ -29,10 +29,15 @@ export function IntegrationSection({
   );
   const canCreate =
     admin ||
-    (item.kind === "webhook" &&
+    ((item.kind === "webhook" || item.kind === "git") &&
       resources.some(
         (resource) => resource.kind === "team" && resource.canWrite,
       ));
+  const teamNames = new Map(
+    resources
+      .filter((resource) => resource.kind === "team")
+      .map((team) => [team.id, team.name]),
+  );
   return (
     <section aria-labelledby={`integration-${item.kind}`}>
       <Card className="gap-0 overflow-hidden pb-0 shadow-none">
@@ -66,7 +71,11 @@ export function IntegrationSection({
           )}
           <div>
             {connections.map((resource) => (
-              <IntegrationConnection key={resource.id} resource={resource} />
+              <IntegrationConnection
+                key={resource.id}
+                resource={resource}
+                teamName={teamNames.get(resource.teamId)}
+              />
             ))}
           </div>
         </CardContent>

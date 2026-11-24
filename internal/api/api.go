@@ -402,6 +402,9 @@ func (a *API) validateParent(ctx context.Context, u model.User, in *model.Resour
 			}
 		}
 	}
+	if in.Kind == "git" && (in.TeamID != "" || in.ParentID != "") {
+		return errors.New("team Git connections are managed through guided setup")
+	}
 	global := in.Kind == "server" || in.Kind == "git" || in.Kind == "dns" || in.Kind == "zone" || in.Kind == "team" || in.Kind == "registry"
 	if global {
 		if !u.Admin {
@@ -465,7 +468,7 @@ func (a *API) validateBindings(ctx context.Context, in model.ResourceInput) erro
 			return fmt.Errorf("invalid %s reference", kind)
 		}
 		if !a.Store.TeamGranted(ctx, in.TeamID, id) {
-			return fmt.Errorf("%s must be granted to this team first", kind)
+			return fmt.Errorf("%s must be available to this team", kind)
 		}
 	}
 	return nil
@@ -783,6 +786,19 @@ func (a *API) deleteResource(w http.ResponseWriter, r *http.Request) {
 		fail(w, 409, db.ErrDeleting.Error())
 		return
 	}
+	if v.Kind == "git" || v.Kind == "team" {
+		remove := a.Store.DeleteGitConnection
+		if v.Kind == "team" {
+			remove = a.Store.DeleteTeam
+		}
+		if err := remove(r.Context(), v.ID); err != nil {
+			a.err(w, err)
+			return
+		}
+		_ = a.Store.Audit(r.Context(), user(r).ID, "resource.deleted", v.ID, v.TeamID, nil)
+		respond(w, 200, map[string]bool{"ok": true})
+		return
+	}
 	if v.Kind == "proxy" || v.Kind == "webhook" {
 		if e := a.Store.DeleteIntegration(r.Context(), v.ID); e != nil {
 			if errors.Is(e, db.ErrConflict) {
@@ -861,6 +877,10 @@ func (a *API) grant(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, "Only servers, Git connections, registries, networks and zones can be granted")
 		return
 	}
+	if v.Kind == "git" && v.TeamID != "" {
+		fail(w, 409, "This Git connection belongs to one team")
+		return
+	}
 	var in struct {
 		TeamID  string `json:"teamId"`
 		Granted bool   `json:"granted"`
@@ -905,6 +925,10 @@ func (a *API) grants(w http.ResponseWriter, r *http.Request) {
 	}
 	v, ok := a.get(w, r, false)
 	if !ok {
+		return
+	}
+	if v.Kind == "git" && v.TeamID != "" {
+		fail(w, 409, "This Git connection belongs to one team")
 		return
 	}
 	rows, e := a.Store.Pool.Query(r.Context(), "SELECT team_id FROM resource_grants WHERE resource_id=$1 AND cardinality(hostname_patterns)=0", v.ID)

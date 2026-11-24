@@ -6,32 +6,31 @@ import { useNavigate, useSearchParams } from "react-router";
 import { useResources } from "@/lib/hooks/useResources";
 import { useAccount } from "@/lib/session";
 
-import { useDeleteRegistry } from "./useDeleteRegistry";
+import { isDeletableIntegration } from "../generics/isDeletableIntegration";
+import { useDeleteIntegration } from "./useDeleteIntegration";
 export function useIntegrationsPage() {
   const navigate = useNavigate();
   const account = useAccount();
   const q = useResources();
-  const deletion = useDeleteRegistry();
+  const deletion = useDeleteIntegration();
   const [deleting, setDeleting] = useState("");
   const [params] = useSearchParams();
   const resources = q.data || [];
-  const deletingRegistry = resources.find(
-    (resource) =>
-      resource.id === deleting &&
-      ["registry", "proxy", "webhook"].includes(resource.kind),
+  const deletingIntegration = resources.find(
+    (resource) => resource.id === deleting && isDeletableIntegration(resource),
   );
   function closeDeletion(open: boolean) {
     if (!open && !deletion.isPending) setDeleting("");
   }
   function confirmDeletion() {
-    if (deletingRegistry?.canWrite && !deletion.isPending)
-      deletion.mutate(deletingRegistry.id, {
+    if (deletingIntegration?.canWrite && !deletion.isPending)
+      deletion.mutate(deletingIntegration.id, {
         onSuccess: () => setDeleting(""),
       });
   }
   const gitMessage =
     params.get("gitError") ||
-    "Git connection authorized. Grant team access and, for Gitea, configure your repository webhook.";
+    "Git connection authorized. For Gitea, configure the repository webhook.";
   const showGitMessage = !!(
     params.get("gitError") || params.get("gitConnected")
   );
@@ -49,7 +48,7 @@ export function useIntegrationsPage() {
     if (
       button.dataset.action === "delete" &&
       resource &&
-      ["registry", "proxy", "webhook"].includes(resource.kind) &&
+      isDeletableIntegration(resource) &&
       resource.canWrite
     ) {
       setDeleting(resource.id);
@@ -79,7 +78,7 @@ export function useIntegrationsPage() {
       gitMessage,
       showGitMessage,
       gitFailed,
-      deletingRegistry,
+      deletingIntegration,
       deletionPending: deletion.isPending,
     },
     handlers: { handleIntegrationAction, closeDeletion, confirmDeletion },

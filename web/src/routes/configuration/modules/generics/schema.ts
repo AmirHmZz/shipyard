@@ -52,6 +52,7 @@ export const gitSetupSchema = z
     name: requiredText("Connection name"),
     owner: z.string(),
     instanceId: z.string(),
+    teamId: z.optional(z.string()),
   })
   .check(
     z.check((context) => {

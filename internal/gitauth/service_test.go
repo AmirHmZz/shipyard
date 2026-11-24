@@ -23,6 +23,8 @@ import (
 	"shipyard/internal/testdb"
 )
 
+var setupAdmin = model.User{ID: "admin", Admin: true}
+
 func testService(t *testing.T) *Service {
 	t.Helper()
 	vault, _ := secure.New(base64.StdEncoding.EncodeToString(make([]byte, 32)))
@@ -44,6 +46,17 @@ func stateFrom(t *testing.T, endpoint string) string {
 func TestGitHubManifestSessionReplayAndInstallation(t *testing.T) {
 	s := testService(t)
 	ctx := context.Background()
+	actor := model.User{ID: "owner"}
+	team, err := s.Store.Save(ctx, "", model.ResourceInput{Kind: "team", Name: "Code team", Data: json.RawMessage(`{}`)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Store.Pool.Exec(ctx, "INSERT INTO users(id,email,name,password) VALUES('owner','owner@example.test','Owner','disabled')"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Store.Pool.Exec(ctx, "INSERT INTO team_members(team_id,user_id,role) VALUES($1,'owner','owner')", team.ID); err != nil {
+		t.Fatal(err)
+	}
 	key, _ := rsa.GenerateKey(rand.Reader, 2048)
 	private := string(pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)}))
 	appID := int64(100)
@@ -63,7 +76,7 @@ func TestGitHubManifestSessionReplayAndInstallation(t *testing.T) {
 	}))
 	defer server.Close()
 	s.GitHubAPI = server.URL
-	start, err := s.StartGitHub(ctx, "admin", "session", "Code", "my-org")
+	start, err := s.StartGitHub(ctx, actor.ID, "session", "Code", "my-org", team.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,33 +88,36 @@ func TestGitHubManifestSessionReplayAndInstallation(t *testing.T) {
 		t.Fatal(string(manifest))
 	}
 	state := stateFrom(t, start.URL)
-	if _, err = s.GitHubCallback(ctx, "admin", "other-session", state, "code"); err == nil {
+	if _, err = s.GitHubCallback(ctx, actor, "other-session", state, "code"); err == nil {
 		t.Fatal("cross-session callback accepted")
 	}
-	next, err := s.GitHubCallback(ctx, "admin", "session", state, "code")
+	next, err := s.GitHubCallback(ctx, actor, "session", state, "code")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.GitHubCallback(ctx, "admin", "session", state, "code"); err == nil {
+	if _, err = s.GitHubCallback(ctx, actor, "session", state, "code"); err == nil {
 		t.Fatal("replayed manifest callback")
 	}
 	appID = 999
-	if err = s.GitHubInstall(ctx, "admin", "session", stateFrom(t, next), "7"); err == nil {
+	if err = s.GitHubInstall(ctx, actor, "session", stateFrom(t, next), "7"); err == nil {
 		t.Fatal("foreign installation accepted")
 	}
-	flow := Flow{User: "admin", Session: "session", Kind: "github-install", Connection: start.ConnectionID}
-	installState, err := s.putFlow(ctx, flow)
+	r, err := s.Store.Resource(ctx, start.ConnectionID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resume, err := s.ResumeGitHub(ctx, actor.ID, "session", r)
 	if err != nil {
 		t.Fatal(err)
 	}
 	appID = 100
-	if err = s.GitHubInstall(ctx, "admin", "session", installState, "7"); err != nil {
+	if err = s.GitHubInstall(ctx, actor, "session", stateFrom(t, resume.URL), "7"); err != nil {
 		t.Fatal(err)
 	}
-	r, _ := s.Store.Resource(ctx, start.ConnectionID)
+	r, _ = s.Store.Resource(ctx, start.ConnectionID)
 	spec, _ := model.Decode[model.Git](r)
-	if spec.Status != "ready" || spec.InstallationID != "7" {
-		t.Fatal(spec)
+	if spec.Status != "ready" || spec.InstallationID != "7" || r.TeamID != team.ID || r.ParentID != team.ID {
+		t.Fatal(spec, r.TeamID, r.ParentID)
 	}
 	public, _ := json.Marshal(s.Store.Public(r))
 	if strings.Contains(string(public), "BEGIN RSA") || strings.Contains(string(public), "signing-secret") {
@@ -173,7 +189,7 @@ func TestGiteaOAuthRefreshReconnectAndManualHooks(t *testing.T) {
 	if err != nil || len(list) != 1 || len(list[0].Secret) > 0 {
 		t.Fatal(list, err)
 	}
-	start, err := s.StartGitea(ctx, "admin", "session", "Gitea", instance.ID, "")
+	start, err := s.StartGitea(ctx, "admin", "session", instance.ID, model.Resource{Name: "Gitea"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -181,10 +197,10 @@ func TestGiteaOAuthRefreshReconnectAndManualHooks(t *testing.T) {
 	if u.Query().Get("scope") != "read:user read:repository" || u.Query().Get("code_challenge_method") != "S256" {
 		t.Fatal(u)
 	}
-	if err = s.GiteaCallback(ctx, "admin", "session", stateFrom(t, start.URL), "code"); err != nil {
+	if err = s.GiteaCallback(ctx, setupAdmin, "session", stateFrom(t, start.URL), "code"); err != nil {
 		t.Fatal(err)
 	}
-	if err = s.GiteaCallback(ctx, "admin", "session", stateFrom(t, start.URL), "code"); err == nil {
+	if err = s.GiteaCallback(ctx, setupAdmin, "session", stateFrom(t, start.URL), "code"); err == nil {
 		t.Fatal("callback replay accepted")
 	}
 	r, _ := s.Store.Resource(ctx, start.ConnectionID)
@@ -196,7 +212,7 @@ func TestGiteaOAuthRefreshReconnectAndManualHooks(t *testing.T) {
 		r, _ = s.Store.Resource(ctx, r.ID)
 		spec, _ := model.Decode[model.Git](r)
 		tokens, _ := json.Marshal(Tokens{AccessToken: "expired", RefreshToken: "refresh-secret", ExpiresAt: time.Now().Add(-time.Minute)})
-		if _, err := s.saveGit(ctx, r.ID, r.Name, spec, map[string]string{"oauth_token": string(tokens)}); err != nil {
+		if _, err := s.saveGit(ctx, r, spec, map[string]string{"oauth_token": string(tokens)}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -235,11 +251,11 @@ func TestGiteaOAuthRefreshReconnectAndManualHooks(t *testing.T) {
 	if err != nil || !status.SigningSecretConfigured || status.LastDelivery != nil {
 		t.Fatal(status, err)
 	}
-	start, err = s.StartGitea(ctx, "admin", "session", "", instance.ID, r.ID)
+	start, err = s.StartGitea(ctx, "admin", "session", instance.ID, r)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = s.GiteaCallback(ctx, "admin", "session", stateFrom(t, start.URL), "code"); err != nil {
+	if err = s.GiteaCallback(ctx, setupAdmin, "session", stateFrom(t, start.URL), "code"); err != nil {
 		t.Fatal(err)
 	}
 	r, _ = s.Store.Resource(ctx, r.ID)

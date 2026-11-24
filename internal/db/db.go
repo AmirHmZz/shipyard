@@ -196,7 +196,7 @@ func (s *Store) SaveWithZoneAccess(ctx context.Context, id string, in model.Reso
 	return s.save(ctx, id, in, true)
 }
 
-func (s *Store) save(ctx context.Context, id string, in model.ResourceInput, checkZoneAccess bool) (model.Resource, error) {
+func (s *Store) save(ctx context.Context, id string, in model.ResourceInput, checkBindings bool) (model.Resource, error) {
 	tx, err := s.Pool.Begin(ctx)
 	if err != nil {
 		return model.Resource{}, err
@@ -233,7 +233,16 @@ func (s *Store) save(ctx context.Context, id string, in model.ResourceInput, che
 		// An update must never recreate that resource under its previous ID.
 		return model.Resource{}, pgx.ErrNoRows
 	}
-	if checkZoneAccess {
+	if in.Kind == "git" && in.TeamID != "" {
+		var teamExists bool
+		if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM resources WHERE id=$1 AND kind='team')`, in.TeamID).Scan(&teamExists); err != nil {
+			return model.Resource{}, err
+		}
+		if !teamExists || in.ParentID != in.TeamID {
+			return model.Resource{}, ErrConflict
+		}
+	}
+	if checkBindings {
 		if e := checkResourceZoneAccess(ctx, tx, id, old, in); e != nil {
 			return model.Resource{}, e
 		}
@@ -268,6 +277,11 @@ func (s *Store) save(ctx context.Context, id string, in model.ResourceInput, che
 		}
 		if err = model.ValidateJobApplication(spec); err != nil {
 			return model.Resource{}, err
+		}
+		if checkBindings && spec.Source != "compose" && spec.GitID != "" {
+			if err := checkGitBinding(ctx, tx, in.TeamID, spec.GitID, old); err != nil {
+				return model.Resource{}, err
+			}
 		}
 	}
 	if in.Kind == "route" {
@@ -449,6 +463,12 @@ func (s *Store) Access(ctx context.Context, u model.User, r model.Resource, writ
 	if u.Admin {
 		return true
 	}
+	if r.Kind == "git" && r.TeamID != "" {
+		if write {
+			return s.TeamOwner(ctx, u.ID, r.TeamID)
+		}
+		return s.teamMember(ctx, u.ID, r.TeamID)
+	}
 	if r.Kind == "server" || r.Kind == "git" || r.Kind == "dns" || r.Kind == "zone" || r.Kind == "network" || r.Kind == "registry" {
 		if write {
 			return false
@@ -462,9 +482,7 @@ func (s *Store) Access(ctx context.Context, u model.User, r model.Resource, writ
 		return true
 	}
 	if r.Kind == "team" {
-		var yes bool
-		e := s.Pool.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM team_members WHERE team_id=$1 AND user_id=$2)", r.ID, u.ID).Scan(&yes)
-		return !write && e == nil && yes
+		return !write && s.teamMember(ctx, u.ID, r.ID)
 	}
 	p, e := s.Project(ctx, r)
 	if e != nil {
@@ -475,6 +493,11 @@ func (s *Store) Access(ctx context.Context, u model.User, r model.Resource, writ
 		return false
 	}
 	return !write || role == "owner" || role == "operator"
+}
+func (s *Store) teamMember(ctx context.Context, user, team string) bool {
+	var yes bool
+	err := s.Pool.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM team_members WHERE team_id=$1 AND user_id=$2)", team, user).Scan(&yes)
+	return err == nil && yes
 }
 func (s *Store) Granted(ctx context.Context, user, id string) bool {
 	var yes bool

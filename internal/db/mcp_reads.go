@@ -224,6 +224,10 @@ func (s *Store) MCPApplicationOptions(ctx context.Context, tokenHash, projectID,
 		SELECT r.id,r.name,r.kind FROM project p JOIN resource_grants g ON g.team_id=p.team_id
 		JOIN resources r ON r.id=g.resource_id
 		WHERE p.id=$2 AND r.kind IN ('server','git','registry','network','zone') AND r.data->>'deleting' IS DISTINCT FROM 'true'
+		AND (r.kind<>'git' OR r.team_id='')
+		UNION
+		SELECT r.id,r.name,r.kind FROM project p JOIN resources r ON r.team_id=p.team_id
+		WHERE p.id=$2 AND r.kind='git' AND r.data->>'status'='ready' AND r.data->>'deleting' IS DISTINCT FROM 'true'
 	) SELECT id,name,kind FROM options WHERE id>$3 ORDER BY id LIMIT $4`, tokenHash, projectID, after, limit)
 	if err != nil {
 		return nil, err

@@ -10,10 +10,12 @@ import type { InstanceDraft } from "../generics";
 
 export type GitConnectionActionsProps = {
   onManual: () => void;
+  allowManual: boolean;
   onClose: () => void;
   existing?: Resource;
   provider: string;
   busy: boolean;
+  canConnect: boolean;
   name: string;
   instanceId: string;
   instanceForm: InstanceDraft | null;
@@ -21,10 +23,12 @@ export type GitConnectionActionsProps = {
 };
 export function GitConnectionActions({
   onManual,
+  allowManual,
   onClose,
   existing,
   provider,
   busy,
+  canConnect,
   name,
   instanceId,
   instanceForm,
@@ -39,9 +43,11 @@ export function GitConnectionActions({
   if (existing) connectionLabel = "Reconnect";
   return (
     <div className="flex flex-wrap justify-between gap-2 border-t pt-4">
-      <Button variant="ghost" onClick={onManual}>
-        Advanced: manual credentials
-      </Button>
+      {allowManual && (
+        <Button variant="ghost" onClick={onManual}>
+          Advanced: manual credentials
+        </Button>
+      )}
       <div className="flex gap-2">
         <Button variant="outline" onClick={onClose}>
           Close
@@ -53,6 +59,7 @@ export function GitConnectionActions({
           <Button
             disabled={
               busy ||
+              !canConnect ||
               (!existing &&
                 (!name.trim() || (provider === "gitea" && !instanceId))) ||
               !!instanceForm

@@ -49,8 +49,8 @@ type storedInstance struct {
 	EncryptedSecret []byte `json:"encryptedSecret"`
 }
 type Flow struct {
-	User, Session, Kind, Connection, Instance, Name, Verifier string
-	Expires                                                   time.Time
+	User, Session, Kind, Connection, Instance, Verifier string
+	Expires                                             time.Time
 }
 type Start struct {
 	ConnectionID string `json:"connectionId"`
@@ -207,19 +207,27 @@ func (s *Service) consumeFlow(ctx context.Context, state, user, session, kind st
 	}
 	return flow, tx.Commit(ctx)
 }
-func (s *Service) saveGit(ctx context.Context, id, name string, spec model.Git, secrets map[string]string) (model.Resource, error) {
-	version := 0
-	if id != "" {
-		old, err := s.Store.Resource(ctx, id)
-		if err != nil {
-			return model.Resource{}, err
-		}
-		version = old.Version
-	}
+func (s *Service) saveGit(ctx context.Context, r model.Resource, spec model.Git, secrets map[string]string) (model.Resource, error) {
 	raw, _ := json.Marshal(spec)
-	return s.Store.Save(ctx, id, model.ResourceInput{Kind: "git", Name: name, Data: raw, Secrets: secrets, Version: version})
+	return s.Store.Save(ctx, r.ID, model.ResourceInput{Kind: "git", Name: r.Name, TeamID: r.TeamID, ParentID: r.ParentID, Data: raw, Secrets: secrets, Version: r.Version})
 }
-func (s *Service) StartGitHub(ctx context.Context, user, session, name, owner string) (Start, error) {
+
+func (s *Service) callbackConnection(ctx context.Context, actor model.User, id string) (model.Resource, error) {
+	r, err := s.Store.Resource(ctx, id)
+	if err != nil || r.Kind != "git" || !s.Store.Access(ctx, actor, r, true) {
+		return model.Resource{}, errors.New("you no longer have access to manage this Git connection")
+	}
+	return r, nil
+}
+
+func (s *Service) saveAuthorizedGit(ctx context.Context, actor model.User, r model.Resource, spec model.Git, secrets map[string]string) (model.Resource, error) {
+	if _, err := s.callbackConnection(ctx, actor, r.ID); err != nil {
+		return model.Resource{}, err
+	}
+	return s.saveGit(ctx, r, spec, secrets)
+}
+
+func (s *Service) StartGitHub(ctx context.Context, user, session, name, owner, team string) (Start, error) {
 	if !model.HTTPS(s.Origin) {
 		return Start{}, errors.New("configure an HTTPS SHIPYARD_ORIGIN before guided setup")
 	}
@@ -229,11 +237,11 @@ func (s *Service) StartGitHub(ctx context.Context, user, session, name, owner st
 	if owner != "" && !regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9-]{0,38}$`).MatchString(owner) {
 		return Start{}, errors.New("invalid GitHub organization")
 	}
-	r, err := s.saveGit(ctx, "", name, model.Git{Provider: "github", Status: "pending"}, nil)
+	r, err := s.saveGit(ctx, model.Resource{Name: name, TeamID: team, ParentID: team}, model.Git{Provider: "github", Status: "pending"}, nil)
 	if err != nil {
 		return Start{}, err
 	}
-	state, err := s.putFlow(ctx, Flow{User: user, Session: session, Kind: "github", Connection: r.ID, Name: name})
+	state, err := s.putFlow(ctx, Flow{User: user, Session: session, Kind: "github", Connection: r.ID})
 	if err != nil {
 		return Start{}, err
 	}
@@ -244,8 +252,12 @@ func (s *Service) StartGitHub(ctx context.Context, user, session, name, owner st
 	manifest := map[string]any{"name": "Shipyard-" + r.ID[:8], "url": s.Origin, "public": false, "redirect_url": s.Origin + "/api/v1/git/setup/github/callback", "setup_url": s.Origin + "/api/v1/git/setup/github/install", "hook_attributes": map[string]any{"url": s.Origin + "/api/v1/hooks/" + r.ID, "active": true}, "default_permissions": map[string]string{"contents": "read", "pull_requests": "read"}, "default_events": []string{"push", "pull_request"}}
 	return Start{ConnectionID: r.ID, URL: endpoint + "?state=" + url.QueryEscape(state), Manifest: manifest}, nil
 }
-func (s *Service) GitHubCallback(ctx context.Context, user, session, state, code string) (string, error) {
-	flow, err := s.consumeFlow(ctx, state, user, session, "github")
+func (s *Service) GitHubCallback(ctx context.Context, actor model.User, session, state, code string) (string, error) {
+	flow, err := s.consumeFlow(ctx, state, actor.ID, session, "github")
+	if err != nil {
+		return "", err
+	}
+	r, err := s.callbackConnection(ctx, actor, flow.Connection)
 	if err != nil {
 		return "", err
 	}
@@ -267,7 +279,7 @@ func (s *Service) GitHubCallback(ctx context.Context, user, session, state, code
 	if _, err = jwt.ParseRSAPrivateKeyFromPEM([]byte(app.PEM)); err != nil {
 		return "", errors.New("GitHub returned an invalid App key")
 	}
-	_, err = s.saveGit(ctx, flow.Connection, flow.Name, model.Git{Provider: "github", AppID: strconv.FormatInt(app.ID, 10), AppSlug: app.Slug, Status: "installation_required"}, map[string]string{"private_key": app.PEM, "webhook_secret": app.WebhookSecret})
+	_, err = s.saveAuthorizedGit(ctx, actor, r, model.Git{Provider: "github", AppID: strconv.FormatInt(app.ID, 10), AppSlug: app.Slug, Status: "installation_required"}, map[string]string{"private_key": app.PEM, "webhook_secret": app.WebhookSecret})
 	if err != nil {
 		return "", err
 	}
@@ -286,15 +298,15 @@ func appJWT(spec model.Git, key string) (string, error) {
 	now := time.Now()
 	return jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.RegisteredClaims{Issuer: spec.AppID, IssuedAt: jwt.NewNumericDate(now.Add(-time.Minute)), ExpiresAt: jwt.NewNumericDate(now.Add(8 * time.Minute))}).SignedString(parsed)
 }
-func (s *Service) GitHubInstall(ctx context.Context, user, session, state, installation string) error {
-	flow, err := s.consumeFlow(ctx, state, user, session, "github-install")
+func (s *Service) GitHubInstall(ctx context.Context, actor model.User, session, state, installation string) error {
+	flow, err := s.consumeFlow(ctx, state, actor.ID, session, "github-install")
 	if err != nil {
 		return err
 	}
 	if _, err = strconv.ParseUint(installation, 10, 64); err != nil {
 		return errors.New("invalid installation ID")
 	}
-	r, err := s.Store.Resource(ctx, flow.Connection)
+	r, err := s.callbackConnection(ctx, actor, flow.Connection)
 	if err != nil {
 		return err
 	}
@@ -323,10 +335,10 @@ func (s *Service) GitHubInstall(ctx context.Context, user, session, state, insta
 	spec.InstallationID = installation
 	spec.Account = info.Account.Login
 	spec.Status = "ready"
-	_, err = s.saveGit(ctx, r.ID, r.Name, spec, nil)
+	_, err = s.saveAuthorizedGit(ctx, actor, r, spec, nil)
 	return err
 }
-func (s *Service) StartGitea(ctx context.Context, user, session, name, instanceID, connectionID string) (Start, error) {
+func (s *Service) StartGitea(ctx context.Context, user, session, instanceID string, r model.Resource) (Start, error) {
 	if !model.HTTPS(s.Origin) {
 		return Start{}, errors.New("configure an HTTPS SHIPYARD_ORIGIN before guided setup")
 	}
@@ -350,24 +362,21 @@ func (s *Service) StartGitea(ctx context.Context, user, session, name, instanceI
 		return Start{}, errors.New("Gitea 1.23 or newer is required for scoped OAuth")
 	}
 	spec := model.Git{Provider: "gitea", URL: instance.URL, InstanceID: instance.ID, AuthMethod: "oauth", Status: "pending"}
-	if connectionID != "" {
-		old, e := s.Store.Resource(ctx, connectionID)
-		if e != nil {
-			return Start{}, e
-		}
-		previous, e := model.Decode[model.Git](old)
-		if e != nil || old.Kind != "git" || previous.Provider != "gitea" || previous.InstanceID != instance.ID {
+	if r.ID != "" {
+		previous, e := model.Decode[model.Git](r)
+		if e != nil || r.Kind != "git" || previous.Provider != "gitea" || previous.InstanceID != instance.ID {
 			return Start{}, errors.New("Gitea instance does not match connection")
 		}
-		name = old.Name
 		spec = previous
 	}
-	if strings.TrimSpace(name) == "" {
+	if strings.TrimSpace(r.Name) == "" {
 		return Start{}, errors.New("connection name is required")
 	}
-	r, err := s.saveGit(ctx, connectionID, name, spec, nil)
-	if err != nil {
-		return Start{}, err
+	if r.ID == "" {
+		r, err = s.saveGit(ctx, r, spec, nil)
+		if err != nil {
+			return Start{}, err
+		}
 	}
 	verifier := secure.Token() + secure.Token()
 	sum := sha256.Sum256([]byte(verifier))
@@ -379,8 +388,12 @@ func (s *Service) StartGitea(ctx context.Context, user, session, name, instanceI
 	query := url.Values{"client_id": {instance.ClientID}, "redirect_uri": {s.Origin + "/api/v1/git/setup/gitea/callback"}, "response_type": {"code"}, "scope": {"read:user read:repository"}, "state": {state}, "code_challenge": {challenge}, "code_challenge_method": {"S256"}}
 	return Start{ConnectionID: r.ID, URL: instance.URL + "/login/oauth/authorize?" + query.Encode()}, nil
 }
-func (s *Service) GiteaCallback(ctx context.Context, user, session, state, code string) error {
-	flow, err := s.consumeFlow(ctx, state, user, session, "gitea")
+func (s *Service) GiteaCallback(ctx context.Context, actor model.User, session, state, code string) error {
+	flow, err := s.consumeFlow(ctx, state, actor.ID, session, "gitea")
+	if err != nil {
+		return err
+	}
+	r, err := s.callbackConnection(ctx, actor, flow.Connection)
 	if err != nil {
 		return err
 	}
@@ -401,15 +414,11 @@ func (s *Service) GiteaCallback(ctx context.Context, user, session, state, code 
 	if err = s.request(ctx, "GET", instance.URL+"/api/v1/user", tokens.AccessToken, nil, &account); err != nil {
 		return err
 	}
-	r, err := s.Store.Resource(ctx, flow.Connection)
-	if err != nil {
-		return err
-	}
 	spec, _ := model.Decode[model.Git](r)
 	spec.Status = "ready"
 	spec.Account = account.Login
 	raw, _ := json.Marshal(tokens)
-	_, err = s.saveGit(ctx, r.ID, r.Name, spec, map[string]string{"oauth_token": string(raw)})
+	_, err = s.saveAuthorizedGit(ctx, actor, r, spec, map[string]string{"oauth_token": string(raw)})
 	return err
 }
 func (s *Service) exchange(ctx context.Context, instance Instance, params map[string]string) (Tokens, error) {
@@ -486,7 +495,7 @@ func (s *Service) Token(ctx context.Context, id string) (string, error) {
 	next, err := s.exchange(ctx, instance, map[string]string{"grant_type": "refresh_token", "refresh_token": tokens.RefreshToken})
 	if err != nil {
 		spec.Status = "reconnect_required"
-		_, _ = s.saveGit(ctx, r.ID, r.Name, spec, nil)
+		_, _ = s.saveGit(ctx, r, spec, nil)
 		return "", errors.New("Gitea token refresh failed; reconnect in Integrations")
 	}
 	if next.RefreshToken == "" {
@@ -494,7 +503,7 @@ func (s *Service) Token(ctx context.Context, id string) (string, error) {
 	}
 	spec.Status = "ready"
 	raw, _ := json.Marshal(next)
-	if _, err = s.saveGit(ctx, r.ID, r.Name, spec, map[string]string{"oauth_token": string(raw)}); err != nil {
+	if _, err = s.saveGit(ctx, r, spec, map[string]string{"oauth_token": string(raw)}); err != nil {
 		return "", err
 	}
 	return next.AccessToken, nil
@@ -527,7 +536,7 @@ func (s *Service) Client(ctx context.Context, r model.Resource) (*providers.GitC
 			}
 			spec, _ := model.Decode[model.Git](current)
 			spec.Status = "reconnect_required"
-			_, _ = s.saveGit(ctx, current.ID, current.Name, spec, nil)
+			_, _ = s.saveGit(ctx, current, spec, nil)
 		}
 	}
 	return client, nil
@@ -563,6 +572,6 @@ func (s *Service) SigningSecret(ctx context.Context, r model.Resource) (string, 
 		return "", errors.New("manage GitHub webhook secrets in the GitHub App settings")
 	}
 	secret := secure.Token()
-	_, err = s.saveGit(ctx, r.ID, r.Name, spec, map[string]string{"webhook_secret": secret})
+	_, err = s.saveGit(ctx, r, spec, map[string]string{"webhook_secret": secret})
 	return secret, err
 }

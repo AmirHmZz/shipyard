@@ -16,7 +16,15 @@ export type ConfigurationContentProps = {
 export function ConfigurationContent({
   controller,
 }: ConfigurationContentProps) {
-  const { kind, resource, resources, location, parentId } = controller.derived;
+  const {
+    kind,
+    resource,
+    resources,
+    location,
+    parentId,
+    admin,
+    writableTeams,
+  } = controller.derived;
   const { close, saved, handleOpenChange, manualCredentials } =
     controller.handlers;
   if (kind === "haproxy" && resource)
@@ -27,14 +35,43 @@ export function ConfigurationContent({
         onOpenChange={handleOpenChange}
       />
     );
-  if (kind === "source-control")
+  if (kind === "source-control") {
+    if (
+      resource
+        ? resource.kind !== "git" || !resource.canWrite
+        : !admin && !writableTeams.length
+    )
+      return (
+        <p>Team owner access is required to configure this Git connection.</p>
+      );
     return (
       <GitConnection
         key={location.pathname}
         existing={resource}
+        admin={admin}
+        teams={writableTeams}
         onClose={close}
         onManual={manualCredentials}
       />
+    );
+  }
+  if (kind === "git" && (!admin || resource?.teamId))
+    return (
+      <p>
+        Manual credentials are available for shared Git connections managed by a
+        platform administrator.
+      </p>
+    );
+  if (
+    kind === "access" &&
+    resource?.kind === "git" &&
+    (!admin || resource.teamId)
+  )
+    return (
+      <p>
+        Team grants are available for shared Git connections managed by a
+        platform administrator.
+      </p>
     );
   if (kind === "variables" && resource)
     return (

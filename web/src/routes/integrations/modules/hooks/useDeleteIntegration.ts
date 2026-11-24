@@ -3,7 +3,7 @@ import { apiPath } from "@/lib/paths";
 import { resourceKeys } from "@/lib/query-keys";
 import { okResponseSchema } from "@/lib/schemas/acknowledgements";
 
-export function useDeleteRegistry() {
+export function useDeleteIntegration() {
   return useApiMutation({
     method: "DELETE",
     path: (id: string) => apiPath`/resources/${id}`,

@@ -52,7 +52,7 @@ export function IntegrationsMainView() {
     gitMessage,
     showGitMessage,
     gitFailed,
-    deletingRegistry,
+    deletingIntegration,
     deletionPending,
   } = derived;
   const { handleIntegrationAction, closeDeletion, confirmDeletion } = handlers;
@@ -78,10 +78,10 @@ export function IntegrationsMainView() {
           ))}
       </div>
       <Confirm
-        open={!!deletingRegistry}
+        open={!!deletingIntegration}
         onOpenChange={closeDeletion}
         title="Delete integration?"
-        description={`Remove ${deletingRegistry?.name || "this connection"} and its stored credentials. Referenced connections must be removed from their consumers first.`}
+        description={`Remove ${deletingIntegration?.name || "this connection"} and its stored credentials. Detach it from any resources that use it first.`}
         pending={deletionPending}
         destructive
         onConfirm={confirmDeletion}

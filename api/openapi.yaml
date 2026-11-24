@@ -2143,6 +2143,10 @@
                   },
                   "instanceId": {
                     "type": "string"
+                  },
+                  "teamId": {
+                    "type": "string",
+                    "description": "Team that owns the connection. Required for team owners. Platform administrators may omit this field to create a shared connection."
                   }
                 },
                 "required": [
@@ -2165,7 +2169,16 @@
     "/git/gitea/instances": {
       "get": {
         "summary": "List configured Gitea OAuth instances",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "teamId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Required for team owners. Must be a team the caller owns."
+          }
+        ],
         "responses": {
           "200": {
             "description": "Success",

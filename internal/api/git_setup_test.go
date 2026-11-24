@@ -48,7 +48,7 @@ func TestGitSetupAdminCSRFAndWriteOnlySecrets(t *testing.T) {
 		raw, _ := io.ReadAll(res.Body)
 		return res.StatusCode, string(raw)
 	}
-	for _, v := range []struct{ method, path string }{{"GET", "/git/setup/config"}, {"GET", "/git/gitea/instances"}, {"PUT", "/git/gitea/instances"}, {"POST", "/git/setup/start"}, {"GET", "/git/setup/gitea/callback"}} {
+	for _, v := range []struct{ method, path string }{{"GET", "/git/setup/config"}, {"GET", "/git/gitea/instances"}, {"PUT", "/git/gitea/instances"}, {"POST", "/git/setup/start"}} {
 		if code, _ := request(v.method, v.path, `{}`, member, "csrf"); code != 403 {
 			t.Fatal(v, code)
 		}

@@ -9,6 +9,7 @@ import type { Resource } from "@/lib/api/types";
 
 import { useConfigurationChanges } from "@/lib/configuration-state";
 import { useResources } from "@/lib/hooks/useResources";
+import { useAdmin } from "@/lib/session";
 
 function fallbackPath(
   kind: string | undefined,
@@ -27,7 +28,11 @@ export function useConfigurationPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const q = useResources();
+  const admin = useAdmin();
   const resources = q.data || [];
+  const writableTeams = resources.filter(
+    (item) => item.kind === "team" && item.canWrite,
+  );
   const resource = resources.find((resource) => resource.id === id);
   const fallback = fallbackPath(kind, resource);
   const requestedBack = params.get("return") || fallback;
@@ -62,7 +67,18 @@ export function useConfigurationPage() {
   }
   return {
     state: {},
-    derived: { q, kind, id, location, resources, resource, back, parentId },
+    derived: {
+      q,
+      kind,
+      id,
+      location,
+      resources,
+      resource,
+      back,
+      parentId,
+      admin,
+      writableTeams,
+    },
     handlers: { close, saved, handleOpenChange, manualCredentials },
   };
 }

@@ -1445,6 +1445,8 @@ export interface paths {
                         provider: "github" | "gitea";
                         owner?: string;
                         instanceId?: string;
+                        /** @description Team that owns the connection. Required for team owners. Platform administrators may omit this field to create a shared connection. */
+                        teamId?: string;
                     };
                 };
             };
@@ -1488,7 +1490,10 @@ export interface paths {
         /** List configured Gitea OAuth instances */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Required for team owners. Must be a team the caller owns. */
+                    teamId?: string;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
