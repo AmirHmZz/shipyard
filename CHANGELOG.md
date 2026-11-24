@@ -1,11 +1,16 @@
 # Changelog
 
-## [Unreleased]
+## [0.23.0] (2026-11-24)
 
 ### Features
 
 - Let signed-in users create read-only MCP tokens for selected projects they can currently read. Platform administrators can view, revoke, and delete tokens across accounts.
 - Manage applications through MCP with separate project grants for configuration, lifecycle, Fresh deploy, and cleanup.
+- Let team owners connect GitHub Apps and administrator-configured Gitea hosts. Project operators can use authorized connections for deployments in the owning team, and platform administrators can still grant shared connections to multiple teams.
+
+### Bug Fixes
+
+- Prevent clients and intermediaries from caching authenticated MCP responses.
 
 ### Upgrade Notes
 
