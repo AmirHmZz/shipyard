@@ -7037,6 +7037,8 @@ export interface components {
             authMethod?: "private_key" | "password";
             ipv4?: string;
             ipv6?: string;
+            /** @description Saved SOCKS proxy without credentials for Docker build client requests. Empty uses the host defaults. */
+            dockerBuildProxyId?: string;
         };
         NetworkAttachment: {
             networkId: string;

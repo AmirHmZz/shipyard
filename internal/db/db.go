@@ -378,6 +378,27 @@ func (s *Store) save(ctx context.Context, id string, in model.ResourceInput, che
 				return model.Resource{}, errors.New("proxy credentials exceed 255 bytes")
 			}
 		}
+		if secrets["username"] != "" || secrets["password"] != "" {
+			var usedForBuilds bool
+			if e = tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM resources WHERE kind='server' AND data->>'dockerBuildProxyId'=$1)", id).Scan(&usedForBuilds); e != nil {
+				return model.Resource{}, e
+			}
+			if usedForBuilds {
+				return model.Resource{}, fmt.Errorf("%w: remove this proxy from Docker build settings before adding credentials", ErrConflict)
+			}
+		}
+	}
+	if in.Kind == "server" {
+		server, err := model.Decode[model.Server](model.Resource{Data: in.Data})
+		if err != nil {
+			return model.Resource{}, err
+		}
+		if server.DockerBuildProxyID != "" {
+			proxy, err := scanResource(tx.QueryRow(ctx, "SELECT "+resourceColumns+" FROM resources WHERE id=$1", server.DockerBuildProxyID))
+			if _, err = s.dockerBuildProxy(proxy, err); err != nil {
+				return model.Resource{}, err
+			}
+		}
 	}
 	if in.Kind == "dns" || in.Kind == "webhook" {
 		var network struct {

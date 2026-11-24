@@ -20,13 +20,22 @@ import (
 )
 
 type Engine struct {
-	RenderedConfig  func(context.Context, *model.Release, map[string]any) error
-	Guard           func(context.Context) error
-	Remote          remote.Executor
-	Log             io.Writer
-	Dial            func(context.Context, string, string) (net.Conn, error)
-	PrepareNetworks func(context.Context, *model.Release, []model.NetworkContainer) error
-	ValidateConfig  func(context.Context, model.Release, map[string]any) error
+	DockerBuildProxyURL string
+	RenderedConfig      func(context.Context, *model.Release, map[string]any) error
+	Guard               func(context.Context) error
+	Remote              remote.Executor
+	Log                 io.Writer
+	Dial                func(context.Context, string, string) (net.Conn, error)
+	PrepareNetworks     func(context.Context, *model.Release, []model.NetworkContainer) error
+	ValidateConfig      func(context.Context, model.Release, map[string]any) error
+}
+
+func (e *Engine) buildEnv(r *model.Release) []string {
+	args := []string{"env", "DOCKER_CONFIG=" + r.Directory + "/auth"}
+	if e.DockerBuildProxyURL != "" {
+		args = append(args, "HTTP_PROXY="+e.DockerBuildProxyURL, "HTTPS_PROXY="+e.DockerBuildProxyURL)
+	}
+	return args
 }
 
 func Output(ctx context.Context, r remote.Executor, args ...string) (string, error) {
@@ -154,7 +163,7 @@ func (e *Engine) Build(ctx context.Context, r *model.Release, registries map[str
 	}
 	if r.App.Engine == "dockerfile" {
 		tag := "shipyard/" + r.AppID + ":" + r.ID
-		args := []string{"env", "DOCKER_CONFIG=" + r.Directory + "/auth", "docker", "buildx", "build", "--load", "--progress", "plain", "--tag", tag, "--file", file}
+		args := append(e.buildEnv(r), "docker", "buildx", "build", "--load", "--progress", "plain", "--tag", tag, "--file", file)
 		keys := []string{}
 		for k := range r.App.BuildArgs {
 			keys = append(keys, k)
@@ -295,12 +304,12 @@ func (e *Engine) Build(ctx context.Context, r *model.Release, registries map[str
 		if err = Write(ctx, e.Remote, r.Directory+"/build.json", resolved); err != nil {
 			return err
 		}
-		buildArgs := []string{"env", "DOCKER_CONFIG=" + r.Directory + "/auth", "docker", "compose", "--ansi", "never", "--progress", "plain", "-p", Project(*r), "-f", r.Directory + "/build.json"}
-		if err = e.command(ctx, append(buildArgs, "build", "--pull")...); err != nil {
+		buildFlags := []string{"docker", "compose", "--ansi", "never", "--progress", "plain", "-p", Project(*r), "-f", r.Directory + "/build.json"}
+		if err = e.command(ctx, append(append(e.buildEnv(r), buildFlags...), "build", "--pull")...); err != nil {
 			return err
 		}
 		if len(pullServices) > 0 {
-			args := append(append([]string{}, buildArgs...), "pull", "--ignore-buildable")
+			args := append(append([]string{"env", "DOCKER_CONFIG=" + r.Directory + "/auth"}, buildFlags...), "pull", "--ignore-buildable")
 			if err = e.command(ctx, append(args, pullServices...)...); err != nil {
 				return err
 			}

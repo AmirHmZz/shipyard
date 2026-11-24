@@ -41,6 +41,12 @@ export const fields: Record<ResourceKind, Field[]> = {
     { key: "password", label: "SSH password", type: "password" },
     { key: "ipv4", label: "Public IPv4" },
     { key: "ipv6", label: "Public IPv6 (optional)" },
+    {
+      key: "dockerBuildProxyId",
+      label: "Docker build proxy",
+      resource: "proxy",
+      help: "Routes Docker build client requests through a saved SOCKS proxy without credentials.",
+    },
   ],
   git: [
     { key: "provider", label: "Provider", options: GIT_PROVIDERS },

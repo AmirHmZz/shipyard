@@ -443,7 +443,12 @@ Add reusable **SOCKS5/SOCKS5H** connections in **Integrations**, then select a c
 | **SOCKS5H** | Resolves destination names through the proxy. |
 | **Direct**  | Bypasses proxy environment variables.         |
 
-Git/OAuth and registry traffic do **not** use these settings.
+Under **Servers → Configure → Docker build proxy**, select a saved SOCKS proxy
+without credentials for the Docker CLI commands that build images on that host.
+This covers client-side registry requests such as Docker Hub token requests.
+**Use host defaults** keeps the Docker CLI's existing proxy environment.
+Docker Engine registry traffic uses the daemon's proxy configuration on the host.
+Git and OAuth use their own network configuration.
 
 ### Running a proxy as a Shipyard application on Local host
 

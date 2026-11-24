@@ -72,7 +72,7 @@ func decode(w http.ResponseWriter, r *http.Request, out any) bool {
 	return true
 }
 func (a *API) err(w http.ResponseWriter, e error) {
-	if errors.Is(e, db.ErrZoneGrant) {
+	if errors.Is(e, db.ErrZoneGrant) || errors.Is(e, db.ErrDockerBuildProxy) {
 		fail(w, 400, e.Error())
 		return
 	}

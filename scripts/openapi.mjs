@@ -367,6 +367,11 @@ const schemas = {
       authMethod: { type: "string", enum: ["private_key", "password"] },
       ipv4: str,
       ipv6: str,
+      dockerBuildProxyId: {
+        type: "string",
+        description:
+          "Saved SOCKS proxy without credentials for Docker build client requests. Empty uses the host defaults.",
+      },
     },
     [],
   ),

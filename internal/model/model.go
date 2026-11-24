@@ -61,15 +61,16 @@ type ResourceInput struct {
 	Version   int                `json:"version"`
 }
 type Server struct {
-	Connection  string `json:"connection,omitempty"`
-	DaemonID    string `json:"daemonId,omitempty"`
-	AuthMethod  string `json:"authMethod"`
-	Host        string `json:"host"`
-	Port        int    `json:"port"`
-	User        string `json:"user"`
-	Fingerprint string `json:"fingerprint"`
-	IPv4        string `json:"ipv4"`
-	IPv6        string `json:"ipv6"`
+	DockerBuildProxyID string `json:"dockerBuildProxyId,omitempty"`
+	Connection         string `json:"connection,omitempty"`
+	DaemonID           string `json:"daemonId,omitempty"`
+	AuthMethod         string `json:"authMethod"`
+	Host               string `json:"host"`
+	Port               int    `json:"port"`
+	User               string `json:"user"`
+	Fingerprint        string `json:"fingerprint"`
+	IPv4               string `json:"ipv4"`
+	IPv6               string `json:"ipv6"`
 }
 type Git struct {
 	Provider       string `json:"provider"`

@@ -18,6 +18,7 @@ export function ResourceFieldSelect(props: ResourceFieldSelectProps) {
   }
 
   const { resources, f } = props;
+  const dockerBuildProxy = f.key === "dockerBuildProxyId";
   const {
     state: { data, parent, project },
     handlers: { update },
@@ -28,6 +29,13 @@ export function ResourceFieldSelect(props: ResourceFieldSelectProps) {
   )?.teamId;
   function availableResource(resource: Resource) {
     if (resource.kind !== f.resource) return false;
+    if (
+      dockerBuildProxy &&
+      resource.secretKeys.some(
+        (key) => key === "username" || key === "password",
+      )
+    )
+      return false;
     if (resource.kind !== "git" || !resource.teamId) return true;
     return (
       resource.teamId === teamId &&
@@ -67,7 +75,14 @@ export function ResourceFieldSelect(props: ResourceFieldSelectProps) {
         onValueChange={handleSelectControlValueChange2}
         options={[
           ...(f.resource === "proxy"
-            ? [{ value: "__direct__", label: "Direct connection" }]
+            ? [
+                {
+                  value: "__direct__",
+                  label: dockerBuildProxy
+                    ? "Use host defaults"
+                    : "Direct connection",
+                },
+              ]
             : []),
           ...resources.filter(availableResource).map((r) => ({
             value: r.id,
@@ -87,7 +102,7 @@ export function ResourceFieldSelect(props: ResourceFieldSelectProps) {
         triggerProps={{
           id: `${formId}-${f.key}`,
           className: "w-full",
-          "aria-label": `Select ${f.resource}`,
+          "aria-label": `Select ${dockerBuildProxy ? f.label : f.resource}`,
         }}
       />
     );

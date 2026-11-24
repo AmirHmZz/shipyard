@@ -9,8 +9,10 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"net/url"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -721,7 +723,7 @@ func (c *Controller) deploy(ctx context.Context, id string) (result error) {
 	log.secrets = append(log.secrets, snapshot.RegistryPassword)
 	sort.Slice(log.secrets, func(i, j int) bool { return len(log.secrets[i]) > len(log.secrets[j]) })
 	defer log.Flush()
-	client, _, e := c.connect(ctx, snapshot.App.ServerID)
+	client, host, e := c.connect(ctx, snapshot.App.ServerID)
 	if e != nil {
 		state, phase := "failed", "connect"
 		if interrupted(e) {
@@ -936,6 +938,18 @@ func (c *Controller) deploy(ctx context.Context, id string) (result error) {
 				return err
 			}
 			registries[host] = model.RegistryCredential{Username: r.App.RegistryUser, Password: snapshot.RegistryPassword}
+		}
+		hostSpec, err := model.Decode[model.Server](host)
+		if err != nil {
+			return err
+		}
+		if hostSpec.DockerBuildProxyID != "" {
+			proxy, err := c.Store.DockerBuildProxy(ctx, hostSpec.DockerBuildProxyID)
+			if err != nil {
+				return fmt.Errorf("Docker build proxy: %w", err)
+			}
+			address := url.URL{Scheme: proxy.Scheme, Host: net.JoinHostPort(proxy.Host, strconv.Itoa(proxy.Port))}
+			engine.DockerBuildProxyURL = address.String()
 		}
 		_ = c.Store.Stage(ctx, id, "building", "build", "")
 		if e = engine.Build(ctx, &r, registries); e != nil {

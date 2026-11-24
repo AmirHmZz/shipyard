@@ -29,6 +29,53 @@ func testStore(t *testing.T) *Store {
 	return s
 }
 
+func TestDockerBuildProxyReferences(t *testing.T) {
+	s := testStore(t)
+	ctx := context.Background()
+	proxyInput := model.ResourceInput{
+		Kind: "proxy", Name: "Build proxy",
+		Data: json.RawMessage(`{"scheme":"socks5h","host":"proxy.example","port":1080}`),
+	}
+	proxy, err := s.Save(ctx, "", proxyInput)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hostInput := model.ResourceInput{Kind: "server", Name: "Build host", Data: json.RawMessage(`{"dockerBuildProxyId":"missing"}`)}
+	if _, err := s.Save(ctx, "", hostInput); err == nil {
+		t.Fatal("missing proxy was accepted")
+	}
+	hostInput.Data, err = json.Marshal(model.Server{DockerBuildProxyID: proxy.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	host, err := s.Save(ctx, "", hostInput)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if spec, err := s.DockerBuildProxy(ctx, proxy.ID); err != nil || spec.Host != "proxy.example" {
+		t.Fatalf("resolve build proxy: %+v, %v", spec, err)
+	}
+	if err := s.DeleteIntegration(ctx, proxy.ID); !errors.Is(err, ErrConflict) {
+		t.Fatalf("expected a proxy reference conflict, got %v", err)
+	}
+	proxyInput.Version = proxy.Version
+	proxyInput.Secrets = map[string]string{"password": "proxy-password"}
+	if _, err := s.Save(ctx, proxy.ID, proxyInput); err == nil {
+		t.Fatal("adding credentials to a referenced build proxy succeeded")
+	}
+	hostInput.Version = host.Version
+	hostInput.Data = json.RawMessage(`{}`)
+	if _, err := s.Save(ctx, host.ID, hostInput); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Save(ctx, proxy.ID, proxyInput); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.DockerBuildProxy(ctx, proxy.ID); err == nil {
+		t.Fatal("authenticated proxy was accepted for builds")
+	}
+}
+
 func TestReconcileRuntimePublishesVerifiedTargetsAndQueuesProxy(t *testing.T) {
 	s := testStore(t)
 	ctx := context.Background()

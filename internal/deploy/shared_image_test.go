@@ -42,6 +42,36 @@ func (n *sharedImageExecutor) RunSeparated(_ context.Context, command string, in
 	return nil
 }
 
+func TestDockerBuildProxyScope(t *testing.T) {
+	for _, engineName := range []string{"compose", "dockerfile"} {
+		t.Run(engineName, func(t *testing.T) {
+			node := &sharedImageExecutor{config: `{"services":{"app":{"build":{"context":"/release/source"}},"cache":{"image":"redis:7"}}}`}
+			r := model.Release{ID: "release", AppID: "app", Directory: "/release", App: model.App{
+				Source: "git", Engine: engineName, File: "Dockerfile", Context: ".",
+			}}
+			engine := Engine{Remote: node, Log: io.Discard, DockerBuildProxyURL: "socks5h://proxy.example:1080"}
+			if err := engine.Build(context.Background(), &r, nil); err != nil {
+				t.Fatal(err)
+			}
+			proxied := 0
+			for _, command := range node.commands {
+				if strings.Contains(command, "PROXY=") {
+					proxied++
+					if !strings.Contains(command, "'HTTPS_PROXY=socks5h://proxy.example:1080'") ||
+						!strings.Contains(command, "'HTTP_PROXY=socks5h://proxy.example:1080'") ||
+						!strings.Contains(command, "'DOCKER_CONFIG=/release/auth'") ||
+						!strings.Contains(command, "'build'") {
+						t.Fatalf("unexpected proxied command: %s", command)
+					}
+				}
+			}
+			if proxied != 1 {
+				t.Fatalf("expected exactly one proxied command, got %d", proxied)
+			}
+		})
+	}
+}
+
 func TestComposeBuildOnceSharedImage(t *testing.T) {
 	for _, external := range []bool{false, true} {
 		services := map[string]any{
